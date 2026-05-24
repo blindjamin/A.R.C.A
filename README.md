@@ -38,20 +38,20 @@ La plataforma prioriza la **economía circular**: antes de que un objeto sea ret
 
 ## ⚙️ Módulos funcionales
 
+### EP-05 — Seguridad, Autenticación y Trazabilidad
+Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, administrador, operador, patrocinador) y registro auditable de todas las acciones críticas del sistema.
+
 ### EP-01 — Interfaz Ciudadana + Clasificación por IA
 Permite al ciudadano registrar un residuo voluminoso desde su móvil. La plataforma sugiere automáticamente la categoría usando **Google Cloud Vision API**, con soporte local vía **TensorFlow.js**. El usuario siempre confirma o corrige la clasificación.
 
 ### EP-02 — Marketplace P2P de Reutilización
 Espacio para que vecinos publiquen e intercambien artículos antes de que sean retirados por el municipio. Incluye chat en tiempo real (WebSocket), sistema de ratings, trazabilidad de entregas y confirmación con foto + GPS.
 
-### EP-03 — Dashboard de Business Intelligence Municipal
-Panel para funcionarios con métricas en tiempo real, mapa de calor georreferenciado de solicitudes, asignación de retiros a operadores y reportes exportables en PDF/CSV.
-
 ### EP-04 — Sistema de Incentivos "Circular Credits"
 Gamificación basada en acciones sostenibles. Los créditos se otorgan automáticamente al confirmar entregas en el marketplace y son consultables con historial desde el perfil del usuario.
 
-### EP-05 — Seguridad, Autenticación y Trazabilidad
-Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles y registro auditable de todas las acciones críticas del sistema.
+### EP-03 — Dashboard de Business Intelligence Municipal
+Panel para funcionarios con métricas en tiempo real, mapa de calor georreferenciado de solicitudes, asignación de retiros a operadores y reportes exportables en PDF/CSV.
 
 ---
 
@@ -108,13 +108,13 @@ Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenti
 
 Gestionado en **[GitHub Projects](https://github.com/users/blindjamin/projects/2)**.
 
-| ID | Épica | HUs |
-|---|---|---|
-| EP-01 | Interfaz Ciudadana + Clasificación por IA | HU-01, HU-02, HU-03 |
-| EP-02 | Marketplace P2P de Reutilización | HU-04, HU-05, HU-06 |
-| EP-03 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09 |
-| EP-04 | Sistema de Incentivos "Circular Credits" | HU-10, HU-11 |
-| EP-05 | Seguridad, Autenticación y Trazabilidad | HU-12, HU-13, HU-14 |
+| ID | Épica | HUs | Fase |
+|---|---|---|---|
+| EP-05 | Seguridad, Autenticación y Trazabilidad | HU-12, HU-13, HU-14 | 1 — MVP |
+| EP-01 | Interfaz Ciudadana + Clasificación por IA | HU-01, HU-02, HU-03 | 1 — MVP |
+| EP-02 | Marketplace P2P de Reutilización | HU-04, HU-05, HU-06 | 2 — Core |
+| EP-04 | Sistema de Incentivos "Circular Credits" | HU-10, HU-11 | 2 — Core |
+| EP-03 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09 | 2 — Core |
 
 ### Roadmap
 
