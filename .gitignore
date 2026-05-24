@@ -1,0 +1,32 @@
+# OS Files
+*.lnk
+*.url
+desktop.ini
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# User Files
+*.xlsx
+Cuentas*
+*.log
+
+# Node (para después)
+node_modules/
+dist/
+build/
+.env
+.env.local
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Otros
+*.swp
+*.swo
+*~
