@@ -1,0 +1,420 @@
+// ARCA - Progressive Web App para Gestión de Residuos
+// Municipalidad de Santo Domingo, Chile - Equipo COM Tech
+//
+// Arquitectura de identidad y privacidad:
+//   - usuarios_ciudadanos = identidad base. Toda persona que entra con ClaveÚnica
+//     tiene fila aquí. Datos personales (nombre, email, telefono, ubicacion) son
+//     VOLATILES: viven solo en sesiones_ciudadano y expiran con el JWT.
+//   - usuarios_administradores = extension OPCIONAL 1:1 sobre usuarios_ciudadanos,
+//     para personal municipal. Datos PERSISTENTES (accountability/auditoria).
+//     Una misma persona puede ser ciudadano Y administrador simultaneamente.
+//   - Login diferido: tras autenticar con ClaveUnica se resuelve la identidad base;
+//     si tambien existe extension de administrador, la persona elige el contexto
+//     (modo Vecino / modo Funcionario) y se abre la sesion correspondiente.
+//   - En toda tabla operativa, las acciones de funcionarios se registran contra
+//     usuarios_administradores.id (deja explicito en que rol actuo la persona).
+//
+// Ultima actualizacion: Junio 2026
+
+// ============================================
+// IDENTIDAD BASE — CIUDADANOS
+// ============================================
+
+Table usuarios_ciudadanos {
+  id varchar(36) [primary key, note: "UUID único — identidad raíz de cualquier persona autenticada"]
+  clave_unica_id varchar(255) [unique, not null, note: "ID opaco de ClaveÚnica (sin datos personales)"]
+  fecha_registro timestamp [not null]
+  fecha_ultima_actividad timestamp
+  activo boolean [default: true]
+  ip_primera_login varchar(45)
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Toda persona que entra con ClaveÚnica tiene fila aquí, sea o no funcionario. Sin nombre, email, teléfono ni ubicación persistente."
+}
+
+Table sesiones_ciudadano {
+  session_id varchar(36) [primary key]
+  usuario_ciudadano_id varchar(36) [not null]
+  nombre_sesion varchar(255) [note: "Capturado de ClaveÚnica en tiempo real"]
+  apellido_sesion varchar(255) [note: "Capturado de ClaveÚnica en tiempo real"]
+  email_sesion varchar(255) [note: "Capturado de ClaveÚnica en tiempo real"]
+  telefono_sesion varchar(20) [note: "Capturado de ClaveÚnica en tiempo real"]
+  direccion_sesion text [note: "Capturada por el usuario en el formulario"]
+  latitud_sesion decimal(10,8) [note: "Capturada en tiempo real (GPS)"]
+  longitud_sesion decimal(11,8) [note: "Capturada en tiempo real (GPS)"]
+  jwt_token_hash varchar(255) [note: "Hash del JWT para revocación"]
+  ip_sesion varchar(45)
+  user_agent text
+  fecha_inicio timestamp [not null]
+  fecha_expiracion timestamp [not null]
+  activa boolean [default: true]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Tabla volátil. Se crea al entrar en modo Vecino. Job de limpieza purga filas con fecha_expiracion < NOW()."
+}
+
+// ============================================
+// EXTENSIÓN OPCIONAL — ADMINISTRADORES / FUNCIONARIOS
+// ============================================
+
+Table usuarios_administradores {
+  id varchar(36) [primary key, note: "UUID único del funcionario"]
+  usuario_ciudadano_id varchar(36) [unique, not null, note: "Vínculo a su identidad base — la misma persona"]
+  nombre varchar(255) [not null, note: "Persistente: registro de personal municipal"]
+  apellido varchar(255) [not null]
+  email_institucional varchar(255) [unique, not null]
+  telefono_institucional varchar(20)
+  rol enum('admin', 'operador', 'patrocinador') [not null]
+  cargo varchar(150)
+  fecha_ingreso timestamp [not null]
+  activo boolean [default: true, note: "false = desvinculado, conserva historial para auditoría"]
+  ip_ultimo_login varchar(45)
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Solo existe para quienes son funcionarios. Alta manual (onboarding municipal), no self-signup."
+}
+
+Table sesiones_administrador {
+  session_id varchar(36) [primary key]
+  usuario_administrador_id varchar(36) [not null]
+  jwt_token_hash varchar(255)
+  ip_sesion varchar(45)
+  user_agent text
+  fecha_inicio timestamp [not null]
+  fecha_expiracion timestamp [not null]
+  activa boolean [default: true]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Se crea al entrar en modo Funcionario. Sin datos personales: ya están en usuarios_administradores."
+}
+
+// ============================================
+// CATÁLOGO Y OPERACIÓN — RETIROS
+// ============================================
+
+Table residuos_catalogo {
+  id int [primary key, increment]
+  nombre varchar(255) [unique, not null]
+  descripcion text
+  categoria varchar(100) [not null, note: "ej: Muebles, Electrónica, Construcción"]
+  subcategoria varchar(100)
+  puede_reutilizarse boolean [default: true]
+  instrucciones_recogida text
+  foto_referencia_path varchar(500)
+  codigo_rae varchar(50) [note: "Código de autoridad ambiental"]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table solicitudes_retiro {
+  id int [primary key, increment]
+  usuario_ciudadano_id varchar(36) [not null, note: "Quién solicita el retiro"]
+  residuo_catalogo_id int [not null]
+  estado enum('pendiente', 'asignada', 'en_proceso', 'completada', 'cancelada') [default: 'pendiente']
+  descripcion text
+  direccion_anonimizada varchar(255) [note: "Hash de la dirección para mapeos internos"]
+  latitud_capturada decimal(10,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
+  longitud_capturada decimal(11,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
+  fecha_solicitud timestamp [not null]
+  fecha_programada timestamp
+  fecha_completada timestamp
+  operador_asignado_id varchar(36) [note: "Funcionario (rol operador) que gestiona el retiro"]
+  razon_rechazo text
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table horarios_retiro {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null, unique, note: "Una solicitud = un horario"]
+  fecha_hora_inicio timestamp [not null]
+  fecha_hora_fin timestamp [not null]
+  operador_asignado_id varchar(36) [not null, note: "Funcionario que ejecuta el retiro"]
+  estado_operador enum('pendiente', 'confirmado', 'en_ruta', 'completado') [default: 'pendiente']
+  notas_operador text
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table foto_retiro {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null]
+  ruta_archivo_encriptada varchar(500) [not null, note: "Ruta a servidor protegido"]
+  tipo_foto enum('antes', 'durante', 'despues') [not null]
+  hash_integridad varchar(255) [note: "SHA256 para verificar tampering"]
+  fecha_captura timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table impacto_ambiental {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null]
+  residuo_catalogo_id int [not null]
+  co2_evitado_kg decimal(8,2)
+  agua_ahorrada_litros decimal(10,2)
+  energia_ahorrada_kwh decimal(8,2)
+  fue_reutilizado boolean
+  fecha_registro timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table feedback_retiro {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null, unique]
+  usuario_ciudadano_id varchar(36) [not null]
+  puntuacion_servicio int [note: "1-5"]
+  puntuacion_comunicacion int [note: "1-5"]
+  puntuacion_puntualidad int [note: "1-5"]
+  comentario text
+  recomendaria boolean
+  fecha_feedback timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+// ============================================
+// MARKETPLACE P2P
+// ============================================
+
+Table articulos_marketplace {
+  id int [primary key, increment]
+  usuario_publicador_id varchar(36) [not null]
+  residuo_catalogo_id int [not null]
+  titulo varchar(255) [not null]
+  descripcion text
+  estado enum('disponible', 'en_negociacion', 'retirado', 'completado') [default: 'disponible']
+  calificacion_promedio decimal(3,2)
+  cantidad_evaluaciones int [default: 0]
+  fecha_publicacion timestamp [not null]
+  usuario_comprador_id varchar(36)
+  fecha_transaccion timestamp
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table mensajes_marketplace {
+  id int [primary key, increment]
+  articulo_id int [not null]
+  usuario_remitente_id varchar(36) [not null]
+  contenido text [not null]
+  fecha_mensaje timestamp [not null]
+  leido boolean [default: false]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table ratings {
+  id int [primary key, increment, note: "Evaluaciones P2P entre ciudadanos"]
+  usuario_calificador_id varchar(36) [not null]
+  usuario_calificado_id varchar(36) [not null]
+  articulo_id int
+  puntuacion int [not null, note: "1-5 estrellas"]
+  comentario text
+  fecha_calificacion timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table denuncias {
+  id int [primary key, increment]
+  usuario_denunciante_id varchar(36) [not null]
+  usuario_denunciado_id varchar(36) [not null]
+  articulo_id int
+  motivo varchar(255) [not null]
+  descripcion text
+  estado enum('abierta', 'investigacion', 'resuelta', 'rechazada') [default: 'abierta']
+  resolucion text
+  revisado_por_administrador_id varchar(36) [note: "Funcionario (rol admin) que resolvió la denuncia"]
+  fecha_denuncia timestamp [not null]
+  fecha_resolucion timestamp
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table referidos {
+  id int [primary key, increment]
+  usuario_referidor_id varchar(36) [not null]
+  email_referido_hash varchar(255) [not null, note: "Hash del email (privacidad)"]
+  codigo_unico varchar(50) [unique, not null]
+  referido_aceptado boolean [default: false]
+  fecha_aceptacion timestamp
+  creditos_bonificacion decimal(10,2)
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+// ============================================
+// CIRCULAR CREDITS
+// ============================================
+
+Table transacciones_circular_credits {
+  id int [primary key, increment]
+  usuario_ciudadano_id varchar(36) [not null]
+  articulo_id int [note: "Null si es ajuste administrativo"]
+  monto_creditos decimal(10,2) [not null]
+  tipo enum('bonificacion', 'canje', 'ajuste') [not null]
+  razon text
+  otorgado_por_administrador_id varchar(36) [note: "Funcionario que aprobó un ajuste manual, si aplica"]
+  saldo_anterior int
+  saldo_nuevo int
+  fecha_transaccion timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+// ============================================
+// AUDITORÍA Y NOTIFICACIONES (actor dual: ciudadano | administrador)
+// ============================================
+
+Table auditoria {
+  id int [primary key, increment, note: "Registro auditable de acciones críticas"]
+  actor_ciudadano_id varchar(36) [note: "Lleno si el actor actuó como ciudadano"]
+  actor_administrador_id varchar(36) [note: "Lleno si el actor actuó como funcionario"]
+  tipo_actor enum('ciudadano', 'administrador', 'sistema') [not null]
+  entidad varchar(100) [not null, note: "Tabla afectada"]
+  entidad_id int
+  accion enum('CREATE', 'UPDATE', 'DELETE', 'ACCESO', 'LOGIN') [not null]
+  datos_anteriores json
+  datos_nuevos json
+  ip_origen varchar(45)
+  user_agent text
+  fecha_accion timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Solo uno de actor_ciudadano_id / actor_administrador_id debe estar lleno, según tipo_actor."
+}
+
+Table notificaciones {
+  id int [primary key, increment]
+  destinatario_ciudadano_id varchar(36) [note: "Lleno si el destinatario es ciudadano"]
+  destinatario_administrador_id varchar(36) [note: "Lleno si el destinatario es funcionario"]
+  tipo_destinatario enum('ciudadano', 'administrador') [not null]
+  tipo enum('retiro', 'marketplace', 'creditos', 'system') [not null]
+  asunto varchar(255)
+  contenido text
+  leida boolean [default: false]
+  fecha_lectura timestamp
+  enlace_referencia varchar(500)
+  fecha_notificacion timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Solo uno de destinatario_ciudadano_id / destinatario_administrador_id debe estar lleno."
+}
+
+// ============================================
+// SOPORTE — CHATBOT, FAQ, SOCIAL, PREFERENCIAS
+// ============================================
+
+Table faq_articulos {
+  id int [primary key, increment]
+  pregunta varchar(500) [not null]
+  respuesta text [not null]
+  hits_consulta int [default: 0]
+  es_activa boolean [default: true]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table conversaciones_chatbot {
+  id int [primary key, increment]
+  usuario_ciudadano_id varchar(36) [not null]
+  faq_articulo_id int [note: "Null si el chatbot no encontró respuesta"]
+  consulta_usuario text [not null]
+  respuesta_chatbot text
+  fue_util boolean
+  fecha_conversacion timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table social_shares {
+  id int [primary key, increment]
+  usuario_ciudadano_id varchar(36) [not null]
+  articulo_id int [not null]
+  plataforma enum('whatsapp', 'facebook', 'twitter', 'email') [not null]
+  fecha_comparticion timestamp [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table preferencias_usuario {
+  id int [primary key, increment]
+  usuario_ciudadano_id varchar(36) [unique, not null, note: "Relación 1:1"]
+  notificaciones_email boolean [default: true]
+  notificaciones_push boolean [default: true]
+  idioma varchar(10) [default: 'es']
+  zona_horaria varchar(50) [default: 'America/Santiago']
+  mostrar_perfil_publico boolean [default: false]
+  recibir_ofertas_similares boolean [default: true]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+// ============================================
+// RELACIONES (Foreign Keys)
+// ============================================
+
+// Identidad
+Ref: sesiones_ciudadano.usuario_ciudadano_id > usuarios_ciudadanos.id [delete: cascade]
+Ref: usuarios_administradores.usuario_ciudadano_id > usuarios_ciudadanos.id [delete: restrict]
+Ref: sesiones_administrador.usuario_administrador_id > usuarios_administradores.id [delete: cascade]
+
+// Retiros
+Ref: solicitudes_retiro.usuario_ciudadano_id > usuarios_ciudadanos.id
+Ref: solicitudes_retiro.residuo_catalogo_id > residuos_catalogo.id
+Ref: solicitudes_retiro.operador_asignado_id > usuarios_administradores.id
+
+Ref: horarios_retiro.solicitud_retiro_id > solicitudes_retiro.id
+Ref: horarios_retiro.operador_asignado_id > usuarios_administradores.id
+
+Ref: foto_retiro.solicitud_retiro_id > solicitudes_retiro.id
+
+Ref: impacto_ambiental.solicitud_retiro_id > solicitudes_retiro.id
+Ref: impacto_ambiental.residuo_catalogo_id > residuos_catalogo.id
+
+Ref: feedback_retiro.solicitud_retiro_id > solicitudes_retiro.id
+Ref: feedback_retiro.usuario_ciudadano_id > usuarios_ciudadanos.id
+
+// Marketplace
+Ref: articulos_marketplace.usuario_publicador_id > usuarios_ciudadanos.id
+Ref: articulos_marketplace.usuario_comprador_id > usuarios_ciudadanos.id
+Ref: articulos_marketplace.residuo_catalogo_id > residuos_catalogo.id
+
+Ref: mensajes_marketplace.articulo_id > articulos_marketplace.id
+Ref: mensajes_marketplace.usuario_remitente_id > usuarios_ciudadanos.id
+
+Ref: ratings.usuario_calificador_id > usuarios_ciudadanos.id
+Ref: ratings.usuario_calificado_id > usuarios_ciudadanos.id
+Ref: ratings.articulo_id > articulos_marketplace.id
+
+Ref: denuncias.usuario_denunciante_id > usuarios_ciudadanos.id
+Ref: denuncias.usuario_denunciado_id > usuarios_ciudadanos.id
+Ref: denuncias.articulo_id > articulos_marketplace.id
+Ref: denuncias.revisado_por_administrador_id > usuarios_administradores.id
+
+Ref: referidos.usuario_referidor_id > usuarios_ciudadanos.id
+
+// Circular Credits
+Ref: transacciones_circular_credits.usuario_ciudadano_id > usuarios_ciudadanos.id
+Ref: transacciones_circular_credits.articulo_id > articulos_marketplace.id
+Ref: transacciones_circular_credits.otorgado_por_administrador_id > usuarios_administradores.id
+
+// Auditoría y notificaciones (actor/destinatario dual)
+Ref: auditoria.actor_ciudadano_id > usuarios_ciudadanos.id
+Ref: auditoria.actor_administrador_id > usuarios_administradores.id
+
+Ref: notificaciones.destinatario_ciudadano_id > usuarios_ciudadanos.id
+Ref: notificaciones.destinatario_administrador_id > usuarios_administradores.id
+
+// Soporte
+Ref: conversaciones_chatbot.usuario_ciudadano_id > usuarios_ciudadanos.id
+Ref: conversaciones_chatbot.faq_articulo_id > faq_articulos.id
+
+Ref: social_shares.usuario_ciudadano_id > usuarios_ciudadanos.id
+Ref: social_shares.articulo_id > articulos_marketplace.id
+
+Ref: preferencias_usuario.usuario_ciudadano_id > usuarios_ciudadanos.id
