@@ -302,3 +302,68 @@ docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLE
 - [`CLAUDE.md`](../CLAUDE.md) — Git Flow y convenciones del equipo
 - [`README.md`](../README.md) — Producto, stack y roadmap
 - [`ARCA_database_schema.dbml`](../ARCA_database_schema.dbml) — Schema completo (19 tablas)
+
+---
+
+## 9. Resumen — PC nuevo desde cero
+
+Guía mínima si instalas todo en una máquina que nunca ha corrido el proyecto.
+
+### A. Instalar una sola vez en el PC
+
+| Herramienta | Versión | Verificar |
+|---|---|---|
+| Git | reciente | `git --version` |
+| Node.js | 18+ | `node -v` |
+| Docker | con WSL integrado (Windows) | `docker compose version` |
+
+No hace falta instalar MySQL ni Nest CLI global; MySQL va en Docker y NestJS vive en el repo.
+
+### B. Levantar el proyecto (cada clone / PC nuevo)
+
+```bash
+git clone https://github.com/blindjamin/A.R.C.A.git
+cd A.R.C.A
+git fetch origin
+git checkout feature/backend    # o develop, según acuerdo del equipo
+git pull
+
+docker compose up -d
+
+cd apps/backend
+npm install
+cp .env.example .env.local
+# Completar en .env.local: DB_USERNAME=arca_user  DB_PASSWORD=arca_pass
+
+npm run migration:run
+npm run start:dev
+```
+
+Verificar:
+
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/residuos/catalogo
+```
+
+### C. Frontend (solo Maximiliano)
+
+Con el backend corriendo en `:3000`:
+
+```bash
+cd apps/frontend
+npm install
+# .env.local → VITE_API_URL=http://localhost:3000
+npm run dev
+```
+
+Abrir `http://localhost:5173`.
+
+### Checklist mínimo
+
+- [ ] Git, Node 18+, Docker instalados
+- [ ] Repo clonado y rama correcta
+- [ ] `docker compose up -d`
+- [ ] `npm install` + `.env.local` en `apps/backend`
+- [ ] `npm run migration:run`
+- [ ] `npm run start:dev` → `/health` responde OK
