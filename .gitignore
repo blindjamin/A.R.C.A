@@ -1,0 +1,28 @@
+# Dependencias
+node_modules/
+
+# Builds compilados
+dist/
+build/
+
+# Variables de entorno con secretos
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Tests / coverage
+coverage/
+
+# TypeScript cache
+*.tsbuildinfo
