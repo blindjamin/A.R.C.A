@@ -61,6 +61,8 @@ npm install
 ### 4. Configurar variables de entorno
 Crear archivos `.env.local` en cada aplicación (coordinar con el equipo).
 
+> **Setup local detallado (Docker, migraciones, frontend):** ver [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
+
 ---
 
 ## 📋 Workflow de Colaboración
