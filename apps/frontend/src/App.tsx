@@ -9,6 +9,7 @@ import {
 import type { ReactElement } from 'react';
 import { SessionProvider, useSession } from './auth/SessionContext';
 import Login from './pages/Login';
+import Inicio from './pages/Inicio';
 import Catalogo from './pages/Catalogo';
 import NuevaSolicitud from './pages/NuevaSolicitud';
 import MisSolicitudes from './pages/MisSolicitudes';
@@ -29,10 +30,13 @@ function Layout({ children }: { children: ReactElement }) {
     <div className="min-h-screen">
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/catalogo" className="font-bold text-arca-dark">
+          <Link to="/inicio" className="font-bold text-arca-dark">
             🌿 A.R.C.A.
           </Link>
           <nav className="flex items-center gap-1">
+            <NavLink to="/inicio" className={linkClass}>
+              Inicio
+            </NavLink>
             <NavLink to="/catalogo" className={linkClass}>
               Catálogo
             </NavLink>
@@ -59,6 +63,16 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/inicio"
+            element={
+              <RequireSession>
+                <Layout>
+                  <Inicio />
+                </Layout>
+              </RequireSession>
+            }
+          />
           <Route
             path="/catalogo"
             element={
@@ -89,7 +103,7 @@ export default function App() {
               </RequireSession>
             }
           />
-          <Route path="*" element={<Navigate to="/catalogo" replace />} />
+          <Route path="*" element={<Navigate to="/inicio" replace />} />
         </Routes>
       </BrowserRouter>
     </SessionProvider>

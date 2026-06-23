@@ -55,8 +55,11 @@ apps/frontend/
     │   └── arca.ts             # capa fetch tipada + interfaces del dominio
     ├── auth/
     │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage)
+    ├── config/
+    │   └── modulos.ts          # registro de módulos del Inicio (fuente de verdad del menú)
     └── pages/
         ├── Login.tsx
+        ├── Inicio.tsx          # hub post-login: grid de módulos
         ├── Catalogo.tsx
         ├── NuevaSolicitud.tsx
         └── MisSolicitudes.tsx
@@ -101,28 +104,83 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | Pantalla | Ruta | Endpoint | HU relacionada |
 |---|---|---|---|
 | `Login` | `/login` | — | HU-12 (placeholder) |
+| `Inicio` | `/inicio` | — | hub de navegación |
 | `Catalogo` | `/catalogo` | `GET /residuos/catalogo` | HU-01 |
 | `NuevaSolicitud` | `/nueva-solicitud` | `POST /solicitudes-retiro` | HU-01 |
 | `MisSolicitudes` | `/mis-solicitudes` | `GET /solicitudes-retiro?usuarioCiudadanoId=` | HU-03 |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
+- **Tras el login se cae en `/inicio`** (el hub); el catch-all `*` también redirige ahí.
 - Estados de carga/error manejados localmente con `useState`.
 - `Catalogo` enlaza a `NuevaSolicitud` pre-seleccionando el residuo vía query param.
 - `MisSolicitudes` muestra el nombre del residuo (el GET incluye la relación `residuoCatalogo`).
 
+### Inicio como hub dirigido por configuración (`src/config/modulos.ts`)
+
+La pantalla `Inicio` es el menú central de la app y se construye sola a partir del
+arreglo `MODULOS`. Cada módulo declara: `id`, `titulo`, `descripcion`, `icono`, `ruta?`,
+`activo` y `epica`.
+
+- Tarjetas **activas** (hoy: Solicitar retiro, Mis solicitudes — EP-01) son clickeables.
+- Tarjetas **`activo: false`** se muestran atenuadas con badge "Próximamente"
+  (Marketplace EP-02, Mis créditos EP-04, Panel municipal EP-03).
+- El orden (activos primero) se resuelve en el render, no en el config.
+
+**Cómo agregar un módulo nuevo:** añadir un objeto a `MODULOS`. Cuando su endpoint exista,
+cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifica.**
+
 ---
 
-## Cómo correr (resumen)
+## Setup en otro PC — levantar el frontend
 
-Requiere el **backend corriendo** (ver `docs/SETUP_LOCAL.md` y `docs/BACKEND_FASE1.md`).
+> Para levantar **MySQL + backend** (Docker, migraciones, API) sigue primero
+> [`SETUP_LOCAL.md`](./SETUP_LOCAL.md) y [`BACKEND_FASE1.md`](./BACKEND_FASE1.md).
+> Esta sección cubre **solo el frontend**, que necesita el backend ya corriendo en
+> `http://localhost:3000`.
 
+### Prerrequisitos
+- **Node.js 18+** (`node -v`) y **npm** (viene con Node). Para esta fase se usó Node 24 LTS.
+- Backend levantado y respondiendo (`curl http://localhost:3000/health` → `{"status":"ok",...}`).
+
+### Pasos
 ```bash
+# 1. Clonar y ubicarse en la rama de frontend
+git clone https://github.com/blindjamin/A.R.C.A.git
+cd A.R.C.A
+git checkout feature/frontend
+git pull origin feature/frontend
+
+# 2. Instalar dependencias del frontend
 cd apps/frontend
 npm install
-# crear .env.local con: VITE_API_URL=http://localhost:3000
-npm run dev      # http://localhost:5173
-npm run build    # tsc -b + vite build (verificación de tipos)
+
+# 3. Crear el archivo de entorno (no está versionado)
+#    Crear apps/frontend/.env.local con el contenido:
+#       VITE_API_URL=http://localhost:3000
+
+# 4. Levantar el dev server
+npm run dev        # abre http://localhost:5173
 ```
+
+> **Windows (PowerShell):** crea el `.env.local` con
+> `"VITE_API_URL=http://localhost:3000" | Out-File -Encoding utf8 apps/frontend/.env.local`
+> o simplemente con el editor de texto.
+
+### Comandos útiles
+```bash
+npm run dev       # servidor de desarrollo con hot-reload (localhost:5173)
+npm run build     # tsc -b + vite build — verificación de tipos y build de producción
+npm run preview   # sirve el build de producción localmente
+npm run lint      # ESLint
+```
+
+### Problemas frecuentes
+| Síntoma | Causa / solución |
+|---|---|
+| Pantallas en blanco / errores de red | Backend no corriendo: levantar API en `:3000` (ver `SETUP_LOCAL.md`) |
+| CORS blocked | El frontend debe correr en `5173`; el backend permite ese origen (`FRONTEND_URL`) |
+| `VITE_API_URL` undefined | Falta `apps/frontend/.env.local`; reiniciar `npm run dev` tras crearlo |
+| Puerto 5173 ocupado | Vite tomará otro puerto; actualizar `FRONTEND_URL` del backend si cambia |
 
 ---
 
@@ -130,9 +188,12 @@ npm run build    # tsc -b + vite build (verificación de tipos)
 
 1. Backend OK (`GET /health` → `{"status":"ok","db":"connected"}`).
 2. Abrir `http://localhost:5173` → "Entrar como vecino (dev)".
-3. Catálogo muestra los ítems seed (Sofá, Refrigerador, Colchón, Escombros).
-4. Crear una solicitud → redirige a "Mis solicitudes".
-5. La solicitud aparece en estado `pendiente` con el nombre del residuo.
+3. Caer en **Inicio**: tarjetas activas (Solicitar retiro, Mis solicitudes) +
+   "Próximamente" (Marketplace, Mis créditos, Panel municipal).
+4. Entrar a "Solicitar retiro" → el catálogo muestra los ítems seed
+   (Sofá, Refrigerador, Colchón, Escombros).
+5. Crear una solicitud → redirige a "Mis solicitudes".
+6. La solicitud aparece en estado `pendiente` con el nombre del residuo.
 
 ---
 
