@@ -1,15 +1,41 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { ResiduosService } from '../residuos/residuos.service';
+import { UsuarioAdministrador } from '../users/entities/usuario-administrador.entity';
 import { UsuarioCiudadano } from '../users/entities/usuario-ciudadano.entity';
+import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
+import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
+import { UpdateSolicitudRetiroDto } from './dto/update-solicitud-retiro.dto';
 import { EstadoSolicitudRetiro } from './entities/estado-solicitud-retiro.enum';
 import { SolicitudRetiro } from './entities/solicitud-retiro.entity';
+
+// Transiciones de estado permitidas (desde -> [hacia...])
+const TRANSICIONES_PERMITIDAS: Record<
+  EstadoSolicitudRetiro,
+  EstadoSolicitudRetiro[]
+> = {
+  [EstadoSolicitudRetiro.PENDIENTE]: [
+    EstadoSolicitudRetiro.ASIGNADA,
+    EstadoSolicitudRetiro.CANCELADA,
+  ],
+  [EstadoSolicitudRetiro.ASIGNADA]: [
+    EstadoSolicitudRetiro.EN_PROCESO,
+    EstadoSolicitudRetiro.CANCELADA,
+  ],
+  [EstadoSolicitudRetiro.EN_PROCESO]: [
+    EstadoSolicitudRetiro.COMPLETADA,
+    EstadoSolicitudRetiro.CANCELADA,
+  ],
+  [EstadoSolicitudRetiro.COMPLETADA]: [],
+  [EstadoSolicitudRetiro.CANCELADA]: [],
+};
 
 @Injectable()
 export class SolicitudesRetiroService {
@@ -18,6 +44,8 @@ export class SolicitudesRetiroService {
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
     @InjectRepository(UsuarioCiudadano)
     private readonly usuarioCiudadanoRepository: Repository<UsuarioCiudadano>,
+    @InjectRepository(UsuarioAdministrador)
+    private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
     private readonly residuosService: ResiduosService,
   ) {}
 
@@ -58,18 +86,154 @@ export class SolicitudesRetiroService {
     return this.solicitudRetiroRepository.save(solicitud);
   }
 
-  findAll(): Promise<SolicitudRetiro[]> {
+  findAll(filtros: FilterSolicitudesRetiroDto = {}): Promise<SolicitudRetiro[]> {
+    const where: FindOptionsWhere<SolicitudRetiro> = {};
+
+    if (filtros.usuarioCiudadanoId) {
+      where.usuarioCiudadanoId = filtros.usuarioCiudadanoId;
+    }
+
+    if (filtros.estado) {
+      where.estado = filtros.estado;
+    }
+
     return this.solicitudRetiroRepository.find({
+      where,
       relations: { residuoCatalogo: true },
       order: { fechaSolicitud: 'DESC' },
     });
   }
 
-  findByUsuarioCiudadanoId(usuarioCiudadanoId: string): Promise<SolicitudRetiro[]> {
-    return this.solicitudRetiroRepository.find({
-      where: { usuarioCiudadanoId },
-      relations: { residuoCatalogo: true },
-      order: { fechaSolicitud: 'DESC' },
+  async findOne(id: number): Promise<SolicitudRetiro> {
+    const solicitud = await this.solicitudRetiroRepository.findOne({
+      where: { id },
+      relations: {
+        residuoCatalogo: true,
+        usuarioCiudadano: true,
+        operadorAsignado: true,
+      },
     });
+
+    if (!solicitud) {
+      throw new NotFoundException(`Solicitud de retiro ${id} no encontrada`);
+    }
+
+    return solicitud;
+  }
+
+  async update(
+    id: number,
+    dto: UpdateSolicitudRetiroDto,
+  ): Promise<SolicitudRetiro> {
+    const solicitud = await this.findOne(id);
+
+    if (dto.operadorAsignadoId !== undefined) {
+      await this.validarOperador(dto.operadorAsignadoId);
+      solicitud.operadorAsignadoId = dto.operadorAsignadoId;
+    }
+
+    if (dto.fechaProgramada !== undefined) {
+      solicitud.fechaProgramada = new Date(dto.fechaProgramada);
+    }
+
+    if (dto.razonRechazo !== undefined) {
+      solicitud.razonRechazo = dto.razonRechazo;
+    }
+
+    if (dto.estado !== undefined) {
+      this.aplicarCambioEstado(solicitud, dto);
+    }
+
+    return this.solicitudRetiroRepository.save(solicitud);
+  }
+
+  async cancelarPorCiudadano(
+    id: number,
+    dto: CancelarSolicitudRetiroDto,
+  ): Promise<SolicitudRetiro> {
+    const solicitud = await this.findOne(id);
+
+    if (solicitud.usuarioCiudadanoId !== dto.usuarioCiudadanoId) {
+      throw new ForbiddenException(
+        'No puedes cancelar una solicitud que no es tuya',
+      );
+    }
+
+    const cancelablesPorCiudadano = [
+      EstadoSolicitudRetiro.PENDIENTE,
+      EstadoSolicitudRetiro.ASIGNADA,
+    ];
+
+    if (!cancelablesPorCiudadano.includes(solicitud.estado)) {
+      throw new BadRequestException(
+        `No se puede cancelar una solicitud en estado "${solicitud.estado}"`,
+      );
+    }
+
+    solicitud.estado = EstadoSolicitudRetiro.CANCELADA;
+    solicitud.razonRechazo =
+      dto.motivo ?? 'Cancelada por el ciudadano';
+
+    return this.solicitudRetiroRepository.save(solicitud);
+  }
+
+  private aplicarCambioEstado(
+    solicitud: SolicitudRetiro,
+    dto: UpdateSolicitudRetiroDto,
+  ): void {
+    const nuevoEstado = dto.estado as EstadoSolicitudRetiro;
+
+    if (nuevoEstado === solicitud.estado) {
+      return;
+    }
+
+    const permitidas = TRANSICIONES_PERMITIDAS[solicitud.estado];
+    if (!permitidas.includes(nuevoEstado)) {
+      throw new BadRequestException(
+        `No se puede cambiar el estado de "${solicitud.estado}" a "${nuevoEstado}"`,
+      );
+    }
+
+    if (
+      nuevoEstado === EstadoSolicitudRetiro.ASIGNADA &&
+      !solicitud.operadorAsignadoId
+    ) {
+      throw new BadRequestException(
+        'Para asignar la solicitud debe indicar un operador (operadorAsignadoId)',
+      );
+    }
+
+    if (
+      nuevoEstado === EstadoSolicitudRetiro.CANCELADA &&
+      !solicitud.razonRechazo
+    ) {
+      throw new BadRequestException(
+        'Para cancelar/rechazar la solicitud debe indicar una razón (razonRechazo)',
+      );
+    }
+
+    if (nuevoEstado === EstadoSolicitudRetiro.COMPLETADA) {
+      solicitud.fechaCompletada = new Date();
+    }
+
+    solicitud.estado = nuevoEstado;
+  }
+
+  private async validarOperador(operadorId: string): Promise<void> {
+    const operador = await this.usuarioAdministradorRepository.findOne({
+      where: { id: operadorId },
+    });
+
+    if (!operador) {
+      throw new NotFoundException(`Operador ${operadorId} no encontrado`);
+    }
+
+    if (!operador.activo) {
+      throw new BadRequestException('El operador asignado no está activo');
+    }
+  }
+
+  findByUsuarioCiudadanoId(usuarioCiudadanoId: string): Promise<SolicitudRetiro[]> {
+    return this.findAll({ usuarioCiudadanoId });
   }
 }

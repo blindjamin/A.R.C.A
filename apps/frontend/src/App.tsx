@@ -9,6 +9,8 @@ import type { ReactElement } from 'react';
 import { SessionProvider, useSession } from './auth/SessionContext';
 import { SolicitudFlowProvider } from './flow/SolicitudFlow';
 import Login from './pages/Login';
+import SeleccionInicio from './pages/SeleccionInicio';
+import AdminSolicitudes from './pages/AdminSolicitudes';
 import Inicio from './pages/Inicio';
 import Catalogo from './pages/Catalogo';
 import NuevaSolicitud from './pages/NuevaSolicitud';
@@ -89,7 +91,10 @@ export default function App() {
       <SolicitudFlowProvider>
         <BrowserRouter>
           <Routes>
+            {/* Inicio diferido: elegir entre app ciudadana y portal admin */}
+            <Route path="/" element={<SeleccionInicio />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin" element={<AdminSolicitudes />} />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
 
             {/* Flujo Solicitar retiro: captura → IA → sugerencia → detalle → éxito */}
@@ -144,7 +149,7 @@ export default function App() {
               }
             />
 
-            <Route path="*" element={<Navigate to="/inicio" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </SolicitudFlowProvider>

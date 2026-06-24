@@ -30,11 +30,25 @@ export interface SolicitudRetiro {
   residuoCatalogoId: number;
   estado: EstadoSolicitud;
   descripcion: string | null;
+  direccionAnonimizada?: string | null;
+  latitudCapturada?: string | null;
+  longitudCapturada?: string | null;
   fechaSolicitud: string;
+  fechaProgramada?: string | null;
+  fechaCompletada?: string | null;
+  operadorAsignadoId?: string | null;
+  razonRechazo?: string | null;
   createdAt: string;
   updatedAt: string;
   // El GET incluye la relación anidada; en el POST puede no venir.
   residuoCatalogo?: ResiduoCatalogo;
+}
+
+export interface ActualizarSolicitudInput {
+  estado?: EstadoSolicitud;
+  operadorAsignadoId?: string;
+  fechaProgramada?: string;
+  razonRechazo?: string;
 }
 
 export interface CrearSolicitudInput {
@@ -109,4 +123,31 @@ export function fetchMisSolicitudes(
   const url = new URL(`${API_URL}/solicitudes-retiro`);
   url.searchParams.set('usuarioCiudadanoId', usuarioCiudadanoId);
   return fetch(url).then((r) => handle<SolicitudRetiro[]>(r));
+}
+
+// --- Admin municipal --------------------------------------------------------
+
+export function fetchSolicitudesAdmin(
+  estado?: EstadoSolicitud,
+): Promise<SolicitudRetiro[]> {
+  const url = new URL(`${API_URL}/solicitudes-retiro`);
+  if (estado) url.searchParams.set('estado', estado);
+  return fetch(url).then((r) => handle<SolicitudRetiro[]>(r));
+}
+
+export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
+  return fetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
+    handle<SolicitudRetiro>(r),
+  );
+}
+
+export function actualizarSolicitud(
+  id: number,
+  data: ActualizarSolicitudInput,
+): Promise<SolicitudRetiro> {
+  return fetch(`${API_URL}/solicitudes-retiro/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then((r) => handle<SolicitudRetiro>(r));
 }
