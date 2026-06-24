@@ -39,7 +39,9 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 | Pantalla | Ruta | Estado | Datos |
 |---|---|---|---|
+| Inicio diferido | `/` | ✅ **backend** | Selector de portal: App ciudadana / Portal admin |
 | Login | `/login` | ✅ Estética prototipo | CTA ClaveÚnica es mock (login dev) |
+| Panel admin | `/admin` | ✅ **backend** | Listar/filtrar/detalle + modificar estado (EP-03 base) |
 | Inicio / Dashboard | `/inicio` | ✅ | Tarjeta de créditos/impacto **estática** (demo, falta EP-04) |
 | Captura residuo | `/solicitar` | ✅ esqueleto | Cámara/galería **solo visual** (no obligatoria) |
 | Analizando IA | `/solicitar/analizando` | ✅ esqueleto | Scan animado mock (~2.2s) |
@@ -96,8 +98,11 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 ### Fase 6 — Panel Municipal (desktop · EP-03)
 > App separada / layout desktop: `Sidebar + Topbar`.
+- [x] **Inicio diferido** (`/`): selector App ciudadana / Portal admin (rama `admin-municipal`).
+- [x] **Gestión de solicitudes base** (`/admin`): listar, filtrar por estado, detalle y
+      modificar estado (asignar → en ruta → completar → cancelar). Falta layout desktop pulido.
 - [ ] Dashboard: `KPISummary`, `BarChart`/`LineChart`, `MetricsBar`.
-- [ ] Gestión de solicitudes: `FilterBar` + `SideList` + tabla.
+- [ ] Gestión de solicitudes: `FilterBar` + `SideList` + tabla (versión completa).
 - [ ] Mapa de operaciones: Leaflet (`MapContainer`, `PinCluster`, `RoutePolyline`).
 - [ ] Moderación marketplace: grid + `UserFlag` + botones Aprobar/Rechazar.
 - [ ] Reportes: `DateRangePicker` + export PDF/CSV.

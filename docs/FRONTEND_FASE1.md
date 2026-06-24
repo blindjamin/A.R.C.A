@@ -276,7 +276,9 @@ los endpoints correspondientes.
 | Redux Toolkit + RTK Query | Cuando crezca el estado (marketplace, credits, sesión) |
 | EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
 | EP-04 Circular Credits | Saldo + historial en perfil |
-| EP-03 Dashboard municipal | Panel funcionario, mapa de calor (**Leaflet** + OpenStreetMap), reportes |
+| EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, rama `admin-municipal`). Falta panel funcionario completo, mapa de calor (**Leaflet** + OpenStreetMap), reportes |
+| Inicio diferido | ✅ Hecho (`/`): selector App ciudadana / Portal admin |
+| Proteger `/admin` | Pendiente: el panel está abierto hasta que existan guards/JWT |
 | Tests | Vitest + React Testing Library |
 
 ---
