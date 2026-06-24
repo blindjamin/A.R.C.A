@@ -1,6 +1,6 @@
 # Frontend Fase 1 — Resumen de implementación
 
-> **Rama:** `feature/frontend`
+> **Integrado en:** `develop` / `master` (el trabajo se hizo en la antigua `feature/frontend`, ya eliminada)
 > **Fecha:** Junio 2026
 > **Equipo:** COM Tech — Feria de Software 2026
 
@@ -144,11 +144,11 @@ cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifi
 
 ### Pasos
 ```bash
-# 1. Clonar y ubicarse en la rama de frontend
+# 1. Clonar y ubicarse en develop (rama de trabajo)
 git clone https://github.com/blindjamin/A.R.C.A.git
 cd A.R.C.A
-git checkout feature/frontend
-git pull origin feature/frontend
+git checkout develop
+git pull origin develop
 
 # 2. Instalar dependencias del frontend
 cd apps/frontend

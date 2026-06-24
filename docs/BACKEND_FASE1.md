@@ -1,7 +1,7 @@
 # Backend Fase 1 — Resumen de implementación
 
 > **Autor:** Javier Figueroa (Back-End)  
-> **Rama:** `feature/backend`  
+> **Integrado en:** `develop` / `master` (el trabajo se hizo en la antigua `feature/backend`, ya eliminada)  
 > **Fecha:** Junio 2026  
 > **Equipo:** COM Tech — Feria de Software 2026
 

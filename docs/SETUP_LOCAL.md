@@ -22,26 +22,22 @@ Opcional:
 
 ---
 
-## 1. Clonar y elegir rama
+## 1. Clonar y ubicarse en develop
 
 ```bash
 git clone https://github.com/blindjamin/A.R.C.A.git
 cd A.R.C.A
 git fetch origin
+git checkout develop
+git pull origin develop
 ```
 
-| Rol | Rama recomendada |
-|---|---|
-| Javier (backend) | `feature/backend` |
-| Maximiliano (frontend) | `feature/frontend` |
-| Benjamín (auth) | `feature/auth` |
-| Ana (dashboard/marketplace) | `feature/dashboard` o `feature/marketplace` |
-| Integración general | `develop` (tras merge de PRs) |
-
-```bash
-git checkout feature/backend   # o tu rama de módulo
-git pull origin feature/backend
-```
+> **Modo de trabajo:** se trabaja sobre `develop` mediante **ramas temporales** por tarea
+> (creadas desde `develop`, borradas al integrar). `master`/`main` solo recibe versiones
+> completas. Detalle en [`../CLAUDE.md`](../CLAUDE.md). Para tu tarea:
+> ```bash
+> git checkout -b <descripción-tarea>   # ej: catalogo-filtros
+> ```
 
 ---
 
@@ -116,15 +112,19 @@ Respuesta health esperada: `{"status":"ok","db":"connected"}`
 
 ### 4.1 Rama y carpeta
 
-Trabajar en `feature/frontend`:
+> **Nota:** la app frontend **ya existe** en `apps/frontend/` (ver [`FRONTEND_FASE1.md`](./FRONTEND_FASE1.md)).
+> Esta sección queda como referencia histórica del scaffold inicial.
+
+Trabajar desde `develop` con una rama temporal:
 
 ```bash
 git fetch origin
-git checkout feature/frontend
-git rebase origin/develop   # o pull de develop cuando esté actualizado
+git checkout develop
+git pull origin develop
+git checkout -b <descripción-tarea>   # ej: frontend-filtros
 ```
 
-Crear la app en el monorepo:
+Scaffold original (solo referencia, ya ejecutado):
 
 ```bash
 cd A.R.C.A
@@ -240,7 +240,7 @@ export async function crearSolicitudRetiro(data: {
 - [ ] Pantalla catálogo consumiendo `GET /residuos/catalogo`
 - [ ] Formulario POST solicitud de retiro
 - [ ] Listado de solicitudes del usuario dev
-- [ ] PR de `feature/frontend` → `develop`
+- [ ] Integrar a `develop` y borrar la rama temporal
 
 ---
 
@@ -249,7 +249,7 @@ export async function crearSolicitudRetiro(data: {
 ### Benjamín (auth)
 
 - Base en `apps/backend/src/users/` (entidades identidad)
-- Rama: `feature/auth`
+- Rama temporal desde `develop` (ej: `auth-jwt`)
 - Backend debe estar corriendo + migraciones aplicadas
 - ClaveÚnica real: pendiente aprobación municipal; puede empezar con JWT mock
 
@@ -325,8 +325,8 @@ No hace falta instalar MySQL ni Nest CLI global; MySQL va en Docker y NestJS viv
 git clone https://github.com/blindjamin/A.R.C.A.git
 cd A.R.C.A
 git fetch origin
-git checkout feature/backend    # o develop, según acuerdo del equipo
-git pull
+git checkout develop
+git pull origin develop
 
 docker compose up -d
 
