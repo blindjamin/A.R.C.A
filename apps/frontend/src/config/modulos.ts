@@ -16,9 +16,9 @@ export const MODULOS: Modulo[] = [
   {
     id: 'solicitar-retiro',
     titulo: 'Solicitar retiro',
-    descripcion: 'Pide el retiro de un residuo voluminoso desde el catálogo.',
-    icono: '🗑️',
-    ruta: '/catalogo',
+    descripcion: 'Toma una foto y la IA identificará el residuo voluminoso.',
+    icono: '📷',
+    ruta: '/solicitar',
     activo: true,
     epica: 'EP-01',
   },

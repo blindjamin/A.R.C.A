@@ -10,25 +10,22 @@ function ModuloCard({ modulo }: { modulo: Modulo }) {
       type="button"
       disabled={!clickable}
       onClick={() => clickable && navigate(modulo.ruta!)}
-      className={`text-left bg-white rounded-2xl border border-gray-100 p-5 transition-all ${
+      className={`card flex flex-col items-start p-4 text-left transition-all ${
         clickable
-          ? 'shadow-sm hover:shadow-md hover:border-arca-green cursor-pointer'
-          : 'opacity-60 cursor-not-allowed'
+          ? 'hover:-translate-y-0.5 hover:shadow-md hover:border-green-300'
+          : 'opacity-60'
       }`}
     >
-      <div className="flex items-start justify-between">
-        <span className="text-3xl">{modulo.icono}</span>
+      <div className="flex w-full items-start justify-between">
+        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-green-50 text-2xl">
+          {modulo.icono}
+        </span>
         {!modulo.activo && (
-          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-            Próximamente
-          </span>
+          <span className="pill bg-line-2 text-slate">Pronto</span>
         )}
       </div>
-      <h3 className="font-semibold mt-3">{modulo.titulo}</h3>
-      <p className="text-sm text-gray-500 mt-1">{modulo.descripcion}</p>
-      <span className="inline-block text-[10px] text-gray-400 mt-3">
-        {modulo.epica}
-      </span>
+      <h3 className="mt-3 text-base font-bold">{modulo.titulo}</h3>
+      <p className="mt-1 text-sm leading-snug text-slate">{modulo.descripcion}</p>
     </button>
   );
 }
@@ -40,17 +37,43 @@ export default function Inicio() {
   );
 
   return (
-    <div>
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-arca-dark">Hola, vecino 🌿</h1>
-        <p className="text-gray-500">¿Qué quieres hacer hoy?</p>
+    <div className="space-y-6">
+      <header>
+        <p className="text-sm text-slate">Hola de nuevo,</p>
+        <h1 className="text-2xl font-extrabold">Camila 👋</h1>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {modulos.map((modulo) => (
-          <ModuloCard key={modulo.id} modulo={modulo} />
-        ))}
-      </div>
+      {/* Tarjeta de impacto / Circular Credits (datos demo) */}
+      <section
+        className="rounded-lg p-5 text-white shadow-green"
+        style={{ backgroundImage: 'linear-gradient(140deg,#156f4a,#0f6b45,#0a4f37)' }}
+      >
+        <p className="text-xs font-medium uppercase tracking-widest text-green-100">
+          Circular Credits
+        </p>
+        <p className="mt-1 font-display text-4xl font-extrabold">120</p>
+        <div className="mt-4 flex gap-6 text-sm">
+          <div>
+            <p className="font-bold">312 kg</p>
+            <p className="text-green-100/80">CO₂ evitado</p>
+          </div>
+          <div>
+            <p className="font-bold">8</p>
+            <p className="text-green-100/80">Reutilizados</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate">
+          ¿Qué quieres hacer hoy?
+        </h2>
+        <div className="grid grid-cols-2 gap-3">
+          {modulos.map((modulo) => (
+            <ModuloCard key={modulo.id} modulo={modulo} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

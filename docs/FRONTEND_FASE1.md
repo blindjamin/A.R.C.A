@@ -1,10 +1,10 @@
 # Frontend Fase 1 — Resumen de implementación
 
-> **Integrado en:** `develop` / `master` (el trabajo se hizo en la antigua `feature/frontend`, ya eliminada)
-> **Fecha:** Junio 2026
+> **Integrado en:** `develop` (rama de trabajo `mvp`)
+> **Última actualización:** 2026-06-24
 > **Equipo:** COM Tech — Feria de Software 2026
 
-Documento de hito que resume la primera implementación del frontend (PWA ciudadana) y
+Documento de hito que resume la implementación del frontend (PWA ciudadana) y
 sirve como **base para la documentación futura** del módulo. A medida que se agreguen
 pantallas y épicas, extender las secciones correspondientes.
 
@@ -13,10 +13,13 @@ pantallas y épicas, extender las secciones correspondientes.
 ## Objetivo de esta fase
 
 Montar la **base del frontend (Fase 1)** consumiendo exactamente lo que el backend ya
-expone (épica **EP-01**), con un flujo ciudadano de punta a punta:
+expone (épica **EP-01**), con estética alineada a los prototipos oficiales y un flujo
+ciudadano de punta a punta:
 
 - App PWA React conectada a la API NestJS local
-- Flujo: ver catálogo → crear solicitud de retiro → seguir mis solicitudes
+- **Sistema de diseño A.R.C.A.** (UI Kit v1.0) aplicado: tokens, tipografía, shell mobile
+- Flujo "Solicitar retiro" con **esqueleto de IA** (captura → análisis → sugerencia → éxito)
+- Catálogo, creación y seguimiento de solicitudes contra el backend real
 - **Login temporal** mientras no exista autenticación real (ClaveÚnica/JWT)
 
 ---
@@ -27,16 +30,32 @@ expone (épica **EP-01**), con un flujo ciudadano de punta a punta:
 |---|---|---|
 | Framework | React 18 + TypeScript | |
 | Build/dev | Vite | dev server en `http://localhost:5173` |
-| Estilos | Tailwind CSS **v3** | ⚠️ Ver nota de desviación abajo |
+| Estilos | Tailwind CSS **v3** | tokens del UI Kit en `tailwind.config.js` |
 | Ruteo | react-router-dom | rutas protegidas por sesión |
-| Estado/API | `fetch` nativo (sin Redux aún) | migrar a Redux Toolkit cuando crezca el estado |
+| Estado/API | `fetch` nativo + Context | migrar a Redux Toolkit cuando crezca el estado |
 
-> **⚠️ Desviación a confirmar con el equipo:** el stack documentado (`CLAUDE_proyecto.md`
-> §4.1, `UI_KIT_ARCA.md`) especifica **Tailwind v4**. En esta fase se usó **Tailwind v3**
-> por simplicidad de configuración (`tailwind.config.js` + `postcss.config.js` clásicos).
-> Migrar a v4 es directo si el equipo lo prefiere. Igual está pendiente aplicar el UI Kit
-> oficial (colores `#1A3D2B`/`#52B788`, fuente Inter, lucide-react); por ahora se usó una
-> paleta verde provisional (`arca.*` en `tailwind.config.js`).
+---
+
+## Sistema de diseño (UI Kit v1.0)
+
+Tokens espejados de los standalone de referencia (`ARCA UI Kit` / `ARCA Prototipo`) en
+[`tailwind.config.js`](../apps/frontend/tailwind.config.js), con clases reutilizables en
+[`index.css`](../apps/frontend/src/index.css).
+
+| Token | Valor |
+|---|---|
+| Tipografía | Bricolage Grotesque (display) · Hanken Grotesk (body) |
+| Verde (primario) | escala `green-50…900` (`700 #0F6B45`) |
+| Dorado (Circular Credits) | `gold-50…600` (`500 #ef9d24`) |
+| Rose / Sky | alertas / info |
+| Neutros | `ink`, `slate`, `line`, `canvas #f3f6f3` |
+| Radios | `sm 12 · md 18 · lg 24 · xl 30 · pill` |
+| Sombras | `sm/md/lg` + glows `green`/`gold` |
+
+Clases listas: `.card`, `.btn-primary/-gold/-outline/-ghost`, `.pill`, `.field`, `.chip`.
+
+**Shell mobile:** columna `max-w-md` centrada sobre canvas (emula el frame del prototipo),
+header sticky con marca, **TabBar inferior** (Inicio · Solicitar · Solicitudes).
 
 ---
 
@@ -45,24 +64,31 @@ expone (épica **EP-01**), con un flujo ciudadano de punta a punta:
 ```
 apps/frontend/
 ├── .env.local                  # VITE_API_URL=http://localhost:3000 (no versionado)
-├── tailwind.config.js          # config Tailwind + paleta arca provisional
+├── tailwind.config.js          # tokens del UI Kit (colores, fuentes, radios, sombras)
 ├── postcss.config.js
 └── src/
     ├── main.tsx                # entrypoint
-    ├── App.tsx                 # router + layout + ruta protegida (RequireSession)
-    ├── index.css               # directivas Tailwind
+    ├── App.tsx                 # router + shell mobile + TabBar + ruta protegida
+    ├── index.css               # base + clases de componentes + animaciones (scan/success)
     ├── api/
-    │   └── arca.ts             # capa fetch tipada + interfaces del dominio
+    │   └── arca.ts             # capa fetch tipada + overlay de precio/ícono por categoría
     ├── auth/
     │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage)
+    ├── flow/
+    │   └── SolicitudFlow.tsx   # estado efímero del flujo (foto capturada)
     ├── config/
     │   └── modulos.ts          # registro de módulos del Inicio (fuente de verdad del menú)
     └── pages/
-        ├── Login.tsx
-        ├── Inicio.tsx          # hub post-login: grid de módulos
+        ├── Login.tsx              # hero verde + CTA dorado ClaveÚnica
+        ├── Inicio.tsx            # dashboard: tarjeta de impacto (demo) + grid de módulos
+        ├── CapturaResiduo.tsx    # cámara/galería (solo visual)
+        ├── AnalizandoIA.tsx      # scan animado mock (~2.2s)
+        ├── SugerenciasIA.tsx     # detección mock sobre catálogo real
         ├── Catalogo.tsx
         ├── NuevaSolicitud.tsx
-        └── MisSolicitudes.tsx
+        ├── SolicitudCreada.tsx   # SuccessRing + CTAs (retiro / marketplace)
+        ├── MisSolicitudes.tsx
+        └── Proximamente.tsx      # placeholder reutilizable (retiro municipal, marketplace)
 ```
 
 ---
@@ -81,6 +107,19 @@ Expone funciones tipadas e interfaces del dominio (`ResiduoCatalogo`, `Solicitud
 
 > Cuando se integre Redux Toolkit (roadmap), esta capa se reemplaza por slices/endpoints
 > de RTK Query. Las pantallas deberían cambiar poco si se mantiene la misma firma.
+
+### Overlay de precio e ícono (provisional)
+
+La entidad `ResiduoCatalogo` del backend **no tiene `precio` ni `icono`**. Para mostrar
+ambos en la UI, `arca.ts` deriva valores **referenciales por categoría**:
+
+| Helper | Qué hace |
+|---|---|
+| `precioReferencial(categoria)` | precio CLP por categoría (Muebles, Electrónica, …) |
+| `iconoPorCategoria(categoria)` | emoji por categoría |
+| `formatearPrecio(clp)` | formato `es-CL` (`$8.000`) |
+
+> **Pendiente:** agregar columna `precio` a la entidad + migración, y quitar el overlay.
 
 ---
 
@@ -101,19 +140,41 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 
 ## Pantallas (`src/pages/`)
 
-| Pantalla | Ruta | Endpoint | HU relacionada |
+| Pantalla | Ruta | Endpoint / datos | Tipo |
 |---|---|---|---|
-| `Login` | `/login` | — | HU-12 (placeholder) |
-| `Inicio` | `/inicio` | — | hub de navegación |
-| `Catalogo` | `/catalogo` | `GET /residuos/catalogo` | HU-01 |
-| `NuevaSolicitud` | `/nueva-solicitud` | `POST /solicitudes-retiro` | HU-01 |
-| `MisSolicitudes` | `/mis-solicitudes` | `GET /solicitudes-retiro?usuarioCiudadanoId=` | HU-03 |
+| `Login` | `/login` | — | placeholder |
+| `Inicio` | `/inicio` | tarjeta de impacto **demo** | hub |
+| `CapturaResiduo` | `/solicitar` | cámara/galería (solo visual) | esqueleto |
+| `AnalizandoIA` | `/solicitar/analizando` | scan mock (~2.2s) | esqueleto |
+| `SugerenciasIA` | `/solicitar/sugerencias` | `GET /residuos/catalogo` (detección mock) | esqueleto |
+| `Catalogo` | `/catalogo` | `GET /residuos/catalogo` | **backend** |
+| `NuevaSolicitud` | `/nueva-solicitud` | `POST /solicitudes-retiro` | **backend** |
+| `SolicitudCreada` | `/solicitud/creada` | SuccessRing + 2 CTAs | esqueleto |
+| `MisSolicitudes` | `/mis-solicitudes` | `GET /solicitudes-retiro?usuarioCiudadanoId=` | **backend** |
+| `Proximamente` | `/retiro-municipal`, `/marketplace/subir` | — | placeholder |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
 - **Tras el login se cae en `/inicio`** (el hub); el catch-all `*` también redirige ahí.
 - Estados de carga/error manejados localmente con `useState`.
-- `Catalogo` enlaza a `NuevaSolicitud` pre-seleccionando el residuo vía query param.
+- El tab "Solicitar" arranca el flujo en `/solicitar` (cámara); el catálogo queda como rama alterna.
+- La foto capturada viaja entre pantallas vía `SolicitudFlowProvider` (en memoria).
 - `MisSolicitudes` muestra el nombre del residuo (el GET incluye la relación `residuoCatalogo`).
+
+### Flujo "Solicitar retiro" con IA (esqueleto)
+
+```
+📷 /solicitar → /solicitar/analizando → /solicitar/sugerencias
+                                              ├─ sugerencia → /nueva-solicitud?residuo=ID
+                                              └─ manual     → /nueva-solicitud
+                                                                    ↓ POST (backend)
+                                                          /solicitud/creada
+                                                              ├─ Retiro municipal (placeholder)
+                                                              ├─ Subir a Marketplace (placeholder)
+                                                              └─ Ver mis solicitudes
+```
+
+> La cámara, el análisis IA y las pantallas post-creación son **estáticos**; lo único que
+> pega al backend es el catálogo y la creación/listado de solicitudes (EP-01).
 
 ### Inicio como hub dirigido por configuración (`src/config/modulos.ts`)
 
@@ -187,13 +248,15 @@ npm run lint      # ESLint
 ## Verificación (flujo end-to-end EP-01)
 
 1. Backend OK (`GET /health` → `{"status":"ok","db":"connected"}`).
-2. Abrir `http://localhost:5173` → "Entrar como vecino (dev)".
-3. Caer en **Inicio**: tarjetas activas (Solicitar retiro, Mis solicitudes) +
-   "Próximamente" (Marketplace, Mis créditos, Panel municipal).
-4. Entrar a "Solicitar retiro" → el catálogo muestra los ítems seed
-   (Sofá, Refrigerador, Colchón, Escombros).
-5. Crear una solicitud → redirige a "Mis solicitudes".
-6. La solicitud aparece en estado `pendiente` con el nombre del residuo.
+2. Abrir `http://localhost:5173` → "Entrar como vecino (dev)" o "Ingresar con ClaveÚnica".
+3. Caer en **Inicio**: tarjeta de impacto (demo) + grid de módulos.
+4. Tab **Solicitar** (📷) → captura → "Analizar con IA" → pantalla de análisis →
+   resultado con la detección mock sobre el catálogo real.
+5. Elegir "Usar sugerencia" o "Ingresar manualmente" → el select lista los ítems seed
+   (Sofá, Refrigerador, Colchón, Escombros) con su precio referencial.
+6. Crear la solicitud → `/solicitud/creada` (SuccessRing + CTAs).
+7. **Mis solicitudes** muestra la solicitud en estado `pendiente` con el nombre del residuo
+   (leído desde `GET /solicitudes-retiro`).
 
 ---
 
@@ -202,10 +265,12 @@ npm run lint      # ESLint
 Alineado al roadmap del `README.md`. Cada paso depende de que el backend exponga primero
 los endpoints correspondientes.
 
+> Detalle completo en [`PLAN_FRONTEND.md`](./PLAN_FRONTEND.md).
+
 | Área | Notas |
 |---|---|
-| Aplicar **UI Kit oficial** | Colores/tipografía/íconos de `UI_KIT_ARCA.md`; decidir Tailwind v3 vs v4 |
-| Completar EP-01 | Subida de foto + GPS (campos ya soportados por el DTO), clasificación IA con **TensorFlow.js** (apoyo, el usuario confirma) |
+| Precio/ícono reales | Agregar columnas al backend y quitar el overlay de `arca.ts` |
+| Completar EP-01 | Cámara en vivo (`getUserMedia`), GPS, clasificación IA con **TensorFlow.js** reemplazando el mock |
 | PWA | Service Worker (Workbox) + manifest para modo offline |
 | Auth real (EP-05) | Reemplazar login temporal por JWT/ClaveÚnica en `SessionContext` |
 | Redux Toolkit + RTK Query | Cuando crezca el estado (marketplace, credits, sesión) |
@@ -218,8 +283,8 @@ los endpoints correspondientes.
 
 ## Documentación relacionada
 
+- [`PLAN_FRONTEND.md`](./PLAN_FRONTEND.md) — Sistema de diseño + roadmap por fases del frontend
 - [`SETUP_LOCAL.md`](./SETUP_LOCAL.md) — Cómo levantar el entorno completo
 - [`BACKEND_FASE1.md`](./BACKEND_FASE1.md) — Qué expone el backend hoy
 - [`../README.md`](../README.md) — Producto, stack y roadmap
-- `UI_KIT_ARCA.md` — Sistema de diseño a aplicar (referenciado por el equipo; aún no está en el repo, ver Drive)
 - [`../CLAUDE_proyecto.md`](../CLAUDE_proyecto.md) — Contexto general del proyecto

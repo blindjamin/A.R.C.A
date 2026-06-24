@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchCatalogo, type ResiduoCatalogo } from '../api/arca';
+import {
+  fetchCatalogo,
+  formatearPrecio,
+  iconoPorCategoria,
+  precioReferencial,
+  type ResiduoCatalogo,
+} from '../api/arca';
 
 export default function Catalogo() {
   const [items, setItems] = useState<ResiduoCatalogo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [categoria, setCategoria] = useState<string>('Todos');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -15,41 +23,80 @@ export default function Catalogo() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <p className="text-gray-500">Cargando catálogo…</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
+  const categorias = useMemo(
+    () => ['Todos', ...new Set(items.map((i) => i.categoria))],
+    [items],
+  );
+
+  const filtrados = items.filter((i) => {
+    const matchCat = categoria === 'Todos' || i.categoria === categoria;
+    const matchText = i.nombre.toLowerCase().includes(query.toLowerCase());
+    return matchCat && matchText;
+  });
+
+  if (loading) return <p className="text-slate">Cargando catálogo…</p>;
+  if (error) return <p className="text-rose-600">{error}</p>;
 
   return (
-    <div>
-      <h2 className="text-xl font-bold text-arca-dark mb-4">
-        Catálogo de residuos
-      </h2>
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-2xl font-extrabold">Catálogo</h1>
+        <p className="text-sm text-slate">Residuos voluminosos y su valor de retiro.</p>
+      </header>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col"
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Buscar sofá, refrigerador…"
+        className="field"
+      />
+
+      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+        {categorias.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setCategoria(cat)}
+            className={`chip whitespace-nowrap ${
+              categoria === cat ? 'chip-active' : ''
+            }`}
           >
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">{item.nombre}</h3>
-              {item.puedeReutilizarse && (
-                <span className="text-xs bg-arca-light text-arca-dark px-2 py-0.5 rounded-full">
-                  Reutilizable
-                </span>
-              )}
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-3">
+        {filtrados.map((item) => (
+          <div key={item.id} className="card flex items-center gap-3 p-3">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-green-50 text-2xl">
+              {iconoPorCategoria(item.categoria)}
             </div>
-            <p className="text-sm text-gray-500">{item.categoria}</p>
-            {item.descripcion && (
-              <p className="text-sm text-gray-600 mt-1">{item.descripcion}</p>
-            )}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h3 className="truncate font-bold">{item.nombre}</h3>
+                {item.puedeReutilizarse && (
+                  <span className="pill bg-gold-100 text-gold-600">Reutilizable</span>
+                )}
+              </div>
+              <p className="text-xs text-slate">{item.categoria}</p>
+              <p className="mt-0.5 font-display text-sm font-extrabold text-green-700">
+                {formatearPrecio(precioReferencial(item.categoria))}
+              </p>
+            </div>
             <button
               onClick={() => navigate(`/nueva-solicitud?residuo=${item.id}`)}
-              className="mt-3 self-start text-sm bg-arca-green hover:bg-arca-dark text-white px-3 py-1.5 rounded-lg transition-colors"
+              className="btn-primary shrink-0 px-4 py-2 text-xs"
             >
-              Solicitar retiro
+              Solicitar
             </button>
           </div>
         ))}
+        {filtrados.length === 0 && (
+          <p className="py-8 text-center text-sm text-slate">
+            Sin resultados para tu búsqueda.
+          </p>
+        )}
       </div>
     </div>
   );
