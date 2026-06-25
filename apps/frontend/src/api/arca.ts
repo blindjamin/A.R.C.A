@@ -30,11 +30,25 @@ export interface SolicitudRetiro {
   residuoCatalogoId: number;
   estado: EstadoSolicitud;
   descripcion: string | null;
+  direccionAnonimizada?: string | null;
+  latitudCapturada?: string | null;
+  longitudCapturada?: string | null;
   fechaSolicitud: string;
+  fechaProgramada?: string | null;
+  fechaCompletada?: string | null;
+  operadorAsignadoId?: string | null;
+  razonRechazo?: string | null;
   createdAt: string;
   updatedAt: string;
   // El GET incluye la relación anidada; en el POST puede no venir.
   residuoCatalogo?: ResiduoCatalogo;
+}
+
+export interface ActualizarSolicitudInput {
+  estado?: EstadoSolicitud;
+  operadorAsignadoId?: string;
+  fechaProgramada?: string;
+  razonRechazo?: string;
 }
 
 export interface CrearSolicitudInput {
@@ -42,6 +56,42 @@ export interface CrearSolicitudInput {
   residuoCatalogoId: number;
   descripcion?: string;
 }
+
+// --- Overlay visual ---------------------------------------------------------
+// El backend (entidad ResiduoCatalogo) no expone precio ni ícono. Hasta que se
+// agreguen esas columnas, los derivamos en el front por categoría (referencial).
+// Migrar a campos reales cuando el backend los provea.
+
+const PRECIO_POR_CATEGORIA: Record<string, number> = {
+  Muebles: 8000,
+  Electrónica: 12000,
+  'Línea Blanca': 10000,
+  Construcción: 15000,
+  Otros: 5000,
+};
+const PRECIO_DEFAULT = 6000;
+
+const ICONO_POR_CATEGORIA: Record<string, string> = {
+  Muebles: '🛋️',
+  Electrónica: '📺',
+  'Línea Blanca': '🧺',
+  Construcción: '🧱',
+  Otros: '📦',
+};
+const ICONO_DEFAULT = '♻️';
+
+export const precioReferencial = (categoria: string): number =>
+  PRECIO_POR_CATEGORIA[categoria] ?? PRECIO_DEFAULT;
+
+export const iconoPorCategoria = (categoria: string): string =>
+  ICONO_POR_CATEGORIA[categoria] ?? ICONO_DEFAULT;
+
+export const formatearPrecio = (clp: number): string =>
+  clp.toLocaleString('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  });
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -73,4 +123,64 @@ export function fetchMisSolicitudes(
   const url = new URL(`${API_URL}/solicitudes-retiro`);
   url.searchParams.set('usuarioCiudadanoId', usuarioCiudadanoId);
   return fetch(url).then((r) => handle<SolicitudRetiro[]>(r));
+}
+
+// --- Identidad / login diferido ---------------------------------------------
+
+export interface PerfilAcceso {
+  usuarioCiudadanoId: string;
+  esAdministrador: boolean;
+  administrador: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    rol: string;
+  } | null;
+}
+
+export function fetchPerfilAcceso(
+  usuarioCiudadanoId: string,
+): Promise<PerfilAcceso> {
+  return fetch(
+    `${API_URL}/usuarios/${usuarioCiudadanoId}/perfil-acceso`,
+  ).then((r) => handle<PerfilAcceso>(r));
+}
+
+export function cancelarSolicitud(
+  id: number,
+  usuarioCiudadanoId: string,
+  motivo?: string,
+): Promise<SolicitudRetiro> {
+  return fetch(`${API_URL}/solicitudes-retiro/${id}/cancelar`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuarioCiudadanoId, motivo }),
+  }).then((r) => handle<SolicitudRetiro>(r));
+}
+
+// --- Admin municipal --------------------------------------------------------
+
+export function fetchSolicitudesAdmin(
+  estado?: EstadoSolicitud,
+): Promise<SolicitudRetiro[]> {
+  const url = new URL(`${API_URL}/solicitudes-retiro`);
+  if (estado) url.searchParams.set('estado', estado);
+  return fetch(url).then((r) => handle<SolicitudRetiro[]>(r));
+}
+
+export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
+  return fetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
+    handle<SolicitudRetiro>(r),
+  );
+}
+
+export function actualizarSolicitud(
+  id: number,
+  data: ActualizarSolicitudInput,
+): Promise<SolicitudRetiro> {
+  return fetch(`${API_URL}/solicitudes-retiro/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  }).then((r) => handle<SolicitudRetiro>(r));
 }

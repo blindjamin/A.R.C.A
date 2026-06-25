@@ -3,17 +3,20 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   crearSolicitudRetiro,
   fetchCatalogo,
+  formatearPrecio,
+  iconoPorCategoria,
+  precioReferencial,
   type ResiduoCatalogo,
 } from '../api/arca';
 import { useSession } from '../auth/SessionContext';
 
 export default function NuevaSolicitud() {
-  const { usuarioCiudadanoId } = useSession();
   const navigate = useNavigate();
+  const { usuarioCiudadanoId } = useSession();
   const [searchParams] = useSearchParams();
 
   const [catalogo, setCatalogo] = useState<ResiduoCatalogo[]>([]);
-  const [residuoCatalogoId, setResiduoCatalogoId] = useState<number | ''>(
+  const [residuoId, setResiduoId] = useState<number | ''>(
     searchParams.get('residuo') ? Number(searchParams.get('residuo')) : '',
   );
   const [descripcion, setDescripcion] = useState('');
@@ -26,18 +29,20 @@ export default function NuevaSolicitud() {
       .catch((e: Error) => setError(e.message));
   }, []);
 
+  const seleccionado = catalogo.find((r) => r.id === residuoId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (residuoCatalogoId === '' || !usuarioCiudadanoId) return;
+    if (!seleccionado || !usuarioCiudadanoId) return;
     setSubmitting(true);
     setError(null);
     try {
       await crearSolicitudRetiro({
         usuarioCiudadanoId,
-        residuoCatalogoId: Number(residuoCatalogoId),
+        residuoCatalogoId: seleccionado.id,
         descripcion: descripcion.trim() || undefined,
       });
-      navigate('/mis-solicitudes');
+      navigate('/solicitud/creada');
     } catch (err) {
       setError((err as Error).message);
       setSubmitting(false);
@@ -45,53 +50,67 @@ export default function NuevaSolicitud() {
   };
 
   return (
-    <div className="max-w-lg">
-      <h2 className="text-xl font-bold text-arca-dark mb-4">
-        Nueva solicitud de retiro
-      </h2>
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-2xl font-extrabold">Nueva solicitud</h1>
+        <p className="text-sm text-slate">Confirma el residuo y agrega detalles.</p>
+      </header>
 
-      {error && <p className="text-red-600 mb-3 text-sm">{error}</p>}
+      {error && <p className="pill w-full bg-rose-100 text-rose-600">{error}</p>}
 
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-4"
-      >
+      <form onSubmit={handleSubmit} className="card space-y-5 p-5">
         <div>
-          <label className="block text-sm font-medium mb-1">Tipo de residuo</label>
+          <label className="mb-1.5 block text-sm font-semibold">
+            Tipo de residuo
+          </label>
           <select
-            value={residuoCatalogoId}
+            value={residuoId}
             onChange={(e) =>
-              setResiduoCatalogoId(e.target.value ? Number(e.target.value) : '')
+              setResiduoId(e.target.value ? Number(e.target.value) : '')
             }
             required
-            className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            className="field"
           >
-            <option value="">Selecciona…</option>
+            <option value="">Selecciona del catálogo…</option>
             {catalogo.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.nombre} — {item.categoria}
+                {item.nombre} — {item.categoria} (
+                {formatearPrecio(precioReferencial(item.categoria))})
               </option>
             ))}
           </select>
         </div>
 
+        {/* Resumen de precio del seleccionado */}
+        {seleccionado && (
+          <div className="flex items-center justify-between rounded-md bg-green-50 px-4 py-3">
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <span className="text-xl">{iconoPorCategoria(seleccionado.categoria)}</span>
+              {seleccionado.nombre}
+            </span>
+            <span className="font-display text-lg font-extrabold text-green-700">
+              {formatearPrecio(precioReferencial(seleccionado.categoria))}
+            </span>
+          </div>
+        )}
+
         <div>
-          <label className="block text-sm font-medium mb-1">
-            Descripción (opcional)
+          <label className="mb-1.5 block text-sm font-semibold">
+            Descripción <span className="font-normal text-slate-2">(opcional)</span>
           </label>
           <textarea
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             rows={3}
             placeholder="Ej: Sofá usado en buen estado"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2"
+            className="field resize-none"
           />
         </div>
 
         <button
           type="submit"
-          disabled={submitting || residuoCatalogoId === ''}
-          className="w-full bg-arca-green hover:bg-arca-dark disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-colors"
+          disabled={submitting || !seleccionado}
+          className="btn-primary w-full py-3.5"
         >
           {submitting ? 'Enviando…' : 'Crear solicitud'}
         </button>

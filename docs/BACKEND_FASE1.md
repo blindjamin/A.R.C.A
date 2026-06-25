@@ -1,7 +1,7 @@
 # Backend Fase 1 — Resumen de implementación
 
 > **Autor:** Javier Figueroa (Back-End)  
-> **Rama:** `feature/backend`  
+> **Integrado en:** `develop` / `master` (el trabajo se hizo en la antigua `feature/backend`, ya eliminada)  
 > **Fecha:** Junio 2026  
 > **Equipo:** COM Tech — Feria de Software 2026
 
@@ -65,6 +65,7 @@ A.R.C.A/
 | `1782163200000-create-identity-tables` | `usuarios_ciudadanos`, `sesiones_ciudadano`, `usuarios_administradores`, `sesiones_administrador` |
 | `1782163300000-create-residuos-catalogo` | `residuos_catalogo` + seed (Sofá, Refrigerador, Colchón, Escombros) |
 | `1782163400000-create-solicitudes-retiro` | `solicitudes_retiro` + usuario dev de prueba |
+| `1782163500000-seed-operador-demo` | Usuario demo **doble rol** (ciudadano `…0002` + operador `…00A2`) |
 
 **Comando:** `npm run migration:run` (desde `apps/backend/`)
 
@@ -92,6 +93,31 @@ Base URL local: `http://localhost:3000`
 | `POST` | `/solicitudes-retiro` | Crear solicitud de retiro |
 | `GET` | `/solicitudes-retiro` | Listar solicitudes |
 | `GET` | `/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
+| `GET` | `/solicitudes-retiro?estado={estado}` | Filtrar por estado (vista admin) |
+| `GET` | `/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
+| `PATCH` | `/solicitudes-retiro/{id}` | **Admin:** modificar estado/operador/fecha/razón |
+| `PATCH` | `/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
+| `GET` | `/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` |
+
+### Cambio de estado (PATCH admin)
+
+El panel municipal puede fijar **cualquier** estado, incluido **revertir** (ej.
+`completada → pendiente`), para operar y probar el flujo. El backend solo conserva
+invariantes de datos:
+
+- `asignada` exige `operadorAsignadoId` de un administrador **activo**.
+- `completada` setea `fechaCompletada`; al **salir** de completada se limpia.
+- La cancelación del ciudadano solo procede sobre **sus** solicitudes en estado
+  `pendiente` o `asignada` (valida propiedad → `403` si es ajena).
+
+> Nota: la máquina de estados estricta (`pendiente→asignada→en_proceso→completada`)
+> se relajó a propósito para esta fase. Endurecerla queda como pendiente (flag/permiso).
+
+### Login diferido
+
+`GET /usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
+tiene extensión de administrador activa. El frontend lo usa tras autenticar para
+decidir el destino: funcionario → selección de contexto; solo ciudadano → PWA directa.
 
 ### Ejemplo POST solicitud
 
@@ -115,6 +141,15 @@ Hasta que Benjamín integre auth (JWT / ClaveÚnica), existe un ciudadano de pru
 |---|---|
 | `id` | `00000000-0000-4000-8000-000000000001` |
 | `clave_unica_id` | `dev-claveunica-test` |
+
+Además, la migración `seed-operador-demo` agrega un **usuario demo con doble rol** (misma
+persona como ciudadano y como operador municipal), para poder ejercitar el ciclo admin
+completo `asignar → en_proceso → completada`:
+
+| Campo | Valor |
+|---|---|
+| Ciudadano (identidad base) | `00000000-0000-4000-8000-000000000002` |
+| Operador (`operadorAsignadoId`) | `00000000-0000-4000-8000-0000000000A2` · rol `operador` |
 
 **No usar en producción.** Cuando auth esté listo, el `usuarioCiudadanoId` saldrá del token JWT, no del body.
 
@@ -149,11 +184,14 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Área | Responsable | Notas |
 |---|---|---|
 | Auth ClaveÚnica + JWT | Benjamín (`feature/auth`) | Requiere aprobación organismo gubernamental |
-| Auth mock / guards | Benjamín | Puede avanzar con entidades de `users/` |
+| Auth mock / guards | Benjamín | Pendiente: proteger `/admin` y PATCH por rol |
 | Frontend React PWA | Maximiliano (`feature/frontend`) | Ver `docs/SETUP_LOCAL.md` |
 | Migraciones restantes del DBML | Javier | horarios, fotos, marketplace, credits, etc. |
 | Subida de fotos | Javier | Fase posterior |
-| PATCH estado solicitud (operador) | Javier | Dashboard / operadores |
+| ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados) |
+| ~~Cancelación por ciudadano~~ | ✅ Hecho | Rama `admin-municipal` (`PATCH /:id/cancelar`) |
+| ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
+| Endurecer máquina de estados | Pendiente | Hoy reversible para pruebas; reponer con flag/permiso |
 | PR merge a `develop` | Javier | Integración con el equipo |
 
 ---

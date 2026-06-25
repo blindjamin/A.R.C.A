@@ -1,21 +1,30 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
+import { fetchPerfilAcceso, type PerfilAcceso } from '../api/arca';
 
-// UUID del usuario dev sembrado por migración en el backend.
-// TEMPORAL: cuando Benjamín integre JWT/ClaveÚnica, este id saldrá del token
-// y solo cambiará el interior de `login()` (ver roadmap B.2). Las pantallas no cambian.
-const DEV_USER_ID = '00000000-0000-4000-8000-000000000001';
+// UUIDs sembrados por migración en el backend (auth mock).
+// TEMPORAL: cuando Benjamín integre JWT/ClaveÚnica, la identidad saldrá del token
+// y solo cambiará el interior de `login()`. Las pantallas no cambian.
+export const DEV_USERS = {
+  vecino: '00000000-0000-4000-8000-000000000001', // solo ciudadano
+  funcionario: '00000000-0000-4000-8000-000000000002', // doble rol (ciudadano + operador)
+} as const;
+
 const STORAGE_KEY = 'arca.usuarioCiudadanoId';
 
 interface SessionContextValue {
   usuarioCiudadanoId: string | null;
-  login: () => void;
+  esAdministrador: boolean;
+  perfil: PerfilAcceso | null;
+  cargando: boolean;
+  login: (usuarioCiudadanoId: string) => void;
   logout: () => void;
 }
 
@@ -25,22 +34,60 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [usuarioCiudadanoId, setUsuarioCiudadanoId] = useState<string | null>(
     () => localStorage.getItem(STORAGE_KEY),
   );
+  const [perfil, setPerfil] = useState<PerfilAcceso | null>(null);
+  // Arranca cargando si hay sesión persistida (hay que resolver el perfil).
+  const [cargando, setCargando] = useState<boolean>(
+    () => !!localStorage.getItem(STORAGE_KEY),
+  );
 
+  // Resuelve el perfil de acceso (login diferido) cada vez que cambia la identidad.
   useEffect(() => {
-    if (usuarioCiudadanoId) {
-      localStorage.setItem(STORAGE_KEY, usuarioCiudadanoId);
-    } else {
+    if (!usuarioCiudadanoId) {
+      setPerfil(null);
+      setCargando(false);
       localStorage.removeItem(STORAGE_KEY);
+      return;
     }
+
+    localStorage.setItem(STORAGE_KEY, usuarioCiudadanoId);
+    let cancelado = false;
+    setCargando(true);
+
+    fetchPerfilAcceso(usuarioCiudadanoId)
+      .then((p) => {
+        if (!cancelado) setPerfil(p);
+      })
+      .catch(() => {
+        // Si el backend no responde o el id no existe, tratamos como solo-ciudadano.
+        if (!cancelado)
+          setPerfil({
+            usuarioCiudadanoId,
+            esAdministrador: false,
+            administrador: null,
+          });
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
   }, [usuarioCiudadanoId]);
+
+  const login = useCallback((id: string) => setUsuarioCiudadanoId(id), []);
+  const logout = useCallback(() => setUsuarioCiudadanoId(null), []);
 
   const value = useMemo<SessionContextValue>(
     () => ({
       usuarioCiudadanoId,
-      login: () => setUsuarioCiudadanoId(DEV_USER_ID),
-      logout: () => setUsuarioCiudadanoId(null),
+      esAdministrador: perfil?.esAdministrador ?? false,
+      perfil,
+      cargando,
+      login,
+      logout,
     }),
-    [usuarioCiudadanoId],
+    [usuarioCiudadanoId, perfil, cargando, login, logout],
   );
 
   return (
