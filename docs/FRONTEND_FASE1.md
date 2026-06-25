@@ -277,8 +277,9 @@ los endpoints correspondientes.
 | EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
 | EP-04 Circular Credits | Saldo + historial en perfil |
 | EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, rama `admin-municipal`). Falta panel funcionario completo, mapa de calor (**Leaflet** + OpenStreetMap), reportes |
-| Inicio diferido | ✅ Hecho (`/`): selector App ciudadana / Portal admin |
-| Proteger `/admin` | Pendiente: el panel está abierto hasta que existan guards/JWT |
+| Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
+| Proteger `/admin` | ✅ `RequireAdmin` en el front (solo funcionarios). Falta guard real con JWT en backend |
+| Cancelar desde detalle (ciudadano) | ✅ Mis solicitudes: tocar → detalle → cancelar; oculta local |
 | Tests | Vitest + React Testing Library |
 
 ---

@@ -39,9 +39,10 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 | Pantalla | Ruta | Estado | Datos |
 |---|---|---|---|
-| Inicio diferido | `/` | ✅ **backend** | Selector de portal: App ciudadana / Portal admin |
-| Login | `/login` | ✅ Estética prototipo | CTA ClaveÚnica es mock (login dev) |
-| Panel admin | `/admin` | ✅ **backend** | Listar/filtrar/detalle + modificar estado (EP-03 base) |
+| Login (ClaveÚnica) | `/login` | ✅ **backend** | Primera vista. Mock: accesos dev Vecino / Funcionario |
+| Gate login diferido | `/` | ✅ **backend** | Funcionario → selección; solo ciudadano → `/inicio` |
+| Selección de contexto | `/` (admin) | ✅ **backend** | Solo funcionarios: App ciudadana / Panel municipal |
+| Panel admin | `/admin` | ✅ **backend** | `RequireAdmin`. Listar/filtrar/detalle + estado **reversible** (EP-03 base) |
 | Inicio / Dashboard | `/inicio` | ✅ | Tarjeta de créditos/impacto **estática** (demo, falta EP-04) |
 | Captura residuo | `/solicitar` | ✅ esqueleto | Cámara/galería **solo visual** (no obligatoria) |
 | Analizando IA | `/solicitar/analizando` | ✅ esqueleto | Scan animado mock (~2.2s) |
@@ -49,7 +50,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 | Catálogo | `/catalogo` | ✅ **backend** | `GET /residuos/catalogo` + búsqueda/chips |
 | Nueva solicitud | `/nueva-solicitud` | ✅ **backend** | `POST /solicitudes-retiro` |
 | Solicitud creada | `/solicitud/creada` | ✅ esqueleto | SuccessRing + 2 CTAs (retiro / marketplace) |
-| Mis solicitudes | `/mis-solicitudes` | ✅ **backend** | `GET /solicitudes-retiro?usuarioCiudadanoId=` |
+| Mis solicitudes | `/mis-solicitudes` | ✅ **backend** | Lista → detalle (descripción) + cancelar; oculta local |
 | Retiro municipal | `/retiro-municipal` | ✅ placeholder | "Próximamente" (EP-03) |
 | Subir a Marketplace | `/marketplace/subir` | ✅ placeholder | "Próximamente" (EP-02) |
 
@@ -98,9 +99,10 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 ### Fase 6 — Panel Municipal (desktop · EP-03)
 > App separada / layout desktop: `Sidebar + Topbar`.
-- [x] **Inicio diferido** (`/`): selector App ciudadana / Portal admin (rama `admin-municipal`).
+- [x] **Login diferido** (`/login` → gate `/`): ClaveÚnica primero; según `perfil-acceso`
+      el funcionario elige contexto y el ciudadano va directo a la PWA. `/admin` con `RequireAdmin`.
 - [x] **Gestión de solicitudes base** (`/admin`): listar, filtrar por estado, detalle y
-      modificar estado (asignar → en ruta → completar → cancelar). Falta layout desktop pulido.
+      cambiar estado en cualquier dirección (reversible, para pruebas). Falta layout desktop pulido.
 - [ ] Dashboard: `KPISummary`, `BarChart`/`LineChart`, `MetricsBar`.
 - [ ] Gestión de solicitudes: `FilterBar` + `SideList` + tabla (versión completa).
 - [ ] Mapa de operaciones: Leaflet (`MapContainer`, `PinCluster`, `RoutePolyline`).

@@ -6,6 +6,7 @@ import {
   UsuarioAdministrador,
   UsuarioCiudadano,
 } from './entities';
+import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
 @Module({
@@ -17,6 +18,7 @@ import { UsersService } from './users.service';
       SesionAdministrador,
     ]),
   ],
+  controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService, TypeOrmModule],
 })

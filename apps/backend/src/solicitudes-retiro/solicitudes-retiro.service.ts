@@ -16,27 +16,6 @@ import { UpdateSolicitudRetiroDto } from './dto/update-solicitud-retiro.dto';
 import { EstadoSolicitudRetiro } from './entities/estado-solicitud-retiro.enum';
 import { SolicitudRetiro } from './entities/solicitud-retiro.entity';
 
-// Transiciones de estado permitidas (desde -> [hacia...])
-const TRANSICIONES_PERMITIDAS: Record<
-  EstadoSolicitudRetiro,
-  EstadoSolicitudRetiro[]
-> = {
-  [EstadoSolicitudRetiro.PENDIENTE]: [
-    EstadoSolicitudRetiro.ASIGNADA,
-    EstadoSolicitudRetiro.CANCELADA,
-  ],
-  [EstadoSolicitudRetiro.ASIGNADA]: [
-    EstadoSolicitudRetiro.EN_PROCESO,
-    EstadoSolicitudRetiro.CANCELADA,
-  ],
-  [EstadoSolicitudRetiro.EN_PROCESO]: [
-    EstadoSolicitudRetiro.COMPLETADA,
-    EstadoSolicitudRetiro.CANCELADA,
-  ],
-  [EstadoSolicitudRetiro.COMPLETADA]: [],
-  [EstadoSolicitudRetiro.CANCELADA]: [],
-};
-
 @Injectable()
 export class SolicitudesRetiroService {
   constructor(
@@ -187,13 +166,8 @@ export class SolicitudesRetiroService {
       return;
     }
 
-    const permitidas = TRANSICIONES_PERMITIDAS[solicitud.estado];
-    if (!permitidas.includes(nuevoEstado)) {
-      throw new BadRequestException(
-        `No se puede cambiar el estado de "${solicitud.estado}" a "${nuevoEstado}"`,
-      );
-    }
-
+    // El panel municipal puede mover el estado en cualquier dirección (incl.
+    // revertir) para operar/probar. Solo se conservan invariantes de datos:
     if (
       nuevoEstado === EstadoSolicitudRetiro.ASIGNADA &&
       !solicitud.operadorAsignadoId
@@ -203,17 +177,11 @@ export class SolicitudesRetiroService {
       );
     }
 
-    if (
-      nuevoEstado === EstadoSolicitudRetiro.CANCELADA &&
-      !solicitud.razonRechazo
-    ) {
-      throw new BadRequestException(
-        'Para cancelar/rechazar la solicitud debe indicar una razón (razonRechazo)',
-      );
-    }
-
     if (nuevoEstado === EstadoSolicitudRetiro.COMPLETADA) {
       solicitud.fechaCompletada = new Date();
+    } else {
+      // Al salir de "completada" la fecha de cierre deja de tener sentido.
+      solicitud.fechaCompletada = null;
     }
 
     solicitud.estado = nuevoEstado;

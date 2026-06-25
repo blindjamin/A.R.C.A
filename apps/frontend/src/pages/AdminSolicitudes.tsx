@@ -15,6 +15,14 @@ const ESTADO_META: Record<EstadoSolicitud, { label: string; cls: string }> = {
   cancelada: { label: 'Cancelada', cls: 'bg-line-2 text-slate' },
 };
 
+const ESTADOS: EstadoSolicitud[] = [
+  'pendiente',
+  'asignada',
+  'en_proceso',
+  'completada',
+  'cancelada',
+];
+
 const FILTROS: { value: EstadoSolicitud | 'todas'; label: string }[] = [
   { value: 'todas', label: 'Todas' },
   { value: 'pendiente', label: 'Pendientes' },
@@ -193,28 +201,32 @@ function DetalleSolicitud({
     }
   };
 
-  const asignar = () => {
-    if (!operadorId.trim()) {
-      setError('Indica el ID del operador para asignar.');
-      return;
-    }
-    aplicar({
-      estado: 'asignada',
-      operadorAsignadoId: operadorId.trim(),
-      ...(fechaProgramada
-        ? { fechaProgramada: new Date(fechaProgramada).toISOString() }
-        : {}),
-    });
-  };
+  const cambiarEstado = (nuevo: EstadoSolicitud) => {
+    if (nuevo === solicitud.estado || guardando) return;
 
-  const cancelar = () => {
-    const razon = window.prompt('Motivo de la cancelación / rechazo:');
-    if (razon === null) return;
-    if (!razon.trim()) {
-      setError('Debes indicar una razón para cancelar.');
+    if (nuevo === 'asignada') {
+      const op = operadorId.trim() || solicitud.operadorAsignadoId || '';
+      if (!op) {
+        setError('Indica el ID del operador para asignar.');
+        return;
+      }
+      aplicar({
+        estado: 'asignada',
+        operadorAsignadoId: op,
+        ...(fechaProgramada
+          ? { fechaProgramada: new Date(fechaProgramada).toISOString() }
+          : {}),
+      });
       return;
     }
-    aplicar({ estado: 'cancelada', razonRechazo: razon.trim() });
+
+    if (nuevo === 'cancelada') {
+      const razon = window.prompt('Motivo de la cancelación / rechazo (opcional):') ?? '';
+      aplicar({ estado: 'cancelada', ...(razon.trim() ? { razonRechazo: razon.trim() } : {}) });
+      return;
+    }
+
+    aplicar({ estado: nuevo });
   };
 
   return (
@@ -261,73 +273,48 @@ function DetalleSolicitud({
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
 
-      {/* Acciones según estado actual (la validación final la hace el backend) */}
+      {/* Cambio de estado libre (incl. revertir), para operar/probar el flujo. */}
       <div className="card space-y-3 p-5">
-        <h2 className="font-bold">Acciones</h2>
+        <h2 className="font-bold">Cambiar estado</h2>
 
-        {solicitud.estado === 'pendiente' && (
-          <div className="space-y-2">
-            <input
-              value={operadorId}
-              onChange={(e) => setOperadorId(e.target.value)}
-              placeholder="ID del operador (UUID)"
-              className="w-full rounded-md border border-line px-3 py-2 text-sm"
-            />
-            <input
-              type="datetime-local"
-              value={fechaProgramada}
-              onChange={(e) => setFechaProgramada(e.target.value)}
-              className="w-full rounded-md border border-line px-3 py-2 text-sm"
-            />
-            <button
-              onClick={asignar}
-              disabled={guardando}
-              className="btn-primary w-full"
-            >
-              Asignar operador
-            </button>
-          </div>
-        )}
+        <div className="space-y-2">
+          <input
+            value={operadorId}
+            onChange={(e) => setOperadorId(e.target.value)}
+            placeholder="ID del operador (UUID) — requerido para asignar"
+            className="w-full rounded-md border border-line px-3 py-2 text-sm"
+          />
+          <input
+            type="datetime-local"
+            value={fechaProgramada}
+            onChange={(e) => setFechaProgramada(e.target.value)}
+            className="w-full rounded-md border border-line px-3 py-2 text-sm"
+          />
+        </div>
 
-        {solicitud.estado === 'asignada' && (
-          <button
-            onClick={() => aplicar({ estado: 'en_proceso' })}
-            disabled={guardando}
-            className="btn-primary w-full"
-          >
-            Iniciar retiro (en ruta)
-          </button>
-        )}
-
-        {solicitud.estado === 'en_proceso' && (
-          <button
-            onClick={() => aplicar({ estado: 'completada' })}
-            disabled={guardando}
-            className="btn-primary w-full"
-          >
-            Marcar como completada
-          </button>
-        )}
-
-        {(solicitud.estado === 'pendiente' ||
-          solicitud.estado === 'asignada' ||
-          solicitud.estado === 'en_proceso') && (
-          <button
-            onClick={cancelar}
-            disabled={guardando}
-            className="w-full rounded-pill border border-rose-300 py-2.5 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
-          >
-            Cancelar / rechazar
-          </button>
-        )}
-
-        {(solicitud.estado === 'completada' ||
-          solicitud.estado === 'cancelada') && (
-          <p className="text-sm text-slate">
-            Esta solicitud ya está {meta.label.toLowerCase()}. No admite más
-            cambios.
-          </p>
-        )}
+        <div className="grid grid-cols-2 gap-2">
+          {ESTADOS.map((est) => {
+            const m = ESTADO_META[est];
+            const actual = est === solicitud.estado;
+            return (
+              <button
+                key={est}
+                onClick={() => cambiarEstado(est)}
+                disabled={guardando || actual}
+                className={`pill justify-center py-2 text-sm ${
+                  actual
+                    ? `${m.cls} ring-2 ring-offset-1 ring-green-600`
+                    : 'border border-line text-ink hover:bg-canvas'
+                } disabled:cursor-default`}
+              >
+                {actual ? `● ${m.label}` : m.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-slate-2">
+          Estado actual marcado con ●. Puedes avanzar o revertir libremente.
+        </p>
       </div>
     </div>
   );

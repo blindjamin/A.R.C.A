@@ -21,9 +21,36 @@ import SugerenciasIA from './pages/SugerenciasIA';
 import SolicitudCreada from './pages/SolicitudCreada';
 import Proximamente from './pages/Proximamente';
 
+function Cargando() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-canvas text-slate">
+      Cargando…
+    </div>
+  );
+}
+
 function RequireSession({ children }: { children: ReactElement }) {
-  const { usuarioCiudadanoId } = useSession();
+  const { usuarioCiudadanoId, cargando } = useSession();
+  if (cargando) return <Cargando />;
   return usuarioCiudadanoId ? children : <Navigate to="/login" replace />;
+}
+
+function RequireAdmin({ children }: { children: ReactElement }) {
+  const { usuarioCiudadanoId, esAdministrador, cargando } = useSession();
+  if (cargando) return <Cargando />;
+  if (!usuarioCiudadanoId) return <Navigate to="/login" replace />;
+  return esAdministrador ? children : <Navigate to="/inicio" replace />;
+}
+
+// Login diferido: tras autenticar, decide a dónde va la persona.
+//  - sin sesión        → /login
+//  - funcionario       → pantalla de selección de contexto
+//  - solo ciudadano    → directo a la PWA (/inicio)
+function Entrada() {
+  const { usuarioCiudadanoId, esAdministrador, cargando } = useSession();
+  if (cargando) return <Cargando />;
+  if (!usuarioCiudadanoId) return <Navigate to="/login" replace />;
+  return esAdministrador ? <SeleccionInicio /> : <Navigate to="/inicio" replace />;
 }
 
 type Tab = { to: string; label: string; icon: string };
@@ -91,10 +118,13 @@ export default function App() {
       <SolicitudFlowProvider>
         <BrowserRouter>
           <Routes>
-            {/* Inicio diferido: elegir entre app ciudadana y portal admin */}
-            <Route path="/" element={<SeleccionInicio />} />
+            {/* Login diferido: ClaveÚnica primero, luego el gate decide */}
             <Route path="/login" element={<Login />} />
-            <Route path="/admin" element={<AdminSolicitudes />} />
+            <Route path="/" element={<Entrada />} />
+            <Route
+              path="/admin"
+              element={<RequireAdmin><AdminSolicitudes /></RequireAdmin>}
+            />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
 
             {/* Flujo Solicitar retiro: captura → IA → sugerencia → detalle → éxito */}

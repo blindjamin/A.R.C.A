@@ -97,17 +97,27 @@ Base URL local: `http://localhost:3000`
 | `GET` | `/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
 | `PATCH` | `/solicitudes-retiro/{id}` | **Admin:** modificar estado/operador/fecha/razón |
 | `PATCH` | `/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
+| `GET` | `/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` |
 
-### Máquina de estados (PATCH admin)
+### Cambio de estado (PATCH admin)
 
-Transiciones válidas: `pendiente → asignada → en_proceso → completada`; cualquier estado
-activo puede ir a `cancelada`. El backend valida:
+El panel municipal puede fijar **cualquier** estado, incluido **revertir** (ej.
+`completada → pendiente`), para operar y probar el flujo. El backend solo conserva
+invariantes de datos:
 
 - `asignada` exige `operadorAsignadoId` de un administrador **activo**.
-- `cancelada` exige `razonRechazo`.
-- `completada` setea `fechaCompletada` automáticamente.
+- `completada` setea `fechaCompletada`; al **salir** de completada se limpia.
 - La cancelación del ciudadano solo procede sobre **sus** solicitudes en estado
   `pendiente` o `asignada` (valida propiedad → `403` si es ajena).
+
+> Nota: la máquina de estados estricta (`pendiente→asignada→en_proceso→completada`)
+> se relajó a propósito para esta fase. Endurecerla queda como pendiente (flag/permiso).
+
+### Login diferido
+
+`GET /usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
+tiene extensión de administrador activa. El frontend lo usa tras autenticar para
+decidir el destino: funcionario → selección de contexto; solo ciudadano → PWA directa.
 
 ### Ejemplo POST solicitud
 
@@ -180,6 +190,8 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Subida de fotos | Javier | Fase posterior |
 | ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados) |
 | ~~Cancelación por ciudadano~~ | ✅ Hecho | Rama `admin-municipal` (`PATCH /:id/cancelar`) |
+| ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
+| Endurecer máquina de estados | Pendiente | Hoy reversible para pruebas; reponer con flag/permiso |
 | PR merge a `develop` | Javier | Integración con el equipo |
 
 ---

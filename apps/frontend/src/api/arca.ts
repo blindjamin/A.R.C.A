@@ -125,6 +125,39 @@ export function fetchMisSolicitudes(
   return fetch(url).then((r) => handle<SolicitudRetiro[]>(r));
 }
 
+// --- Identidad / login diferido ---------------------------------------------
+
+export interface PerfilAcceso {
+  usuarioCiudadanoId: string;
+  esAdministrador: boolean;
+  administrador: {
+    id: string;
+    nombre: string;
+    apellido: string;
+    rol: string;
+  } | null;
+}
+
+export function fetchPerfilAcceso(
+  usuarioCiudadanoId: string,
+): Promise<PerfilAcceso> {
+  return fetch(
+    `${API_URL}/usuarios/${usuarioCiudadanoId}/perfil-acceso`,
+  ).then((r) => handle<PerfilAcceso>(r));
+}
+
+export function cancelarSolicitud(
+  id: number,
+  usuarioCiudadanoId: string,
+  motivo?: string,
+): Promise<SolicitudRetiro> {
+  return fetch(`${API_URL}/solicitudes-retiro/${id}/cancelar`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ usuarioCiudadanoId, motivo }),
+  }).then((r) => handle<SolicitudRetiro>(r));
+}
+
 // --- Admin municipal --------------------------------------------------------
 
 export function fetchSolicitudesAdmin(

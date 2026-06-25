@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom';
+import { useSession } from '../auth/SessionContext';
 
 export default function SeleccionInicio() {
   const navigate = useNavigate();
+  const { perfil, logout } = useSession();
+  const nombre = perfil?.administrador?.nombre;
 
   return (
     <div className="flex min-h-screen items-stretch justify-center bg-canvas">
@@ -16,28 +19,27 @@ export default function SeleccionInicio() {
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-xl bg-white/15 text-4xl backdrop-blur">
             🌿
           </div>
-          <h1 className="font-display text-5xl font-extrabold tracking-tight">
-            A.R.C.A.
+          <h1 className="font-display text-4xl font-extrabold tracking-tight">
+            {nombre ? `Hola, ${nombre}` : 'A.R.C.A.'}
           </h1>
-          <p className="mx-auto mt-6 max-w-xs text-green-50/90">
-            Gestión de residuos voluminosos para Santo Domingo. Elige cómo
-            quieres ingresar.
+          <p className="mx-auto mt-4 max-w-xs text-green-50/90">
+            Tu cuenta es municipal. ¿Con qué contexto quieres entrar?
           </p>
         </div>
 
-        {/* Selección de portal */}
+        {/* Selección de contexto */}
         <div className="space-y-3">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/inicio')}
             className="flex w-full items-center gap-4 rounded-2xl bg-white/10 p-4 text-left backdrop-blur transition-colors hover:bg-white/15"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-2xl">
               📱
             </span>
             <span>
-              <span className="block text-base font-bold">App ciudadana</span>
+              <span className="block text-base font-bold">Modo vecino</span>
               <span className="block text-sm text-green-50/80">
-                Solicita y sigue tus retiros (PWA)
+                App ciudadana: solicita y sigue tus retiros
               </span>
             </span>
           </button>
@@ -50,18 +52,19 @@ export default function SeleccionInicio() {
               🏛️
             </span>
             <span>
-              <span className="block text-base font-bold">
-                Portal administrativo
-              </span>
+              <span className="block text-base font-bold">Modo funcionario</span>
               <span className="block text-sm text-green-50/80">
-                Revisa y gestiona las solicitudes municipales
+                Panel municipal: revisa y gestiona solicitudes
               </span>
             </span>
           </button>
 
-          <p className="pt-2 text-center text-xs text-green-100/70">
-            ClaveÚnica + JWT llegará en una fase posterior.
-          </p>
+          <button
+            onClick={logout}
+            className="w-full pt-2 text-center text-xs text-green-100/70 hover:text-white"
+          >
+            Cerrar sesión
+          </button>
         </div>
       </div>
     </div>
