@@ -93,6 +93,16 @@ export const formatearPrecio = (clp: number): string =>
     maximumFractionDigits: 0,
   });
 
+// Header requerido cuando se accede vía tunel ngrok (free tier): sin el, ngrok
+// intercepta el request y devuelve una pagina HTML de advertencia en vez de
+// dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
+function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  return fetch(path, {
+    ...init,
+    headers: { ...init?.headers, 'ngrok-skip-browser-warning': 'true' },
+  });
+}
+
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
@@ -102,7 +112,7 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export function fetchCatalogo(): Promise<ResiduoCatalogo[]> {
-  return fetch(`${API_URL}/residuos/catalogo`).then((r) =>
+  return apiFetch(`${API_URL}/residuos/catalogo`).then((r) =>
     handle<ResiduoCatalogo[]>(r),
   );
 }
@@ -110,7 +120,7 @@ export function fetchCatalogo(): Promise<ResiduoCatalogo[]> {
 export function crearSolicitudRetiro(
   data: CrearSolicitudInput,
 ): Promise<SolicitudRetiro> {
-  return fetch(`${API_URL}/solicitudes-retiro`, {
+  return apiFetch(`${API_URL}/solicitudes-retiro`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -120,9 +130,10 @@ export function crearSolicitudRetiro(
 export function fetchMisSolicitudes(
   usuarioCiudadanoId: string,
 ): Promise<SolicitudRetiro[]> {
-  const url = new URL(`${API_URL}/solicitudes-retiro`);
-  url.searchParams.set('usuarioCiudadanoId', usuarioCiudadanoId);
-  return fetch(url).then((r) => handle<SolicitudRetiro[]>(r));
+  const params = new URLSearchParams({ usuarioCiudadanoId });
+  return apiFetch(`${API_URL}/solicitudes-retiro?${params}`).then((r) =>
+    handle<SolicitudRetiro[]>(r),
+  );
 }
 
 // --- Identidad / login diferido ---------------------------------------------
@@ -141,7 +152,7 @@ export interface PerfilAcceso {
 export function fetchPerfilAcceso(
   usuarioCiudadanoId: string,
 ): Promise<PerfilAcceso> {
-  return fetch(
+  return apiFetch(
     `${API_URL}/usuarios/${usuarioCiudadanoId}/perfil-acceso`,
   ).then((r) => handle<PerfilAcceso>(r));
 }
@@ -151,7 +162,7 @@ export function cancelarSolicitud(
   usuarioCiudadanoId: string,
   motivo?: string,
 ): Promise<SolicitudRetiro> {
-  return fetch(`${API_URL}/solicitudes-retiro/${id}/cancelar`, {
+  return apiFetch(`${API_URL}/solicitudes-retiro/${id}/cancelar`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usuarioCiudadanoId, motivo }),
@@ -163,13 +174,16 @@ export function cancelarSolicitud(
 export function fetchSolicitudesAdmin(
   estado?: EstadoSolicitud,
 ): Promise<SolicitudRetiro[]> {
-  const url = new URL(`${API_URL}/solicitudes-retiro`);
-  if (estado) url.searchParams.set('estado', estado);
-  return fetch(url).then((r) => handle<SolicitudRetiro[]>(r));
+  const params = new URLSearchParams();
+  if (estado) params.set('estado', estado);
+  const qs = params.toString();
+  return apiFetch(`${API_URL}/solicitudes-retiro${qs ? `?${qs}` : ''}`).then(
+    (r) => handle<SolicitudRetiro[]>(r),
+  );
 }
 
 export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
-  return fetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
+  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
     handle<SolicitudRetiro>(r),
   );
 }
@@ -178,7 +192,7 @@ export function actualizarSolicitud(
   id: number,
   data: ActualizarSolicitudInput,
 ): Promise<SolicitudRetiro> {
-  return fetch(`${API_URL}/solicitudes-retiro/${id}`, {
+  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

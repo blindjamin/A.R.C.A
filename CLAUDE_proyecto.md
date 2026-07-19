@@ -186,12 +186,15 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 ├── UI_KIT_ARCA.md               ← Sistema de diseño (colores, tipografía, componentes)
 │                                   ⚠️ Referenciado pero aún no presente en el repo (ver Drive)
 ├── docker-compose.yml           ← MySQL 8 local para desarrollo
+├── setup.ps1                    ← Automatiza setup local completo (deps, .env.local, Docker, migraciones, arranque)
+├── start-ngrok.ps1              ← Expone la PWA a internet (celular) via ngrok, dominio fijo, un solo tunel
+├── ngrok.yml                    ← Config ngrok: tunel unico -> frontend (:5173), backend detras via proxy Vite
 ├── docs/
-│   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, backend, frontend)
+│   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, backend, frontend, scripts, ngrok)
 │   ├── BACKEND_FASE1.md         ← Resumen de implementación backend Fase 1 (EP-01)
 │   └── FRONTEND_FASE1.md        ← Resumen de implementación frontend Fase 1 (EP-01)
 └── apps/
-    ├── backend/                 ← NestJS + TypeORM (identidad, residuos, solicitudes-retiro)
+    ├── backend/                 ← NestJS + TypeORM (identidad, residuos, solicitudes-retiro), rutas bajo prefijo /api
     └── frontend/                ← React 18 + Vite + TS + Tailwind (PWA, flujo ciudadano EP-01)
 ```
 
@@ -251,13 +254,21 @@ Las respuestas y comentarios en código se escriben en **español**, salvo que B
 - **Código:** ya existe (monorepo `apps/`). Lo construido a la fecha:
   - **Backend (`apps/backend`)** — NestJS + TypeORM sobre MySQL. Implementa **EP-01**:
     catálogo de residuos y solicitudes de retiro. 6 de 19 tablas migradas (4 de identidad
-    + `residuos_catalogo` + `solicitudes_retiro`). Endpoints: `GET /health`,
-    `GET /residuos/catalogo`, `POST` y `GET /solicitudes-retiro`. CORS habilitado.
-    Detalle en `docs/BACKEND_FASE1.md`.
+    + `residuos_catalogo` + `solicitudes_retiro`). Endpoints bajo prefijo global **`/api`**
+    (`app.setGlobalPrefix('api')`): `GET /api/health`, `GET /api/residuos/catalogo`,
+    `POST`/`GET /api/solicitudes-retiro` (+ `:id`, `:id/cancelar`),
+    `GET /api/usuarios/:id/perfil-acceso`. CORS habilitado (orígenes separados por coma en
+    `FRONTEND_URL`). Detalle en `docs/BACKEND_FASE1.md`.
   - **Frontend (`apps/frontend`)** — React 18 + Vite + TS + Tailwind + React Router.
     Flujo ciudadano EP-01 (catálogo → nueva solicitud → mis solicitudes) con **login
     temporal** (usuario dev) a la espera de auth real. Detalle en `docs/FRONTEND_FASE1.md`.
   - **Infra local** — `docker-compose.yml` (MySQL 8) + `docs/SETUP_LOCAL.md`.
+  - **Automatización local + acceso móvil** — `setup.ps1` (instala todo y levanta backend +
+    frontend) y `start-ngrok.ps1` (expone la PWA a internet con dominio fijo de ngrok para
+    probarla en el celular). El frontend usa `VITE_API_URL=/api` (ruta relativa) y Vite
+    proxea `/api` al backend, así frontend y backend quedan detrás de un único origen —
+    necesario porque la cuenta ngrok free solo da un dominio fijo. Detalle en
+    `docs/SETUP_LOCAL.md` sección 10.
 - **Autenticación:** diferida. Hoy se usa un usuario dev sembrado por migración
   (`00000000-0000-4000-8000-000000000001`); el frontend lo maneja con un login temporal.
   ClaveÚnica + JWT (EP-05, Benjamín) se integrará más adelante sin reestructurar.
