@@ -10,6 +10,7 @@ export interface ResiduoCatalogo {
   categoria: string;
   subcategoria: string | null;
   puedeReutilizarse: boolean;
+  precio: number;
   instruccionesRecogida: string | null;
   fotoReferenciaPath: string | null;
   codigoRae: string | null;
@@ -58,18 +59,9 @@ export interface CrearSolicitudInput {
 }
 
 // --- Overlay visual ---------------------------------------------------------
-// El backend (entidad ResiduoCatalogo) no expone precio ni ícono. Hasta que se
-// agreguen esas columnas, los derivamos en el front por categoría (referencial).
-// Migrar a campos reales cuando el backend los provea.
-
-const PRECIO_POR_CATEGORIA: Record<string, number> = {
-  Muebles: 8000,
-  Electrónica: 12000,
-  'Línea Blanca': 10000,
-  Construcción: 15000,
-  Otros: 5000,
-};
-const PRECIO_DEFAULT = 6000;
+// El precio ahora viene real desde el backend (columna `precio`, ver migración
+// ReplaceCatalogoPreciosReales). El ícono por categoría sigue siendo puramente
+// visual y no tiene equivalente en la base de datos.
 
 const ICONO_POR_CATEGORIA: Record<string, string> = {
   Muebles: '🛋️',
@@ -79,9 +71,6 @@ const ICONO_POR_CATEGORIA: Record<string, string> = {
   Otros: '📦',
 };
 const ICONO_DEFAULT = '♻️';
-
-export const precioReferencial = (categoria: string): number =>
-  PRECIO_POR_CATEGORIA[categoria] ?? PRECIO_DEFAULT;
 
 export const iconoPorCategoria = (categoria: string): string =>
   ICONO_POR_CATEGORIA[categoria] ?? ICONO_DEFAULT;

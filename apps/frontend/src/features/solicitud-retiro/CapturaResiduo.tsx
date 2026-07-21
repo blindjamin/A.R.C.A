@@ -1,6 +1,7 @@
 import { useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSolicitudFlow } from '../flow/SolicitudFlow';
+import { ScreenHeader } from '../../components/ui';
+import { useSolicitudFlow } from './SolicitudFlowContext';
 
 export default function CapturaResiduo() {
   const navigate = useNavigate();
@@ -20,12 +21,10 @@ export default function CapturaResiduo() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-extrabold">Captura el residuo</h1>
-        <p className="text-sm text-slate">
-          Toma una foto y la IA identificará el objeto.
-        </p>
-      </header>
+      <ScreenHeader
+        title="Captura el residuo"
+        subtitle="Toma una foto y la IA identificará el objeto."
+      />
 
       {/* Visor / preview */}
       <div className="relative aspect-[4/5] overflow-hidden rounded-lg border border-line bg-ink">
