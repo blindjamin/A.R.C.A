@@ -195,7 +195,12 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 │   └── FRONTEND_FASE1.md        ← Resumen de implementación frontend Fase 1 (EP-01)
 └── apps/
     ├── backend/                 ← NestJS + TypeORM (identidad, residuos, solicitudes-retiro), rutas bajo prefijo /api
+    │   └── src/database/migrations/  ← incluye precio real del catalogo (26 items, municipalidad)
     └── frontend/                ← React 18 + Vite + TS + Tailwind (PWA, flujo ciudadano EP-01)
+        └── src/
+            ├── components/ui/   ← primitivos reutilizables entre modulos (IconBadge, EstadoPill, etc.)
+            ├── features/solicitud-retiro/  ← modulo propio del flujo "Solicitar retiro"
+            └── pages/           ← pantallas que son islas independientes (Inicio, MisSolicitudes, AdminSolicitudes, ...)
 ```
 
 ---
@@ -258,10 +263,18 @@ Las respuestas y comentarios en código se escriben en **español**, salvo que B
     (`app.setGlobalPrefix('api')`): `GET /api/health`, `GET /api/residuos/catalogo`,
     `POST`/`GET /api/solicitudes-retiro` (+ `:id`, `:id/cancelar`),
     `GET /api/usuarios/:id/perfil-acceso`. CORS habilitado (orígenes separados por coma en
-    `FRONTEND_URL`). Detalle en `docs/BACKEND_FASE1.md`.
+    `FRONTEND_URL`). `ResiduoCatalogo` tiene **precio real** (CLP): el catálogo son los
+    26 ítems de `costo retiro Voluminosos.xlsx` (municipalidad), no valores referenciales.
+    Detalle en `docs/BACKEND_FASE1.md`.
   - **Frontend (`apps/frontend`)** — React 18 + Vite + TS + Tailwind + React Router.
     Flujo ciudadano EP-01 (catálogo → nueva solicitud → mis solicitudes) con **login
-    temporal** (usuario dev) a la espera de auth real. Detalle en `docs/FRONTEND_FASE1.md`.
+    temporal** (usuario dev) a la espera de auth real. El precio se muestra real (viene
+    del backend), ya no se estima por categoría. UI componentizada en `components/ui/`
+    (`IconBadge`, `EstadoPill`, `ListItemCard`, `ScreenHeader`, `EmptyState`, `BackButton`,
+    `PriceTag` — reutilizados entre Catálogo, Mis solicitudes, Admin e Inicio) y el flujo
+    "Solicitar retiro" modularizado en `features/solicitud-retiro/` (pantallas + estado
+    compartido + sus propias rutas, separado de `App.tsx`). Detalle en
+    `docs/FRONTEND_FASE1.md`.
   - **Infra local** — `docker-compose.yml` (MySQL 8) + `docs/SETUP_LOCAL.md`.
   - **Automatización local + acceso móvil** — `setup.ps1` (instala todo y levanta backend +
     frontend) y `start-ngrok.ps1` (expone la PWA a internet con dominio fijo de ngrok para

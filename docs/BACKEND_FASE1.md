@@ -63,9 +63,10 @@ A.R.C.A/
 | Migración | Tablas / datos |
 |---|---|
 | `1782163200000-create-identity-tables` | `usuarios_ciudadanos`, `sesiones_ciudadano`, `usuarios_administradores`, `sesiones_administrador` |
-| `1782163300000-create-residuos-catalogo` | `residuos_catalogo` + seed (Sofá, Refrigerador, Colchón, Escombros) |
+| `1782163300000-create-residuos-catalogo` | `residuos_catalogo` + seed inicial (4 ítems genéricos, sin precio) |
 | `1782163400000-create-solicitudes-retiro` | `solicitudes_retiro` + usuario dev de prueba |
 | `1782163500000-seed-operador-demo` | Usuario demo **doble rol** (ciudadano `…0002` + operador `…00A2`) |
+| `1782163600000-replace-catalogo-precios-reales` | Columna `precio` (CLP) en `residuos_catalogo`; catálogo reemplazado por los **26 ítems reales** de `costo retiro Voluminosos.xlsx` (Municipalidad de Santo Domingo). Borra las `solicitudes_retiro` existentes (datos de prueba dependientes del catálogo viejo por FK). |
 
 **Comando:** `npm run migration:run` (desde `apps/backend/`)
 
@@ -76,28 +77,30 @@ A.R.C.A/
 | Módulo | Entidades |
 |---|---|
 | `users/` | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador` |
-| `residuos/` | `ResiduoCatalogo` |
+| `residuos/` | `ResiduoCatalogo` (incluye `precio: number`, CLP real) |
 | `solicitudes-retiro/` | `SolicitudRetiro`, `EstadoSolicitudRetiro` |
 
 ---
 
 ## Endpoints disponibles
 
-Base URL local: `http://localhost:3000`
+Base URL local: `http://localhost:3000/api` (prefijo global `/api` desde `app.setGlobalPrefix('api')`
+en `main.ts` — necesario para que frontend y backend compartan un único origen detrás de un
+proxy/túnel; ver `docs/SETUP_LOCAL.md` sección 10).
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `GET` | `/health` | Estado API + conexión MySQL |
-| `GET` | `/` | Hello World (scaffold) |
-| `GET` | `/residuos/catalogo` | Lista tipos de residuo |
-| `POST` | `/solicitudes-retiro` | Crear solicitud de retiro |
-| `GET` | `/solicitudes-retiro` | Listar solicitudes |
-| `GET` | `/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
-| `GET` | `/solicitudes-retiro?estado={estado}` | Filtrar por estado (vista admin) |
-| `GET` | `/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
-| `PATCH` | `/solicitudes-retiro/{id}` | **Admin:** modificar estado/operador/fecha/razón |
-| `PATCH` | `/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
-| `GET` | `/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` |
+| `GET` | `/api/health` | Estado API + conexión MySQL |
+| `GET` | `/api` | Hello World (scaffold) |
+| `GET` | `/api/residuos/catalogo` | Lista tipos de residuo (con `precio` real) |
+| `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
+| `GET` | `/api/solicitudes-retiro` | Listar solicitudes |
+| `GET` | `/api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
+| `GET` | `/api/solicitudes-retiro?estado={estado}` | Filtrar por estado (vista admin) |
+| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
+| `PATCH` | `/api/solicitudes-retiro/{id}` | **Admin:** modificar estado/operador/fecha/razón |
+| `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
+| `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` |
 
 ### Cambio de estado (PATCH admin)
 
@@ -115,7 +118,7 @@ invariantes de datos:
 
 ### Login diferido
 
-`GET /usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
+`GET /api/usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
 tiene extensión de administrador activa. El frontend lo usa tras autenticar para
 decidir el destino: funcionario → selección de contexto; solo ciudadano → PWA directa.
 
@@ -124,11 +127,13 @@ decidir el destino: funcionario → selección de contexto; solo ciudadano → P
 ```json
 {
   "usuarioCiudadanoId": "00000000-0000-4000-8000-000000000001",
-  "residuoCatalogoId": 1,
-  "descripcion": "Sofá usado en buen estado"
+  "residuoCatalogoId": 5,
+  "descripcion": "Refrigerador 2 puertas grande, funciona bien"
 }
 ```
 
+`residuoCatalogoId` tiene que ser un id real del catálogo vigente (`GET /api/residuos/catalogo`
+— los ids cambiaron con la migración de precios reales, no asumir valores fijos).
 Campos opcionales: `direccionAnonimizada`, `latitudCapturada`, `longitudCapturada`.
 
 ---
@@ -159,8 +164,11 @@ completo `asignar → en_proceso → completada`:
 
 Configurado en `apps/backend/src/main.ts`:
 
-- Origen permitido: `FRONTEND_URL` (default `http://localhost:5173`)
+- Orígenes permitidos: `FRONTEND_URL` (default `http://localhost:5173`), admite **lista
+  separada por comas** si hace falta agregar más de un origen (ej. un dominio ngrok)
 - Variable en `.env.example`: `FRONTEND_URL=http://localhost:5173`
+- En el flujo normal (frontend vía el proxy `/api` de Vite) el navegador nunca cruza
+  orígenes, así que CORS solo importa si algo llama al backend directo
 
 ---
 
