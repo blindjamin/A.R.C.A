@@ -20,6 +20,24 @@ master (main) ── solo versiones completas / releases
 - **`develop`:** rama principal de trabajo e integración. Todo lo del día a día vive aquí.
 - **Ramas temporales:** se crean **desde `develop`** cada vez que se trabaja una tarea y **se borran al integrarse** (commit/merge a `develop`). No hay ramas fijas por persona ni por módulo.
 
+### Nombre de las ramas temporales: `fecha-persona-descripcion`
+
+En minúsculas, separado por guiones:
+
+```
+2026-08-17-miguel-doc-permisos-equipo
+2026-08-20-javier-endpoint-operadores
+2026-08-22-maxi-catalogo-filtros
+```
+
+| Parte | Qué es |
+|---|---|
+| **fecha** | `AAAA-MM-DD` del día en que se crea la rama |
+| **persona** | Nombre del integrante que hace el trabajo |
+| **descripcion** | 2 a 4 palabras sobre la tarea |
+
+Así se puede saber de un vistazo quién abrió cada rama y cuándo, sin tener que revisar los commits.
+
 > Cambio respecto al modelo anterior: ya **no existen** ramas permanentes por módulo (`feature/frontend`, `feature/backend`, etc.). Fueron eliminadas; todo se consolidó en `develop`.
 
 ---
@@ -40,7 +58,7 @@ master (main) ── solo versiones completas / releases
 
 ## 🚀 Setup Inicial
 
-> **Atajo (Windows):** si ya tenés Git, Node.js 18+ y Docker Desktop corriendo, `.\setup.ps1`
+> **Atajo (Windows):** si ya están instalados Git, Node.js 18+ y Docker Desktop corriendo, `.\setup.ps1`
 > en la raíz hace los pasos 3 a 5 por vos (MySQL, dependencias, `.env.local` y migraciones)
 > y deja backend y frontend levantados. Los pasos de abajo son el equivalente manual.
 
@@ -89,11 +107,16 @@ cd apps/backend && npm run migration:run
 
 Cada tarea = una **rama temporal** creada desde `develop`, que se borra al integrarse.
 
+> **Una tarea, un área.** Cada rama trabaja sobre un área (backend, frontend, base de datos,
+> DevOps o documentación). Si para avanzar hace falta tocar otra área, **no se mete el cambio
+> en la misma rama**: se abre un **PR aparte** para esa parte, así lo revisa quien es
+> responsable de esa área y el resto del equipo no queda bloqueado esperando.
+
 ### 1. Antes de empezar — crear rama temporal desde develop
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b <descripción-tarea>   # ej: catalogo-filtros, fix-login
+git checkout -b <fecha>-<persona>-<descripción>   # ej: 2026-08-20-javier-endpoint-operadores
 ```
 
 ### 2. Mientras trabajas
@@ -147,8 +170,8 @@ cómo debe comportarse el agente al trabajar en el código (fuentes de verdad, a
 ramas, qué no tocar) y la **política de uso** para el equipo (revisión del código generado, no
 compartir datos de vecinos ni credenciales, transparencia en los commits).
 
-Claude Code, Cursor y Copilot lo detectan y lo cargan automáticamente. Leelo antes de usar
-cualquier herramienta de IA sobre este repo.
+Claude Code, Cursor y Copilot lo detectan y lo cargan automáticamente. Conviene leerlo antes
+de usar cualquier herramienta de IA sobre este repo.
 
 ---
 
@@ -209,7 +232,10 @@ Closes #<número-issue>
 ## ❓ Preguntas Frecuentes
 
 **¿Sobre qué rama trabajo?**
-Siempre creas una **rama temporal desde `develop`** para tu tarea, y la borras al integrarla. No se trabaja directo sobre `develop` ni sobre `master`.
+Siempre se crea una **rama temporal desde `develop`**, con el formato `fecha-persona-descripcion`, y se borra al integrarla. No se trabaja directo sobre `develop` ni sobre `master`.
+
+**¿Y si mi tarea me obliga a tocar el área de otra persona?**
+No se mete en la misma rama: se abre un **PR aparte** para esa parte. Lo revisa quien es responsable de esa área y así ninguno de los dos queda bloqueado.
 
 **¿Cómo sincronizo mi rama temporal con los últimos cambios de `develop`?**
 ```bash

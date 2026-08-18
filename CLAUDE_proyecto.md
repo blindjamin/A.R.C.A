@@ -244,8 +244,18 @@ Resumen de lo que contiene:
 
 | Parte | Contenido |
 |---|---|
-| **A — Reglas para el agente de IA** | No inventar · Verificar antes de responder · No actuar sin pedido explícito · Alcance acotado · Respetar decisiones tomadas · Idioma · Flujo de git · Convenciones de código · Qué no tocar nunca |
+| **A — Reglas para el agente de IA** | No inventar · Verificar antes de responder · No actuar sin pedido explícito · Alcance acotado · Respetar decisiones tomadas · Idioma · **Una sola área por sesión** · **Ramas `fecha-persona-descripcion`** · **Confirmar antes de commitear** · **Cerrar la sesión con la documentación al día** · Convenciones de código · Qué no tocar nunca |
 | **B — Política de uso para el equipo** | Responsabilidad de quien commitea · No compartir datos sensibles · Verificar lo que la IA afirme · Qué delegar y qué no · Transparencia en commits |
+
+Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
+
+- **A.7 — Una sola área por sesión.** Se define al empezar (backend, frontend, BD, DevOps, docs)
+  y el trabajo no sale de ahí. Si hace falta tocar otra área, se para, se avisa y se resuelve
+  con un **PR aparte**, para que el resto del equipo pueda seguir avanzando en paralelo.
+- **A.8 — Ramas `fecha-persona-descripcion`** (ej: `2026-08-17-miguel-doc-permisos-equipo`).
+  No se crea la rama sin esos tres datos.
+- **A.9 — Confirmar antes de commitear.** Nada llega a `develop` ni a `master` sin visto bueno
+  explícito, y la autorización es por vez.
 
 ---
 

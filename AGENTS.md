@@ -6,7 +6,7 @@
 >
 > Tiene **dos partes**:
 > - **Parte A — Reglas para el agente de IA:** cómo debe comportarse la IA al trabajar en este repo.
-> - **Parte B — Política de uso para el equipo:** cómo debemos usar la IA las personas de COM Tech.
+> - **Parte B — Política de uso para el equipo:** cómo debe usar la IA el equipo COM Tech.
 >
 > Contexto técnico completo del proyecto: [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) ·
 > Ramas y workflow: [`CLAUDE.md`](CLAUDE.md)
@@ -70,18 +70,71 @@ al MVP — salvo que algún integrante de COM Tech abra explícitamente esa disc
 
 ## A.6 IDIOMA
 
-Respuestas, comentarios en código, mensajes de commit y documentación en **español**, salvo que
-un integrante del equipo indique lo contrario. Español neutro, sin modismos regionales.
+Respuestas, comentarios en código, mensajes de commit y documentación en **español neutro**,
+sin modismos regionales, salvo que un integrante del equipo indique lo contrario.
 
-## A.7 FLUJO DE TRABAJO CON GIT
+## A.7 UNA SOLA ÁREA POR SESIÓN — PREGUNTAR ANTES DE EMPEZAR
 
-- Se trabaja en una **rama temporal creada desde `develop`**, nunca directo sobre `develop`
+**Antes de escribir la primera línea, preguntar en qué área se va a trabajar.**
+
+| Área | Alcance |
+|---|---|
+| **Backend** | `apps/backend/` — API, servicios, entidades, DTOs |
+| **Frontend** | `apps/frontend/` — PWA, pantallas, UI Kit, capa de API del cliente |
+| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan |
+| **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `start-ngrok.ps1`, `ngrok.yml`, CI |
+| **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `CLAUDE_proyecto.md`, `AGENTS.md` |
+
+Una vez definida el área, **el trabajo se limita a esa área**. No abrir ni modificar archivos
+de otra sin autorización, aunque parezca una mejora obvia.
+
+### Si para avanzar hace falta tocar otra área: PARAR
+
+No seguir de largo. Hay que detenerse y avisar explícitamente:
+
+1. **Qué otra área se tocaría** y qué archivos concretos.
+2. **Por qué** el cambio pedido lo hace necesario.
+3. **Preguntar si se quiere continuar.**
+
+Y dejar claro que, por regla del equipo, **el cruce entre áreas se resuelve con un Pull
+Request**, no metiendo el cambio en la misma rama. El PR permite que la persona responsable de
+esa otra área lo revise, y que el resto del equipo siga avanzando en paralelo sin quedar
+bloqueado esperando.
+
+> Ejemplo: se pidió una pantalla nueva (frontend) pero el endpoint que necesita no existe.
+> No se agrega el endpoint por cuenta propia: se avisa que eso es backend, se propone abrir un
+> PR aparte para esa parte, y se espera respuesta.
+
+## A.8 FLUJO DE TRABAJO CON GIT
+
+### Nombre de la rama: `fecha-persona-descripcion`
+
+Toda rama temporal se llama así, en minúsculas y separada por guiones:
+
+```
+2026-08-17-miguel-doc-permisos-equipo
+2026-08-20-javier-endpoint-operadores
+2026-08-22-maxi-catalogo-filtros
+```
+
+| Parte | Qué es |
+|---|---|
+| **fecha** | `AAAA-MM-DD` del día en que se crea la rama |
+| **persona** | Nombre del integrante que hace el trabajo |
+| **descripcion** | 2 a 4 palabras sobre la tarea |
+
+**No crear la rama sin esos tres datos.** Si falta alguno —sobre todo quién es la persona—
+hay que pedirlo antes de ejecutar `git checkout -b`. No inventar el nombre ni suponer el autor.
+
+### Reglas del flujo
+
+- La rama temporal se crea **desde `develop`**. Nunca se trabaja directo sobre `develop`
   ni sobre `master`.
 - `master` **solo recibe versiones completas** (releases), vía merge desde `develop`.
 - Formato de commit: `<tipo>(<scope>): <descripción corta>` — tipos `feat`, `fix`, `docs`,
   `style`, `refactor`, `test`, `chore`.
-- **Commitear y pushear solo cuando se pide.** Nunca hacer `push --force`, `reset --hard` sobre
-  trabajo ajeno, ni borrar ramas remotas sin confirmación explícita.
+- Nunca `push --force`, ni `reset --hard` sobre trabajo ajeno, ni borrar ramas remotas sin
+  confirmación explícita.
 - Antes de integrar a `develop`, correr localmente (todavía no hay CI configurado):
 
 ```bash
@@ -92,7 +145,35 @@ cd apps/backend && npm run lint && npm run test && npm run build
 cd apps/frontend && npm run lint && npm run build
 ```
 
-## A.8 CONVENCIONES DE CÓDIGO
+## A.9 CONFIRMAR ANTES DE COMMITEAR O INTEGRAR
+
+Preparar los cambios y **mostrarlos primero**. El commit, el merge y el push a `develop` o
+`master` **se hacen solo con el visto bueno explícito** de un integrante del equipo en ese
+momento.
+
+La autorización es **por vez**: haber aprobado una tanda de cambios no autoriza la siguiente.
+
+## A.10 CERRAR LA SESIÓN CON LA DOCUMENTACIÓN AL DÍA
+
+Al terminar una sesión de trabajo, **antes de dar la tarea por cerrada**, revisar y actualizar
+los `.md` que hayan quedado desfasados por lo que se hizo:
+
+| Si se tocó… | Revisar |
+|---|---|
+| Endpoints, entidades, migraciones | `apps/backend/README.md`, `docs/BACKEND_FASE1.md` |
+| Pantallas, UI Kit, estructura de `src/` | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
+| Setup, scripts, Docker, ngrok | `docs/SETUP_LOCAL.md`, `README.md` |
+| Estructura del repo o del stack | `README.md`, `CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
+| Ramas, workflow o convenciones | `CLAUDE.md` |
+| Reglas de IA | Este archivo |
+
+Criterio: **la documentación tiene que describir lo que el repo realmente hace.** Si un
+documento quedó afirmando algo que dejó de ser cierto, corregirlo forma parte de la tarea, no
+es trabajo extra.
+
+Esta actualización también se muestra y se confirma antes de commitear (regla A.9).
+
+## A.11 CONVENCIONES DE CÓDIGO
 
 **Generales**
 - Tipos explícitos en TypeScript. `UPPER_SNAKE_CASE` para constantes, `camelCase` para
@@ -120,7 +201,7 @@ La clasificación de residuos con TensorFlow.js **sugiere**, no decide: el usuar
 confirma o corrige la categoría. Cualquier función de IA dentro del producto se implementa
 con esa misma regla.
 
-## A.9 QUÉ NO TOCAR NUNCA
+## A.12 QUÉ NO TOCAR NUNCA
 
 | No tocar | Por qué |
 |---|---|
@@ -130,6 +211,7 @@ con esa misma regla.
 | Sistema CAS Chile (Power Builder + Sybase) | Está fuera del alcance de ARCA. No integrar |
 | Ramas `master` y `develop` en directo | Siempre vía rama temporal + merge |
 | Authtoken y dominio de ngrok | Credencial personal de cada integrante |
+| Archivos de un área que no es la de la sesión | Ver regla A.7 — requiere avisar y abrir un PR |
 
 ---
 
@@ -138,8 +220,8 @@ con esa misma regla.
 ## B.1 La responsabilidad del código es de quien lo commitea
 
 La IA es una herramienta de apoyo. **El código generado se revisa antes de integrarlo.** Si no
-entendés qué hace un fragmento, no lo commitees: pedí que te lo expliquen o reescribilo. En una
-defensa de Feria de Software vas a tener que explicar tu código.
+se entiende qué hace un fragmento, no se commitea: hay que pedir que lo expliquen o reescribirlo.
+En la defensa de Feria de Software, cada integrante tiene que poder explicar su propio código.
 
 ## B.2 Nunca compartir datos sensibles con una IA
 
@@ -156,9 +238,10 @@ Privada** y trabaja con datos de ciudadanos reales de Santo Domingo. Para probar
 
 ## B.3 Verificar todo dato que la IA afirme sobre el proyecto
 
-Si la IA dice que existe un endpoint, una tabla, un costo o una decisión de arquitectura,
-**comprobalo en el repo o en el Drive antes de usarlo** en un informe, una presentación o una
-reunión con la municipalidad. Un dato inventado en una entrega cuesta más que no tener el dato.
+Si la IA dice que existe un endpoint, una tabla, un costo o una decisión de arquitectura, hay
+que **comprobarlo en el repo o en el Drive antes de usarlo** en un informe, una presentación o
+una reunión con la municipalidad. Un dato inventado en una entrega cuesta más que no tener el
+dato.
 
 ## B.4 Qué conviene delegar y qué no
 
@@ -173,14 +256,14 @@ reunión con la municipalidad. Un dato inventado en una entrega cuesta más que 
 ## B.5 Transparencia en los commits
 
 No hace falta marcar cada línea, pero **el equipo tiene que poder saber qué se hizo con IA**.
-Si un commit es sustancialmente generado por IA, dejarlo dicho en el cuerpo del mensaje. Sirve
-para revisarlo con más atención y es honesto de cara a la evaluación.
+Si un commit es sustancialmente generado por IA, conviene dejarlo dicho en el cuerpo del
+mensaje. Sirve para revisarlo con más atención y es honesto de cara a la evaluación.
 
-## B.6 Ante la duda, preguntá al equipo
+## B.6 Ante la duda, preguntar al equipo
 
-Si no estás seguro de si algo se puede delegar a la IA, si un dato es sensible, o si un cambio
-propuesto contradice una decisión ya tomada, preguntá antes de integrarlo. Revertir sale más
-caro que consultar.
+Si hay dudas sobre si algo se puede delegar a la IA, si un dato es sensible, o si un cambio
+propuesto contradice una decisión ya tomada, conviene preguntar antes de integrarlo. Revertir
+sale más caro que consultar.
 
 ---
 
