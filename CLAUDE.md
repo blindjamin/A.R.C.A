@@ -140,6 +140,18 @@ cd apps/frontend && npm run lint && npm run build
 
 ---
 
+## 🤖 Trabajo con IA
+
+El repo tiene un [`AGENTS.md`](AGENTS.md) en la raíz con las **reglas de IA** del proyecto:
+cómo debe comportarse el agente al trabajar en el código (fuentes de verdad, alcance, flujo de
+ramas, qué no tocar) y la **política de uso** para el equipo (revisión del código generado, no
+compartir datos de vecinos ni credenciales, transparencia en los commits).
+
+Claude Code, Cursor y Copilot lo detectan y lo cargan automáticamente. Leelo antes de usar
+cualquier herramienta de IA sobre este repo.
+
+---
+
 ## 📌 Convenciones de Código
 
 ### Git Commit Messages
