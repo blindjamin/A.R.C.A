@@ -63,33 +63,43 @@ header sticky con marca, **TabBar inferior** (Inicio · Solicitar · Solicitudes
 
 ```
 apps/frontend/
-├── .env.local                  # VITE_API_URL=http://localhost:3000 (no versionado)
+├── .env.local                  # VITE_API_URL=/api (ruta relativa, no versionado)
+├── vite.config.ts              # proxy /api -> localhost:3000 + allowedHosts (ver SETUP_LOCAL §10)
 ├── tailwind.config.js          # tokens del UI Kit (colores, fuentes, radios, sombras)
 ├── postcss.config.js
 └── src/
     ├── main.tsx                # entrypoint
-    ├── App.tsx                 # router + shell mobile + TabBar + ruta protegida
+    ├── App.tsx                 # router: rutas propias + bloque de features/solicitud-retiro
     ├── index.css               # base + clases de componentes + animaciones (scan/success)
     ├── api/
-    │   └── arca.ts             # capa fetch tipada + overlay de precio/ícono por categoría
+    │   └── arca.ts             # capa fetch tipada (precio real desde el backend)
     ├── auth/
     │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage)
-    ├── flow/
-    │   └── SolicitudFlow.tsx   # estado efímero del flujo (foto capturada)
+    ├── components/
+    │   ├── AppShell.tsx        # Protected/Shell/RequireAdmin (wrapper de ruta estándar)
+    │   └── ui/                 # primitivos reutilizables entre módulos:
+    │       ├── IconBadge.tsx, EstadoPill.tsx (+estadoMeta.ts), ListItemCard.tsx,
+    │       └── ScreenHeader.tsx, EmptyState.tsx, BackButton.tsx, PriceTag.tsx
     ├── config/
     │   └── modulos.ts          # registro de módulos del Inicio (fuente de verdad del menú)
+    ├── features/
+    │   └── solicitud-retiro/   # módulo propio del flujo "Solicitar retiro":
+    │       ├── routes.tsx              # bloque de <Route> que App.tsx monta entero
+    │       ├── SolicitudFlowContext.tsx
+    │       ├── CapturaResiduo.tsx, AnalizandoIA.tsx, SugerenciasIA.tsx,
+    │       └── Catalogo.tsx, NuevaSolicitud.tsx, SolicitudCreada.tsx
     └── pages/
         ├── Login.tsx              # hero verde + CTA dorado ClaveÚnica
-        ├── Inicio.tsx            # dashboard: tarjeta de impacto (demo) + grid de módulos
-        ├── CapturaResiduo.tsx    # cámara/galería (solo visual)
-        ├── AnalizandoIA.tsx      # scan animado mock (~2.2s)
-        ├── SugerenciasIA.tsx     # detección mock sobre catálogo real
-        ├── Catalogo.tsx
-        ├── NuevaSolicitud.tsx
-        ├── SolicitudCreada.tsx   # SuccessRing + CTAs (retiro / marketplace)
+        ├── SeleccionInicio.tsx    # login diferido: elegir modo vecino/funcionario
+        ├── Inicio.tsx             # dashboard: tarjeta de impacto (demo) + grid de módulos
         ├── MisSolicitudes.tsx
-        └── Proximamente.tsx      # placeholder reutilizable (retiro municipal, marketplace)
+        ├── AdminSolicitudes.tsx   # panel municipal: listar/filtrar/cambiar estado
+        └── Proximamente.tsx       # placeholder reutilizable (retiro municipal, marketplace)
 ```
+
+> **Por qué `features/` separado de `pages/`:** el flujo de solicitud (6 pantallas + su
+> estado compartido) se movió a su propio módulo para poder editarlo sin tocar el resto
+> de las rutas de la app. `pages/` queda para pantallas que son islas independientes.
 
 ---
 
@@ -101,25 +111,34 @@ Expone funciones tipadas e interfaces del dominio (`ResiduoCatalogo`, `Solicitud
 
 | Función | Endpoint backend |
 |---|---|
-| `fetchCatalogo()` | `GET /residuos/catalogo` |
-| `crearSolicitudRetiro(data)` | `POST /solicitudes-retiro` |
-| `fetchMisSolicitudes(uuid)` | `GET /solicitudes-retiro?usuarioCiudadanoId={uuid}` |
+| `fetchCatalogo()` | `GET /api/residuos/catalogo` |
+| `crearSolicitudRetiro(data)` | `POST /api/solicitudes-retiro` |
+| `fetchMisSolicitudes(uuid)` | `GET /api/solicitudes-retiro?usuarioCiudadanoId={uuid}` |
+| `fetchSolicitudesAdmin(estado?)` | `GET /api/solicitudes-retiro?estado={estado}` |
+| `actualizarSolicitud(id, data)` | `PATCH /api/solicitudes-retiro/{id}` |
+| `cancelarSolicitud(id, uuid, motivo?)` | `PATCH /api/solicitudes-retiro/{id}/cancelar` |
+| `fetchPerfilAcceso(uuid)` | `GET /api/usuarios/{uuid}/perfil-acceso` |
+
+`API_URL` es `/api` (ruta relativa) — Vite la proxea a `localhost:3000`. Todas las llamadas
+mandan el header `ngrok-skip-browser-warning` (inofensivo fuera de ngrok, necesario cuando
+se accede vía túnel; ver `docs/SETUP_LOCAL.md` §10).
 
 > Cuando se integre Redux Toolkit (roadmap), esta capa se reemplaza por slices/endpoints
 > de RTK Query. Las pantallas deberían cambiar poco si se mantiene la misma firma.
 
-### Overlay de precio e ícono (provisional)
+### Precio real + ícono por categoría
 
-La entidad `ResiduoCatalogo` del backend **no tiene `precio` ni `icono`**. Para mostrar
-ambos en la UI, `arca.ts` deriva valores **referenciales por categoría**:
+La entidad `ResiduoCatalogo` del backend expone `precio` real en CLP (columna agregada por
+la migración `1782163600000-replace-catalogo-precios-reales`, 26 ítems del catálogo
+municipal). El ícono sigue siendo puramente visual, sin equivalente en la base de datos:
 
-| Helper | Qué hace |
+| Helper (`arca.ts`) | Qué hace |
 |---|---|
-| `precioReferencial(categoria)` | precio CLP por categoría (Muebles, Electrónica, …) |
 | `iconoPorCategoria(categoria)` | emoji por categoría |
-| `formatearPrecio(clp)` | formato `es-CL` (`$8.000`) |
+| `formatearPrecio(clp)` | formato `es-CL` (`$21.176`) |
 
-> **Pendiente:** agregar columna `precio` a la entidad + migración, y quitar el overlay.
+El precio se muestra con el componente `<PriceTag amount={item.precio} />`
+(`components/ui/PriceTag.tsx`), que envuelve `formatearPrecio`.
 
 ---
 
@@ -140,18 +159,20 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 
 ## Pantallas (`src/pages/`)
 
-| Pantalla | Ruta | Endpoint / datos | Tipo |
-|---|---|---|---|
-| `Login` | `/login` | — | placeholder |
-| `Inicio` | `/inicio` | tarjeta de impacto **demo** | hub |
-| `CapturaResiduo` | `/solicitar` | cámara/galería (solo visual) | esqueleto |
-| `AnalizandoIA` | `/solicitar/analizando` | scan mock (~2.2s) | esqueleto |
-| `SugerenciasIA` | `/solicitar/sugerencias` | `GET /residuos/catalogo` (detección mock) | esqueleto |
-| `Catalogo` | `/catalogo` | `GET /residuos/catalogo` | **backend** |
-| `NuevaSolicitud` | `/nueva-solicitud` | `POST /solicitudes-retiro` | **backend** |
-| `SolicitudCreada` | `/solicitud/creada` | SuccessRing + 2 CTAs | esqueleto |
-| `MisSolicitudes` | `/mis-solicitudes` | `GET /solicitudes-retiro?usuarioCiudadanoId=` | **backend** |
-| `Proximamente` | `/retiro-municipal`, `/marketplace/subir` | — | placeholder |
+| Pantalla | Módulo | Ruta | Endpoint / datos | Tipo |
+|---|---|---|---|---|
+| `Login` | `pages/` | `/login` | — | placeholder |
+| `SeleccionInicio` | `pages/` | `/` (si es funcionario) | — | login diferido |
+| `Inicio` | `pages/` | `/inicio` | tarjeta de impacto **demo** | hub |
+| `CapturaResiduo` | `features/solicitud-retiro/` | `/solicitar` | cámara/galería (solo visual) | esqueleto |
+| `AnalizandoIA` | `features/solicitud-retiro/` | `/solicitar/analizando` | scan mock (~2.2s) | esqueleto |
+| `SugerenciasIA` | `features/solicitud-retiro/` | `/solicitar/sugerencias` | `GET /api/residuos/catalogo` (detección mock) | esqueleto |
+| `Catalogo` | `features/solicitud-retiro/` | `/catalogo` | `GET /api/residuos/catalogo` (precio real) | **backend** |
+| `NuevaSolicitud` | `features/solicitud-retiro/` | `/nueva-solicitud` | `POST /api/solicitudes-retiro` | **backend** |
+| `SolicitudCreada` | `features/solicitud-retiro/` | `/solicitud/creada` | SuccessRing + 2 CTAs | esqueleto |
+| `MisSolicitudes` | `pages/` | `/mis-solicitudes` | `GET /api/solicitudes-retiro?usuarioCiudadanoId=` | **backend** |
+| `AdminSolicitudes` | `pages/` | `/admin` | `GET/PATCH /api/solicitudes-retiro` | **backend** |
+| `Proximamente` | `pages/` | `/retiro-municipal`, `/marketplace/subir` | — | placeholder |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
 - **Tras el login se cae en `/inicio`** (el hub); el catch-all `*` también redirige ahí.
@@ -201,7 +222,7 @@ cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifi
 
 ### Prerrequisitos
 - **Node.js 18+** (`node -v`) y **npm** (viene con Node). Para esta fase se usó Node 24 LTS.
-- Backend levantado y respondiendo (`curl http://localhost:3000/health` → `{"status":"ok",...}`).
+- Backend levantado y respondiendo (`curl http://localhost:3000/api/health` → `{"status":"ok",...}`).
 
 ### Pasos
 ```bash
@@ -217,15 +238,20 @@ npm install
 
 # 3. Crear el archivo de entorno (no está versionado)
 #    Crear apps/frontend/.env.local con el contenido:
-#       VITE_API_URL=http://localhost:3000
+#       VITE_API_URL=/api
 
 # 4. Levantar el dev server
 npm run dev        # abre http://localhost:5173
 ```
 
 > **Windows (PowerShell):** crea el `.env.local` con
-> `"VITE_API_URL=http://localhost:3000" | Out-File -Encoding utf8 apps/frontend/.env.local`
+> `"VITE_API_URL=/api" | Out-File -Encoding utf8 apps/frontend/.env.local`
 > o simplemente con el editor de texto.
+>
+> Nota: `VITE_API_URL` es una ruta **relativa** — Vite la proxea a `localhost:3000`
+> (`vite.config.ts`), así el mismo valor funciona en local y detrás de un túnel ngrok
+> (ver `SETUP_LOCAL.md` §10). El script `setup.ps1` en la raíz del repo automatiza todo
+> este setup (Docker, backend y frontend) de punta a punta.
 
 ### Comandos útiles
 ```bash
@@ -247,16 +273,16 @@ npm run lint      # ESLint
 
 ## Verificación (flujo end-to-end EP-01)
 
-1. Backend OK (`GET /health` → `{"status":"ok","db":"connected"}`).
+1. Backend OK (`GET /api/health` → `{"status":"ok","db":"connected"}`).
 2. Abrir `http://localhost:5173` → "Entrar como vecino (dev)" o "Ingresar con ClaveÚnica".
 3. Caer en **Inicio**: tarjeta de impacto (demo) + grid de módulos.
 4. Tab **Solicitar** (📷) → captura → "Analizar con IA" → pantalla de análisis →
    resultado con la detección mock sobre el catálogo real.
-5. Elegir "Usar sugerencia" o "Ingresar manualmente" → el select lista los ítems seed
-   (Sofá, Refrigerador, Colchón, Escombros) con su precio referencial.
+5. Elegir "Usar sugerencia" o "Ingresar manualmente" → el select lista los 26 ítems reales
+   del catálogo municipal (Refrigerador, Lavadora, Colchón, etc.) con su **precio real**.
 6. Crear la solicitud → `/solicitud/creada` (SuccessRing + CTAs).
 7. **Mis solicitudes** muestra la solicitud en estado `pendiente` con el nombre del residuo
-   (leído desde `GET /solicitudes-retiro`).
+   (leído desde `GET /api/solicitudes-retiro`).
 
 ---
 

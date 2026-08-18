@@ -6,14 +6,13 @@ import {
   type EstadoSolicitud,
   type SolicitudRetiro,
 } from '../api/arca';
-
-const ESTADO_META: Record<EstadoSolicitud, { label: string; cls: string }> = {
-  pendiente: { label: 'Pendiente', cls: 'bg-gold-100 text-gold-600' },
-  asignada: { label: 'Asignada', cls: 'bg-sky-100 text-sky-600' },
-  en_proceso: { label: 'En ruta', cls: 'bg-green-100 text-green-700' },
-  completada: { label: 'Completada', cls: 'bg-green-600 text-white' },
-  cancelada: { label: 'Cancelada', cls: 'bg-line-2 text-slate' },
-};
+import {
+  BackButton,
+  EmptyState,
+  ESTADO_META,
+  EstadoPill,
+  ListItemCard,
+} from '../components/ui';
 
 const ESTADOS: EstadoSolicitud[] = [
   'pendiente',
@@ -121,46 +120,25 @@ export default function AdminSolicitudes() {
             ) : error ? (
               <p className="text-rose-600">{error}</p>
             ) : items.length === 0 ? (
-              <div className="card p-8 text-center">
-                <p className="text-sm text-slate">
-                  No hay solicitudes en este estado.
-                </p>
-              </div>
+              <EmptyState message="No hay solicitudes en este estado." />
             ) : (
               <ul className="space-y-3">
-                {items.map((s) => {
-                  const meta = ESTADO_META[s.estado];
-                  return (
-                    <li key={s.id}>
-                      <button
-                        onClick={() => setSeleccion(s)}
-                        className="card flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-green-50/40"
-                      >
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-green-50 text-xl">
-                          ♻️
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="truncate font-bold">
-                              #{s.id} ·{' '}
-                              {s.residuoCatalogo?.nombre ??
-                                `Residuo ${s.residuoCatalogoId}`}
-                            </p>
-                            <span className={`pill ${meta.cls}`}>
-                              {meta.label}
-                            </span>
-                          </div>
-                          <p className="truncate text-sm text-slate">
-                            {s.descripcion ?? 'Sin descripción'}
-                          </p>
-                          <p className="text-xs text-slate-2">
-                            {formatoFecha(s.fechaSolicitud)}
-                          </p>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
+                {items.map((s) => (
+                  <li key={s.id}>
+                    <ListItemCard
+                      icon="♻️"
+                      title={
+                        <>
+                          #{s.id} ·{' '}
+                          {s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`}
+                        </>
+                      }
+                      titleBadge={<EstadoPill estado={s.estado} />}
+                      lines={[s.descripcion ?? 'Sin descripción', formatoFecha(s.fechaSolicitud)]}
+                      onClick={() => setSeleccion(s)}
+                    />
+                  </li>
+                ))}
               </ul>
             )}
           </div>
@@ -185,8 +163,6 @@ function DetalleSolicitud({
   const [fechaProgramada, setFechaProgramada] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const meta = ESTADO_META[solicitud.estado];
 
   const aplicar = async (cambios: Parameters<typeof actualizarSolicitud>[1]) => {
     setGuardando(true);
@@ -231,12 +207,7 @@ function DetalleSolicitud({
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={onVolver}
-        className="text-sm text-slate-2 hover:text-ink"
-      >
-        ← Volver al listado
-      </button>
+      <BackButton onClick={onVolver}>← Volver al listado</BackButton>
 
       <div className="card space-y-3 p-5">
         <div className="flex items-start justify-between gap-2">
@@ -249,7 +220,7 @@ function DetalleSolicitud({
                 `Residuo ${solicitud.residuoCatalogoId}`}
             </p>
           </div>
-          <span className={`pill ${meta.cls}`}>{meta.label}</span>
+          <EstadoPill estado={solicitud.estado} />
         </div>
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">

@@ -28,6 +28,9 @@ export class ResiduoCatalogo {
   @Column({ name: 'puede_reutilizarse', type: 'boolean', default: true })
   puedeReutilizarse: boolean;
 
+  @Column({ type: 'int', default: 0 })
+  precio: number;
+
   @Column({ name: 'instrucciones_recogida', type: 'text', nullable: true })
   instruccionesRecogida: string | null;
 

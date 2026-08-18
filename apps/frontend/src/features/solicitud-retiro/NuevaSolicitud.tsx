@@ -5,10 +5,10 @@ import {
   fetchCatalogo,
   formatearPrecio,
   iconoPorCategoria,
-  precioReferencial,
   type ResiduoCatalogo,
-} from '../api/arca';
-import { useSession } from '../auth/SessionContext';
+} from '../../api/arca';
+import { PriceTag, ScreenHeader } from '../../components/ui';
+import { useSession } from '../../auth/SessionContext';
 
 export default function NuevaSolicitud() {
   const navigate = useNavigate();
@@ -51,10 +51,10 @@ export default function NuevaSolicitud() {
 
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-extrabold">Nueva solicitud</h1>
-        <p className="text-sm text-slate">Confirma el residuo y agrega detalles.</p>
-      </header>
+      <ScreenHeader
+        title="Nueva solicitud"
+        subtitle="Confirma el residuo y agrega detalles."
+      />
 
       {error && <p className="pill w-full bg-rose-100 text-rose-600">{error}</p>}
 
@@ -75,7 +75,7 @@ export default function NuevaSolicitud() {
             {catalogo.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.nombre} — {item.categoria} (
-                {formatearPrecio(precioReferencial(item.categoria))})
+                {formatearPrecio(item.precio)})
               </option>
             ))}
           </select>
@@ -88,9 +88,7 @@ export default function NuevaSolicitud() {
               <span className="text-xl">{iconoPorCategoria(seleccionado.categoria)}</span>
               {seleccionado.nombre}
             </span>
-            <span className="font-display text-lg font-extrabold text-green-700">
-              {formatearPrecio(precioReferencial(seleccionado.categoria))}
-            </span>
+            <PriceTag amount={seleccionado.precio} className="text-lg" />
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { MODULOS, type Modulo } from '../config/modulos';
+import { IconBadge } from '../components/ui';
 
 function ModuloCard({ modulo }: { modulo: Modulo }) {
   const navigate = useNavigate();
@@ -17,9 +18,7 @@ function ModuloCard({ modulo }: { modulo: Modulo }) {
       }`}
     >
       <div className="flex w-full items-start justify-between">
-        <span className="flex h-11 w-11 items-center justify-center rounded-md bg-green-50 text-2xl">
-          {modulo.icono}
-        </span>
+        <IconBadge icon={modulo.icono} className="h-11 w-11 text-2xl" />
         {!modulo.activo && (
           <span className="pill bg-line-2 text-slate">Pronto</span>
         )}

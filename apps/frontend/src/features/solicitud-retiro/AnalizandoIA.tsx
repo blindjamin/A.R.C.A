@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSolicitudFlow } from '../flow/SolicitudFlow';
+import { ScreenHeader } from '../../components/ui';
+import { useSolicitudFlow } from './SolicitudFlowContext';
 
 export default function AnalizandoIA() {
   const navigate = useNavigate();
@@ -14,10 +15,10 @@ export default function AnalizandoIA() {
 
   return (
     <div className="flex flex-col items-center gap-6 py-6 text-center">
-      <header>
-        <h1 className="text-2xl font-extrabold">Analizando…</h1>
-        <p className="text-sm text-slate">Identificando el objeto con IA local.</p>
-      </header>
+      <ScreenHeader
+        title="Analizando…"
+        subtitle="Identificando el objeto con IA local."
+      />
 
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-line bg-ink">
         {fotoPreview && (

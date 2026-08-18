@@ -100,11 +100,14 @@ API en: **http://localhost:3000**
 ### Verificar backend
 
 ```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/residuos/catalogo
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/residuos/catalogo
 ```
 
 Respuesta health esperada: `{"status":"ok","db":"connected"}`
+
+> **Nota:** el backend expone todas sus rutas bajo el prefijo `/api` (`app.setGlobalPrefix('api')`
+> en `main.ts`), para poder compartir un único origen con el frontend detrás de ngrok.
 
 ---
 
@@ -151,16 +154,24 @@ npx tailwindcss init -p
 Crear `apps/frontend/.env.local`:
 
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=/api
 ```
 
 Agregar a `.gitignore` del frontend (Vite suele ignorar `.env.local` por defecto).
 
+> **Ruta relativa a propósito:** `vite.config.ts` tiene un proxy que reenvía `/api` al backend
+> (`http://localhost:3000`). Así el frontend y el backend quedan detrás de un único origen —
+> funciona igual en `localhost:5173` que a través de un túnel ngrok con dominio fijo, sin tener
+> que cambiar variables de entorno según el entorno.
+
 ### 4.4 CORS — ya configurado en backend
 
-El backend acepta peticiones desde `http://localhost:5173` (puerto default de Vite).
+El backend acepta peticiones desde `http://localhost:5173` (puerto default de Vite). En el flujo
+normal (frontend llamando vía el proxy `/api` de Vite) el navegador nunca cruza orígenes, así que
+CORS no entra en juego — solo importa si algo llama al backend directo en `localhost:3000`.
 
-- Backend: `FRONTEND_URL=http://localhost:5173` en `apps/backend/.env.local`
+- Backend: `FRONTEND_URL=http://localhost:5173` en `apps/backend/.env.local` (acepta una lista
+  separada por comas si hace falta agregar más orígenes)
 - Si Vite usa otro puerto, actualizar `FRONTEND_URL` en backend
 
 **Probar CORS:** con backend y frontend corriendo, en consola del navegador (`localhost:5173`):
@@ -293,6 +304,13 @@ docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLE
 | `Usuario ciudadano no encontrado` | Correr `npm run migration:run` (incluye usuario dev) |
 | `git add` no encuentra `.gitignore` | Ejecutar git desde **raíz** del repo, no desde `apps/backend` |
 | Docker no funciona en WSL | Docker Desktop → Settings → WSL Integration |
+| `wsl --update` da `REGDB_E_CLASSNOTREG` | Reparar Windows Installer: `net stop msiserver`, `msiexec /unregister`, `msiexec /regserver`, `net start msiserver`. Si persiste, `sfc /scannow` + `DISM /Online /Cleanup-Image /RestoreHealth` y reintentar `wsl --install` |
+| Script `.ps1` tira `TerminatorExpectedAtEndOfString` en una línea que se ve bien | Encoding: PowerShell 5.1 sin BOM lee mal tildes/guiones especiales. Evitar caracteres no-ASCII en los `.ps1` |
+| `EADDRINUSE` al reiniciar backend/frontend | Puede haber procesos `node` colgados de corridas anteriores: `Get-Process node | Stop-Process -Force` y volver a arrancar |
+| ngrok: `Error reading configuration file ... unknown version '3'` | `ngrok.yml` debe usar `version: "2"` (el agente instalado no soporta `"3"`) |
+| ngrok: `ERR_NGROK_4018` (sesión no autenticada) al usar `--config` propio | El `--config` custom no incluye el archivo por defecto con el authtoken. Pasar ambos: `--config <default> --config ngrok.yml` (ya lo hace `start-ngrok.ps1`) |
+| ngrok: `ERR_NGROK_121` (agente muy viejo) | `ngrok update` (el instalado por winget puede quedar desactualizado) |
+| ngrok: dos túneles devuelven la misma URL | La cuenta free solo tiene 1 dominio estático — no se pueden tunelizar backend y frontend por separado con dominios propios gratis. Ver sección 10 (arquitectura de un solo túnel) |
 
 ---
 
@@ -342,8 +360,8 @@ npm run start:dev
 Verificar:
 
 ```bash
-curl http://localhost:3000/health
-curl http://localhost:3000/residuos/catalogo
+curl http://localhost:3000/api/health
+curl http://localhost:3000/api/residuos/catalogo
 ```
 
 ### C. Frontend (solo Maximiliano)
@@ -353,7 +371,7 @@ Con el backend corriendo en `:3000`:
 ```bash
 cd apps/frontend
 npm install
-# .env.local → VITE_API_URL=http://localhost:3000
+# .env.local → VITE_API_URL=/api
 npm run dev
 ```
 
@@ -366,4 +384,63 @@ Abrir `http://localhost:5173`.
 - [ ] `docker compose up -d`
 - [ ] `npm install` + `.env.local` en `apps/backend`
 - [ ] `npm run migration:run`
-- [ ] `npm run start:dev` → `/health` responde OK
+- [ ] `npm run start:dev` → `/api/health` responde OK
+
+---
+
+## 10. Acceso desde el celular (ngrok) + scripts de automatización
+
+Para probar la PWA en un celular real (no solo en el navegador de la PC), el equipo usa **ngrok**
+con **un solo túnel de dominio fijo** apuntando al frontend. El propio Vite hace de proxy interno
+hacia el backend, así que todo el tráfico (HTML, JS, y llamadas a la API) pasa por **un único
+origen** — no hace falta exponer el backend por separado ni reconfigurar nada cada vez que se
+reinicia el túnel.
+
+```
+Celular → https://<dominio-fijo>.ngrok-free.dev
+              │
+              ▼
+        Vite dev server (:5173)
+              │  proxy interno /api/* → http://localhost:3000
+              ▼
+        Backend NestJS (:3000, prefijo global /api)
+              │
+              ▼
+        MySQL (Docker, :3306)
+```
+
+Por eso el backend expone todo bajo `/api` (`app.setGlobalPrefix('api')` en `main.ts`) y el
+frontend usa `VITE_API_URL=/api` (ruta relativa, no absoluta) — así el mismo build funciona
+tanto en `localhost:5173` como detrás del túnel, sin variables que cambien según el entorno.
+
+### Scripts (raíz del repo)
+
+| Script | Qué hace |
+|---|---|
+| `setup.ps1` | Instala dependencias, configura `.env.local` (backend y frontend), levanta MySQL, corre migraciones y arranca backend + frontend en ventanas nuevas. Idempotente: se puede correr de nuevo sin romper nada. |
+| `start-ngrok.ps1` | Levanta el túnel ngrok (`ngrok.yml`) con el dominio fijo reservado en la cuenta y muestra la URL pública. Verifica que backend/frontend estén corriendo antes de levantar el túnel. |
+| `ngrok.yml` | Config de ngrok: un único túnel `app` → `localhost:5173` con `domain:` fijo. |
+
+### Prerrequisitos de ngrok (una sola vez por PC/cuenta)
+
+1. Instalar: `winget install ngrok.ngrok`
+2. Autenticar (con tu propio token, nunca lo compartas por chat/Slack en texto plano):
+   ```powershell
+   ngrok config add-authtoken TU_TOKEN
+   ```
+3. Reservar un dominio estático gratis en https://dashboard.ngrok.com/domains y ponerlo en el
+   campo `domain:` de `ngrok.yml`. **Es por cuenta:** si otro integrante del equipo corre este
+   script con su propia cuenta ngrok, tiene que reservar su propio dominio y reemplazarlo ahí.
+
+### Uso
+
+```powershell
+cd "FDS A.R.C.A"
+.\setup.ps1         # si no estan corriendo backend/frontend
+.\start-ngrok.ps1
+```
+
+Abrir la URL que imprime el script desde el celular. La **primera vez** ngrok muestra una
+pantalla de aviso ("You are about to visit...") — hay que tocar **Visit Site** una vez; después
+no vuelve a aparecer para esa sesión de navegador. Las llamadas `fetch` del frontend ya mandan el
+header `ngrok-skip-browser-warning` para no depender de esa cookie.

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { useSolicitudFlow } from '../flow/SolicitudFlow';
+import { useSolicitudFlow } from './SolicitudFlowContext';
 
 export default function SolicitudCreada() {
   const navigate = useNavigate();

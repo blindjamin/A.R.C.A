@@ -4,10 +4,10 @@ import {
   fetchCatalogo,
   formatearPrecio,
   iconoPorCategoria,
-  precioReferencial,
   type ResiduoCatalogo,
-} from '../api/arca';
-import { useSolicitudFlow } from '../flow/SolicitudFlow';
+} from '../../api/arca';
+import { ScreenHeader } from '../../components/ui';
+import { useSolicitudFlow } from './SolicitudFlowContext';
 
 // Confianza simulada — la IA real (TensorFlow.js) llega en una fase posterior.
 const CONFIANZA_MOCK = 92;
@@ -32,10 +32,7 @@ export default function SugerenciasIA() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-2xl font-extrabold">Resultado</h1>
-        <p className="text-sm text-slate">Esto detectamos en tu foto.</p>
-      </header>
+      <ScreenHeader title="Resultado" subtitle="Esto detectamos en tu foto." />
 
       {/* Tarjeta de detección */}
       <div className="card overflow-hidden">
@@ -57,8 +54,7 @@ export default function SugerenciasIA() {
           </div>
           <h2 className="mt-3 text-xl font-extrabold">{sugerencia.nombre}</h2>
           <p className="text-sm text-slate">
-            {sugerencia.categoria} ·{' '}
-            {formatearPrecio(precioReferencial(sugerencia.categoria))}
+            {sugerencia.categoria} · {formatearPrecio(sugerencia.precio)}
           </p>
           {/* Barra de confianza */}
           <div className="mt-3 h-2 overflow-hidden rounded-pill bg-line-2">

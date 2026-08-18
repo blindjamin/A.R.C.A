@@ -2,11 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchCatalogo,
-  formatearPrecio,
   iconoPorCategoria,
-  precioReferencial,
   type ResiduoCatalogo,
-} from '../api/arca';
+} from '../../api/arca';
+import { IconBadge, PriceTag, ScreenHeader } from '../../components/ui';
 
 export default function Catalogo() {
   const [items, setItems] = useState<ResiduoCatalogo[]>([]);
@@ -39,10 +38,10 @@ export default function Catalogo() {
 
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="text-2xl font-extrabold">Catálogo</h1>
-        <p className="text-sm text-slate">Residuos voluminosos y su valor de retiro.</p>
-      </header>
+      <ScreenHeader
+        title="Catálogo"
+        subtitle="Residuos voluminosos y su valor de retiro."
+      />
 
       <input
         type="search"
@@ -69,9 +68,10 @@ export default function Catalogo() {
       <div className="grid gap-3">
         {filtrados.map((item) => (
           <div key={item.id} className="card flex items-center gap-3 p-3">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-green-50 text-2xl">
-              {iconoPorCategoria(item.categoria)}
-            </div>
+            <IconBadge
+              icon={iconoPorCategoria(item.categoria)}
+              className="h-14 w-14 text-2xl"
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <h3 className="truncate font-bold">{item.nombre}</h3>
@@ -80,8 +80,8 @@ export default function Catalogo() {
                 )}
               </div>
               <p className="text-xs text-slate">{item.categoria}</p>
-              <p className="mt-0.5 font-display text-sm font-extrabold text-green-700">
-                {formatearPrecio(precioReferencial(item.categoria))}
+              <p className="mt-0.5">
+                <PriceTag amount={item.precio} className="text-sm" />
               </p>
             </div>
             <button
