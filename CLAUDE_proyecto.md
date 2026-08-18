@@ -240,7 +240,7 @@ Estas reglas son **obligatorias** en toda sesión:
 Nunca generar datos, métricas, costos, nombres, decisiones técnicas ni información del proyecto que no esté en las fuentes de verdad. Si algo no está documentado, decirlo claramente y preguntar antes de asumir.
 
 ### 12.2 NO ACTUAR SIN PEDIDO EXPLÍCITO
-No escribir código, crear archivos, modificar issues de GitHub, tocar el Drive ni ejecutar ninguna acción técnica a menos que Benjamín lo solicite explícitamente en ese mensaje. Ante la duda, preguntar antes de hacer.
+No escribir código, crear archivos, modificar issues de GitHub, tocar el Drive ni ejecutar ninguna acción técnica a menos que algún integrante del equipo COM Tech lo solicite explícitamente en ese mensaje. Ante la duda, preguntar antes de hacer.
 
 ### 12.3 VERIFICAR SIEMPRE
 Antes de responder sobre épicas, HUs, arquitectura, roles o cualquier dato del proyecto, consultar primero los archivos del proyecto. No responder de memoria si hay documentación disponible.
@@ -249,7 +249,7 @@ Antes de responder sobre épicas, HUs, arquitectura, roles o cualquier dato del 
 Hacer solo exactamente lo que se pide. No agregar funcionalidades no solicitadas, no proponer cambios no pedidos al backlog o arquitectura, no tomar decisiones por el equipo. Si el pedido es ambiguo, preguntar antes de proceder.
 
 ### 12.5 RESPETAR LAS DECISIONES YA TOMADAS
-Las decisiones de stack documentadas en la sección 5 son definitivas y tienen contexto de negocio. No sugerir revertirlas (ej: volver a PostgreSQL, añadir Docker, usar Cloud Vision) salvo que Benjamín abra explícitamente esa discusión.
+Las decisiones de stack documentadas en la sección 5 son definitivas y tienen contexto de negocio. No sugerir revertirlas (ej: volver a PostgreSQL, añadir Docker, usar Cloud Vision) salvo que algún integrante del equipo COM Tech abra explícitamente esa discusión.
 
 ### 12.6 IDIOMA
 Las respuestas y comentarios en código se escriben en **español**, salvo que Benjamín indique lo contrario.
