@@ -1,73 +1,106 @@
-# React + TypeScript + Vite
+# A.R.C.A. — Frontend (PWA)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+PWA mobile-first del proyecto A.R.C.A. Construida con **React 18 + TypeScript + Vite + Tailwind CSS**.
 
-Currently, two official plugins are available:
+> Documentación detallada de la fase actual: [`docs/FRONTEND_FASE1.md`](../../docs/FRONTEND_FASE1.md)
+> Roadmap y pendientes por fase: [`docs/PLAN_FRONTEND.md`](../../docs/PLAN_FRONTEND.md)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Arrancar en local
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Si es la primera vez en este PC, corré el script de la raíz que deja todo listo
+(MySQL, dependencias, `.env.local`, migraciones y ambos servidores):
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+.\setup.ps1
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Manual, solo el frontend:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+cd apps/frontend
+npm install
+npm run dev
 ```
+
+Requiere `apps/frontend/.env.local` con:
+
+```
+VITE_API_URL=/api
+```
+
+El dev server queda en `http://localhost:5173` y hace **proxy de `/api` hacia el backend**
+(`http://localhost:3000`), configurado en [`vite.config.ts`](vite.config.ts). Por eso frontend y
+backend comparten un único origen y no hace falta tocar CORS ni URLs absolutas en desarrollo.
+
+---
+
+## Scripts
+
+| Comando | Qué hace |
+|---|---|
+| `npm run dev` | Dev server de Vite con HMR (puerto 5173) |
+| `npm run build` | `tsc -b` + build de producción a `dist/` |
+| `npm run preview` | Sirve el build de `dist/` para verificarlo |
+| `npm run lint` | ESLint sobre todo el proyecto |
+
+---
+
+## Estructura de `src/`
+
+```
+src/
+├── api/arca.ts                  # Capa única de acceso a la API (fetch tipado)
+├── auth/SessionContext.tsx      # Identidad temporal (mock hasta ClaveÚnica real)
+├── components/
+│   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected, RequireAdmin
+│   └── ui/                      # UI Kit — primitivos reutilizables
+│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader
+│       ├── EmptyState · BackButton · PriceTag
+│       ├── estadoMeta.ts        # Metadata (label/color) por estado de solicitud
+│       └── index.ts             # Punto de import único: import { ScreenHeader } from '../../components/ui'
+├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
+├── features/
+│   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
+│       ├── CapturaResiduo · AnalizandoIA · SugerenciasIA
+│       ├── Catalogo · NuevaSolicitud · SolicitudCreada
+│       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada)
+│       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
+├── pages/                       # Pantallas fuera del flujo de solicitud
+│   ├── Login · SeleccionInicio · Inicio
+│   ├── MisSolicitudes · AdminSolicitudes · Proximamente
+├── index.css                    # Tokens y clases utilitarias del UI Kit
+└── App.tsx                      # Router: arma las rutas y monta solicitudRetiroRoutes
+```
+
+### Criterio de organización
+
+- **`features/`** — un módulo funcional completo (pantallas + estado + rutas) que se puede
+  hacer crecer sin tocar el resto. `App.tsx` monta el bloque de rutas sin conocer su interior.
+- **`pages/`** — pantallas sueltas que no pertenecen a un flujo con varios pasos.
+- **`components/ui/`** — primitivos sin lógica de negocio, reutilizables por cualquier pantalla.
+
+---
+
+## Convenciones
+
+- Componentes como funciones, props tipadas con TypeScript, hooks modernos.
+- Estilos con Tailwind + las clases utilitarias del UI Kit (`.card`, `.btn-primary`,
+  `.btn-gold`, `.btn-outline`, `.btn-ghost`, `.pill`, `.field`, `.chip`).
+- **Todas** las llamadas HTTP pasan por `src/api/arca.ts`; ninguna pantalla hace `fetch` directo.
+- Tokens de diseño (colores, radios, sombras, tipografías) en
+  [`tailwind.config.js`](tailwind.config.js) e [`index.css`](src/index.css).
+
+---
+
+## Acceso desde el celular
+
+`vite.config.ts` tiene `allowedHosts: true` para permitir el túnel de ngrok. Desde la raíz:
+
+```powershell
+.\start-ngrok.ps1
+```
+
+Un solo túnel alcanza para todo, porque Vite ya proxea `/api` al backend.
+Ver [`docs/SETUP_LOCAL.md`](../../docs/SETUP_LOCAL.md) §10.

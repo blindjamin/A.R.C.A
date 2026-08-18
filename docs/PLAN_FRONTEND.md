@@ -31,7 +31,10 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - Header sticky con marca + Salir.
 - **TabBar inferior** sticky: Inicio · Solicitar (📷) · Solicitudes.
 - Login con hero verde degradado + CTA dorado ClaveÚnica.
-- Estado efímero del flujo (foto capturada) en `flow/SolicitudFlow.tsx`.
+- Estado efímero del flujo (foto capturada) en `features/solicitud-retiro/SolicitudFlowContext.tsx`.
+- **Modularización por feature:** el flujo "Solicitar retiro" vive completo en
+  `features/solicitud-retiro/` (pantallas + contexto + `routes.tsx`); `App.tsx` monta el bloque
+  de rutas sin conocer su interior.
 
 ---
 
@@ -54,8 +57,10 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 | Retiro municipal | `/retiro-municipal` | ✅ placeholder | "Próximamente" (EP-03) |
 | Subir a Marketplace | `/marketplace/subir` | ✅ placeholder | "Próximamente" (EP-02) |
 
-> **Precio e ícono son overlay del front** (mapeados por categoría en `api/arca.ts`):
-> el backend no expone esas columnas todavía. Migrar a campos reales cuando existan.
+> **Precio: ya es real.** Viene de la columna `precio` de `residuos_catalogo`
+> (migración `1782163600000-replace-catalogo-precios-reales`), no del front.
+> **El ícono sigue siendo overlay del front**, mapeado por categoría en `api/arca.ts`
+> (`iconoPorCategoria`). Migrar a un campo real del backend cuando exista.
 
 ---
 
@@ -65,10 +70,15 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [x] Sistema de diseño + shell + tab bar.
 - [x] Re-estilizar las pantallas existentes.
 - [x] Reconectar todas las pantallas a los endpoints reales del backend (EP-01).
-- [ ] **Componetizar** primitivos en `src/components/ui/` (Button, Card, Pill, Field, Chip, SearchBar) — hoy son clases CSS; extraer a componentes tipados.
+- [x] **Componetizar** primitivos en `src/components/ui/`: `IconBadge`, `EstadoPill`,
+      `ListItemCard`, `ScreenHeader`, `EmptyState`, `BackButton`, `PriceTag` + `estadoMeta`,
+      todos exportados desde `components/ui/index.ts`.
+- [ ] Extraer los primitivos que siguen siendo **solo clases CSS**: `Button`, `Card`, `Field`,
+      `Chip`, `SearchBar`.
 - [ ] **Detalle / Tracking de retiro** con Timeline de 4 pasos (UI Kit: `Timeline + PulseRing`). Ruta `/solicitud/:id`.
 - [ ] Conectar la tarjeta de créditos/impacto del Inicio a datos reales (EP-04) — hoy es estática.
-- [ ] **Precio e ícono reales:** agregar columnas al backend y quitar el overlay de `api/arca.ts`.
+- [x] **Precio real:** columna `precio` en el backend; el overlay de precio salió de `api/arca.ts`.
+- [ ] **Ícono real:** agregar la columna al backend y quitar `iconoPorCategoria` de `api/arca.ts`.
 - [ ] Estados de carga con `Spinner` / skeletons y manejo de error consistente.
 - [ ] Iconografía: migrar emojis → `lucide-react` (acordado en `config/modulos.ts`).
 
@@ -120,4 +130,4 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 ---
 
-**Última actualización:** 2026-06-24 · Equipo COM Tech
+**Última actualización:** 2026-08-17 · Equipo COM Tech

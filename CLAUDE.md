@@ -40,10 +40,14 @@ master (main) ── solo versiones completas / releases
 
 ## 🚀 Setup Inicial
 
+> **Atajo (Windows):** si ya tenés Git, Node.js 18+ y Docker Desktop corriendo, `.\setup.ps1`
+> en la raíz hace los pasos 3 a 5 por vos (MySQL, dependencias, `.env.local` y migraciones)
+> y deja backend y frontend levantados. Los pasos de abajo son el equivalente manual.
+
 ### 1. Clonar el repositorio
 ```bash
 git clone https://github.com/blindjamin/A.R.C.A.git
-cd "Feria de Software Code"
+cd A.R.C.A
 ```
 
 ### 2. Ubicarse en develop
@@ -60,12 +64,22 @@ cd apps/frontend
 npm install
 
 # Backend
-cd ../apps/backend
+cd ../backend
 npm install
 ```
 
 ### 4. Configurar variables de entorno
-Crear archivos `.env.local` en cada aplicación (coordinar con el equipo).
+Crear archivos `.env.local` en cada aplicación (no se versionan):
+
+- `apps/backend/.env.local` — copiar de `.env.example` y completar
+  `DB_USERNAME=arca_user` y `DB_PASSWORD=arca_pass` (las del `docker-compose.yml`).
+- `apps/frontend/.env.local` — una sola línea: `VITE_API_URL=/api`
+
+### 5. Levantar MySQL y correr migraciones
+```bash
+docker compose up -d              # desde la raíz del repo
+cd apps/backend && npm run migration:run
+```
 
 > **Setup local detallado (Docker, migraciones, frontend):** ver [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
 
@@ -109,11 +123,20 @@ Cuando `develop` tiene un hito estable, se sube a `master` (o `main`) **solo en 
 
 ## 🔄 Integración Continua
 
-- **GitHub Actions** ejecuta:
+> **Estado: planificado.** Todavía **no hay workflows** en el repo (`.github/workflows/`).
+> Por ahora lint, tests y build se corren localmente antes de integrar a `develop`.
+
+Cuando se configure, **GitHub Actions** debería ejecutar:
   - Linting (ESLint, Prettier)
   - Tests (Jest + Supertest)
-  - Build (TypeScript, Webpack)
+  - Build (TypeScript)
   - Despliegue a staging en cPanel
+
+Mientras tanto, antes de integrar:
+```bash
+cd apps/backend  && npm run lint && npm run test && npm run build
+cd apps/frontend && npm run lint && npm run build
+```
 
 ---
 

@@ -192,11 +192,14 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 ├── docs/
 │   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, backend, frontend, scripts, ngrok)
 │   ├── BACKEND_FASE1.md         ← Resumen de implementación backend Fase 1 (EP-01)
-│   └── FRONTEND_FASE1.md        ← Resumen de implementación frontend Fase 1 (EP-01)
+│   ├── FRONTEND_FASE1.md        ← Resumen de implementación frontend Fase 1 (EP-01)
+│   └── PLAN_FRONTEND.md         ← Roadmap del frontend por fases + deuda técnica (documento vivo)
 └── apps/
     ├── backend/                 ← NestJS + TypeORM (identidad, residuos, solicitudes-retiro), rutas bajo prefijo /api
+    │   └── README.md            ← Guía de la API: scripts, entorno, endpoints, migraciones
     │   └── src/database/migrations/  ← incluye precio real del catalogo (26 items, municipalidad)
     └── frontend/                ← React 18 + Vite + TS + Tailwind (PWA, flujo ciudadano EP-01)
+        ├── README.md            ← Guía de la PWA: scripts, estructura de src/, convenciones
         └── src/
             ├── components/ui/   ← primitivos reutilizables entre modulos (IconBadge, EstadoPill, etc.)
             ├── features/solicitud-retiro/  ← modulo propio del flujo "Solicitar retiro"
@@ -290,7 +293,9 @@ Las respuestas y comentarios en código se escriben en **español**, salvo que B
   - `ARCA_database_schema.dbml` (esquema BD vigente, 19 tablas)
   - `ARQUITECTURA_ARCA_PWA.md` (.docx, esquema + endpoints — stack desactualizado)
   - `UI_KIT_ARCA.md` v1.0 (sistema de diseño)
-  - `docs/{SETUP_LOCAL,BACKEND_FASE1,FRONTEND_FASE1}.md`
+  - `docs/{SETUP_LOCAL,BACKEND_FASE1,FRONTEND_FASE1,PLAN_FRONTEND}.md`
+  - `apps/backend/README.md` y `apps/frontend/README.md` (guías por app; antes eran el
+    boilerplate de NestJS y Vite)
 - **Pendiente:** resto de migraciones del DBML (marketplace, credits, dashboard, etc.),
   auth real, y confirmación de acceso SSH al servidor municipal para despliegue.
 - **Escalado futuro (post-MVP):** Redis (caché + adaptador Socket.io multi-proceso), modelo TensorFlow.js personalizado entrenado con datos reales de la municipalidad, Sentry para monitoreo.

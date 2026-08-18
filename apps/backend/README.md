@@ -1,98 +1,132 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# A.R.C.A. — Backend (API REST)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API del proyecto A.R.C.A. Construida con **NestJS + TypeScript + TypeORM + MySQL**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> Documentación detallada de la fase actual: [`docs/BACKEND_FASE1.md`](../../docs/BACKEND_FASE1.md)
+> Setup local completo (Docker, migraciones, troubleshooting): [`docs/SETUP_LOCAL.md`](../../docs/SETUP_LOCAL.md)
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Arrancar en local
 
-## Project setup
+Si es la primera vez en este PC, corré el script de la raíz que deja todo listo
+(MySQL en Docker, dependencias, `.env.local`, migraciones y ambos servidores):
 
-```bash
-$ npm install
+```powershell
+.\setup.ps1
 ```
 
-## Compile and run the project
+Manual, solo el backend:
 
 ```bash
-# development
-$ npm run start
+# 1. MySQL (desde la raíz del repo)
+docker compose up -d
 
-# watch mode
-$ npm run start:dev
+# 2. Dependencias
+cd apps/backend
+npm install
 
-# production mode
-$ npm run start:prod
+# 3. Entorno: copiar .env.example → .env.local y completar
+#    DB_USERNAME=arca_user  DB_PASSWORD=arca_pass
+
+# 4. Migraciones
+npm run migration:run
+
+# 5. Servidor
+npm run start:dev
 ```
 
-## Run tests
+Queda en `http://localhost:3000`, con **prefijo global `/api`**.
+Verificación rápida: `curl http://localhost:3000/api/health`
 
-```bash
-# unit tests
-$ npm run test
+---
 
-# e2e tests
-$ npm run test:e2e
+## Variables de entorno (`.env.local`)
 
-# test coverage
-$ npm run test:cov
+| Variable | Valor local | Uso |
+|---|---|---|
+| `DB_HOST` | `localhost` | Host de MySQL |
+| `DB_PORT` | `3306` | Puerto de MySQL |
+| `DB_USERNAME` | `arca_user` | Usuario (definido en `docker-compose.yml`) |
+| `DB_PASSWORD` | `arca_pass` | Contraseña (definida en `docker-compose.yml`) |
+| `DB_DATABASE` | `arca_dev` | Base de datos |
+| `PORT` | `3000` | Puerto de la API |
+| `NODE_ENV` | `development` | Entorno |
+| `FRONTEND_URL` | `http://localhost:5173` | Orígenes CORS permitidos (separados por coma) |
+
+`.env.local` **no se versiona** (está en `.gitignore`). La plantilla es `.env.example`.
+
+---
+
+## Scripts
+
+| Comando | Qué hace |
+|---|---|
+| `npm run start:dev` | Servidor en watch mode |
+| `npm run start:prod` | Corre el build de `dist/` |
+| `npm run build` | Compila con `nest build` |
+| `npm run migration:run` | Aplica las migraciones pendientes |
+| `npm run migration:revert` | Revierte la última migración |
+| `npm run lint` | ESLint con `--fix` |
+| `npm run test` / `test:e2e` / `test:cov` | Jest (unit / e2e / coverage) |
+
+---
+
+## Endpoints implementados
+
+Todos cuelgan del prefijo `/api`.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/residuos/catalogo` | Catálogo de residuos (incluye `precio` real) |
+| `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
+| `GET` | `/api/solicitudes-retiro` | Listar solicitudes (filtrable por estado) |
+| `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud |
+| `PATCH` | `/api/solicitudes-retiro/:id` | Cambiar estado (admin, reversible) |
+| `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
+| `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido |
+
+Estados de una solicitud (`EstadoSolicitudRetiro`):
+`pendiente` · `asignada` · `en_proceso` · `completada` · `cancelada`
+
+---
+
+## Estructura de `src/`
+
+```
+src/
+├── main.ts                      # Bootstrap: CORS, prefijo /api, ValidationPipe global
+├── app.module.ts                # Módulo raíz
+├── database/
+│   ├── data-source.ts           # DataSource de TypeORM (usado por el CLI de migraciones)
+│   └── migrations/              # Migraciones versionadas, en orden de timestamp
+├── health/                      # Health check
+├── residuos/                    # Catálogo de residuos
+├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs, entity, enum)
+└── users/                       # Ciudadanos, administradores y sesiones
 ```
 
-## Deployment
+## Migraciones
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Se ejecutan en orden de timestamp. Ninguna se edita una vez aplicada: los cambios van
+siempre en una migración nueva.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+| Timestamp | Migración |
+|---|---|
+| `1782163200000` | `create-identity-tables` — ciudadanos, administradores y sesiones |
+| `1782163300000` | `create-residuos-catalogo` — catálogo de residuos |
+| `1782163400000` | `create-solicitudes-retiro` — solicitudes de retiro |
+| `1782163500000` | `seed-operador-demo` — operador municipal de demo |
+| `1782163600000` | `replace-catalogo-precios-reales` — catálogo con precios reales |
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+---
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Convenciones
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **Controladores delgados:** la lógica de negocio vive en los *services*.
+- **DTOs con `class-validator`:** el `ValidationPipe` global corre con `whitelist: true` y
+  `transform: true`, así que las propiedades no declaradas en el DTO se descartan.
+- **Entidades TypeORM** con nombres de columna en `snake_case` vía `name:`, y propiedades
+  TypeScript en `camelCase`.
+- Tipos explícitos; `UPPER_SNAKE_CASE` para constantes, `camelCase` para variables y funciones.

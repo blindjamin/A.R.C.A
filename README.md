@@ -12,6 +12,10 @@
 - [Diagnóstico del problema](#-diagnóstico-del-problema)
 - [Módulos funcionales](#-módulos-funcionales)
 - [Stack técnico](#-stack-técnico)
+- [Inicio rápido (desarrollo local)](#-inicio-rápido-desarrollo-local)
+- [Estructura del repositorio](#-estructura-del-repositorio)
+- [Estado actual de implementación](#-estado-actual-de-implementación)
+- [Documentación](#-documentación)
 - [Despliegue](#-despliegue)
 - [Backlog](#-backlog)
 - [Equipo](#-equipo)
@@ -102,10 +106,95 @@ Panel para funcionarios con métricas en tiempo real, mapa de calor georreferenc
 | Tecnología | Uso |
 |---|---|
 | Servidores de la Municipalidad de Santo Domingo (cPanel + SSH) | Hosting y despliegue |
-| GitHub Actions | CI (lint / test / build); despliegue al servidor vía SSH |
+| GitHub Actions | CI (lint / test / build) y despliegue vía SSH — **planificado**, aún sin workflows en el repo |
 | Git | Control de versiones |
 
 > **Mejoras futuras de escalado:** Redis (caché y adaptador de Socket.io para múltiples procesos) y monitoreo con Sentry quedan planteados como mejora futura. El MVP corre en un solo proceso, con autenticación *stateless* vía JWT.
+
+---
+
+## ▶️ Inicio rápido (desarrollo local)
+
+**Windows / PowerShell — automatizado.** Requiere Git, Node.js 18+ y Docker Desktop corriendo:
+
+```powershell
+git clone https://github.com/blindjamin/A.R.C.A.git
+cd A.R.C.A
+git checkout develop
+.\setup.ps1
+```
+
+`setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias, crea los
+`.env.local`, corre las migraciones y abre backend y frontend en ventanas separadas.
+
+| Servicio | URL |
+|---|---|
+| Frontend (Vite) | http://localhost:5173 |
+| Backend (NestJS) | http://localhost:3000/api |
+| Health check | http://localhost:3000/api/health |
+| MySQL (Docker) | `localhost:3306` · base `arca_dev` |
+
+**Probar desde el celular:** `.\start-ngrok.ps1` expone el frontend por un túnel con dominio fijo.
+Un solo túnel alcanza, porque Vite proxea `/api` al backend.
+
+> Setup manual paso a paso, otros sistemas operativos y problemas frecuentes:
+> [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
+
+---
+
+## 📂 Estructura del repositorio
+
+```
+A.R.C.A/
+├── apps/
+│   ├── backend/                 # API NestJS + TypeORM + MySQL
+│   └── frontend/                # PWA React 18 + Vite + Tailwind
+├── docs/                        # Documentación técnica del proyecto
+├── ARCA_database_schema.dbml    # Schema de la base de datos (fuente de verdad)
+├── docker-compose.yml           # MySQL 8 para desarrollo local
+├── setup.ps1                    # Setup local automatizado (Windows)
+├── start-ngrok.ps1              # Túnel ngrok para probar desde el celular
+├── ngrok.yml                    # Config del túnel (dominio fijo)
+├── CLAUDE.md                    # Ramas, workflow del equipo y convenciones
+└── CLAUDE_proyecto.md           # Contexto técnico completo del proyecto
+```
+
+---
+
+## 📊 Estado actual de implementación
+
+Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
+
+| Área | Estado |
+|---|---|
+| **Catálogo de residuos** | ✅ `GET /api/residuos/catalogo` con **precios reales** en base de datos |
+| **Solicitud de retiro** | ✅ Crear, listar, ver detalle y cancelar — conectado al backend |
+| **Panel municipal (EP-03 base)** | ✅ Listar, filtrar por estado, detalle y cambio de estado reversible |
+| **Login diferido** | ✅ Gate por `perfil-acceso`: funcionario elige contexto, ciudadano va directo a la PWA |
+| **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
+| **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |
+| **Autenticación ClaveÚnica** | ⛔ Pendiente — hoy `SessionContext` es una identidad temporal |
+| **Marketplace P2P (EP-02)** | ⛔ Pendiente — placeholders "Próximamente" |
+| **Circular Credits (EP-04)** | ⛔ Pendiente — la tarjeta de impacto del Inicio es estática |
+
+Detalle por capa: [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) ·
+[`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) ·
+roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
+
+---
+
+## 📚 Documentación
+
+| Documento | Para qué sirve |
+|---|---|
+| [`CLAUDE.md`](CLAUDE.md) | Estructura de ramas, workflow de colaboración y convenciones de código |
+| [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) | Contexto técnico completo: stack confirmado, decisiones de arquitectura y su porqué |
+| [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md) | Levantar el proyecto desde cero, por rol, + ngrok y troubleshooting |
+| [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) | Qué se implementó en el backend: endpoints, entidades, migraciones |
+| [`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) | Qué se implementó en el frontend: UI Kit, pantallas, capa de API |
+| [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md) | Roadmap del frontend por fases y deuda técnica |
+| [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API: scripts, entorno, endpoints, migraciones |
+| [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA: scripts, estructura de `src/`, convenciones |
 
 ---
 
