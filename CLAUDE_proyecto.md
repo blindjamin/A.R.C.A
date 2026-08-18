@@ -176,6 +176,8 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 
 ```
 /
+├── AGENTS.md                    ← Reglas de IA: comportamiento del agente + política de uso del equipo
+│                                   (lo cargan solas Claude Code / Cursor / Copilot)
 ├── CLAUDE.md                    ← Guía de setup colaborativo (Git Flow, ramas, convenciones)
 ├── CLAUDE_proyecto.md           ← Este archivo (contexto de proyecto para Claude Code)
 ├── README.md                    ← Fuente de verdad principal (stack, arquitectura, backlog)
@@ -232,27 +234,18 @@ Definido en `UI_KIT_ARCA.md`. Puntos clave:
 
 ---
 
-## 12. Reglas de comportamiento para Claude Code
+## 12. Reglas de comportamiento para IA
 
-Estas reglas son **obligatorias** en toda sesión:
+> **Movidas a [`AGENTS.md`](AGENTS.md)** (raíz del repo). Ese archivo es ahora la **única
+> fuente de verdad** de las reglas, para que no queden dos copias que se contradigan.
+> Herramientas como Claude Code, Cursor y Copilot lo detectan y lo cargan solas.
 
-### 12.1 NO INVENTAR
-Nunca generar datos, métricas, costos, nombres, decisiones técnicas ni información del proyecto que no esté en las fuentes de verdad. Si algo no está documentado, decirlo claramente y preguntar antes de asumir.
+Resumen de lo que contiene:
 
-### 12.2 NO ACTUAR SIN PEDIDO EXPLÍCITO
-No escribir código, crear archivos, modificar issues de GitHub, tocar el Drive ni ejecutar ninguna acción técnica a menos que algún integrante del equipo COM Tech lo solicite explícitamente en ese mensaje. Ante la duda, preguntar antes de hacer.
-
-### 12.3 VERIFICAR SIEMPRE
-Antes de responder sobre épicas, HUs, arquitectura, roles o cualquier dato del proyecto, consultar primero los archivos del proyecto. No responder de memoria si hay documentación disponible.
-
-### 12.4 ALCANCE ACOTADO
-Hacer solo exactamente lo que se pide. No agregar funcionalidades no solicitadas, no proponer cambios no pedidos al backlog o arquitectura, no tomar decisiones por el equipo. Si el pedido es ambiguo, preguntar antes de proceder.
-
-### 12.5 RESPETAR LAS DECISIONES YA TOMADAS
-Las decisiones de stack documentadas en la sección 5 son definitivas y tienen contexto de negocio. No sugerir revertirlas (ej: volver a PostgreSQL, añadir Docker, usar Cloud Vision) salvo que algún integrante del equipo COM Tech abra explícitamente esa discusión.
-
-### 12.6 IDIOMA
-Las respuestas y comentarios en código se escriben en **español**, salvo que Benjamín indique lo contrario.
+| Parte | Contenido |
+|---|---|
+| **A — Reglas para el agente de IA** | No inventar · Verificar antes de responder · No actuar sin pedido explícito · Alcance acotado · Respetar decisiones tomadas · Idioma · Flujo de git · Convenciones de código · Qué no tocar nunca |
+| **B — Política de uso para el equipo** | Responsabilidad de quien commitea · No compartir datos sensibles · Verificar lo que la IA afirme · Qué delegar y qué no · Transparencia en commits |
 
 ---
 
@@ -296,6 +289,7 @@ Las respuestas y comentarios en código se escriben en **español**, salvo que B
   - `docs/{SETUP_LOCAL,BACKEND_FASE1,FRONTEND_FASE1,PLAN_FRONTEND}.md`
   - `apps/backend/README.md` y `apps/frontend/README.md` (guías por app; antes eran el
     boilerplate de NestJS y Vite)
+  - `AGENTS.md` (reglas de IA: comportamiento del agente + política de uso del equipo)
 - **Pendiente:** resto de migraciones del DBML (marketplace, credits, dashboard, etc.),
   auth real, y confirmación de acceso SSH al servidor municipal para despliegue.
 - **Escalado futuro (post-MVP):** Redis (caché + adaptador Socket.io multi-proceso), modelo TensorFlow.js personalizado entrenado con datos reales de la municipalidad, Sentry para monitoreo.

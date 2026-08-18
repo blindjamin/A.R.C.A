@@ -155,6 +155,7 @@ A.R.C.A/
 ├── setup.ps1                    # Setup local automatizado (Windows)
 ├── start-ngrok.ps1              # Túnel ngrok para probar desde el celular
 ├── ngrok.yml                    # Config del túnel (dominio fijo)
+├── AGENTS.md                    # Reglas de IA: comportamiento del agente + política del equipo
 ├── CLAUDE.md                    # Ramas, workflow del equipo y convenciones
 └── CLAUDE_proyecto.md           # Contexto técnico completo del proyecto
 ```
@@ -187,6 +188,7 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 
 | Documento | Para qué sirve |
 |---|---|
+| [`AGENTS.md`](AGENTS.md) | **Reglas de IA:** cómo debe comportarse el agente en el repo y cómo debe usar IA el equipo |
 | [`CLAUDE.md`](CLAUDE.md) | Estructura de ramas, workflow de colaboración y convenciones de código |
 | [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) | Contexto técnico completo: stack confirmado, decisiones de arquitectura y su porqué |
 | [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md) | Levantar el proyecto desde cero, por rol, + ngrok y troubleshooting |
