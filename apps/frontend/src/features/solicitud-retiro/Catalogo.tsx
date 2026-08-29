@@ -65,9 +65,9 @@ export default function Catalogo() {
         ))}
       </div>
 
-      <div className="grid gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtrados.map((item) => (
-          <div key={item.id} className="card flex items-center gap-3 p-3">
+          <div key={item.id} className="card flex items-center justify-between gap-3 p-3">
             <IconBadge
               icon={iconoPorCategoria(item.categoria)}
               className="h-14 w-14 text-2xl"

@@ -50,7 +50,7 @@ export default function NuevaSolicitud() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-2xl space-y-4">
       <ScreenHeader
         title="Nueva solicitud"
         subtitle="Confirma el residuo y agrega detalles."

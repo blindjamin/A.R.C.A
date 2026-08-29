@@ -97,6 +97,17 @@ async function handle<T>(res: Response): Promise<T> {
     const body = await res.text();
     throw new Error(`Error ${res.status}: ${body || res.statusText}`);
   }
+
+  const contentType = res.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const textBody = await res.text();
+    throw new Error(
+      `Error de Integración: El servidor no devolvió una respuesta JSON válida (Content-Type: ${contentType || 'ninguno'}). ` +
+      `Esto suele ocurrir si el backend no está corriendo en el puerto 3000 o si las variables de entorno están desconfiguradas. ` +
+      `Cuerpo de respuesta: ${textBody.substring(0, 100)}...`
+    );
+  }
+
   return res.json() as Promise<T>;
 }
 

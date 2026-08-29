@@ -32,19 +32,19 @@ const TABS: Tab[] = [
 
 function TabBar() {
   return (
-    <nav className="sticky bottom-0 z-10 border-t border-line bg-white/90 backdrop-blur">
-      <ul className="mx-auto flex max-w-md items-stretch justify-around px-2 py-1.5">
+    <nav className="sticky bottom-0 z-10 border-t border-line bg-white/90 backdrop-blur w-full">
+      <ul className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 py-1.5 md:max-w-6xl md:justify-center md:gap-4">
         {TABS.map((tab) => (
-          <li key={tab.to} className="flex-1">
+          <li key={tab.to} className="flex-1 md:flex-initial">
             <NavLink
               to={tab.to}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[11px] font-medium transition-colors ${
+                `flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[11px] font-medium transition-colors md:px-8 md:py-2 md:text-sm ${
                   isActive ? 'text-green-700' : 'text-slate-2'
                 }`
               }
             >
-              <span className="text-xl leading-none">{tab.icon}</span>
+              <span className="text-xl leading-none md:text-2xl">{tab.icon}</span>
               {tab.label}
             </NavLink>
           </li>
@@ -57,9 +57,9 @@ function TabBar() {
 function Shell({ children }: { children: ReactElement }) {
   const { logout } = useSession();
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-canvas shadow-lg">
-      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur">
-        <div className="flex items-center justify-between">
+    <div className="flex min-h-screen w-full flex-col bg-canvas">
+      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur w-full">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
           <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
             A.R.C.A.
           </span>
@@ -68,7 +68,7 @@ function Shell({ children }: { children: ReactElement }) {
           </button>
         </div>
       </header>
-      <main className="flex-1 px-5 py-5">{children}</main>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-5">{children}</main>
       <TabBar />
     </div>
   );

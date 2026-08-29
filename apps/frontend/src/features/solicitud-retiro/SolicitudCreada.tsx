@@ -12,7 +12,7 @@ export default function SolicitudCreada() {
   };
 
   return (
-    <div className="flex flex-col items-center gap-6 py-4 text-center">
+    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6 py-4 text-center">
       {/* SuccessRing dorado */}
       <div className="success-ring mt-4 flex h-28 w-28 items-center justify-center rounded-full bg-gold-50 text-5xl">
         ✅

@@ -68,9 +68,9 @@ export default function AdminSolicitudes() {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-canvas shadow-lg">
-      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur">
-        <div className="flex items-center justify-between">
+    <div className="flex min-h-screen w-full flex-col bg-canvas">
+      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur w-full">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
           <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
             A.R.C.A. · Admin
           </span>
@@ -83,7 +83,7 @@ export default function AdminSolicitudes() {
         </div>
       </header>
 
-      <main className="flex-1 px-5 py-5">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-5">
         {seleccion ? (
           <DetalleSolicitud
             solicitud={seleccion}
@@ -122,7 +122,7 @@ export default function AdminSolicitudes() {
             ) : items.length === 0 ? (
               <EmptyState message="No hay solicitudes en este estado." />
             ) : (
-              <ul className="space-y-3">
+              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((s) => (
                   <li key={s.id}>
                     <ListItemCard
@@ -206,7 +206,7 @@ function DetalleSolicitud({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-3xl space-y-4">
       <BackButton onClick={onVolver}>← Volver al listado</BackButton>
 
       <div className="card space-y-3 p-5">
