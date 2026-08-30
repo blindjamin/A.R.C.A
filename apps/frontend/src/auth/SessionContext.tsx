@@ -12,6 +12,7 @@ import { fetchPerfilAcceso, type PerfilAcceso } from '../api/arca';
 // UUIDs sembrados por migración en el backend (auth mock).
 // TEMPORAL: cuando Benjamín integre JWT/ClaveÚnica, la identidad saldrá del token
 // y solo cambiará el interior de `login()`. Las pantallas no cambian.
+// eslint-disable-next-line react-refresh/only-export-components
 export const DEV_USERS = {
   vecino: '00000000-0000-4000-8000-000000000001', // solo ciudadano
   funcionario: '00000000-0000-4000-8000-000000000002', // doble rol (ciudadano + operador)
@@ -43,15 +44,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // Resuelve el perfil de acceso (login diferido) cada vez que cambia la identidad.
   useEffect(() => {
     if (!usuarioCiudadanoId) {
-      setPerfil(null);
-      setCargando(false);
+      let cancelado = false;
+      Promise.resolve().then(() => {
+        if (!cancelado) {
+          setPerfil(null);
+          setCargando(false);
+        }
+      });
       localStorage.removeItem(STORAGE_KEY);
-      return;
+      return () => {
+        cancelado = true;
+      };
     }
 
     localStorage.setItem(STORAGE_KEY, usuarioCiudadanoId);
     let cancelado = false;
-    setCargando(true);
+    Promise.resolve().then(() => {
+      if (!cancelado) setCargando(true);
+    });
 
     fetchPerfilAcceso(usuarioCiudadanoId)
       .then((p) => {
