@@ -49,11 +49,25 @@ export default function MisSolicitudes() {
 
   useEffect(() => {
     if (!usuarioCiudadanoId) return;
-    setOcultas(leerOcultas(usuarioCiudadanoId));
+    let cancelado = false;
+    Promise.resolve().then(() => {
+      if (!cancelado) {
+        setOcultas(leerOcultas(usuarioCiudadanoId));
+      }
+    });
     fetchMisSolicitudes(usuarioCiudadanoId)
-      .then(setItems)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelado) setItems(data);
+      })
+      .catch((e: Error) => {
+        if (!cancelado) setError(e.message);
+      })
+      .finally(() => {
+        if (!cancelado) setLoading(false);
+      });
+    return () => {
+      cancelado = true;
+    };
   }, [usuarioCiudadanoId]);
 
   const visibles = useMemo(
