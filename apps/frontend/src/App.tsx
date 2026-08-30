@@ -32,7 +32,7 @@ export default function App() {
             <Route path="/" element={<Entrada />} />
             <Route
               path="/admin"
-              element={<AdminSolicitudes />}
+              element={<RequireAdmin><AdminSolicitudes /></RequireAdmin>}
             />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
 
