@@ -198,3 +198,118 @@ export function actualizarSolicitud(
     body: JSON.stringify(data),
   }).then((r) => handle<SolicitudRetiro>(r));
 }
+
+// --- Logs de Auditoría (Sprint 5 mock API) ----------------------------------
+
+export interface AuditoriaLog {
+  id: number;
+  usuario: string;
+  rol: string;
+  accion: string;
+  objetoAfectado: string;
+  ip: string;
+  createdAt: string;
+}
+
+const MOCK_AUDITORIA: AuditoriaLog[] = [
+  {
+    id: 1,
+    usuario: 'Benjamín Paicil',
+    rol: 'Administrador',
+    accion: 'Inicio de sesión',
+    objetoAfectado: 'Sistema (Auth)',
+    ip: '192.168.1.100',
+    createdAt: '2026-08-29T10:15:30Z',
+  },
+  {
+    id: 2,
+    usuario: 'Carmen González',
+    rol: 'Vecino',
+    accion: 'Crear solicitud',
+    objetoAfectado: 'Solicitud #1024',
+    ip: '190.162.45.12',
+    createdAt: '2026-08-29T11:02:15Z',
+  },
+  {
+    id: 3,
+    usuario: 'Carlos Álvarez',
+    rol: 'Administrador',
+    accion: 'Asignar operador',
+    objetoAfectado: 'Solicitud #1024 (Operador #3)',
+    ip: '192.168.1.115',
+    createdAt: '2026-08-29T11:20:00Z',
+  },
+  {
+    id: 4,
+    usuario: 'Maximiliano López',
+    rol: 'Operador',
+    accion: 'Cambio estado a: en_proceso',
+    objetoAfectado: 'Solicitud #1024',
+    ip: '200.12.87.54',
+    createdAt: '2026-08-29T12:05:40Z',
+  },
+  {
+    id: 5,
+    usuario: 'Carmen González',
+    rol: 'Vecino',
+    accion: 'Inicio de sesión',
+    objetoAfectado: 'Sistema (Auth)',
+    ip: '190.162.45.12',
+    createdAt: '2026-08-29T13:45:10Z',
+  },
+  {
+    id: 6,
+    usuario: 'Ana Araya',
+    rol: 'Administrador',
+    accion: 'Inicio de sesión',
+    objetoAfectado: 'Sistema (Auth)',
+    ip: '192.168.1.102',
+    createdAt: '2026-08-29T14:10:00Z',
+  },
+  {
+    id: 7,
+    usuario: 'Ana Araya',
+    rol: 'Administrador',
+    accion: 'Actualizar catálogo',
+    objetoAfectado: 'Residuo ID #5 (Refrigerador)',
+    ip: '192.168.1.102',
+    createdAt: '2026-08-29T14:15:33Z',
+  },
+  {
+    id: 8,
+    usuario: 'Miguel Segovia',
+    rol: 'Vecino',
+    accion: 'Cancelar solicitud',
+    objetoAfectado: 'Solicitud #1022',
+    ip: '186.105.74.22',
+    createdAt: '2026-08-29T15:30:12Z',
+  },
+  {
+    id: 9,
+    usuario: 'Javier Figueroa',
+    rol: 'Administrador',
+    accion: 'Inicio de sesión',
+    objetoAfectado: 'Sistema (Auth)',
+    ip: '192.168.1.108',
+    createdAt: '2026-08-29T15:58:00Z',
+  },
+  {
+    id: 10,
+    usuario: 'Javier Figueroa',
+    rol: 'Administrador',
+    accion: 'Exportar logs de auditoría',
+    objetoAfectado: 'Logs Excel/PDF (Rango: 7 días)',
+    ip: '192.168.1.108',
+    createdAt: '2026-08-29T16:05:44Z',
+  },
+];
+
+export function fetchAuditoriaLogs(): Promise<AuditoriaLog[]> {
+  // Simulamos un retraso de red de 300ms para realismo.
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve([...MOCK_AUDITORIA].sort((a, b) => b.id - a.id));
+    }, 300);
+  });
+}
+
