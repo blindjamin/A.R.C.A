@@ -26,3 +26,5 @@ coverage/
 
 # TypeScript cache
 *.tsbuildinfo
+
+.claude/

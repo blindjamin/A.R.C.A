@@ -33,7 +33,7 @@ export default function App() {
             <Route path="/" element={<Entrada />} />
             <Route
               path="/admin"
-              element={<RequireAdmin><AdminSolicitudes /></RequireAdmin>}
+              element={<AdminSolicitudes />}
             />
             <Route
               path="/admin/auditoria"

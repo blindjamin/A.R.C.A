@@ -13,6 +13,9 @@ import {
   EstadoPill,
   ListItemCard,
 } from '../components/ui';
+import AsignarRetiroModal, {
+  type AsignacionRetiroPayload,
+} from '../components/AsignarRetiroModal';
 
 const ESTADOS: EstadoSolicitud[] = [
   'pendiente',
@@ -199,6 +202,7 @@ function DetalleSolicitud({
   const [fechaProgramada, setFechaProgramada] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mostrarAsignacion, setMostrarAsignacion] = useState(false);
 
   const aplicar = async (cambios: Parameters<typeof actualizarSolicitud>[1]) => {
     setGuardando(true);
@@ -241,6 +245,18 @@ function DetalleSolicitud({
     aplicar({ estado: nuevo });
   };
 
+  const handleAsignarRetiro = async ({
+    operadorId: operadorSeleccionado,
+    fechaProgramada: fechaSeleccionada,
+    estado,
+  }: AsignacionRetiroPayload) => {
+    await aplicar({
+      estado,
+      operadorAsignadoId: operadorSeleccionado,
+      fechaProgramada: fechaSeleccionada,
+    });
+  };
+
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
       <BackButton onClick={onVolver}>← Volver al listado</BackButton>
@@ -279,6 +295,29 @@ function DetalleSolicitud({
       </div>
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
+
+      <div className="card space-y-3 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-bold">Programar retiro</h2>
+          <button
+            type="button"
+            onClick={() => setMostrarAsignacion(true)}
+            className="btn-primary"
+          >
+            Programar retiro
+          </button>
+        </div>
+        <p className="text-sm text-slate">
+          Define fecha, franja horaria y operador para esta solicitud.
+        </p>
+      </div>
+
+      <AsignarRetiroModal
+        isOpen={mostrarAsignacion}
+        onClose={() => setMostrarAsignacion(false)}
+        solicitud={solicitud}
+        onConfirm={handleAsignarRetiro}
+      />
 
       {/* Cambio de estado libre (incl. revertir), para operar/probar el flujo. */}
       <div className="card space-y-3 p-5">
