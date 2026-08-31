@@ -1,0 +1,165 @@
+/*
+	BTN Clave Única.
+	Estilos gráficos para el botón de clave única.
+	V 1.1.0
+	por @pyanez
+	24/11/2020
+*/
+
+/* ───────────────────────────────────────────────────────────────────────────
+   ARCHIVO OFICIAL — NO REESCRIBIR EN TAILWIND.
+
+   La certificación de ClaveÚnica exige el uso del botón oficial y pide
+   evidencia de su implementación. Este archivo se sirve tal cual desde
+   `public/`, sin pasar por el pipeline de Vite, para poder mostrarlo intacto.
+
+   Lo único que se modificó de la base oficial es la ruta del ícono, que el
+   propio archivo indica que debe ajustarse según dónde quede alojado.
+
+   Los ajustes de ARCA van al final, en un bloque aparte y rotulado.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Boton estilo de base */
+.btn-cu {
+	/*display: inline-block;*/
+	display: flex;
+	justify-content: center;
+	font-family: Roboto, sans-serif;
+	font-weight: 400;
+	text-align: center;
+	vertical-align: middle;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	border-radius: 0;
+}
+
+/*Icono ClaveÚnica*/
+.btn-cu .cl-claveunica {
+	display: inline;
+	float: left;
+	text-indent: -9999px;
+}
+/*Texto ClaveÚnica*/
+.btn-cu .texto {
+	padding-left: 3px;
+	text-decoration: none;
+}
+
+/* Tamaño S */
+.btn-cu.btn-s {
+	width: 130px;
+	min-width: 130px;
+	height: 36px;
+	padding: 8px 10px !important;
+	font-size: 14px;
+}
+
+.btn-cu.btn-s .cl-claveunica {
+	width: 20px;
+	height: 20px;
+	background-size: 20px 20px;
+}
+
+/* Tamaño M */
+.btn-cu.btn-m {
+	width: 160px;
+	min-width: 160px;
+	height: 42px;
+	padding: 8px 18px 8px 15px !important;
+	font-size: 16px;
+	line-height: 1.6em;
+}
+
+.btn-cu.btn-m .cl-claveunica {
+	display: inline-block;
+	width: 24px;
+	height: 24px;
+	background-size: 24px 24px;
+}
+
+/* Tamaño L */
+.btn-cu.btn-l {
+	width: 180px;
+	min-width: 180px;
+	height: 48px;
+	padding: 11px 18px !important;
+	font-size: 18px;
+}
+
+.btn-cu.btn-l .cl-claveunica {
+	width: 26px;
+	height: 26px;
+	background-size: 26px 26px;
+}
+
+/* Tamaño fluid-width */
+.btn-cu.btn-fw {
+	max-width: 550px;
+	width: 100%;
+	display: flex;
+	justify-content: center;
+}
+/* Color Estandar */
+.btn-cu.btn-color-estandar {
+	background-color: #0F69C4;
+	color: #FFF;
+	text-decoration: none;
+	border-radius: 4px;
+}
+.btn-cu.btn-color-estandar .cl-claveunica {
+	background: url(/claveunica/cu-blanco.svg);
+	/* Esta URL debe ser modificada segun donde
+	    quede alojado el documento */
+}
+.btn-cu.btn-color-estandar:hover {
+	background-color: #0B4E91;
+	color: #FFF;
+}
+
+.btn-cu.btn-color-estandar:active {
+	background-color: #07305A;
+	color: #FFF;
+}
+
+/* .btn-cu.btn-color-estandar:focus {
+	background-color: #0B4E91;
+	color: #FFF;
+	outline: 1px dashed #000;
+} */
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Ajustes de A.R.C.A. sobre la base oficial.
+
+   Son los mismos que ya corren en producción en agendaenlinea.santodomingo.cl,
+   una integración de esta misma municipalidad que ya pasó la certificación.
+   No alteran el color, el tamaño ni el texto del botón: corrigen el centrado
+   del ícono y hacen visible el foco de teclado.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Anillo de foco perceptible para quien navega con teclado.
+   El :focus original venía comentado en la base oficial. */
+.btn-cu.btn-color-estandar:focus {
+	outline: 4px solid rgba(255, 190, 92, 1);
+	outline-offset: 0px;
+}
+
+/* Centra ícono y texto en una sola línea. */
+.btn-cu.btn-color-estandar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	line-height: 1.2;
+}
+
+.btn-cu.btn-color-estandar .texto {
+	padding-left: 0 !important; /* quita el extra de 3px */
+}
+
+.btn-cu.btn-l .cl-claveunica {
+	width: 24px;
+	height: 24px;
+	background-size: 24px 24px;
+}
