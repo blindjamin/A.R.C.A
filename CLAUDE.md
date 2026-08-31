@@ -173,6 +173,22 @@ compartir datos de vecinos ni credenciales, transparencia en los commits).
 Claude Code, Cursor y Copilot lo detectan y lo cargan automáticamente. Conviene leerlo antes
 de usar cualquier herramienta de IA sobre este repo.
 
+### Instalación obligatoria (una vez por persona)
+
+La regla A.13 exige que cada commit declare cómo se produjo. Para no tener que recordar el
+formato, hay que correr una sola vez, desde cualquier carpeta dentro del clon:
+
+```bash
+powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+```
+
+Configura la plantilla de commit y el hook que la valida. Desde ahí, las líneas `IA:`, `HU:` y
+`Revisor:` aparecen solas al commitear y solo hay que completarlas.
+
+> `instalar-reglas.ps1` está en la raíz del repositorio. La plantilla (`.gitmessage`) y el hook
+> (`.githooks/commit-msg`) los genera el script y **no se versionan**: si algo se rompe, basta
+> con volver a correrlo.
+
 ---
 
 ## 📌 Convenciones de Código
@@ -183,10 +199,20 @@ de usar cualquier herramienta de IA sobre este repo.
 
 <descripción detallada si es necesario>
 
-Closes #<número-issue>
+IA: agente | asistido | no
+HU: HU-07 | ninguna
+Revisor: nombre | pendiente
 ```
 
 **Tipos:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+
+Las tres últimas líneas son **obligatorias** desde la regla
+[A.13 de `AGENTS.md`](AGENTS.md): declaran cómo se produjo el cambio (`IA`), qué historia de
+usuario avanza (`HU`) y quién responde por la revisión (`Revisor`). Un hook rechaza el commit
+si falta alguna.
+
+No hay que escribirlas de memoria: aparecen solas al abrir el editor de commit, después de
+correr una vez el instalador (ver [Trabajo con IA](#-trabajo-con-ia)).
 
 ### TypeScript / JavaScript
 - Usar **tipos explícitos** en TypeScript
@@ -261,4 +287,4 @@ En [GitHub Issues](https://github.com/blindjamin/A.R.C.A/issues) con etiqueta y 
 
 ---
 
-**Última actualización:** 2026-06-23 | Equipo COM Tech
+**Última actualización:** 2026-08-29 | Equipo COM Tech
