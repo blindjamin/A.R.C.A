@@ -27,7 +27,7 @@ Dejar operativa la **base del MVP backend (Fase 1)**:
 A.R.C.A/
 ├── docker-compose.yml          # MySQL 8 local
 ├── .gitignore                  # node_modules, dist, .env.local
-├── ARCA_database_schema.dbml   # Schema completo (19 tablas — referencia)
+├── ARCA_database_schema.dbml   # Schema completo (22 tablas — referencia)
 ├── docs/
 │   ├── BACKEND_FASE1.md        # Este archivo
 │   └── SETUP_LOCAL.md          # Guía setup para el equipo
@@ -38,13 +38,11 @@ A.R.C.A/
         │   ├── database/       # data-source + migraciones
         │   ├── health/
         │   ├── users/          # Entidades identidad
-        │   ├── auth/           # Guards HU-13 (EP-05)
+        │   ├── auth/           # Guards HU-13 (EP-01)
         │   ├── residuos/       # Catálogo EP-01
         │   └── solicitudes-retiro/
         └── package.json
 ```
-
-> **Nota:** `apps/frontend/` aún no existe. Maximiliano lo creará en `feature/frontend`.
 
 ---
 
@@ -240,10 +238,10 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 
 ## Schema DBML vs implementado
 
-El archivo `ARCA_database_schema.dbml` define **19 tablas**. En Fase 1 backend están creadas **6**:
+El archivo `ARCA_database_schema.dbml` define **22 tablas**. En Fase 1 backend están creadas **6**:
 
 - ✅ 4 identidad
 - ✅ `residuos_catalogo`
 - ✅ `solicitudes_retiro`
 
-Las **13 restantes** se migrarán en fases siguientes según el roadmap del README.
+Las **16 restantes** se migrarán en fases siguientes según el roadmap del README.
