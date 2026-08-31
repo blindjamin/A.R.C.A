@@ -1,10 +1,10 @@
 # Frontend Fase 1 — Resumen de implementación
 
-> **Integrado en:** `develop` (rama de trabajo `mvp`)
-> **Última actualización:** 2026-06-24
+> **Integrado en:** `develop` (rama de trabajo `mvp` + sprint 2)
+> **Última actualización:** 2026-08-31
 > **Equipo:** COM Tech — Feria de Software 2026
 
-Documento de hito que resume la implementación del frontend (PWA ciudadana) y
+Documento de hito que resume la implementación del frontend (PWA ciudadana y panel de administración) y
 sirve como **base para la documentación futura** del módulo. A medida que se agreguen
 pantallas y épicas, extender las secciones correspondientes.
 
@@ -12,15 +12,16 @@ pantallas y épicas, extender las secciones correspondientes.
 
 ## Objetivo de esta fase
 
-Montar la **base del frontend (Fase 1)** consumiendo exactamente lo que el backend ya
-expone (épica **EP-01**), con estética alineada a los prototipos oficiales y un flujo
-ciudadano de punta a punta:
+Montar la **base del frontend (Fase 1 y extensiones de Sprint 2)** consumiendo exactamente lo que el backend ya
+expone (épica **EP-01** y panel **EP-03**), con estética alineada a los prototipos oficiales y un flujo
+ciudadano y administrativo de punta a punta:
 
 - App PWA React conectada a la API NestJS local
-- **Sistema de diseño A.R.C.A.** (UI Kit v1.0) aplicado: tokens, tipografía, shell mobile
+- **Sistema de diseño A.R.C.A.** (UI Kit v1.0) aplicado: tokens, tipografía, shell mobile y adaptabilidad desktop
 - Flujo "Solicitar retiro" con **esqueleto de IA** (captura → análisis → sugerencia → éxito)
 - Catálogo, creación y seguimiento de solicitudes contra el backend real
-- **Login temporal** mientras no exista autenticación real (ClaveÚnica/JWT)
+- **Login temporal y diferido** según perfil (`vecino` vs `funcionario`)
+- **Panel administrativo:** gestión y cambio de estados de solicitudes, asignación/programación con operadores (HU-08) y registro de auditoría con KPIs (HU-13)
 
 ---
 
@@ -31,7 +32,7 @@ ciudadano de punta a punta:
 | Framework | React 18 + TypeScript | |
 | Build/dev | Vite | dev server en `http://localhost:5173` |
 | Estilos | Tailwind CSS **v3** | tokens del UI Kit en `tailwind.config.js` |
-| Ruteo | react-router-dom | rutas protegidas por sesión |
+| Ruteo | react-router-dom | rutas protegidas por sesión y rol admin |
 | Estado/API | `fetch` nativo + Context | migrar a Redux Toolkit cuando crezca el estado |
 
 ---
@@ -54,8 +55,7 @@ Tokens espejados de los standalone de referencia (`ARCA UI Kit` / `ARCA Prototip
 
 Clases listas: `.card`, `.btn-primary/-gold/-outline/-ghost`, `.pill`, `.field`, `.chip`.
 
-**Shell mobile:** columna `max-w-md` centrada sobre canvas (emula el frame del prototipo),
-header sticky con marca, **TabBar inferior** (Inicio · Solicitar · Solicitudes).
+**Shell y adaptación responsiva:** columna `max-w-md` centrada en vistas móviles para emular el prototipo ciudadano, con headers y layouts adaptables (vistas desktop con contenedores `max-w-6xl` y grids responsivos para listados, modales y tablas administrativas).
 
 ---
 
@@ -69,14 +69,15 @@ apps/frontend/
 ├── postcss.config.js
 └── src/
     ├── main.tsx                # entrypoint
-    ├── App.tsx                 # router: rutas propias + bloque de features/solicitud-retiro
+    ├── App.tsx                 # router: rutas propias, /admin, /admin/auditoria + features
     ├── index.css               # base + clases de componentes + animaciones (scan/success)
     ├── api/
-    │   └── arca.ts             # capa fetch tipada (precio real desde el backend)
+    │   └── arca.ts             # capa fetch tipada (catálogo, solicitudes, auditoría, robustez JSON)
     ├── auth/
-    │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage)
+    │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage y roles)
     ├── components/
     │   ├── AppShell.tsx        # Protected/Shell/RequireAdmin (wrapper de ruta estándar)
+    │   ├── AsignarRetiroModal.tsx # modal interactivo de asignación/programación (HU-08)
     │   └── ui/                 # primitivos reutilizables entre módulos:
     │       ├── IconBadge.tsx, EstadoPill.tsx (+estadoMeta.ts), ListItemCard.tsx,
     │       └── ScreenHeader.tsx, EmptyState.tsx, BackButton.tsx, PriceTag.tsx
@@ -89,11 +90,12 @@ apps/frontend/
     │       ├── CapturaResiduo.tsx, AnalizandoIA.tsx, SugerenciasIA.tsx,
     │       └── Catalogo.tsx, NuevaSolicitud.tsx, SolicitudCreada.tsx
     └── pages/
-        ├── Login.tsx              # hero verde + CTA dorado ClaveÚnica
+        ├── Login.tsx              # hero verde + CTA dorado ClaveÚnica (responsive layout)
         ├── SeleccionInicio.tsx    # login diferido: elegir modo vecino/funcionario
         ├── Inicio.tsx             # dashboard: tarjeta de impacto (demo) + grid de módulos
-        ├── MisSolicitudes.tsx
-        ├── AdminSolicitudes.tsx   # panel municipal: listar/filtrar/cambiar estado
+        ├── MisSolicitudes.tsx     # listado y detalle de solicitudes ciudadanas
+        ├── AdminSolicitudes.tsx   # panel municipal: listar/filtrar/estados + modal HU-08
+        ├── AdminAuditoria.tsx     # panel municipal: logs de trazabilidad y KPIs
         └── Proximamente.tsx       # placeholder reutilizable (retiro municipal, marketplace)
 ```
 
@@ -107,24 +109,24 @@ apps/frontend/
 
 Punto único de contacto con el backend. Lee la URL base de `import.meta.env.VITE_API_URL`.
 Expone funciones tipadas e interfaces del dominio (`ResiduoCatalogo`, `SolicitudRetiro`,
-`EstadoSolicitud`).
+`EstadoSolicitud`, `AuditoriaLog`, `AuditoriaStats`).
 
-| Función | Endpoint backend |
-|---|---|
-| `fetchCatalogo()` | `GET /api/residuos/catalogo` |
-| `crearSolicitudRetiro(data)` | `POST /api/solicitudes-retiro` |
-| `fetchMisSolicitudes(uuid)` | `GET /api/solicitudes-retiro?usuarioCiudadanoId={uuid}` |
-| `fetchSolicitudesAdmin(estado?)` | `GET /api/solicitudes-retiro?estado={estado}` |
-| `actualizarSolicitud(id, data)` | `PATCH /api/solicitudes-retiro/{id}` |
-| `cancelarSolicitud(id, uuid, motivo?)` | `PATCH /api/solicitudes-retiro/{id}/cancelar` |
-| `fetchPerfilAcceso(uuid)` | `GET /api/usuarios/{uuid}/perfil-acceso` |
+| Función | Endpoint backend / Fuente | Propósito |
+|---|---|---|
+| `fetchCatalogo()` | `GET /api/residuos/catalogo` | Listado oficial de residuos y precios |
+| `crearSolicitudRetiro(data)` | `POST /api/solicitudes-retiro` | Registro de nueva solicitud ciudadana |
+| `fetchMisSolicitudes(uuid)` | `GET /api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes del ciudadano actual |
+| `fetchSolicitudesAdmin(estado?)` | `GET /api/solicitudes-retiro?estado={estado}` | Panel de administración |
+| `actualizarSolicitud(id, data)` | `PATCH /api/solicitudes-retiro/{id}` | Cambio de estado / asignación (HU-08) |
+| `cancelarSolicitud(id, uuid, motivo?)` | `PATCH /api/solicitudes-retiro/{id}/cancelar` | Cancelación de solicitud |
+| `fetchPerfilAcceso(uuid)` | `GET /api/usuarios/{uuid}/perfil-acceso` | Roles y contexto (vecino/funcionario) |
+| `fetchAuditoriaLogs()` | Mock / Endpoint trazabilidad | Lista de logs de auditoría (HU-13) |
+| `fetchAuditoriaStats()` | Mock / Endpoint trazabilidad | Resumen y KPIs de auditoría |
 
 `API_URL` es `/api` (ruta relativa) — Vite la proxea a `localhost:3000`. Todas las llamadas
 mandan el header `ngrok-skip-browser-warning` (inofensivo fuera de ngrok, necesario cuando
-se accede vía túnel; ver `docs/SETUP_LOCAL.md` §10).
-
-> Cuando se integre Redux Toolkit (roadmap), esta capa se reemplaza por slices/endpoints
-> de RTK Query. Las pantallas deberían cambiar poco si se mantiene la misma firma.
+se accede vía túnel; ver `docs/SETUP_LOCAL.md` §10). Se incluye manejo defensivo de respuestas HTTP
+para prevenir errores ante respuestas vacías o no JSON.
 
 ### Precio real + ícono por categoría
 
@@ -149,7 +151,7 @@ usuario dev `00000000-0000-4000-8000-000000000001`) en estado + `localStorage`.
 
 - `login()` — setea el UUID dev (lo dispara la pantalla de Login).
 - `logout()` — limpia la sesión.
-- `useSession()` — hook para leer el id en cualquier pantalla.
+- `useSession()` — hook para leer el id y el perfil de acceso en cualquier pantalla.
 
 **Diseñado para el futuro (EP-05):** cuando llegue ClaveÚnica/JWT, solo cambia el interior
 de `login()` (guardar token, derivar el id del token) y se deja de enviar
@@ -161,7 +163,7 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 
 | Pantalla | Módulo | Ruta | Endpoint / datos | Tipo |
 |---|---|---|---|---|
-| `Login` | `pages/` | `/login` | — | placeholder |
+| `Login` | `pages/` | `/login` | — | placeholder / responsive |
 | `SeleccionInicio` | `pages/` | `/` (si es funcionario) | — | login diferido |
 | `Inicio` | `pages/` | `/inicio` | tarjeta de impacto **demo** | hub |
 | `CapturaResiduo` | `features/solicitud-retiro/` | `/solicitar` | cámara/galería (solo visual) | esqueleto |
@@ -171,10 +173,12 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `NuevaSolicitud` | `features/solicitud-retiro/` | `/nueva-solicitud` | `POST /api/solicitudes-retiro` | **backend** |
 | `SolicitudCreada` | `features/solicitud-retiro/` | `/solicitud/creada` | SuccessRing + 2 CTAs | esqueleto |
 | `MisSolicitudes` | `pages/` | `/mis-solicitudes` | `GET /api/solicitudes-retiro?usuarioCiudadanoId=` | **backend** |
-| `AdminSolicitudes` | `pages/` | `/admin` | `GET/PATCH /api/solicitudes-retiro` | **backend** |
+| `AdminSolicitudes` | `pages/` | `/admin` | `GET/PATCH /api/solicitudes-retiro` | **backend** + HU-08 |
+| `AdminAuditoria` | `pages/` | `/admin/auditoria` | Logs y estadísticas de auditoría | **admin** (HU-13) |
 | `Proximamente` | `pages/` | `/retiro-municipal`, `/marketplace/subir` | — | placeholder |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
+- Las rutas `/admin` y `/admin/auditoria` están protegidas por `RequireAdmin`.
 - **Tras el login se cae en `/inicio`** (el hub); el catch-all `*` también redirige ahí.
 - Estados de carga/error manejados localmente con `useState`.
 - El tab "Solicitar" arranca el flujo en `/solicitar` (cámara); el catálogo queda como rama alterna.
@@ -210,6 +214,24 @@ arreglo `MODULOS`. Cada módulo declara: `id`, `titulo`, `descripcion`, `icono`,
 
 **Cómo agregar un módulo nuevo:** añadir un objeto a `MODULOS`. Cuando su endpoint exista,
 cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifica.**
+
+---
+
+## Panel Administrativo y Asignación (EP-03 / Sprint 2)
+
+### 1. Asignación y Programación de Retiros (HU-08)
+Implementado mediante el componente interactivo `AsignarRetiroModal.tsx` integrado en el detalle de cada solicitud en `AdminSolicitudes.tsx`:
+- **Selección de fecha:** Selector de fecha de retiro programada.
+- **Franjas horarias:** Selección rápida entre turnos *Mañana (09:00 - 13:00)*, *Tarde (14:00 - 18:00)* o *Personalizada* con selector manual de hora.
+- **Operador asignado:** Selector dinámico de operadores municipales en servicio.
+- **Persistencia:** Al confirmar, se invoca `actualizarSolicitud()` actualizando `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada` en formato ISO.
+
+### 2. Trazabilidad y Logs de Auditoría (HU-13)
+Pantalla `/admin/auditoria` (`AdminAuditoria.tsx`) accesible desde la barra superior de navegación del panel administrativo:
+- **Tarjetas de KPIs:** Total de eventos registrados, acciones ciudadanas, intervenciones de operadores y eventos críticos / cancelaciones.
+- **Buscador en tiempo real:** Filtrado instantáneo por usuario, descripción de acción u objeto afectado.
+- **Filtros por categoría:** Botones de filtro rápido (`Todos`, `Solicitudes`, `Operadores`, `Cancelaciones`, `Sistema`).
+- **Diseño híbrido responsivo:** En pantallas de escritorio se visualiza una tabla de trazabilidad formal con timestamps e IPs; en dispositivos móviles se despliega una lista compacta de tarjetas con badges contextuales.
 
 ---
 
@@ -265,13 +287,13 @@ npm run lint      # ESLint
 | Síntoma | Causa / solución |
 |---|---|
 | Pantallas en blanco / errores de red | Backend no corriendo: levantar API en `:3000` (ver `SETUP_LOCAL.md`) |
-| CORS blocked | El frontend debe correr en `5173`; el backend permite ese origen (`FRONTEND_URL`) |
+| CORS blocked | El frontend debe correr en `5173`; el backend permite ese origen (`FRONTEND_FASE1.md` / `FRONTEND_URL`) |
 | `VITE_API_URL` undefined | Falta `apps/frontend/.env.local`; reiniciar `npm run dev` tras crearlo |
 | Puerto 5173 ocupado | Vite tomará otro puerto; actualizar `FRONTEND_URL` del backend si cambia |
 
 ---
 
-## Verificación (flujo end-to-end EP-01)
+## Verificación (flujo end-to-end EP-01 y EP-03)
 
 1. Backend OK (`GET /api/health` → `{"status":"ok","db":"connected"}`).
 2. Abrir `http://localhost:5173` → "Entrar como vecino (dev)" o "Ingresar con ClaveÚnica".
@@ -283,6 +305,8 @@ npm run lint      # ESLint
 6. Crear la solicitud → `/solicitud/creada` (SuccessRing + CTAs).
 7. **Mis solicitudes** muestra la solicitud en estado `pendiente` con el nombre del residuo
    (leído desde `GET /api/solicitudes-retiro`).
+8. Ingresar como funcionario municipal → `/admin` para gestionar solicitudes, cambiar estados o programar asignación con operador (HU-08).
+9. Acceder a `/admin/auditoria` → consultar KPIs y registros de actividad del sistema (HU-13).
 
 ---
 
@@ -302,7 +326,9 @@ los endpoints correspondientes.
 | Redux Toolkit + RTK Query | Cuando crezca el estado (marketplace, credits, sesión) |
 | EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
 | EP-04 Circular Credits | Saldo + historial en perfil |
-| EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, rama `admin-municipal`). Falta panel funcionario completo, mapa de calor (**Leaflet** + OpenStreetMap), reportes |
+| EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, modal de asignación HU-08 y auditoría HU-13). Falta panel funcionario completo, mapa de calor (**Leaflet** + OpenStreetMap), reportes |
+| Programación con operadores | ✅ Hecho: Modal `AsignarRetiroModal` con fecha, franja y operador asignado (HU-08) |
+| Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
 | Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
 | Proteger `/admin` | ✅ `RequireAdmin` en el front (solo funcionarios). Falta guard real con JWT en backend |
 | Cancelar desde detalle (ciudadano) | ✅ Mis solicitudes: tocar → detalle → cancelar; oculta local |
