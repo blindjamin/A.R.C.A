@@ -15,7 +15,12 @@ export class UsuarioCiudadano {
   @PrimaryColumn({ type: 'varchar', length: 36 })
   id: string;
 
-  @Column({ name: 'clave_unica_id', type: 'varchar', length: 255, unique: true })
+  @Column({
+    name: 'clave_unica_id',
+    type: 'varchar',
+    length: 255,
+    unique: true,
+  })
   claveUnicaId: string;
 
   @Column({ name: 'fecha_registro', type: 'timestamp' })
@@ -27,7 +32,12 @@ export class UsuarioCiudadano {
   @Column({ type: 'boolean', default: true })
   activo: boolean;
 
-  @Column({ name: 'ip_primera_login', type: 'varchar', length: 45, nullable: true })
+  @Column({
+    name: 'ip_primera_login',
+    type: 'varchar',
+    length: 45,
+    nullable: true,
+  })
   ipPrimeraLogin: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })

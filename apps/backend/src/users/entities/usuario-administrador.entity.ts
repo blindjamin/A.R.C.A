@@ -17,7 +17,12 @@ export class UsuarioAdministrador {
   @PrimaryColumn({ type: 'varchar', length: 36 })
   id: string;
 
-  @Column({ name: 'usuario_ciudadano_id', type: 'varchar', length: 36, unique: true })
+  @Column({
+    name: 'usuario_ciudadano_id',
+    type: 'varchar',
+    length: 36,
+    unique: true,
+  })
   usuarioCiudadanoId: string;
 
   @Column({ type: 'varchar', length: 255 })
@@ -26,10 +31,20 @@ export class UsuarioAdministrador {
   @Column({ type: 'varchar', length: 255 })
   apellido: string;
 
-  @Column({ name: 'email_institucional', type: 'varchar', length: 255, unique: true })
+  @Column({
+    name: 'email_institucional',
+    type: 'varchar',
+    length: 255,
+    unique: true,
+  })
   emailInstitucional: string;
 
-  @Column({ name: 'telefono_institucional', type: 'varchar', length: 20, nullable: true })
+  @Column({
+    name: 'telefono_institucional',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
   telefonoInstitucional: string | null;
 
   @Column({ type: 'enum', enum: RolAdministrador })
@@ -44,7 +59,12 @@ export class UsuarioAdministrador {
   @Column({ type: 'boolean', default: true })
   activo: boolean;
 
-  @Column({ name: 'ip_ultimo_login', type: 'varchar', length: 45, nullable: true })
+  @Column({
+    name: 'ip_ultimo_login',
+    type: 'varchar',
+    length: 45,
+    nullable: true,
+  })
   ipUltimoLogin: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ResiduosModule } from '../residuos/residuos.module';
+import { AuthModule } from '../auth/auth.module';
 import { UsuarioAdministrador } from '../users/entities/usuario-administrador.entity';
 import { UsuarioCiudadano } from '../users/entities/usuario-ciudadano.entity';
 import { SolicitudRetiro } from './entities/solicitud-retiro.entity';
@@ -15,6 +16,7 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
       UsuarioAdministrador,
     ]),
     ResiduosModule,
+    AuthModule,
   ],
   controllers: [SolicitudesRetiroController],
   providers: [SolicitudesRetiroService],

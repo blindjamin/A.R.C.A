@@ -31,3 +31,7 @@ coverage/
 .githooks/
 .gitmessage
 .claude/
+
+# Notas personales de backend (versionadas solo en ramas de trabajo individuales)
+.local/
+.cursor/rules/backend-arca.mdc

@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
+import { AuthUser } from '../auth/interfaces/auth-user.interface';
 import { ResiduosService } from '../residuos/residuos.service';
+import { RolAdministrador } from '../users/entities/rol-administrador.enum';
 import { UsuarioAdministrador } from '../users/entities/usuario-administrador.entity';
 import { UsuarioCiudadano } from '../users/entities/usuario-ciudadano.entity';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
@@ -28,7 +30,16 @@ export class SolicitudesRetiroService {
     private readonly residuosService: ResiduosService,
   ) {}
 
-  async create(dto: CreateSolicitudRetiroDto): Promise<SolicitudRetiro> {
+  async create(
+    dto: CreateSolicitudRetiroDto,
+    user: AuthUser,
+  ): Promise<SolicitudRetiro> {
+    if (dto.usuarioCiudadanoId !== user.ciudadanoId) {
+      throw new ForbiddenException(
+        'No puedes crear solicitudes en nombre de otro ciudadano',
+      );
+    }
+
     const usuario = await this.usuarioCiudadanoRepository.findOne({
       where: { id: dto.usuarioCiudadanoId },
     });
@@ -43,7 +54,9 @@ export class SolicitudesRetiroService {
       throw new BadRequestException('El usuario ciudadano no está activo');
     }
 
-    const residuo = await this.residuosService.findCatalogoById(dto.residuoCatalogoId);
+    const residuo = await this.residuosService.findCatalogoById(
+      dto.residuoCatalogoId,
+    );
 
     if (!residuo) {
       throw new NotFoundException(
@@ -65,10 +78,15 @@ export class SolicitudesRetiroService {
     return this.solicitudRetiroRepository.save(solicitud);
   }
 
-  findAll(filtros: FilterSolicitudesRetiroDto = {}): Promise<SolicitudRetiro[]> {
+  findAll(
+    filtros: FilterSolicitudesRetiroDto = {},
+    user?: AuthUser,
+  ): Promise<SolicitudRetiro[]> {
     const where: FindOptionsWhere<SolicitudRetiro> = {};
 
-    if (filtros.usuarioCiudadanoId) {
+    if (user && !this.tieneAccesoLecturaMunicipal(user)) {
+      where.usuarioCiudadanoId = user.ciudadanoId;
+    } else if (filtros.usuarioCiudadanoId) {
       where.usuarioCiudadanoId = filtros.usuarioCiudadanoId;
     }
 
@@ -83,7 +101,7 @@ export class SolicitudesRetiroService {
     });
   }
 
-  async findOne(id: number): Promise<SolicitudRetiro> {
+  async findOne(id: number, user?: AuthUser): Promise<SolicitudRetiro> {
     const solicitud = await this.solicitudRetiroRepository.findOne({
       where: { id },
       relations: {
@@ -95,6 +113,10 @@ export class SolicitudesRetiroService {
 
     if (!solicitud) {
       throw new NotFoundException(`Solicitud de retiro ${id} no encontrada`);
+    }
+
+    if (user) {
+      this.verificarAccesoLectura(solicitud, user);
     }
 
     return solicitud;
@@ -129,12 +151,19 @@ export class SolicitudesRetiroService {
   async cancelarPorCiudadano(
     id: number,
     dto: CancelarSolicitudRetiroDto,
+    user: AuthUser,
   ): Promise<SolicitudRetiro> {
     const solicitud = await this.findOne(id);
 
-    if (solicitud.usuarioCiudadanoId !== dto.usuarioCiudadanoId) {
+    if (solicitud.usuarioCiudadanoId !== user.ciudadanoId) {
       throw new ForbiddenException(
         'No puedes cancelar una solicitud que no es tuya',
+      );
+    }
+
+    if (dto.usuarioCiudadanoId && dto.usuarioCiudadanoId !== user.ciudadanoId) {
+      throw new ForbiddenException(
+        'usuarioCiudadanoId no coincide con la sesión autenticada',
       );
     }
 
@@ -150,8 +179,7 @@ export class SolicitudesRetiroService {
     }
 
     solicitud.estado = EstadoSolicitudRetiro.CANCELADA;
-    solicitud.razonRechazo =
-      dto.motivo ?? 'Cancelada por el ciudadano';
+    solicitud.razonRechazo = dto.motivo ?? 'Cancelada por el ciudadano';
 
     return this.solicitudRetiroRepository.save(solicitud);
   }
@@ -201,7 +229,38 @@ export class SolicitudesRetiroService {
     }
   }
 
-  findByUsuarioCiudadanoId(usuarioCiudadanoId: string): Promise<SolicitudRetiro[]> {
+  findByUsuarioCiudadanoId(
+    usuarioCiudadanoId: string,
+  ): Promise<SolicitudRetiro[]> {
     return this.findAll({ usuarioCiudadanoId });
+  }
+
+  private tieneAccesoLecturaMunicipal(user: AuthUser): boolean {
+    if (!user.esAdministrador || !user.rol) {
+      return false;
+    }
+
+    return [
+      RolAdministrador.ADMIN,
+      RolAdministrador.OPERADOR,
+      RolAdministrador.PATROCINADOR,
+    ].includes(user.rol);
+  }
+
+  private verificarAccesoLectura(
+    solicitud: SolicitudRetiro,
+    user: AuthUser,
+  ): void {
+    if (solicitud.usuarioCiudadanoId === user.ciudadanoId) {
+      return;
+    }
+
+    if (this.tieneAccesoLecturaMunicipal(user)) {
+      return;
+    }
+
+    throw new ForbiddenException(
+      'No tienes permiso para ver esta solicitud de retiro',
+    );
   }
 }
