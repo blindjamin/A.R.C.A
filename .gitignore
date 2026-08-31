@@ -26,3 +26,7 @@ coverage/
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Generados por instalar-reglas.ps1 (regla A.13)
+.githooks/
+.gitmessage
