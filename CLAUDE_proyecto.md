@@ -30,9 +30,10 @@ Digitaliza y optimiza la gestión de residuos voluminosos conectando a vecinos y
 
 El orden de precedencia es:
 
-1. **Archivos en este repositorio** (ver sección 9 para mapa de archivos)
-2. **Google Drive** — carpeta "Feria de Software" (`ID: 1hv_QMx2JeU7U8-Oa183bygpkUHbd_xOI`), subcarpeta "Hito 3" (`ID: 1TW-G_GZgn8NIJtg7Hdhb5DeOWjflh-QM`)
-3. **GitHub público** — `https://github.com/blindjamin/A.R.C.A` (18 issues: 5 épicas + 14 HUs, sin código aún)
+1. **Archivos en este repositorio** (ver sección 9 para mapa de archivos). Los `package.json` mandan sobre cualquier prosa: si un documento afirma que se usa una librería y no aparece como dependencia, el documento está equivocado.
+2. **Google Drive** — carpeta "Feria de Software" (`ID: 1hv_QMx2JeU7U8-Oa183bygpkUHbd_xOI`), subcarpeta "Hito 3" (`ID: 1TW-G_GZgn8NIJtg7Hdhb5DeOWjflh-QM`).
+   > ⚠️ `ARQUITECTURA_ARCA_PWA.md` y `EPICAS_HISTORIAS_USUARIO_V2.md` (mayo 2026) están **desactualizados**: proponen PostgreSQL, Redis, Express y épicas EP-01 a EP-11. Nada de eso rige — ver secciones 4, 5 y 7.
+3. **GitHub público** — `https://github.com/blindjamin/A.R.C.A` (issues y Project). **Es la fuente de verdad de la numeración de épicas**: si la documentación y el tablero difieren, manda el tablero. Falta crear ahí la épica EP-06 y las 13 historias incorporadas en el refinamiento.
 
 > **Si algo no está en estas fuentes, decirlo claramente. Nunca inventar datos, métricas, costos ni decisiones técnicas.**
 
@@ -42,37 +43,67 @@ El orden de precedencia es:
 
 Todas las decisiones aquí registradas son **definitivas** y surgieron de restricciones reales del entorno municipal. No proponer alternativas salvo que Benjamín lo solicite explícitamente.
 
+> **Distinguir siempre instalado de previsto.** Las versiones son las de los `package.json` y las
+> comprometidas al municipio el 14-08-2026. No afirmar que algo está en uso si no aparece como
+> dependencia.
+
 ### 4.1 Frontend (PWA)
 
-| Tecnología | Uso |
-|---|---|
-| React 18 + Redux Toolkit | UI y manejo de estado global |
-| Tailwind CSS v4 | Estilos (tokens en `globals.css`) |
-| Workbox | Service Worker / modo offline |
-| Leaflet + OpenStreetMap | Mapas y geolocalización (sin costo, sin API key) |
-| Socket.io-client | Chat y notificaciones en tiempo real |
-| TensorFlow.js | Clasificación de residuos **en el navegador del usuario** (cliente) |
+**Instalado** — 3 dependencias de producción, 15 de desarrollo:
+
+| Tecnología | Versión | Uso |
+|---|---|---|
+| React + React DOM | 19.2.6 | UI |
+| React Router DOM | 7.18.0 | Navegación entre pantallas |
+| Vite | 8 | Compilador y servidor de desarrollo |
+| Tailwind CSS (+ PostCSS, Autoprefixer) | 3.4 | Estilos y tokens de diseño |
+| TypeScript | 6.0 | Tipado |
+| ESLint | 10.3 | Linting |
+
+**Previsto (segunda etapa), todavía no instalado:** Redux Toolkit (estado global), TensorFlow.js
+(clasificación en el navegador del usuario), Leaflet + OpenStreetMap (mapas, sin costo ni API key),
+Socket.io-client (tiempo real), Workbox (Service Worker / modo offline).
+
+> El estado hoy se maneja con React local + `SessionContext`. **No introducir Redux** hasta que el
+> estado local sea insuficiente y esté acordado con Maximiliano.
 
 ### 4.2 Backend
 
-| Tecnología | Uso |
-|---|---|
-| NestJS + TypeScript (Node.js 18+) | Servidor y API REST — arquitectura modular |
-| MySQL / MariaDB | Base de datos principal (19 tablas) |
-| phpMyAdmin | Administración de BD (proporcionado por municipio) |
-| Socket.io (NestJS Gateways) | Chat y notificaciones en tiempo real |
-| JWT + ClaveÚnica OAuth2 | Autenticación — **no hay contraseñas locales** |
-| Winston | Logs |
-| Jest + Supertest | Tests |
+**Instalado** — 12 dependencias de producción, 23 de desarrollo:
+
+| Tecnología | Versión | Uso |
+|---|---|---|
+| NestJS (`common`, `core`, `platform-express`) | 11.0.1 | Servidor y API REST — arquitectura modular |
+| `@nestjs/config` + `dotenv` | 4.0.4 / 16.6 | Configuración por ambiente |
+| `@nestjs/typeorm` + TypeORM | 11.0.2 / 1.0 | ORM y migraciones versionadas |
+| `mysql2` | 3.22.5 | Conector MySQL 8 / MariaDB 10.6+ |
+| `class-validator` + `class-transformer` | 0.15 / 0.5 | Validación y transformación de DTOs |
+| Jest + Supertest | 30 / 7 | Tests |
+| TypeScript · ESLint · Prettier | 5.7 · 9.18 · 3.4 | Tipado, linting y formato |
+
+**Previsto (segunda etapa), todavía no instalado:** `@nestjs/jwt` + ClaveÚnica OAuth2 (autenticación
+— **no hay contraseñas locales**), Socket.io vía Gateways de NestJS (tiempo real), Winston (logs).
+
+**Runtime:** Node.js **24.18.0** (línea 24.x LTS), mínimo **22.12.0** — lo exige Vite 8. npm 11.x
+incluido. phpMyAdmin para administrar la BD, proporcionado por el municipio.
 
 ### 4.3 DevOps / Infraestructura
 
 | Tecnología | Uso |
 |---|---|
 | Servidores municipales (cPanel + SSH) | Hosting — provistos por la Municipalidad de Santo Domingo |
-| GitHub Actions | CI (lint / test / build) + deploy vía SSH |
-| PM2 o systemctl | Gestión del proceso Node.js en el servidor |
+| PM2 o systemd | Gestión del proceso Node.js en el servidor (cPanel «Setup Node.js App» ya lo cubre) |
+| Docker Compose | MySQL 8 **solo en desarrollo local** — no se instala en el servidor municipal |
+| GitHub Actions | CI (lint / test / build) + deploy vía SSH — planificado, aún sin workflows |
 | Git | Control de versiones |
+
+**Ambiente en el servidor municipal** (solicitado el 14-08-2026): base `arca_db` vacía con usuario
+`arca_user` (`utf8mb4` / `utf8mb4_unicode_ci`), puerto interno **3000/TCP** en `127.0.0.1`
+(alternativa 3010), proxy inverso de `/api/` y `/socket.io/` desde el 443, y excepción en el WAF del
+dominio para WebSocket en `/socket.io/*` y `/ws/*`. El usuario de BD necesita privilegios DDL
+(`SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES`) acotados solo a `arca_db`,
+porque las migraciones crean el esquema. Un solo proceso Node, 150–300 MB de RAM, <2 GB de disco
+inicial. **Sin Docker ni Redis en producción.**
 
 ---
 
@@ -90,7 +121,7 @@ El servidor municipal tiene cPanel con phpMyAdmin, que gestiona MySQL/MariaDB de
 - **Principio "IA como apoyo, no como decisión"**: el usuario siempre confirma o corrige la sugerencia. Si la IA no detecta nada, el usuario clasifica manualmente desde el catálogo.
 
 ### 5.3 NestJS — NO Express.js puro
-NestJS sobre Node.js 18+ provee estructura modular nativa (módulos, controllers, services, guards, gateways). Facilita mantenimiento y tests. Node.js viene preinstalado en el servidor municipal.
+NestJS sobre Node.js 24.18 provee estructura modular nativa (módulos, controllers, services, guards, gateways). Facilita mantenimiento y tests. Se solicitó al municipio instalar o confirmar Node.js 24.18.0 en el servidor (mínimo 22.12.0).
 
 ### 5.4 Sin Docker en producción, sin Redis (MVP)
 - Docker no está disponible en entornos cPanel compartidos, por lo que **en producción** la app corre directamente sobre Node.js del servidor municipal.
@@ -125,50 +156,113 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 
 ## 7. Backlog
 
-### Épicas (orden de roadmap, no numérico)
+**27 historias de usuario en 5 épicas activas**, según el refinamiento de agosto de 2026. Se
+la numeración es la del **tablero de GitHub**, que es donde el equipo trabaja: EP-05 está cerrada y
+EP-06 todavía no existe como issue.
+
+### Épicas
 
 | Fase | ID | Épica | HUs |
 |---|---|---|---|
-| 1 — MVP | EP-05 | Seguridad, Autenticación y Trazabilidad | HU-12, HU-13, HU-14 |
-| 1 — MVP | EP-01 | Interfaz Ciudadana + Clasificación por IA | HU-01, HU-02, HU-03 |
-| 2 — Core | EP-02 | Marketplace P2P de Reutilización | HU-04, HU-05, HU-06 |
-| 2 — Core | EP-04 | Sistema de Incentivos "Circular Credits" | HU-10, HU-11 |
-| 2 — Core | EP-03 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09 |
+| 1 — MVP | EP-01 | Fundación y Seguridad | HU-12, HU-13, HU-14, HU-01, HU-37, HU-38 |
+| 1 — MVP | EP-02 | Interfaz Ciudadana | HU-02, HU-03, HU-17, HU-23, HU-39 |
+| 2 — Core | EP-03 | Marketplace e Incentivos | HU-04, HU-05, HU-06, HU-10, HU-11, HU-19, HU-20 |
+| 2 — Core | EP-04 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09, HU-31, HU-32, HU-33 |
+| 3 — Polish | EP-06 | Confianza y Comunidad | HU-15, HU-16, HU-18 |
+| — | ~~EP-05~~ | ~~Seguridad, Autenticación y Trazabilidad~~ | **CERRADA** — HU-12, HU-13 y HU-14 pasaron a EP-01 |
 
-> El orden EP-05 → EP-01 → EP-02 → EP-04 → EP-03 es el roadmap real. EP-03 va último aunque numéricamente sea 3.
+> ⚠️ **No confundir con la numeración vieja del README.** Hasta agosto de 2026 este archivo y el
+> `README.md` usaban otra correspondencia (EP-01 Interfaz Ciudadana, EP-03 Dashboard, EP-05
+> Seguridad). Esa numeración **nunca coincidió con los issues** y quedó corregida. Ante cualquier
+> duda sobre a qué épica pertenece una historia, **manda el tablero de GitHub**.
+>
+> **EP-05 se cierra, no se elimina.** Sus tres historias se absorbieron en EP-01 porque autenticación,
+> control de acceso y auditoría son la base sobre la que se levanta todo lo demás. Se conserva cerrada
+> para no romper la trazabilidad del historial y de los issues ya creados.
+>
+> **EP-06 todavía no existe en GitHub**: hay que crearla, junto con las 13 historias nuevas.
 
 ### Resumen de Historias de Usuario
 
 | ID | Épica | Descripción resumida | Prioridad | Asignado |
 |---|---|---|---|---|
 | HU-01 | EP-01 | Registrar residuo con foto desde móvil | Highest | Front + Back |
-| HU-02 | EP-01 | Clasificación automática por IA (sugerencia) | High | Back |
-| HU-03 | EP-01 | Seguir estado de solicitud de retiro | High | Front |
-| HU-04 | EP-02 | Publicar artículo en marketplace P2P | High | Front + Back |
-| HU-05 | EP-02 | Buscar y filtrar artículos en marketplace | Medium | Front |
-| HU-06 | EP-02 | Contactar publicador para coordinar retiro | Medium | Back + UX |
-| HU-07 | EP-03 | Dashboard de solicitudes de retiro (admin) | High | Front + Back |
-| HU-08 | EP-03 | Programar y asignar retiros a operadores | Medium | Back |
-| HU-09 | EP-03 | Generar reporte de gestión (PDF/CSV) | Low | Back |
-| HU-10 | EP-04 | Otorgar Circular Credits por entrega en marketplace | Low | Back |
-| HU-11 | EP-04 | Consultar saldo e historial de Circular Credits | Low | Front + UX |
-| HU-12 | EP-05 | Iniciar sesión con ClaveÚnica | Highest | Front + Back |
-| HU-13 | EP-05 | Control de acceso por roles | High | Back |
-| HU-14 | EP-05 | Registro auditable de acciones críticas | Medium | Back + QA |
+| HU-02 | EP-02 | Clasificación automática por IA (sugerencia) | High | Back |
+| HU-03 | EP-02 | Seguir estado de solicitud de retiro | High | Front |
+| HU-17 | EP-02 | Feedback post-retiro detallado | Medium | Front + UX |
+| HU-23 | EP-02 | Recibir notificaciones de cambios de estado | Medium | Back |
+| HU-39 | EP-02 | Ver preguntas frecuentes por categoría (estática) | Low | Front |
+| HU-04 | EP-03 | Publicar artículo en marketplace P2P | High | Front + Back |
+| HU-05 | EP-03 | Buscar y filtrar artículos en marketplace | Medium | Front |
+| HU-06 | EP-03 | Contactar publicador para coordinar retiro (chat P2P) | Medium | Back + UX |
+| HU-10 | EP-03 | Otorgar Circular Credits por entrega en marketplace | Low | Back |
+| HU-11 | EP-03 | Consultar saldo e historial de Circular Credits | Low | Front + UX |
+| HU-19 | EP-03 | Estadísticas personales de CO₂ ahorrado | Low | Front + Back |
+| HU-20 | EP-03 | Ranking de ciudadanos por impacto | Low | Back |
+| HU-07 | EP-04 | Dashboard de solicitudes de retiro con mapa (admin) | High | Front + Back |
+| HU-08 | EP-04 | Programar y asignar retiros a operadores | Medium | Back |
+| HU-09 | EP-04 | Generar reporte de gestión (PDF/CSV) | Low | Back |
+| HU-31 | EP-04 | Marcar solicitud como «en ruta» | Medium | Back |
+| HU-32 | EP-04 | Subir foto del retiro con GPS | Medium | Front + Back |
+| HU-33 | EP-04 | Marcar solicitud como «retirado» | Medium | Back |
+| HU-12 | EP-01 | Iniciar sesión con ClaveÚnica | Highest | Front + Back |
+| HU-13 | EP-01 | Control de acceso por roles | High | Back |
+| HU-14 | EP-01 | Registro auditable de acciones críticas | Medium | Back + QA |
+| HU-37 | EP-01 | Editar perfil | Low | Front + Back |
+| HU-38 | EP-01 | Eliminar cuenta | Low | Back |
+| HU-15 | EP-06 | Calificar a otros usuarios (ratings) | Medium | Front + Back |
+| HU-16 | EP-06 | Denunciar incumplimiento | Medium | Back |
+| HU-18 | EP-06 | Admin revisa y bloquea usuarios | Medium | Back + UX |
+
+### Historias fuera de alcance — no reproponer
+
+**En pausa, recuperables:** HU-26 (preferencias de notificaciones, complementa a HU-23) ·
+HU-27, HU-28, HU-29 (referidos) · HU-30 (ver ruta asignada en mapa).
+
+**Propuestas para eliminar:** HU-21 (badges) · HU-22 (compartir en redes) · HU-34 (tema oscuro) ·
+HU-35 (cambiar idioma) · HU-36 (zona horaria) · HU-40 (chatbot de FAQ — elimina además la superficie
+de inyección de prompts) · HU-41 (escalado del chatbot) · HU-42 (analítica de preguntas).
+
+**Sin historia asociada:** HU-24 y HU-25 — borrar o renumerar.
 
 ---
 
 ## 8. Base de datos — resumen
 
-**19 tablas** en MySQL/MariaDB:
+Motor: **MySQL 8** en local (Docker, base `arca_dev`) y **MySQL 8 / MariaDB 10.6+** en el servidor
+municipal (base `arca_db`, `utf8mb4_unicode_ci`). La aplicación crea el esquema con migraciones
+versionadas de TypeORM; la base se entrega vacía.
 
-`usuarios` · `residuos_catalogo` · `solicitudes_retiro` · `articulos_marketplace` · `mensajes_marketplace` · `transacciones_circular_credits` · `auditoria` · `notificaciones` · `ratings` · `impacto_ambiental` · `foto_retiro` · `denuncias` · `referidos` · `horarios_retiro` · `feedback_retiro` · `faq_articulos` · `conversaciones_chatbot` · `social_shares` · `preferencias_usuario`
+**6 tablas implementadas hoy** — primera etapa, 5 migraciones aplicadas:
 
-**35+ endpoints REST** agrupados en: auth, solicitudes-retiro, marketplace, dashboard, circular-credits, notificaciones, ratings, denuncias, referidos, horarios, feedback, faq, chatbot, social, preferencias.
+`usuarios_ciudadanos` · `sesiones_ciudadano` · `usuarios_administradores` · `sesiones_administrador` · `residuos_catalogo` · `solicitudes_retiro`
 
-**WebSocket:** `/ws/marketplace/articulos/{id}/chat` para chat en tiempo real del marketplace.
+**22 tablas contempladas** en `ARCA_database_schema.dbml` para las etapas siguientes, todas dentro de
+la misma base. Además de las 6 anteriores:
 
-> El esquema completo está en `ARQUITECTURA_ARCA_PWA.md`. Notar que ese archivo aún referencia PostgreSQL y otras tecnologías descartadas — la fuente de verdad actualizada es `README.md` y este archivo.
+`horarios_retiro` · `foto_retiro` · `impacto_ambiental` · `feedback_retiro` · `articulos_marketplace` · `mensajes_marketplace` · `ratings` · `denuncias` · `referidos` · `transacciones_circular_credits` · `auditoria` · `notificaciones` · `faq_articulos` · `conversaciones_chatbot` · `social_shares` · `preferencias_usuario`
+
+> Tras el refinamiento del backlog, **`social_shares`, `conversaciones_chatbot`, `referidos` y
+> `preferencias_usuario` quedan sin ninguna historia que las use** (ver sección 7). No construir sobre
+> ellas sin consultarlo antes con Miguel.
+
+**9 endpoints REST** implementados bajo el prefijo `/api`:
+
+| Método | Ruta | Módulo |
+|---|---|---|
+| `GET` | `/api` · `/api/health` | raíz y health check |
+| `GET` | `/api/residuos/catalogo` | catálogo de residuos con precios reales |
+| `POST` `GET` | `/api/solicitudes-retiro` | crear y listar solicitudes |
+| `GET` `PATCH` | `/api/solicitudes-retiro/:id` | detalle y cambio de estado |
+| `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | cancelar solicitud |
+| `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | gate de login diferido |
+
+**WebSocket:** previsto en `/socket.io/*` y `/ws/*` para el chat y las notificaciones en tiempo real
+de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF municipal (sección 4.3).
+
+> El esquema completo y actualizado es `ARCA_database_schema.dbml`. El archivo del Drive
+> `ARQUITECTURA_ARCA_PWA.md` está **desactualizado** (referencia PostgreSQL, Redis, Express y una tabla
+> `usuarios` única en vez del par ciudadano/administrador) — no usarlo como fuente.
 
 ---
 
@@ -181,7 +275,7 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 ├── CLAUDE.md                    ← Guía de setup colaborativo (Git Flow, ramas, convenciones)
 ├── CLAUDE_proyecto.md           ← Este archivo (contexto de proyecto para Claude Code)
 ├── README.md                    ← Fuente de verdad principal (stack, arquitectura, backlog)
-├── ARCA_database_schema.dbml    ← Esquema BD en DBML (19 tablas, identidad ciudadano/admin)
+├── ARCA_database_schema.dbml    ← Esquema BD en DBML (22 tablas, identidad ciudadano/admin)
 ├── ARQUITECTURA_ARCA_PWA.md     ← Documento Word (.docx) con esquema BD + endpoints
 │                                   ⚠️ Es un .docx con extensión .md · Stack desactualizado:
 │                                   usar README.md + ARCA_database_schema.dbml como verdad
@@ -193,14 +287,14 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 ├── ngrok.yml                    ← Config ngrok: tunel unico -> frontend (:5173), backend detras via proxy Vite
 ├── docs/
 │   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, backend, frontend, scripts, ngrok)
-│   ├── BACKEND_FASE1.md         ← Resumen de implementación backend Fase 1 (EP-01)
-│   ├── FRONTEND_FASE1.md        ← Resumen de implementación frontend Fase 1 (EP-01)
+│   ├── BACKEND_FASE1.md         ← Resumen de implementación backend Fase 1 (EP-02)
+│   ├── FRONTEND_FASE1.md        ← Resumen de implementación frontend Fase 1 (EP-02)
 │   └── PLAN_FRONTEND.md         ← Roadmap del frontend por fases + deuda técnica (documento vivo)
 └── apps/
     ├── backend/                 ← NestJS + TypeORM (identidad, residuos, solicitudes-retiro), rutas bajo prefijo /api
     │   └── README.md            ← Guía de la API: scripts, entorno, endpoints, migraciones
     │   └── src/database/migrations/  ← incluye precio real del catalogo (26 items, municipalidad)
-    └── frontend/                ← React 18 + Vite + TS + Tailwind (PWA, flujo ciudadano EP-01)
+    └── frontend/                ← React 19 + Vite 8 + TS + Tailwind (PWA, flujo ciudadano EP-02)
         ├── README.md            ← Guía de la PWA: scripts, estructura de src/, convenciones
         └── src/
             ├── components/ui/   ← primitivos reutilizables entre modulos (IconBadge, EstadoPill, etc.)
@@ -215,7 +309,8 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 Definido en `UI_KIT_ARCA.md`. Puntos clave:
 
 - **Fuente:** Inter (400 / 500 / 600 / 700)
-- **Stack de estilos:** React 18 + Tailwind CSS v4 + lucide-react + recharts
+- **Stack de estilos:** React 19 + Tailwind CSS 3.4. `lucide-react` (íconos) y `recharts`
+  (gráficos del panel municipal) están **previstos pero todavía no instalados**
 - **Color primario:** `#1A3D2B` (Verde Oscuro) · acento: `#52B788` (Verde Claro)
 - **Regla 60·30·10:** 60% fondo blanco · 30% verde oscuro · 10% verde claro
 - **Íconos:** lucide-react, `strokeWidth={1.5}`
@@ -263,8 +358,8 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
 
 - **Fase:** Inicio de implementación — Fase 1 (MVP).
 - **Código:** ya existe (monorepo `apps/`). Lo construido a la fecha:
-  - **Backend (`apps/backend`)** — NestJS + TypeORM sobre MySQL. Implementa **EP-01**:
-    catálogo de residuos y solicitudes de retiro. 6 de 19 tablas migradas (4 de identidad
+  - **Backend (`apps/backend`)** — NestJS + TypeORM sobre MySQL. Implementa **EP-02**:
+    catálogo de residuos y solicitudes de retiro. 6 de 22 tablas migradas (4 de identidad
     + `residuos_catalogo` + `solicitudes_retiro`). Endpoints bajo prefijo global **`/api`**
     (`app.setGlobalPrefix('api')`): `GET /api/health`, `GET /api/residuos/catalogo`,
     `POST`/`GET /api/solicitudes-retiro` (+ `:id`, `:id/cancelar`),
@@ -272,8 +367,8 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     `FRONTEND_URL`). `ResiduoCatalogo` tiene **precio real** (CLP): el catálogo son los
     26 ítems de `costo retiro Voluminosos.xlsx` (municipalidad), no valores referenciales.
     Detalle en `docs/BACKEND_FASE1.md`.
-  - **Frontend (`apps/frontend`)** — React 18 + Vite + TS + Tailwind + React Router.
-    Flujo ciudadano EP-01 (catálogo → nueva solicitud → mis solicitudes) con **login
+  - **Frontend (`apps/frontend`)** — React 19 + Vite 8 + TS + Tailwind + React Router.
+    Flujo ciudadano EP-02 (catálogo → nueva solicitud → mis solicitudes) con **login
     temporal** (usuario dev) a la espera de auth real. El precio se muestra real (viene
     del backend), ya no se estima por categoría. UI componentizada en `components/ui/`
     (`IconBadge`, `EstadoPill`, `ListItemCard`, `ScreenHeader`, `EmptyState`, `BackButton`,
@@ -290,10 +385,10 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     `docs/SETUP_LOCAL.md` sección 10.
 - **Autenticación:** diferida. Hoy se usa un usuario dev sembrado por migración
   (`00000000-0000-4000-8000-000000000001`); el frontend lo maneja con un login temporal.
-  ClaveÚnica + JWT (EP-05, Benjamín) se integrará más adelante sin reestructurar.
+  ClaveÚnica + JWT (EP-01, Benjamín) se integrará más adelante sin reestructurar.
 - **Documentos producidos:**
   - `README.md` (consolidado, decisiones finales)
-  - `ARCA_database_schema.dbml` (esquema BD vigente, 19 tablas)
+  - `ARCA_database_schema.dbml` (esquema BD vigente, 22 tablas)
   - `ARQUITECTURA_ARCA_PWA.md` (.docx, esquema + endpoints — stack desactualizado)
   - `UI_KIT_ARCA.md` v1.0 (sistema de diseño)
   - `docs/{SETUP_LOCAL,BACKEND_FASE1,FRONTEND_FASE1,PLAN_FRONTEND}.md`
