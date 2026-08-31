@@ -27,6 +27,7 @@ import { UsersModule } from './users/users.module';
     }),
     AuthModule,
     HealthModule,
+    AuthModule,
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,
