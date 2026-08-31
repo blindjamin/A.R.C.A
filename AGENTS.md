@@ -213,6 +213,56 @@ con esa misma regla.
 | Authtoken y dominio de ngrok | Credencial personal de cada integrante |
 | Archivos de un área que no es la de la sesión | Ver regla A.7 — requiere avisar y abrir un PR |
 
+## A.13 DECLARAR EN CADA COMMIT CÓMO SE PRODUJO EL CAMBIO
+
+Todo commit termina con tres líneas. No son un formulario: son las tres preguntas que alguien
+—un compañero, la comisión de Feria de Software, el municipio— va a hacer sobre ese cambio
+cuando ya nadie recuerde el contexto.
+
+```
+IA: agente
+HU: HU-07
+Revisor: javier
+```
+
+| Línea | Valores | Qué responde |
+|---|---|---|
+| `IA:` | `agente` · `asistido` · `no` | Cómo se produjo el código |
+| `HU:` | `HU-07` · `ninguna` | Qué historia de usuario avanza |
+| `Revisor:` | nombre · `pendiente` | Quién responde por la revisión |
+
+**`IA: agente`** — lo generó un agente y la persona lo revisó antes de commitear.
+**`IA: asistido`** — lo escribió la persona con autocompletado o sugerencias puntuales.
+**`IA: no`** — lo escribió la persona sin ayuda de IA.
+
+Ante la duda entre `agente` y `asistido`, el criterio es simple: si la estructura del cambio la
+propuso la IA, es `agente`. Marcar `agente` no es una confesión ni penaliza a nadie: es lo que
+permite priorizar dónde poner atención al revisar.
+
+### Por qué es obligatorio y no opcional
+
+- **Revisión.** Un cambio marcado `agente` se revisa distinto que uno escrito a mano: no se busca
+  un error de tipeo, se busca una suposición inventada. Sin la marca, todos los cambios se
+  revisan igual, que en la práctica significa que ninguno se revisa bien.
+- **Defensa de Feria de Software.** Cada integrante tiene que poder explicar su propio código
+  (regla B.1). El trailer es el registro de quién respondía por qué parte, semanas después.
+- **Trazabilidad.** `HU:` cierra la cadena épica → historia de usuario → rama → commit, que hoy
+  se corta en la rama.
+
+### Cómo se cumple sin esfuerzo
+
+Una sola vez, desde cualquier carpeta dentro del repositorio:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+```
+
+Desde ahí las tres líneas aparecen solas cada vez que se abre el editor de commit; solo hay que
+completarlas. Un hook las valida: si falta una, el commit no pasa y el mensaje de error dice
+exactamente qué corregir.
+
+Los merges, los reverts y los `fixup!` quedan exentos: esos mensajes los genera git.
+
 ---
 
 # Parte B — Política de uso de IA para el equipo COM Tech
@@ -255,9 +305,12 @@ dato.
 
 ## B.5 Transparencia en los commits
 
-No hace falta marcar cada línea, pero **el equipo tiene que poder saber qué se hizo con IA**.
-Si un commit es sustancialmente generado por IA, conviene dejarlo dicho en el cuerpo del
-mensaje. Sirve para revisarlo con más atención y es honesto de cara a la evaluación.
+Cada commit declara cómo se produjo, con la línea `IA:` que exige la regla A.13. No hace falta
+marcar línea por línea: basta con el origen del cambio en su conjunto.
+
+Declarar `agente` no penaliza a nadie ni implica menos mérito. Lo que sí es un problema es
+commitear código generado que no se entiende: eso lo prohíbe la regla B.1, y es independiente de
+cómo se declare.
 
 ## B.6 Ante la duda, preguntar al equipo
 
@@ -267,4 +320,4 @@ sale más caro que consultar.
 
 ---
 
-**Última actualización:** 2026-08-17 · Equipo COM Tech
+**Última actualización:** 2026-08-29 · Equipo COM Tech
