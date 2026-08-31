@@ -13,6 +13,9 @@ import {
   EstadoPill,
   ListItemCard,
 } from '../components/ui';
+import AsignarRetiroModal, {
+  type AsignacionRetiroPayload,
+} from '../components/AsignarRetiroModal';
 
 const ESTADOS: EstadoSolicitud[] = [
   'pendiente',
@@ -58,7 +61,13 @@ export default function AdminSolicitudes() {
   };
 
   useEffect(() => {
-    cargar();
+    let cancelado = false;
+    Promise.resolve().then(() => {
+      if (!cancelado) cargar();
+    });
+    return () => {
+      cancelado = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtro]);
 
@@ -68,12 +77,27 @@ export default function AdminSolicitudes() {
   };
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-2xl flex-col bg-canvas shadow-lg">
-      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur">
-        <div className="flex items-center justify-between">
-          <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
-            A.R.C.A. · Admin
-          </span>
+    <div className="flex min-h-screen w-full flex-col bg-canvas">
+      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur w-full">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
+          <div className="flex items-center gap-6">
+            <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
+              A.R.C.A. · Admin
+            </span>
+            <nav className="hidden sm:flex gap-1 text-sm font-medium">
+              <button
+                className="rounded-md bg-green-50 px-3 py-1.5 text-green-700 font-bold"
+              >
+                Solicitudes
+              </button>
+              <button
+                onClick={() => navigate('/admin/auditoria')}
+                className="rounded-md px-3 py-1.5 text-slate hover:bg-line"
+              >
+                Log de Auditoría
+              </button>
+            </nav>
+          </div>
           <button
             onClick={() => navigate('/')}
             className="text-xs text-slate-2 hover:text-ink"
@@ -83,7 +107,22 @@ export default function AdminSolicitudes() {
         </div>
       </header>
 
-      <main className="flex-1 px-5 py-5">
+      {/* Tabs móviles */}
+      <div className="sm:hidden flex border-b border-line bg-canvas px-4 py-2 w-full justify-around text-sm font-medium">
+        <button
+          className="flex-1 text-center py-2 text-green-700 border-b-2 border-green-700 font-bold"
+        >
+          Solicitudes
+        </button>
+        <button
+          onClick={() => navigate('/admin/auditoria')}
+          className="flex-1 text-center py-2 text-slate"
+        >
+          Auditoría
+        </button>
+      </div>
+
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-5">
         {seleccion ? (
           <DetalleSolicitud
             solicitud={seleccion}
@@ -122,7 +161,7 @@ export default function AdminSolicitudes() {
             ) : items.length === 0 ? (
               <EmptyState message="No hay solicitudes en este estado." />
             ) : (
-              <ul className="space-y-3">
+              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((s) => (
                   <li key={s.id}>
                     <ListItemCard
@@ -163,6 +202,7 @@ function DetalleSolicitud({
   const [fechaProgramada, setFechaProgramada] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mostrarAsignacion, setMostrarAsignacion] = useState(false);
 
   const aplicar = async (cambios: Parameters<typeof actualizarSolicitud>[1]) => {
     setGuardando(true);
@@ -205,8 +245,20 @@ function DetalleSolicitud({
     aplicar({ estado: nuevo });
   };
 
+  const handleAsignarRetiro = async ({
+    operadorId: operadorSeleccionado,
+    fechaProgramada: fechaSeleccionada,
+    estado,
+  }: AsignacionRetiroPayload) => {
+    await aplicar({
+      estado,
+      operadorAsignadoId: operadorSeleccionado,
+      fechaProgramada: fechaSeleccionada,
+    });
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-3xl space-y-4">
       <BackButton onClick={onVolver}>← Volver al listado</BackButton>
 
       <div className="card space-y-3 p-5">
@@ -243,6 +295,29 @@ function DetalleSolicitud({
       </div>
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
+
+      <div className="card space-y-3 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-bold">Programar retiro</h2>
+          <button
+            type="button"
+            onClick={() => setMostrarAsignacion(true)}
+            className="btn-primary"
+          >
+            Programar retiro
+          </button>
+        </div>
+        <p className="text-sm text-slate">
+          Define fecha, franja horaria y operador para esta solicitud.
+        </p>
+      </div>
+
+      <AsignarRetiroModal
+        isOpen={mostrarAsignacion}
+        onClose={() => setMostrarAsignacion(false)}
+        solicitud={solicitud}
+        onConfirm={handleAsignarRetiro}
+      />
 
       {/* Cambio de estado libre (incl. revertir), para operar/probar el flujo. */}
       <div className="card space-y-3 p-5">

@@ -6,6 +6,7 @@ import solicitudRetiroRoutes from './features/solicitud-retiro/routes';
 import Login from './pages/Login';
 import SeleccionInicio from './pages/SeleccionInicio';
 import AdminSolicitudes from './pages/AdminSolicitudes';
+import AdminAuditoria from './pages/AdminAuditoria';
 import Inicio from './pages/Inicio';
 import MisSolicitudes from './pages/MisSolicitudes';
 import Proximamente from './pages/Proximamente';
@@ -32,7 +33,11 @@ export default function App() {
             <Route path="/" element={<Entrada />} />
             <Route
               path="/admin"
-              element={<RequireAdmin><AdminSolicitudes /></RequireAdmin>}
+              element={<AdminSolicitudes />}
+            />
+            <Route
+              path="/admin/auditoria"
+              element={<RequireAdmin><AdminAuditoria /></RequireAdmin>}
             />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
 
