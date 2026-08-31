@@ -67,7 +67,7 @@ export default function Inicio() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate">
           ¿Qué quieres hacer hoy?
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {modulos.map((modulo) => (
             <ModuloCard key={modulo.id} modulo={modulo} />
           ))}

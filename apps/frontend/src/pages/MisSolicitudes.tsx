@@ -92,7 +92,7 @@ export default function MisSolicitudes() {
     const categoria = seleccion.residuoCatalogo?.categoria;
     const puedeCancelar = CANCELABLES.includes(seleccion.estado);
     return (
-      <div className="space-y-4">
+      <div className="mx-auto w-full max-w-2xl space-y-4">
         <BackButton onClick={() => setSeleccion(null)} />
 
         {error && <p className="text-sm text-rose-600">{error}</p>}
@@ -169,7 +169,7 @@ export default function MisSolicitudes() {
           }
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visibles.map((s) => {
             const categoria = s.residuoCatalogo?.categoria;
             return (
