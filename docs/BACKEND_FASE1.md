@@ -38,6 +38,7 @@ A.R.C.A/
         │   ├── database/       # data-source + migraciones
         │   ├── health/
         │   ├── users/          # Entidades identidad
+        │   ├── auth/           # Guards HU-13 (EP-05)
         │   ├── residuos/       # Catálogo EP-01
         │   └── solicitudes-retiro/
         └── package.json
@@ -77,6 +78,7 @@ A.R.C.A/
 | Módulo | Entidades |
 |---|---|
 | `users/` | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador` |
+| `auth/` | `AuthGuard`, `RolesGuard`, `@Public`, `@Roles`, `@CurrentUser`, `AuthService` |
 | `residuos/` | `ResiduoCatalogo` (incluye `precio: number`, CLP real) |
 | `solicitudes-retiro/` | `SolicitudRetiro`, `EstadoSolicitudRetiro` |
 
@@ -100,7 +102,34 @@ proxy/túnel; ver `docs/SETUP_LOCAL.md` sección 10).
 | `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
 | `PATCH` | `/api/solicitudes-retiro/{id}` | **Admin:** modificar estado/operador/fecha/razón |
 | `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
-| `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` |
+| `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
+
+### Control de acceso por roles (HU-13)
+
+Rama `2026-08-31-javier-hu13-control-acceso` · módulo `src/auth/`.
+
+Hasta que Benjamín integre ClaveÚnica/JWT (HU-12), en **desarrollo** las rutas protegidas
+exigen:
+
+```
+Authorization: Bearer <uuid-usuario-ciudadano>
+```
+
+UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
+
+| Ruta | Acceso |
+|---|---|
+| `GET /health`, `GET /residuos/catalogo`, `GET /` | Público |
+| `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
+| `PATCH solicitudes-retiro/{id}` | Rol `admin` u `operador` |
+| `GET perfil-acceso` | Solo el propio `ciudadanoId` |
+
+En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
+
+**Breaking change para el frontend:** `arca.ts` debe enviar el header `Authorization`
+en las llamadas protegidas (PR aparte — Maximiliano). Sin eso, la PWA responde `401`.
+
+Detalle de implementación: [`apps/backend/README.md`](../apps/backend/README.md) § Autenticación.
 
 ### Cambio de estado (PATCH admin)
 
@@ -121,6 +150,9 @@ invariantes de datos:
 `GET /api/usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
 tiene extensión de administrador activa. El frontend lo usa tras autenticar para
 decidir el destino: funcionario → selección de contexto; solo ciudadano → PWA directa.
+
+Desde HU-13, el endpoint exige autenticación y solo permite consultar el perfil del
+usuario autenticado (mismo `ciudadanoId` que el Bearer).
 
 ### Ejemplo POST solicitud
 
@@ -191,16 +223,18 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 
 | Área | Responsable | Notas |
 |---|---|---|
-| Auth ClaveÚnica + JWT | Benjamín (`feature/auth`) | Requiere aprobación organismo gubernamental |
-| Auth mock / guards | Benjamín | Pendiente: proteger `/admin` y PATCH por rol |
-| Frontend React PWA | Maximiliano (`feature/frontend`) | Ver `docs/SETUP_LOCAL.md` |
+| Auth ClaveÚnica + JWT | Benjamín (HU-12) | Reemplazar Bearer UUID dev en `AuthService`; requiere aprobación organismo |
+| Front: header `Authorization` | Maximiliano | PR aparte tras merge HU-13; sin esto la PWA da `401` en rutas protegidas |
+| Frontend React PWA | Maximiliano | Ver `docs/SETUP_LOCAL.md` |
 | Migraciones restantes del DBML | Javier | horarios, fotos, marketplace, credits, etc. |
 | Subida de fotos | Javier | Fase posterior |
 | ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados) |
 | ~~Cancelación por ciudadano~~ | ✅ Hecho | Rama `admin-municipal` (`PATCH /:id/cancelar`) |
 | ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
+| ~~Control de acceso por roles (HU-13)~~ | ✅ Hecho | `auth/`: guards, `@Roles`, auth dev Bearer UUID |
 | Endurecer máquina de estados | Pendiente | Hoy reversible para pruebas; reponer con flag/permiso |
-| PR merge a `develop` | Javier | Integración con el equipo |
+| `GET /api/operadores` | Javier (HU-08) | Listar administradores activos para modal de asignación |
+| PR merge HU-13 a `develop` | Javier | Rama `2026-08-31-javier-hu13-control-acceso` |
 
 ---
 

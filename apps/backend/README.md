@@ -85,10 +85,32 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud |
 | `PATCH` | `/api/solicitudes-retiro/:id` | Cambiar estado (admin, reversible) |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
-| `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido |
+| `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
 
 Estados de una solicitud (`EstadoSolicitudRetiro`):
 `pendiente` · `asignada` · `en_proceso` · `completada` · `cancelada`
+
+### Autenticación (HU-13 — desarrollo)
+
+Hasta que Benjamín integre ClaveÚnica/JWT, las rutas protegidas exigen:
+
+```
+Authorization: Bearer <uuid-usuario-ciudadano>
+```
+
+UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
+
+| Ruta | Quién puede |
+|---|---|
+| `GET /health`, `GET /residuos/catalogo` | Público |
+| `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
+| `PATCH solicitudes-retiro/:id` | `admin` u `operador` |
+| `GET perfil-acceso` | Solo el propio `ciudadanoId` |
+
+En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
+
+> **Integración frontend:** hasta que `arca.ts` envíe el header, la PWA obtiene `401` en
+> rutas protegidas. Ver tarea para Maximiliano en el PR de HU-13.
 
 ---
 
@@ -104,6 +126,7 @@ src/
 ├── health/                      # Health check
 ├── residuos/                    # Catálogo de residuos
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs, entity, enum)
+├── auth/                        # Guards, decorators y auth dev (HU-13)
 └── users/                       # Ciudadanos, administradores y sesiones
 ```
 

@@ -34,7 +34,12 @@ export class ResiduoCatalogo {
   @Column({ name: 'instrucciones_recogida', type: 'text', nullable: true })
   instruccionesRecogida: string | null;
 
-  @Column({ name: 'foto_referencia_path', type: 'varchar', length: 500, nullable: true })
+  @Column({
+    name: 'foto_referencia_path',
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+  })
   fotoReferenciaPath: string | null;
 
   @Column({ name: 'codigo_rae', type: 'varchar', length: 50, nullable: true })

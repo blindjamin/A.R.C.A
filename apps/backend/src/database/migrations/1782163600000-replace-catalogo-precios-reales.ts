@@ -21,9 +21,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * usuario dev y referencian (FK) los ítems del catálogo viejo que se
  * eliminan acá. No hay solicitudes reales en este punto del proyecto.
  */
-export class ReplaceCatalogoPreciosReales1782163600000
-  implements MigrationInterface
-{
+export class ReplaceCatalogoPreciosReales1782163600000 implements MigrationInterface {
   name = 'ReplaceCatalogoPreciosReales1782163600000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

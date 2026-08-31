@@ -33,13 +33,30 @@ export class SolicitudRetiro {
   @Column({ type: 'text', nullable: true })
   descripcion: string | null;
 
-  @Column({ name: 'direccion_anonimizada', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'direccion_anonimizada',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   direccionAnonimizada: string | null;
 
-  @Column({ name: 'latitud_capturada', type: 'decimal', precision: 10, scale: 8, nullable: true })
+  @Column({
+    name: 'latitud_capturada',
+    type: 'decimal',
+    precision: 10,
+    scale: 8,
+    nullable: true,
+  })
   latitudCapturada: string | null;
 
-  @Column({ name: 'longitud_capturada', type: 'decimal', precision: 11, scale: 8, nullable: true })
+  @Column({
+    name: 'longitud_capturada',
+    type: 'decimal',
+    precision: 11,
+    scale: 8,
+    nullable: true,
+  })
   longitudCapturada: string | null;
 
   @Column({ name: 'fecha_solicitud', type: 'timestamp' })
@@ -51,7 +68,12 @@ export class SolicitudRetiro {
   @Column({ name: 'fecha_completada', type: 'timestamp', nullable: true })
   fechaCompletada: Date | null;
 
-  @Column({ name: 'operador_asignado_id', type: 'varchar', length: 36, nullable: true })
+  @Column({
+    name: 'operador_asignado_id',
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+  })
   operadorAsignadoId: string | null;
 
   @Column({ name: 'razon_rechazo', type: 'text', nullable: true })

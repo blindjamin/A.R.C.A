@@ -16,7 +16,12 @@ export class SesionAdministrador {
   @Column({ name: 'usuario_administrador_id', type: 'varchar', length: 36 })
   usuarioAdministradorId: string;
 
-  @Column({ name: 'jwt_token_hash', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'jwt_token_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   jwtTokenHash: string | null;
 
   @Column({ name: 'ip_sesion', type: 'varchar', length: 45, nullable: true })

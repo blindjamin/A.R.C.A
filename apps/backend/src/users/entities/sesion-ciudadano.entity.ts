@@ -17,16 +17,36 @@ export class SesionCiudadano {
   @Column({ name: 'usuario_ciudadano_id', type: 'varchar', length: 36 })
   usuarioCiudadanoId: string;
 
-  @Column({ name: 'nombre_sesion', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'nombre_sesion',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   nombreSesion: string | null;
 
-  @Column({ name: 'apellido_sesion', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'apellido_sesion',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   apellidoSesion: string | null;
 
-  @Column({ name: 'email_sesion', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'email_sesion',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   emailSesion: string | null;
 
-  @Column({ name: 'telefono_sesion', type: 'varchar', length: 20, nullable: true })
+  @Column({
+    name: 'telefono_sesion',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
   telefonoSesion: string | null;
 
   @Column({ name: 'direccion_sesion', type: 'text', nullable: true })
@@ -50,7 +70,12 @@ export class SesionCiudadano {
   })
   longitudSesion: string | null;
 
-  @Column({ name: 'jwt_token_hash', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'jwt_token_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   jwtTokenHash: string | null;
 
   @Column({ name: 'ip_sesion', type: 'varchar', length: 45, nullable: true })

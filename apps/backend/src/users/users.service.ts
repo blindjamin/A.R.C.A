@@ -23,7 +23,9 @@ export class UsersService {
     private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
   ) {}
 
-  findCiudadanoByClaveUnicaId(claveUnicaId: string): Promise<UsuarioCiudadano | null> {
+  findCiudadanoByClaveUnicaId(
+    claveUnicaId: string,
+  ): Promise<UsuarioCiudadano | null> {
     return this.usuarioCiudadanoRepository.findOne({ where: { claveUnicaId } });
   }
 
