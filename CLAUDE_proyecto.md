@@ -282,24 +282,41 @@ de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF 
 ├── UI_KIT_ARCA.md               ← Sistema de diseño (colores, tipografía, componentes)
 │                                   ⚠️ Referenciado pero aún no presente en el repo (ver Drive)
 ├── docker-compose.yml           ← MySQL 8 local para desarrollo
-├── setup.ps1                    ← Automatiza setup local completo (deps, .env.local, Docker, migraciones, arranque)
-├── start-ngrok.ps1              ← Expone la PWA a internet (celular) via ngrok, dominio fijo, un solo tunel
-├── ngrok.yml                    ← Config ngrok: tunel unico -> frontend (:5173), backend detras via proxy Vite
+├── setup.ps1                    ← Automatiza setup local completo (deps, .env.local, Docker, migraciones, arranque de los 4 proyectos)
+├── package.json                 ← npm workspaces: packages/arca-core + apps/backend + apps/backend-admin
+│                                   (los frontends NO son workspaces, npm install independiente en cada uno)
+├── packages/
+│   └── arca-core/               ← @arca/core: entidades TypeORM + AuthModule que ambos backends importan
+│       ├── README.md            ← Qué vive acá y la regla de PR revisado para tocarlo
+│       └── src/
+│           ├── entities/        ← usuarios, sesiones, catálogo, solicitudes-retiro (fuente única, ex apps/backend)
+│           └── auth/            ← AuthGuard, RolesGuard, ClaveÚnica, decorators (ex apps/backend/src/auth)
 ├── docs/
-│   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, backend, frontend, scripts, ngrok)
-│   ├── BACKEND_FASE1.md         ← Resumen de implementación backend Fase 1 (EP-02)
-│   ├── FRONTEND_FASE1.md        ← Resumen de implementación frontend Fase 1 (EP-02)
+│   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, workspaces, backends, frontends, scripts)
+│   ├── BACKEND_FASE1.md         ← Resumen de implementación backend ciudadano Fase 1 (EP-02)
+│   ├── FRONTEND_FASE1.md        ← Resumen de implementación frontend ciudadano Fase 1 (EP-02)
 │   └── PLAN_FRONTEND.md         ← Roadmap del frontend por fases + deuda técnica (documento vivo)
 └── apps/
-    ├── backend/                 ← NestJS + TypeORM (identidad, residuos, solicitudes-retiro), rutas bajo prefijo /api
-    │   └── README.md            ← Guía de la API: scripts, entorno, endpoints, migraciones
-    │   └── src/database/migrations/  ← incluye precio real del catalogo (26 items, municipalidad)
-    └── frontend/                ← React 19 + Vite 8 + TS + Tailwind (PWA, flujo ciudadano EP-02)
-        ├── README.md            ← Guía de la PWA: scripts, estructura de src/, convenciones
+    ├── backend/                 ← API ciudadana — NestJS + TypeORM (residuos, solicitudes-retiro), rutas bajo /api
+    │   ├── README.md            ← Guía de la API: scripts, entorno, endpoints, migraciones
+    │   └── src/database/migrations/  ← único dueño del esquema; incluye precio real del catalogo (26 items)
+    ├── backend-admin/           ← API del panel municipal — NestJS, misma base de datos, sin migraciones propias
+    │   ├── README.md            ← Guía de la API del panel: scripts, entorno, endpoints
+    │   └── src/
+    │       ├── identity/        ← resolución de identidad propia (duplicado declarado de UsersService)
+    │       └── solicitudes/     ← GET/PATCH /api/admin/solicitudes (listado sin filtro por dueño)
+    ├── frontend/                ← React 19 + Vite 8 + TS + Tailwind (PWA, flujo ciudadano EP-02)
+    │   ├── README.md            ← Guía de la PWA: scripts, estructura de src/, convenciones
+    │   └── src/
+    │       ├── components/ui/   ← primitivos reutilizables entre modulos (IconBadge, EstadoPill, etc.)
+    │       ├── features/solicitud-retiro/  ← modulo propio del flujo "Solicitar retiro"
+    │       └── pages/           ← pantallas que son islas independientes (Inicio, MisSolicitudes, ...)
+    └── admin-web/                ← Panel municipal — React 19 + Vite 8 + Tailwind, propio (:5174)
+        ├── README.md            ← Guía del panel: scripts, estructura de src/, deuda declarada
         └── src/
-            ├── components/ui/   ← primitivos reutilizables entre modulos (IconBadge, EstadoPill, etc.)
-            ├── features/solicitud-retiro/  ← modulo propio del flujo "Solicitar retiro"
-            └── pages/           ← pantallas que son islas independientes (Inicio, MisSolicitudes, AdminSolicitudes, ...)
+            ├── components/ui/   ← copia de los 6 átomos que usa (fuente de verdad: apps/frontend)
+            ├── components/AdminShell.tsx  ← layout de escritorio (sidebar), reemplaza el header por pantalla
+            └── pages/           ← Solicitudes.tsx, Auditoria.tsx
 ```
 
 ---
@@ -372,17 +389,20 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     temporal** (usuario dev) a la espera de auth real. El precio se muestra real (viene
     del backend), ya no se estima por categoría. UI componentizada en `components/ui/`
     (`IconBadge`, `EstadoPill`, `ListItemCard`, `ScreenHeader`, `EmptyState`, `BackButton`,
-    `PriceTag` — reutilizados entre Catálogo, Mis solicitudes, Admin e Inicio) y el flujo
+    `PriceTag` — reutilizados entre Catálogo, Mis solicitudes e Inicio) y el flujo
     "Solicitar retiro" modularizado en `features/solicitud-retiro/` (pantallas + estado
     compartido + sus propias rutas, separado de `App.tsx`). Detalle en
     `docs/FRONTEND_FASE1.md`.
+  - **Panel admin (`apps/admin-web` + `apps/backend-admin`)** — separado del frontend/backend
+    ciudadano en la migración de 2026-09-01. Copia de los mismos 6 átomos de UI, capa de API
+    propia, sin login/guard de sesión todavía (deuda declarada). Detalle en los README de
+    ambos proyectos.
   - **Infra local** — `docker-compose.yml` (MySQL 8) + `docs/SETUP_LOCAL.md`.
-  - **Automatización local + acceso móvil** — `setup.ps1` (instala todo y levanta backend +
-    frontend) y `start-ngrok.ps1` (expone la PWA a internet con dominio fijo de ngrok para
-    probarla en el celular). El frontend usa `VITE_API_URL=/api` (ruta relativa) y Vite
-    proxea `/api` al backend, así frontend y backend quedan detrás de un único origen —
-    necesario porque la cuenta ngrok free solo da un dominio fijo. Detalle en
-    `docs/SETUP_LOCAL.md` sección 10.
+  - **Automatización local** — `setup.ps1` instala todo (workspaces del núcleo compartido y
+    los dos backends, `npm install` propio en cada frontend) y levanta los cuatro proyectos.
+    El frontend ciudadano usa `VITE_API_URL=/api` (ruta relativa) y Vite proxea `/api` a su
+    backend; el panel admin hace lo mismo contra el suyo, en el puerto 3001. Detalle en
+    `docs/SETUP_LOCAL.md`.
 - **Autenticación:** diferida. Hoy se usa un usuario dev sembrado por migración
   (`00000000-0000-4000-8000-000000000001`); el frontend lo maneja con un login temporal.
   ClaveÚnica + JWT (EP-01, Benjamín) se integrará más adelante sin reestructurar.

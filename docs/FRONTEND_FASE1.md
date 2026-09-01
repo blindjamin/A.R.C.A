@@ -8,6 +8,13 @@ Documento de hito que resume la implementación del frontend (PWA ciudadana y pa
 sirve como **base para la documentación futura** del módulo. A medida que se agreguen
 pantallas y épicas, extender las secciones correspondientes.
 
+> **Migración de separación del panel admin (2026-09-01):** las pantallas de panel
+> administrativo que describe este documento (`AdminSolicitudes`, `AdminAuditoria`,
+> `AsignarRetiroModal`) **ya no viven en `apps/frontend`** — se movieron a `apps/admin-web`,
+> una app independiente (puerto 5174). El contenido de abajo describe el trabajo tal como se
+> hizo (sigue siendo válido como historia), pero las rutas de archivo ya no aplican; ver
+> [`../apps/admin-web/README.md`](../apps/admin-web/README.md) por la ubicación actual.
+
 ---
 
 ## Objetivo de esta fase
@@ -76,7 +83,7 @@ apps/frontend/
     ├── auth/
     │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage y roles)
     ├── components/
-    │   ├── AppShell.tsx        # Protected/Shell/RequireAdmin (wrapper de ruta estándar)
+    │   ├── AppShell.tsx        # Protected/Shell (RequireAdmin se quitó: sin uso tras mover /admin)
     │   ├── AsignarRetiroModal.tsx # modal interactivo de asignación/programación (HU-08)
     │   └── ui/                 # primitivos reutilizables entre módulos:
     │       ├── IconBadge.tsx, EstadoPill.tsx (+estadoMeta.ts), ListItemCard.tsx,
@@ -116,7 +123,7 @@ Expone funciones tipadas e interfaces del dominio (`ResiduoCatalogo`, `Solicitud
 | `fetchCatalogo()` | `GET /api/residuos/catalogo` | Listado oficial de residuos y precios |
 | `crearSolicitudRetiro(data)` | `POST /api/solicitudes-retiro` | Registro de nueva solicitud ciudadana |
 | `fetchMisSolicitudes(uuid)` | `GET /api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes del ciudadano actual |
-| `fetchSolicitudesAdmin(estado?)` | `GET /api/solicitudes-retiro?estado={estado}` | Panel de administración |
+| `fetchSolicitudesAdmin(estado?)` | `GET /api/admin/solicitudes?estado={estado}` (hoy en `apps/admin-web/src/api/admin.ts`, contra `apps/backend-admin`) | Panel de administración |
 | `actualizarSolicitud(id, data)` | `PATCH /api/solicitudes-retiro/{id}` | Cambio de estado / asignación (HU-08) |
 | `cancelarSolicitud(id, uuid, motivo?)` | `PATCH /api/solicitudes-retiro/{id}/cancelar` | Cancelación de solicitud |
 | `fetchPerfilAcceso(uuid)` | `GET /api/usuarios/{uuid}/perfil-acceso` | Roles y contexto (vecino/funcionario) |
@@ -178,7 +185,10 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `Proximamente` | `pages/` | `/retiro-municipal`, `/marketplace/subir` | — | placeholder |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
-- Las rutas `/admin` y `/admin/auditoria` están protegidas por `RequireAdmin`.
+- ~~Las rutas `/admin` y `/admin/auditoria` están protegidas por `RequireAdmin`~~ — en realidad
+  solo `/admin/auditoria` lo estaba; `/admin` nunca tuvo el gate (dato ya inexacto antes de la
+  migración). Ambas rutas se movieron a `apps/admin-web` sin `RequireAdmin`: la app entera no
+  tiene guard de sesión todavía (deuda declarada, ver su README).
 - **Tras el login se cae en `/inicio`** (el hub); el catch-all `*` también redirige ahí.
 - Estados de carga/error manejados localmente con `useState`.
 - El tab "Solicitar" arranca el flujo en `/solicitar` (cámara); el catálogo queda como rama alterna.
@@ -305,8 +315,10 @@ npm run lint      # ESLint
 6. Crear la solicitud → `/solicitud/creada` (SuccessRing + CTAs).
 7. **Mis solicitudes** muestra la solicitud en estado `pendiente` con el nombre del residuo
    (leído desde `GET /api/solicitudes-retiro`).
-8. Ingresar como funcionario municipal → `/admin` para gestionar solicitudes, cambiar estados o programar asignación con operador (HU-08).
-9. Acceder a `/admin/auditoria` → consultar KPIs y registros de actividad del sistema (HU-13).
+8. Ingresar como funcionario municipal → el botón "Modo funcionario" navega a `VITE_ADMIN_URL`
+   (`apps/admin-web`, http://localhost:5174 en local) para gestionar solicitudes, cambiar
+   estados o programar asignación con operador (HU-08).
+9. Dentro del panel, ir a "Auditoría" → consultar KPIs y registros de actividad del sistema (HU-13).
 
 ---
 
@@ -330,7 +342,7 @@ los endpoints correspondientes.
 | Programación con operadores | ✅ Hecho: Modal `AsignarRetiroModal` con fecha, franja y operador asignado (HU-08) |
 | Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
 | Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
-| Proteger `/admin` | ✅ `RequireAdmin` en el front (solo funcionarios). Falta guard real con JWT en backend |
+| Proteger el panel admin | ⛔ Sin gate de sesión en `apps/admin-web` (deuda declarada, migración 2026-09-01). Falta login ClaveÚnica propio + guard real |
 | Cancelar desde detalle (ciudadano) | ✅ Mis solicitudes: tocar → detalle → cancelar; oculta local |
 | Tests | Vitest + React Testing Library |
 

@@ -46,7 +46,7 @@ Así se puede saber de un vistazo quién abrió cada rama y cuándo, sin tener q
 
 | Integrante | Rol | Áreas de responsabilidad |
 |---|---|---|
-| **Benjamín Paicil** | Scrum Master / Líder | Seguridad, ClaveÚnica, autenticación JWT, coordinación general |
+| **Benjamín Paicil** | Scrum Master / Líder | Seguridad, ClaveÚnica, autenticación JWT, coordinación general, panel admin (`apps/backend-admin`, `apps/admin-web`) |
 | **Miguel Segovia** | Product Owner | Requisitos, priorización, stakeholder management |
 | **Maximiliano López** | Front-End | React 18, Redux, Tailwind, UI/UX, Leaflet, Socket.io-client |
 | **Javier Figueroa** | Back-End | NestJS, API REST, MySQL, Gateways, Services |
@@ -60,7 +60,8 @@ Así se puede saber de un vistazo quién abrió cada rama y cuándo, sin tener q
 
 > **Atajo (Windows):** si ya están instalados Git, Node.js 18+ y Docker Desktop corriendo, `.\setup.ps1`
 > en la raíz hace los pasos 3 a 5 por vos (MySQL, dependencias, `.env.local` y migraciones)
-> y deja backend y frontend levantados. Los pasos de abajo son el equivalente manual.
+> y deja los cuatro proyectos levantados (backend, backend-admin, frontend, panel admin).
+> Los pasos de abajo son el equivalente manual.
 
 ### 1. Clonar el repositorio
 ```bash
@@ -77,13 +78,16 @@ git pull origin develop
 
 ### 3. Instalar dependencias
 ```bash
-# Frontend
-cd apps/frontend
+# Núcleo compartido + los dos backends: un solo npm install en la RAÍZ del
+# repo (son npm workspaces — packages/arca-core, apps/backend, apps/backend-admin).
+# No correr npm install dentro de apps/backend ni apps/backend-admin: rompe
+# el hoisting de dependencias entre workspaces.
 npm install
+npm run build:core
 
-# Backend
-cd ../backend
-npm install
+# Los dos frontends NO son workspaces: npm install independiente en cada uno.
+cd apps/frontend && npm install
+cd ../admin-web && npm install
 ```
 
 ### 4. Configurar variables de entorno
@@ -91,12 +95,14 @@ Crear archivos `.env.local` en cada aplicación (no se versionan):
 
 - `apps/backend/.env.local` — copiar de `.env.example` y completar
   `DB_USERNAME=arca_user` y `DB_PASSWORD=arca_pass` (las del `docker-compose.yml`).
-- `apps/frontend/.env.local` — una sola línea: `VITE_API_URL=/api`
+- `apps/backend-admin/.env.local` — igual que el anterior, mismo `.env.example`.
+- `apps/frontend/.env.local` — `VITE_API_URL=/api` y `VITE_ADMIN_URL=http://localhost:5174`
+- `apps/admin-web/.env.local` — una sola línea: `VITE_API_URL=/api`
 
 ### 5. Levantar MySQL y correr migraciones
 ```bash
 docker compose up -d              # desde la raíz del repo
-cd apps/backend && npm run migration:run
+cd apps/backend && npm run migration:run   # backend-admin no corre migraciones
 ```
 
 > **Setup local detallado (Docker, migraciones, frontend):** ver [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
@@ -157,8 +163,12 @@ Cuando se configure, **GitHub Actions** debería ejecutar:
 
 Mientras tanto, antes de integrar:
 ```bash
-cd apps/backend  && npm run lint && npm run test && npm run build
-cd apps/frontend && npm run lint && npm run build
+npm run build:core
+cd packages/arca-core   && npm run test
+cd apps/backend         && npm run lint && npm run test && npm run build
+cd apps/backend-admin   && npm run lint && npm run build
+cd apps/frontend        && npm run lint && npm run build
+cd apps/admin-web       && npm run lint && npm run build
 ```
 
 ---
@@ -287,4 +297,4 @@ En [GitHub Issues](https://github.com/blindjamin/A.R.C.A/issues) con etiqueta y 
 
 ---
 
-**Última actualización:** 2026-08-29 | Equipo COM Tech
+**Última actualización:** 2026-09-01 | Equipo COM Tech

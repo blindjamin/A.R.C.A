@@ -1,32 +1,58 @@
-# React + TypeScript + Vite
+# A.R.C.A. — Panel admin
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Panel municipal, app Vite independiente (puerto **5174**), separada del frontend ciudadano
+(`apps/frontend`) en la migración de separación del panel admin (2026-09-01, Fase 1). No es un
+npm workspace: `npm install` propio, igual que `apps/frontend`.
 
-Currently, two official plugins are available:
+Habla con `apps/backend-admin` (puerto 3001), no con el backend ciudadano.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Scripts
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm run dev
+npm run build
+npm run lint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Variables de entorno
+
+`.env.local`:
+
+```env
+VITE_API_URL=/api
+```
+
+`vite.config.ts` proxea `/api` a `http://localhost:3001`.
+
+## Estructura
+
+```
+src/
+├── api/admin.ts          ← tipos y fetchers, copiados/movidos de apps/frontend/src/api/arca.ts
+├── components/
+│   ├── AdminShell.tsx    ← layout de escritorio (sidebar), reemplaza el header por pantalla
+│   │                        que tenían Solicitudes/Auditoria antes de la migración
+│   ├── AsignarRetiroModal.tsx
+│   └── ui/               ← copia de 6 átomos de apps/frontend — ver deuda abajo
+└── pages/
+    ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx
+    └── Auditoria.tsx     ← ex AdminAuditoria.tsx (datos mock, Sprint 5)
+```
+
+## Deuda declarada: UI Kit duplicado
+
+`src/components/ui/` es una **copia**, no la fuente de verdad — esa sigue siendo
+`apps/frontend/src/components/ui/`. Si el UI Kit cambia allá (colores, tokens, comportamiento
+de un átomo), evaluar si hace falta traer el cambio acá también. Los seis átomos copiados:
+`BackButton`, `EmptyState`, `EstadoPill`, `estadoMeta`, `ListItemCard`, `IconBadge`.
+
+## Deuda declarada: sin login ni guard de sesión
+
+Esta app **no tiene** su propio login de ClaveÚnica ni un guard de sesión — cualquiera con la
+URL entra directo (`App.tsx` no envuelve las rutas en nada). Es la migración tal cual del hueco
+que ya tenía `apps/frontend` en la ruta `/admin` antes de esta separación: no se arregló de
+paso (regla A.4), se movió y se reportó.
+
+En la práctica, esto significa que las llamadas a `apps/backend-admin` (que sí exige
+`Authorization: Bearer`) devuelven `401` hasta que exista un login real. **Tarea siguiente:**
+login ClaveÚnica propio de esta app + guard real.

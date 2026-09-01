@@ -165,18 +165,20 @@ git checkout develop
 .\setup.ps1
 ```
 
-`setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias, crea los
-`.env.local`, corre las migraciones y abre backend y frontend en ventanas separadas.
+`setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias (workspaces
+para el núcleo compartido y los dos backends; `npm install` propio para cada frontend), crea los
+`.env.local`, corre las migraciones y abre los cuatro proyectos en ventanas separadas.
 
 | Servicio | URL |
 |---|---|
 | Frontend (Vite) | http://localhost:5173 |
-| Backend (NestJS) | http://localhost:3000/api |
-| Health check | http://localhost:3000/api/health |
+| Panel admin (Vite) | http://localhost:5174 |
+| Backend ciudadano (NestJS) | http://localhost:3000/api |
+| Backend admin (NestJS) | http://localhost:3001/api |
 | MySQL (Docker) | `localhost:3306` · base `arca_dev` |
 
-**Probar desde el celular:** `.\start-ngrok.ps1` expone el frontend por un túnel con dominio fijo.
-Un solo túnel alcanza, porque Vite proxea `/api` al backend.
+El panel admin se usa **en local**: no hay túnel público para él. Lo que se demuestra a la
+municipalidad es la PWA ciudadana.
 
 > Setup manual paso a paso, otros sistemas operativos y problemas frecuentes:
 > [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
@@ -187,15 +189,18 @@ Un solo túnel alcanza, porque Vite proxea `/api` al backend.
 
 ```
 A.R.C.A/
+├── package.json                 # npm workspaces: packages/arca-core + apps/backend(-admin)
+├── packages/
+│   └── arca-core/                # Entidades TypeORM + AuthModule compartidos (@arca/core)
 ├── apps/
-│   ├── backend/                 # API NestJS + TypeORM + MySQL
-│   └── frontend/                # PWA React 19 + Vite 8 + Tailwind
+│   ├── backend/                  # API ciudadana — NestJS + TypeORM + MySQL
+│   ├── backend-admin/             # API del panel municipal — misma base de datos
+│   ├── frontend/                 # PWA ciudadana — React 19 + Vite 8 + Tailwind
+│   └── admin-web/                 # Panel municipal — React 19 + Vite 8 + Tailwind
 ├── docs/                        # Documentación técnica del proyecto
 ├── ARCA_database_schema.dbml    # Schema de la base de datos (fuente de verdad)
 ├── docker-compose.yml           # MySQL 8 para desarrollo local
 ├── setup.ps1                    # Setup local automatizado (Windows)
-├── start-ngrok.ps1              # Túnel ngrok para probar desde el celular
-├── ngrok.yml                    # Config del túnel (dominio fijo)
 ├── AGENTS.md                    # Reglas de IA: comportamiento del agente + política del equipo
 ├── CLAUDE.md                    # Ramas, workflow del equipo y convenciones
 └── CLAUDE_proyecto.md           # Contexto técnico completo del proyecto
@@ -233,12 +238,15 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 | [`AGENTS.md`](AGENTS.md) | **Reglas de IA:** cómo debe comportarse el agente en el repo y cómo debe usar IA el equipo |
 | [`CLAUDE.md`](CLAUDE.md) | Estructura de ramas, workflow de colaboración y convenciones de código |
 | [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) | Contexto técnico completo: stack confirmado, decisiones de arquitectura y su porqué |
-| [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md) | Levantar el proyecto desde cero, por rol, + ngrok y troubleshooting |
-| [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) | Qué se implementó en el backend: endpoints, entidades, migraciones |
-| [`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) | Qué se implementó en el frontend: UI Kit, pantallas, capa de API |
+| [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md) | Levantar el proyecto desde cero, por rol, y troubleshooting |
+| [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) | Qué se implementó en el backend ciudadano: endpoints, entidades, migraciones |
+| [`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) | Qué se implementó en el frontend ciudadano: UI Kit, pantallas, capa de API |
 | [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md) | Roadmap del frontend por fases y deuda técnica |
-| [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API: scripts, entorno, endpoints, migraciones |
+| [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API ciudadana: scripts, entorno, endpoints, migraciones |
+| [`apps/backend-admin/README.md`](apps/backend-admin/README.md) | Guía de la API del panel: scripts, entorno, endpoints |
 | [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA: scripts, estructura de `src/`, convenciones |
+| [`apps/admin-web/README.md`](apps/admin-web/README.md) | Guía del panel: scripts, estructura de `src/`, deuda declarada |
+| [`packages/arca-core/README.md`](packages/arca-core/README.md) | Qué vive en el núcleo compartido y la regla de PR revisado para tocarlo |
 
 ---
 

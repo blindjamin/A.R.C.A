@@ -83,7 +83,6 @@ Todos cuelgan del prefijo `/api`.
 | `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
 | `GET` | `/api/solicitudes-retiro` | Listar solicitudes (filtrable por estado) |
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud |
-| `PATCH` | `/api/solicitudes-retiro/:id` | Cambiar estado (admin, reversible) |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
 
@@ -104,8 +103,11 @@ UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
 |---|---|
 | `GET /health`, `GET /residuos/catalogo` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
-| `PATCH solicitudes-retiro/:id` | `admin` u `operador` |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
+
+> **`PATCH solicitudes-retiro/:id` (cambiar estado, `admin`/`operador`) se movió a
+> `apps/backend-admin`** (`PATCH /api/admin/solicitudes/:id`, puerto 3001) en la migración de
+> separación del panel admin (2026-09-01). Es el único endpoint que salió de este backend.
 
 En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
 
@@ -119,16 +121,20 @@ En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
 ```
 src/
 ├── main.ts                      # Bootstrap: CORS, prefijo /api, ValidationPipe global
-├── app.module.ts                # Módulo raíz
+├── app.module.ts                # Módulo raíz — importa AuthModule de @arca/core
 ├── database/
-│   ├── data-source.ts           # DataSource de TypeORM (usado por el CLI de migraciones)
-│   └── migrations/              # Migraciones versionadas, en orden de timestamp
+│   ├── data-source.ts           # DataSource de TypeORM (entities: ENTIDADES de @arca/core)
+│   └── migrations/              # Migraciones versionadas, en orden de timestamp — único dueño del esquema
 ├── health/                      # Health check
-├── residuos/                    # Catálogo de residuos
-├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs, entity, enum)
-├── auth/                        # Guards, decorators y auth dev (HU-13)
-└── users/                       # Ciudadanos, administradores y sesiones
+├── residuos/                    # Catálogo de residuos (entidad en @arca/core)
+├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en @arca/core)
+└── users/                       # UsersService/Controller/Module — entidades en @arca/core;
+                                    provee PERFIL_ACCESO_RESOLVER para AuthModule
 ```
+
+> **`auth/` y las entidades TypeORM viven en `packages/arca-core`** desde la migración de
+> separación del panel admin (2026-09-01) — las comparte con `apps/backend-admin`. Detalle en
+> [`../../packages/arca-core/README.md`](../../packages/arca-core/README.md).
 
 ## Migraciones
 
