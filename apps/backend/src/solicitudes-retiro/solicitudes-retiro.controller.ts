@@ -7,19 +7,11 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards,
 } from '@nestjs/common';
-import {
-  CurrentUser,
-  Roles,
-  RolesGuard,
-  RolAdministrador,
-  type AuthUser,
-} from '@arca/core';
+import { CurrentUser, type AuthUser } from '@arca/core';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
-import { UpdateSolicitudRetiroDto } from './dto/update-solicitud-retiro.dto';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 
 @Controller('solicitudes-retiro')
@@ -49,15 +41,10 @@ export class SolicitudesRetiroController {
     return this.solicitudesRetiroService.findOne(id, user);
   }
 
-  @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles(RolAdministrador.ADMIN, RolAdministrador.OPERADOR)
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateSolicitudRetiroDto,
-  ) {
-    return this.solicitudesRetiroService.update(id, dto);
-  }
+  // PATCH /:id (cambio de estado / asignar operador, @Roles ADMIN|OPERADOR) se
+  // movió a apps/backend-admin (Fase 3 de la migración admin): es la única ruta
+  // de este controller que se elimina. Sigue en pie en
+  // apps/backend-admin/src/solicitudes/solicitudes-admin.controller.ts.
 
   @Patch(':id/cancelar')
   cancelar(

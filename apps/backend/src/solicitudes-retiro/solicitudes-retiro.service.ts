@@ -124,6 +124,10 @@ export class SolicitudesRetiroService {
     return solicitud;
   }
 
+  // PENDIENTE (avisar a Javier, HU-13): sin llamador desde que el @Patch(':id')
+  // del controller se movió a apps/backend-admin (Fase 3, migración admin). No
+  // se borra por cuenta propia (regla A.4) — la lógica de cambio de estado es
+  // suya; que decida si queda, se borra o se comparte con el nuevo service.
   async update(
     id: number,
     dto: UpdateSolicitudRetiroDto,

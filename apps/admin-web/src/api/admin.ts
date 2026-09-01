@@ -107,19 +107,24 @@ async function handle<T>(res: Response): Promise<T> {
 
 // --- Admin municipal --------------------------------------------------------
 
+// Rutas propias de backend-admin (Fase 3 de la migración admin) — no
+// /solicitudes-retiro, que es del backend ciudadano. Requieren un
+// Authorization: Bearer válido; admin-web todavía no tiene login propio
+// (deuda declarada, ver App.tsx), así que hasta que exista, estas llamadas
+// devuelven 401.
 export function fetchSolicitudesAdmin(
   estado?: EstadoSolicitud,
 ): Promise<SolicitudRetiro[]> {
   const params = new URLSearchParams();
   if (estado) params.set('estado', estado);
   const qs = params.toString();
-  return apiFetch(`${API_URL}/solicitudes-retiro${qs ? `?${qs}` : ''}`).then(
+  return apiFetch(`${API_URL}/admin/solicitudes${qs ? `?${qs}` : ''}`).then(
     (r) => handle<SolicitudRetiro[]>(r),
   );
 }
 
 export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
-  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}`).then((r) =>
     handle<SolicitudRetiro>(r),
   );
 }
@@ -128,7 +133,7 @@ export function actualizarSolicitud(
   id: number,
   data: ActualizarSolicitudInput,
 ): Promise<SolicitudRetiro> {
-  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`, {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
