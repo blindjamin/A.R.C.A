@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { SolicitudRetiro } from '../../solicitudes-retiro/entities/solicitud-retiro.entity';
+import { SolicitudRetiro } from './solicitud-retiro.entity';
 
 @Entity('residuos_catalogo')
 export class ResiduoCatalogo {

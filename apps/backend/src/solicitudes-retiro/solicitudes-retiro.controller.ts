@@ -9,11 +9,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { RolesGuard } from '../auth/guards/auth.guard';
-import type { AuthUser } from '../auth/interfaces/auth-user.interface';
-import { RolAdministrador } from '../users/entities/rol-administrador.enum';
+import {
+  CurrentUser,
+  Roles,
+  RolesGuard,
+  RolAdministrador,
+  type AuthUser,
+} from '@arca/core';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';

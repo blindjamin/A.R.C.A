@@ -7,9 +7,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ResiduoCatalogo } from '../../residuos/entities/residuo-catalogo.entity';
-import { UsuarioAdministrador } from '../../users/entities/usuario-administrador.entity';
-import { UsuarioCiudadano } from '../../users/entities/usuario-ciudadano.entity';
+import { ResiduoCatalogo } from './residuo-catalogo.entity';
+import { UsuarioAdministrador } from './usuario-administrador.entity';
+import { UsuarioCiudadano } from './usuario-ciudadano.entity';
 import { EstadoSolicitudRetiro } from './estado-solicitud-retiro.enum';
 
 @Entity('solicitudes_retiro')

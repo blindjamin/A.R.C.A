@@ -1,14 +1,20 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { UsersService } from '../users/users.service';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthUser } from './interfaces/auth-user.interface';
-import { RolAdministrador } from '../users/entities/rol-administrador.enum';
+import {
+  PERFIL_ACCESO_RESOLVER,
+  type PerfilAccesoResolver,
+} from './interfaces/perfil-acceso-resolver.interface';
+import { RolAdministrador } from '../entities/rol-administrador.enum';
 
 const UUID_V4_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    @Inject(PERFIL_ACCESO_RESOLVER)
+    private readonly perfilAccesoResolver: PerfilAccesoResolver,
+  ) {}
 
   /**
    * Resuelve la identidad desde el header Authorization.
@@ -48,7 +54,7 @@ export class AuthService {
   }
 
   async resolveCiudadanoId(ciudadanoId: string): Promise<AuthUser> {
-    const perfil = await this.usersService.getPerfilAcceso(ciudadanoId);
+    const perfil = await this.perfilAccesoResolver.getPerfilAcceso(ciudadanoId);
 
     return {
       ciudadanoId: perfil.usuarioCiudadanoId,

@@ -10,7 +10,7 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { AuthService } from '../auth.service';
 import { AuthUser } from '../interfaces/auth-user.interface';
-import { RolAdministrador } from '../../users/entities/rol-administrador.enum';
+import { RolAdministrador } from '../../entities/rol-administrador.enum';
 
 type AuthenticatedRequest = {
   headers: { authorization?: string };

@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from '@arca/core';
 import { HealthModule } from './health/health.module';
 import { ResiduosModule } from './residuos/residuos.module';
 import { SolicitudesRetiroModule } from './solicitudes-retiro/solicitudes-retiro.module';
@@ -27,7 +27,6 @@ import { UsersModule } from './users/users.module';
     }),
     AuthModule,
     HealthModule,
-    AuthModule,
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,

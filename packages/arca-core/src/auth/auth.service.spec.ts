@@ -1,8 +1,8 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
-import { RolAdministrador } from '../users/entities/rol-administrador.enum';
+import { PERFIL_ACCESO_RESOLVER } from './interfaces/perfil-acceso-resolver.interface';
+import { RolAdministrador } from '../entities/rol-administrador.enum';
 
 describe('AuthService', () => {
   let authService: AuthService;
@@ -17,7 +17,7 @@ describe('AuthService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: UsersService, useValue: usersServiceMock },
+        { provide: PERFIL_ACCESO_RESOLVER, useValue: usersServiceMock },
       ],
     }).compile();
 

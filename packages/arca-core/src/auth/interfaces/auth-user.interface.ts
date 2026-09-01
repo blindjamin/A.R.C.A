@@ -1,4 +1,4 @@
-import { RolAdministrador } from '../../users/entities/rol-administrador.enum';
+import { RolAdministrador } from '../../entities/rol-administrador.enum';
 
 /**
  * Identidad autenticada adjunta al request tras pasar AuthGuard.
