@@ -11,8 +11,10 @@ src/
 ├── entities/   ← usuarios, sesiones, catálogo, solicitudes-retiro (TypeORM)
 │                 ENTIDADES (index.ts) es la lista explícita que usa
 │                 apps/backend/src/database/data-source.ts para las migraciones.
-└── auth/       ← AuthGuard, RolesGuard, ClaveÚnica, decorators (Public, Roles, CurrentUser),
-                  AuthService y su AuthModule.
+├── auth/       ← AuthGuard, RolesGuard, ClaveÚnica, decorators (Public, Roles, CurrentUser),
+│                 AuthService y su AuthModule.
+└── health/     ← HealthModule (GET /api/health, chequea la conexión a MySQL). Sin lógica
+                  propia de ningún backend — se comparte para no duplicarlo.
 ```
 
 ## Regla para tocar este paquete

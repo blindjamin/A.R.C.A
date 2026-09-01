@@ -286,11 +286,12 @@ de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF 
 ├── package.json                 ← npm workspaces: packages/arca-core + apps/backend + apps/backend-admin
 │                                   (los frontends NO son workspaces, npm install independiente en cada uno)
 ├── packages/
-│   └── arca-core/               ← @arca/core: entidades TypeORM + AuthModule que ambos backends importan
+│   └── arca-core/               ← @arca/core: entidades, AuthModule y HealthModule que ambos backends importan
 │       ├── README.md            ← Qué vive acá y la regla de PR revisado para tocarlo
 │       └── src/
 │           ├── entities/        ← usuarios, sesiones, catálogo, solicitudes-retiro (fuente única, ex apps/backend)
-│           └── auth/            ← AuthGuard, RolesGuard, ClaveÚnica, decorators (ex apps/backend/src/auth)
+│           ├── auth/            ← AuthGuard, RolesGuard, ClaveÚnica, decorators (ex apps/backend/src/auth)
+│           └── health/          ← HealthModule — sin lógica propia de ningún backend, compartido
 ├── docs/
 │   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, workspaces, backends, frontends, scripts)
 │   ├── BACKEND_FASE1.md         ← Resumen de implementación backend ciudadano Fase 1 (EP-02)

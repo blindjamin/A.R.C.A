@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { Public } from '@arca/core';
+import { Public } from '../auth';
 
 @Controller('health')
 export class HealthController {

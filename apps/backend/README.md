@@ -125,15 +125,16 @@ src/
 ├── database/
 │   ├── data-source.ts           # DataSource de TypeORM (entities: ENTIDADES de @arca/core)
 │   └── migrations/              # Migraciones versionadas, en orden de timestamp — único dueño del esquema
-├── health/                      # Health check
 ├── residuos/                    # Catálogo de residuos (entidad en @arca/core)
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en @arca/core)
 └── users/                       # UsersService/Controller/Module — entidades en @arca/core;
                                     provee PERFIL_ACCESO_RESOLVER para AuthModule
 ```
 
-> **`auth/` y las entidades TypeORM viven en `packages/arca-core`** desde la migración de
-> separación del panel admin (2026-09-01) — las comparte con `apps/backend-admin`. Detalle en
+> **`auth/`, `health/` y las entidades TypeORM viven en `packages/arca-core`** desde la
+> migración de separación del panel admin (2026-09-01) — las comparte con
+> `apps/backend-admin`. `health/` se sumó después: era un `HealthController` sin ninguna
+> lógica propia de este backend, así que compartirlo era mejor que duplicarlo. Detalle en
 > [`../../packages/arca-core/README.md`](../../packages/arca-core/README.md).
 
 ## Migraciones

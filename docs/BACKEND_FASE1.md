@@ -32,13 +32,12 @@ A.R.C.A/
 │   ├── BACKEND_FASE1.md        # Este archivo
 │   └── SETUP_LOCAL.md          # Guía setup para el equipo
 ├── packages/
-│   └── arca-core/              # Entidades TypeORM + auth (@arca/core) — ex apps/backend/src
+│   └── arca-core/              # Entidades TypeORM + auth + health (@arca/core) — ex apps/backend/src
 └── apps/
     ├── backend/                # NestJS 11 + TypeORM — API ciudadana
     │   ├── .env.example
     │   ├── src/
     │   │   ├── database/       # data-source (único dueño de las migraciones) + migraciones
-    │   │   ├── health/
     │   │   ├── users/          # UsersService/Controller/Module (entidades viven en @arca/core)
     │   │   ├── residuos/       # Catálogo EP-01
     │   │   └── solicitudes-retiro/
@@ -48,8 +47,9 @@ A.R.C.A/
 
 > **Migración de separación del panel admin (2026-09-01):** las entidades y `auth/` (Guards
 > HU-13, ClaveÚnica HU-12) se movieron a `packages/arca-core`, un paquete compartido con
-> `apps/backend-admin`. Detalle y decisiones en
-> [`../packages/arca-core/README.md`](../packages/arca-core/README.md).
+> `apps/backend-admin`. `health/` se sumó después: era un `HealthController` sin lógica propia
+> de este backend, así que compartirlo evitó duplicarlo entero en `apps/backend-admin`. Detalle
+> y decisiones en [`../packages/arca-core/README.md`](../packages/arca-core/README.md).
 
 ---
 
@@ -87,6 +87,7 @@ Desde la migración de separación del panel admin (2026-09-01), entidades y `au
 |---|---|
 | `@arca/core` (`entities/`) | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador`, `ResiduoCatalogo`, `SolicitudRetiro`, `EstadoSolicitudRetiro`, `ENTIDADES` (usado por `data-source.ts`) |
 | `@arca/core` (`auth/`) | `AuthGuard`, `RolesGuard`, `AuthModule`, `AuthService`, `@Public`, `@Roles`, `@CurrentUser`, `PERFIL_ACCESO_RESOLVER` |
+| `@arca/core` (`health/`) | `HealthModule` — sin lógica propia de este backend, compartido para no duplicarlo |
 | `apps/backend/src/users/` | `UsersService`, `UsersController`, `UsersModule` — el módulo que provee `PERFIL_ACCESO_RESOLVER` para este backend (ver README del core) |
 
 ---

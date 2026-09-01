@@ -27,6 +27,7 @@ Copiar `.env.example` a `.env.local` — mismas credenciales de base de datos qu
 
 | Método | Ruta | Qué hace |
 |---|---|---|
+| `GET` | `/api/health` | Estado del servicio + conexión a MySQL (`HealthModule` de `@arca/core`, público) |
 | `GET` | `/api/admin/solicitudes` | Listado global de solicitudes de retiro, filtro opcional por `estado` — **sin** filtro por dueño (a diferencia del equivalente en `apps/backend`) |
 | `GET` | `/api/admin/solicitudes/:id` | Detalle |
 | `PATCH` | `/api/admin/solicitudes/:id` | Cambiar estado / asignar operador |

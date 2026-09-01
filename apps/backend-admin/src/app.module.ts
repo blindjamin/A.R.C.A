@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule, ENTIDADES } from '@arca/core';
+import { AuthModule, ENTIDADES, HealthModule } from '@arca/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { IdentityModule } from './identity/identity.module';
@@ -32,6 +32,7 @@ import { SolicitudesAdminModule } from './solicitudes/solicitudes-admin.module';
     }),
     IdentityModule,
     AuthModule,
+    HealthModule,
     SolicitudesAdminModule,
   ],
   controllers: [AppController],
