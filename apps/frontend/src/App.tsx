@@ -1,12 +1,10 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionProvider, useSession } from './auth/SessionContext';
-import { Cargando, Protected, RequireAdmin } from './components/AppShell';
+import { Cargando, Protected } from './components/AppShell';
 import { SolicitudFlowProvider } from './features/solicitud-retiro/SolicitudFlowContext';
 import solicitudRetiroRoutes from './features/solicitud-retiro/routes';
 import Login from './pages/Login';
 import SeleccionInicio from './pages/SeleccionInicio';
-import AdminSolicitudes from './pages/AdminSolicitudes';
-import AdminAuditoria from './pages/AdminAuditoria';
 import Inicio from './pages/Inicio';
 import MisSolicitudes from './pages/MisSolicitudes';
 import Proximamente from './pages/Proximamente';
@@ -31,14 +29,6 @@ export default function App() {
             {/* Login diferido: ClaveÚnica primero, luego el gate decide */}
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Entrada />} />
-            <Route
-              path="/admin"
-              element={<AdminSolicitudes />}
-            />
-            <Route
-              path="/admin/auditoria"
-              element={<RequireAdmin><AdminAuditoria /></RequireAdmin>}
-            />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
 
             {/* Flujo Solicitar retiro: captura → IA → sugerencia → detalle → éxito

@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+@layer base {
+  body {
+    @apply bg-canvas text-ink font-body antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  /* Superficies */
+  .card {
+    @apply bg-card rounded-lg border border-line shadow-sm;
+  }
+
+  /* Botones */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill font-semibold
+      transition-all px-5 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn text-white shadow-green;
+    background-image: linear-gradient(160deg, #138a57, #0f6b45);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-image: linear-gradient(160deg, #1bb46f, #0f6b45);
+  }
+  .btn-gold {
+    @apply btn text-ink shadow-gold;
+    background-image: linear-gradient(180deg, #f7b54e, #ef9d24);
+  }
+  .btn-outline {
+    @apply btn bg-white border border-line text-ink-2 hover:border-green-300;
+  }
+  .btn-ghost {
+    @apply btn text-slate hover:text-ink hover:bg-line-2;
+  }
+
+  /* Pills de estado */
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-pill text-xs font-medium px-2.5 py-1;
+  }
+
+  /* Inputs */
+  .field {
+    @apply w-full rounded-md border border-line bg-card-2 px-4 py-3 text-sm
+      outline-none transition-colors focus:border-green-500 focus:bg-white;
+  }
+
+  /* Chips / filtros */
+  .chip {
+    @apply inline-flex items-center rounded-pill border border-line bg-white px-3.5 py-1.5
+      text-sm text-slate transition-colors cursor-pointer hover:border-green-300;
+  }
+  .chip-active {
+    @apply border-transparent bg-green-700 text-white;
+  }
+}
+
+@layer utilities {
+  /* Línea de escaneo del análisis IA */
+  .scanline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #1bb46f, transparent);
+    box-shadow: 0 0 14px 2px rgba(27, 180, 111, 0.6);
+    animation: scan 1.8s ease-in-out infinite;
+  }
+  @keyframes scan {
+    0% { top: 8%; }
+    50% { top: 88%; }
+    100% { top: 8%; }
+  }
+
+  /* Pulso del SuccessRing */
+  .success-ring {
+    box-shadow: 0 0 0 0 rgba(239, 157, 36, 0.5);
+    animation: success-pulse 1.6s ease-out infinite;
+  }
+  @keyframes success-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(239, 157, 36, 0.45); }
+    70% { box-shadow: 0 0 0 18px rgba(239, 157, 36, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 157, 36, 0); }
+  }
+}

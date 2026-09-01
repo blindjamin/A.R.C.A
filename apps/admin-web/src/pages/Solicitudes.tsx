@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   actualizarSolicitud,
   fetchSolicitudesAdmin,
   type EstadoSolicitud,
   type SolicitudRetiro,
-} from '../api/arca';
+} from '../api/admin';
 import {
   BackButton,
   EmptyState,
@@ -44,8 +43,7 @@ const formatoFecha = (iso?: string | null): string =>
       })
     : '—';
 
-export default function AdminSolicitudes() {
-  const navigate = useNavigate();
+export default function Solicitudes() {
   const [filtro, setFiltro] = useState<EstadoSolicitud | 'todas'>('todas');
   const [items, setItems] = useState<SolicitudRetiro[]>([]);
   const [seleccion, setSeleccion] = useState<SolicitudRetiro | null>(null);
@@ -76,113 +74,67 @@ export default function AdminSolicitudes() {
     cargar();
   };
 
+  if (seleccion) {
+    return (
+      <DetalleSolicitud
+        solicitud={seleccion}
+        onVolver={() => setSeleccion(null)}
+        onActualizada={onActualizada}
+      />
+    );
+  }
+
   return (
-    <div className="flex min-h-screen w-full flex-col bg-canvas">
-      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur w-full">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-6">
-            <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
-              A.R.C.A. · Admin
-            </span>
-            <nav className="hidden sm:flex gap-1 text-sm font-medium">
-              <button
-                className="rounded-md bg-green-50 px-3 py-1.5 text-green-700 font-bold"
-              >
-                Solicitudes
-              </button>
-              <button
-                onClick={() => navigate('/admin/auditoria')}
-                className="rounded-md px-3 py-1.5 text-slate hover:bg-line"
-              >
-                Log de Auditoría
-              </button>
-            </nav>
-          </div>
-          <button
-            onClick={() => navigate('/')}
-            className="text-xs text-slate-2 hover:text-ink"
-          >
-            Salir
-          </button>
-        </div>
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-2xl font-extrabold">Solicitudes de retiro</h1>
+        <p className="text-sm text-slate">
+          Revisa, asigna y gestiona los retiros municipales.
+        </p>
       </header>
 
-      {/* Tabs móviles */}
-      <div className="sm:hidden flex border-b border-line bg-canvas px-4 py-2 w-full justify-around text-sm font-medium">
-        <button
-          className="flex-1 text-center py-2 text-green-700 border-b-2 border-green-700 font-bold"
-        >
-          Solicitudes
-        </button>
-        <button
-          onClick={() => navigate('/admin/auditoria')}
-          className="flex-1 text-center py-2 text-slate"
-        >
-          Auditoría
-        </button>
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {FILTROS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFiltro(f.value)}
+            className={`pill shrink-0 ${
+              filtro === f.value
+                ? 'bg-green-700 text-white'
+                : 'bg-line-2 text-slate'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-5">
-        {seleccion ? (
-          <DetalleSolicitud
-            solicitud={seleccion}
-            onVolver={() => setSeleccion(null)}
-            onActualizada={onActualizada}
-          />
-        ) : (
-          <div className="space-y-4">
-            <header>
-              <h1 className="text-2xl font-extrabold">Solicitudes de retiro</h1>
-              <p className="text-sm text-slate">
-                Revisa, asigna y gestiona los retiros municipales.
-              </p>
-            </header>
-
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-              {FILTROS.map((f) => (
-                <button
-                  key={f.value}
-                  onClick={() => setFiltro(f.value)}
-                  className={`pill shrink-0 ${
-                    filtro === f.value
-                      ? 'bg-green-700 text-white'
-                      : 'bg-line-2 text-slate'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            {loading ? (
-              <p className="text-slate">Cargando solicitudes…</p>
-            ) : error ? (
-              <p className="text-rose-600">{error}</p>
-            ) : items.length === 0 ? (
-              <EmptyState message="No hay solicitudes en este estado." />
-            ) : (
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {items.map((s) => (
-                  <li key={s.id}>
-                    <ListItemCard
-                      icon="♻️"
-                      title={
-                        <>
-                          #{s.id} ·{' '}
-                          {s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`}
-                        </>
-                      }
-                      titleBadge={<EstadoPill estado={s.estado} />}
-                      lines={[s.descripcion ?? 'Sin descripción', formatoFecha(s.fechaSolicitud)]}
-                      onClick={() => setSeleccion(s)}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </main>
+      {loading ? (
+        <p className="text-slate">Cargando solicitudes…</p>
+      ) : error ? (
+        <p className="text-rose-600">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState message="No hay solicitudes en este estado." />
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((s) => (
+            <li key={s.id}>
+              <ListItemCard
+                icon="♻️"
+                title={
+                  <>
+                    #{s.id} ·{' '}
+                    {s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`}
+                  </>
+                }
+                titleBadge={<EstadoPill estado={s.estado} />}
+                lines={[s.descripcion ?? 'Sin descripción', formatoFecha(s.fechaSolicitud)]}
+                onClick={() => setSeleccion(s)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { EstadoSolicitud, SolicitudRetiro } from '../api/arca';
+import type { EstadoSolicitud, SolicitudRetiro } from '../api/admin';
 
 type FranjaHoraria = 'manana' | 'tarde' | 'noche' | 'personalizada';
 

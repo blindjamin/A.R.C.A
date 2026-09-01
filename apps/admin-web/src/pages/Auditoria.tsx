@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { fetchAuditoriaLogs, type AuditoriaLog } from '../api/arca';
+import { fetchAuditoriaLogs, type AuditoriaLog } from '../api/admin';
 import { EmptyState } from '../components/ui';
 
 // Tipos de filtros por categoría de acción.
@@ -40,8 +39,7 @@ const colorAccion = (accion: string): string => {
   return 'bg-slate-50 text-slate-700 border-slate-200';
 };
 
-export default function AdminAuditoria() {
-  const navigate = useNavigate();
+export default function Auditoria() {
   const [logs, setLogs] = useState<AuditoriaLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,59 +88,13 @@ export default function AdminAuditoria() {
   }, [logs]);
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-canvas">
-      {/* Cabecera idéntica al admin solicitudes con tabs de navegación */}
-      <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur w-full">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-6">
-            <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
-              A.R.C.A. · Admin
-            </span>
-            <nav className="hidden sm:flex gap-1 text-sm font-medium">
-              <button
-                onClick={() => navigate('/admin')}
-                className="rounded-md px-3 py-1.5 text-slate hover:bg-line"
-              >
-                Solicitudes
-              </button>
-              <button
-                className="rounded-md bg-green-50 px-3 py-1.5 text-green-700 font-bold"
-              >
-                Log de Auditoría
-              </button>
-            </nav>
-          </div>
-          <button
-            onClick={() => navigate('/')}
-            className="text-xs text-slate-2 hover:text-ink"
-          >
-            Salir
-          </button>
-        </div>
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-2xl font-extrabold">Log de auditoría</h1>
+        <p className="text-sm text-slate">
+          Registro inmutable de acciones de usuarios en el sistema.
+        </p>
       </header>
-
-      {/* Tabs móviles */}
-      <div className="sm:hidden flex border-b border-line bg-canvas px-4 py-2 w-full justify-around text-sm font-medium">
-        <button
-          onClick={() => navigate('/admin')}
-          className="flex-1 text-center py-2 text-slate"
-        >
-          Solicitudes
-        </button>
-        <button
-          className="flex-1 text-center py-2 text-green-700 border-b-2 border-green-700 font-bold"
-        >
-          Auditoría
-        </button>
-      </div>
-
-      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-6 space-y-6">
-        <header>
-          <h1 className="text-2xl font-extrabold">Log de auditoría</h1>
-          <p className="text-sm text-slate">
-            Registro inmutable de acciones de usuarios en el sistema.
-          </p>
-        </header>
 
         {/* Panel de Estadísticas (WOW Factor / Glassmorphism) */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -279,12 +231,11 @@ export default function AdminAuditoria() {
               </table>
             </div>
 
-            <p className="text-center text-xs text-slate-2 pt-2">
-              🛡️ Logs inmutables de auditoría protegidos bajo normativas de trazabilidad municipal.
-            </p>
-          </>
-        )}
-      </main>
+          <p className="text-center text-xs text-slate-2 pt-2">
+            🛡️ Logs inmutables de auditoría protegidos bajo normativas de trazabilidad municipal.
+          </p>
+        </>
+      )}
     </div>
   );
 }
