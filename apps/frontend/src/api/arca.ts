@@ -3,6 +3,12 @@
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
+// Clave de localStorage donde SessionContext guarda la identidad de la sesión.
+// Vive acá y no en SessionContext porque `apiFetch` la necesita para armar el
+// header Authorization, y SessionContext ya importa de este módulo: al revés
+// quedaría un import circular.
+export const STORAGE_KEY_SESION = 'arca.usuarioCiudadanoId';
+
 export interface ResiduoCatalogo {
   id: number;
   nombre: string;
@@ -45,13 +51,6 @@ export interface SolicitudRetiro {
   residuoCatalogo?: ResiduoCatalogo;
 }
 
-export interface ActualizarSolicitudInput {
-  estado?: EstadoSolicitud;
-  operadorAsignadoId?: string;
-  fechaProgramada?: string;
-  razonRechazo?: string;
-}
-
 export interface CrearSolicitudInput {
   usuarioCiudadanoId: string;
   residuoCatalogoId: number;
@@ -86,9 +85,20 @@ export const formatearPrecio = (clp: number): string =>
 // intercepta el request y devuelve una pagina HTML de advertencia en vez de
 // dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
 function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const usuarioCiudadanoId = localStorage.getItem(STORAGE_KEY_SESION);
+
   return fetch(path, {
     ...init,
-    headers: { ...init?.headers, 'ngrok-skip-browser-warning': 'true' },
+    headers: {
+      ...init?.headers,
+      'ngrok-skip-browser-warning': 'true',
+      // Identidad de la sesión. Hoy es el UUID del ciudadano que guarda
+      // SessionContext al entrar; cuando HU-12 emita el JWT, acá viaja el token
+      // firmado sin que cambie nada más de esta capa.
+      ...(usuarioCiudadanoId
+        ? { Authorization: `Bearer ${usuarioCiudadanoId}` }
+        : {}),
+    },
   });
 }
 
@@ -169,147 +179,6 @@ export function cancelarSolicitud(
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
-// --- Admin municipal --------------------------------------------------------
-
-export function fetchSolicitudesAdmin(
-  estado?: EstadoSolicitud,
-): Promise<SolicitudRetiro[]> {
-  const params = new URLSearchParams();
-  if (estado) params.set('estado', estado);
-  const qs = params.toString();
-  return apiFetch(`${API_URL}/solicitudes-retiro${qs ? `?${qs}` : ''}`).then(
-    (r) => handle<SolicitudRetiro[]>(r),
-  );
-}
-
-export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
-  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
-    handle<SolicitudRetiro>(r),
-  );
-}
-
-export function actualizarSolicitud(
-  id: number,
-  data: ActualizarSolicitudInput,
-): Promise<SolicitudRetiro> {
-  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then((r) => handle<SolicitudRetiro>(r));
-}
-
-// --- Logs de Auditoría (Sprint 5 mock API) ----------------------------------
-
-export interface AuditoriaLog {
-  id: number;
-  usuario: string;
-  rol: string;
-  accion: string;
-  objetoAfectado: string;
-  ip: string;
-  createdAt: string;
-}
-
-const MOCK_AUDITORIA: AuditoriaLog[] = [
-  {
-    id: 1,
-    usuario: 'Benjamín Paicil',
-    rol: 'Administrador',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '192.168.1.100',
-    createdAt: '2026-08-29T10:15:30Z',
-  },
-  {
-    id: 2,
-    usuario: 'Carmen González',
-    rol: 'Vecino',
-    accion: 'Crear solicitud',
-    objetoAfectado: 'Solicitud #1024',
-    ip: '190.162.45.12',
-    createdAt: '2026-08-29T11:02:15Z',
-  },
-  {
-    id: 3,
-    usuario: 'Carlos Álvarez',
-    rol: 'Administrador',
-    accion: 'Asignar operador',
-    objetoAfectado: 'Solicitud #1024 (Operador #3)',
-    ip: '192.168.1.115',
-    createdAt: '2026-08-29T11:20:00Z',
-  },
-  {
-    id: 4,
-    usuario: 'Maximiliano López',
-    rol: 'Operador',
-    accion: 'Cambio estado a: en_proceso',
-    objetoAfectado: 'Solicitud #1024',
-    ip: '200.12.87.54',
-    createdAt: '2026-08-29T12:05:40Z',
-  },
-  {
-    id: 5,
-    usuario: 'Carmen González',
-    rol: 'Vecino',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '190.162.45.12',
-    createdAt: '2026-08-29T13:45:10Z',
-  },
-  {
-    id: 6,
-    usuario: 'Ana Araya',
-    rol: 'Administrador',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '192.168.1.102',
-    createdAt: '2026-08-29T14:10:00Z',
-  },
-  {
-    id: 7,
-    usuario: 'Ana Araya',
-    rol: 'Administrador',
-    accion: 'Actualizar catálogo',
-    objetoAfectado: 'Residuo ID #5 (Refrigerador)',
-    ip: '192.168.1.102',
-    createdAt: '2026-08-29T14:15:33Z',
-  },
-  {
-    id: 8,
-    usuario: 'Miguel Segovia',
-    rol: 'Vecino',
-    accion: 'Cancelar solicitud',
-    objetoAfectado: 'Solicitud #1022',
-    ip: '186.105.74.22',
-    createdAt: '2026-08-29T15:30:12Z',
-  },
-  {
-    id: 9,
-    usuario: 'Javier Figueroa',
-    rol: 'Administrador',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '192.168.1.108',
-    createdAt: '2026-08-29T15:58:00Z',
-  },
-  {
-    id: 10,
-    usuario: 'Javier Figueroa',
-    rol: 'Administrador',
-    accion: 'Exportar logs de auditoría',
-    objetoAfectado: 'Logs Excel/PDF (Rango: 7 días)',
-    ip: '192.168.1.108',
-    createdAt: '2026-08-29T16:05:44Z',
-  },
-];
-
-export function fetchAuditoriaLogs(): Promise<AuditoriaLog[]> {
-  // Simulamos un retraso de red de 300ms para realismo.
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...MOCK_AUDITORIA].sort((a, b) => b.id - a.id));
-    }, 300);
-  });
-}
+// Los fetchers de admin (solicitudes globales, auditoría) viven ahora en
+// apps/admin-web/src/api/admin.ts — se movieron con la migración del panel.
 

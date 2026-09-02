@@ -27,23 +27,29 @@ Dejar operativa la **base del MVP backend (Fase 1)**:
 A.R.C.A/
 ├── docker-compose.yml          # MySQL 8 local
 ├── .gitignore                  # node_modules, dist, .env.local
-├── ARCA_database_schema.dbml   # Schema completo (19 tablas — referencia)
+├── ARCA_database_schema.dbml   # Schema completo (22 tablas — referencia)
 ├── docs/
 │   ├── BACKEND_FASE1.md        # Este archivo
 │   └── SETUP_LOCAL.md          # Guía setup para el equipo
+├── packages/
+│   └── arca-core/              # Entidades TypeORM + auth + health (@arca/core) — ex apps/backend/src
 └── apps/
-    └── backend/                # NestJS 11 + TypeORM
-        ├── .env.example
-        ├── src/
-        │   ├── database/       # data-source + migraciones
-        │   ├── health/
-        │   ├── users/          # Entidades identidad
-        │   ├── residuos/       # Catálogo EP-01
-        │   └── solicitudes-retiro/
-        └── package.json
+    ├── backend/                # NestJS 11 + TypeORM — API ciudadana
+    │   ├── .env.example
+    │   ├── src/
+    │   │   ├── database/       # data-source (único dueño de las migraciones) + migraciones
+    │   │   ├── users/          # UsersService/Controller/Module (entidades viven en @arca/core)
+    │   │   ├── residuos/       # Catálogo EP-01
+    │   │   └── solicitudes-retiro/
+    │   └── package.json
+    └── backend-admin/          # NestJS — API del panel municipal (Benjamín, ver su README)
 ```
 
-> **Nota:** `apps/frontend/` aún no existe. Maximiliano lo creará en `feature/frontend`.
+> **Migración de separación del panel admin (2026-09-01):** las entidades y `auth/` (Guards
+> HU-13, ClaveÚnica HU-12) se movieron a `packages/arca-core`, un paquete compartido con
+> `apps/backend-admin`. `health/` se sumó después: era un `HealthController` sin lógica propia
+> de este backend, así que compartirlo evitó duplicarlo entero en `apps/backend-admin`. Detalle
+> y decisiones en [`../packages/arca-core/README.md`](../packages/arca-core/README.md).
 
 ---
 
@@ -74,11 +80,15 @@ A.R.C.A/
 
 ## Entidades TypeORM
 
-| Módulo | Entidades |
+Desde la migración de separación del panel admin (2026-09-01), entidades y `auth/` viven en
+`packages/arca-core` (`@arca/core`) — este backend las importa, no las define.
+
+| Fuente | Entidades / exports |
 |---|---|
-| `users/` | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador` |
-| `residuos/` | `ResiduoCatalogo` (incluye `precio: number`, CLP real) |
-| `solicitudes-retiro/` | `SolicitudRetiro`, `EstadoSolicitudRetiro` |
+| `@arca/core` (`entities/`) | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador`, `ResiduoCatalogo`, `SolicitudRetiro`, `EstadoSolicitudRetiro`, `ENTIDADES` (usado por `data-source.ts`) |
+| `@arca/core` (`auth/`) | `AuthGuard`, `RolesGuard`, `AuthModule`, `AuthService`, `@Public`, `@Roles`, `@CurrentUser`, `PERFIL_ACCESO_RESOLVER` |
+| `@arca/core` (`health/`) | `HealthModule` — sin lógica propia de este backend, compartido para no duplicarlo |
+| `apps/backend/src/users/` | `UsersService`, `UsersController`, `UsersModule` — el módulo que provee `PERFIL_ACCESO_RESOLVER` para este backend (ver README del core) |
 
 ---
 
@@ -86,7 +96,7 @@ A.R.C.A/
 
 Base URL local: `http://localhost:3000/api` (prefijo global `/api` desde `app.setGlobalPrefix('api')`
 en `main.ts` — necesario para que frontend y backend compartan un único origen detrás de un
-proxy/túnel; ver `docs/SETUP_LOCAL.md` sección 10).
+proxy; ver `docs/SETUP_LOCAL.md`).
 
 | Método | Ruta | Descripción |
 |---|---|---|
@@ -94,15 +104,48 @@ proxy/túnel; ver `docs/SETUP_LOCAL.md` sección 10).
 | `GET` | `/api` | Hello World (scaffold) |
 | `GET` | `/api/residuos/catalogo` | Lista tipos de residuo (con `precio` real) |
 | `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
-| `GET` | `/api/solicitudes-retiro` | Listar solicitudes |
+| `GET` | `/api/solicitudes-retiro` | Listar solicitudes (con acceso municipal, sin filtro por dueño) |
 | `GET` | `/api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
-| `GET` | `/api/solicitudes-retiro?estado={estado}` | Filtrar por estado (vista admin) |
 | `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
-| `PATCH` | `/api/solicitudes-retiro/{id}` | **Admin:** modificar estado/operador/fecha/razón |
 | `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
-| `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` |
+| `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
+
+> **Movido a `apps/backend-admin` (2026-09-01):** `PATCH /api/solicitudes-retiro/{id}` (cambiar
+> estado/operador/fecha/razón) vive ahora en `PATCH /api/admin/solicitudes/{id}`, puerto 3001.
+> El método `update()` sigue en `solicitudes-retiro.service.ts` sin llamador — pendiente que
+> Javier decida si se borra o se comparte con el service nuevo (no se tocó de paso, regla A.4).
+
+### Control de acceso por roles (HU-13)
+
+Rama `2026-08-31-javier-hu13-control-acceso` · módulo `src/auth/`.
+
+Hasta que Benjamín integre ClaveÚnica/JWT (HU-12), en **desarrollo** las rutas protegidas
+exigen:
+
+```
+Authorization: Bearer <uuid-usuario-ciudadano>
+```
+
+UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
+
+| Ruta | Acceso |
+|---|---|
+| `GET /health`, `GET /residuos/catalogo`, `GET /` | Público |
+| `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (propias, o municipal sin filtro) |
+| `GET perfil-acceso` | Solo el propio `ciudadanoId` |
+| `PATCH admin/solicitudes/{id}` (en `apps/backend-admin`, :3001) | Rol `admin` u `operador` |
+
+En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
+
+**Breaking change para el frontend:** `arca.ts` debe enviar el header `Authorization`
+en las llamadas protegidas (PR aparte — Maximiliano). Sin eso, la PWA responde `401`.
+
+Detalle de implementación: [`apps/backend/README.md`](../apps/backend/README.md) § Autenticación.
 
 ### Cambio de estado (PATCH admin)
+
+> Esta lógica corre hoy en `apps/backend-admin` (`PATCH /api/admin/solicitudes/{id}`), no acá
+> — se documenta igual porque el criterio de negocio es el mismo y sigue siendo válido.
 
 El panel municipal puede fijar **cualquier** estado, incluido **revertir** (ej.
 `completada → pendiente`), para operar y probar el flujo. El backend solo conserva
@@ -121,6 +164,9 @@ invariantes de datos:
 `GET /api/usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
 tiene extensión de administrador activa. El frontend lo usa tras autenticar para
 decidir el destino: funcionario → selección de contexto; solo ciudadano → PWA directa.
+
+Desde HU-13, el endpoint exige autenticación y solo permite consultar el perfil del
+usuario autenticado (mismo `ciudadanoId` que el Bearer).
 
 ### Ejemplo POST solicitud
 
@@ -191,25 +237,27 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 
 | Área | Responsable | Notas |
 |---|---|---|
-| Auth ClaveÚnica + JWT | Benjamín (`feature/auth`) | Requiere aprobación organismo gubernamental |
-| Auth mock / guards | Benjamín | Pendiente: proteger `/admin` y PATCH por rol |
-| Frontend React PWA | Maximiliano (`feature/frontend`) | Ver `docs/SETUP_LOCAL.md` |
+| Auth ClaveÚnica + JWT | Benjamín (HU-12) | Reemplazar Bearer UUID dev en `AuthService`; requiere aprobación organismo |
+| Front: header `Authorization` | Maximiliano | PR aparte tras merge HU-13; sin esto la PWA da `401` en rutas protegidas |
+| Frontend React PWA | Maximiliano | Ver `docs/SETUP_LOCAL.md` |
 | Migraciones restantes del DBML | Javier | horarios, fotos, marketplace, credits, etc. |
 | Subida de fotos | Javier | Fase posterior |
 | ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados) |
 | ~~Cancelación por ciudadano~~ | ✅ Hecho | Rama `admin-municipal` (`PATCH /:id/cancelar`) |
 | ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
+| ~~Control de acceso por roles (HU-13)~~ | ✅ Hecho | `auth/`: guards, `@Roles`, auth dev Bearer UUID |
 | Endurecer máquina de estados | Pendiente | Hoy reversible para pruebas; reponer con flag/permiso |
-| PR merge a `develop` | Javier | Integración con el equipo |
+| `GET /api/operadores` | Javier (HU-08) | Listar administradores activos para modal de asignación |
+| PR merge HU-13 a `develop` | Javier | Rama `2026-08-31-javier-hu13-control-acceso` |
 
 ---
 
 ## Schema DBML vs implementado
 
-El archivo `ARCA_database_schema.dbml` define **19 tablas**. En Fase 1 backend están creadas **6**:
+El archivo `ARCA_database_schema.dbml` define **22 tablas**. En Fase 1 backend están creadas **6**:
 
 - ✅ 4 identidad
 - ✅ `residuos_catalogo`
 - ✅ `solicitudes_retiro`
 
-Las **13 restantes** se migrarán en fases siguientes según el roadmap del README.
+Las **16 restantes** se migrarán en fases siguientes según el roadmap del README.

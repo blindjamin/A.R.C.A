@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { DEV_USERS, useSession } from '../auth/SessionContext';
+import { BotonClaveUnica } from '../components/ui';
 
 export default function Login() {
   const { login } = useSession();
@@ -35,12 +36,11 @@ export default function Login() {
 
         {/* CTAs */}
         <div className="space-y-3 w-full max-w-md md:shrink-0 md:bg-white/10 md:backdrop-blur-md md:p-8 md:rounded-2xl md:border md:border-white/20">
-          <button
-            onClick={() => entrar(DEV_USERS.vecino)}
-            className="btn-gold w-full py-4 text-base"
-          >
-            Ingresar con ClaveÚnica
-          </button>
+          {/* Botón oficial de ClaveÚnica. No reemplazar por uno propio ni
+              cambiarle los estilos: la certificación exige este botón tal cual. */}
+          <div className="flex justify-center">
+            <BotonClaveUnica tamano="l" />
+          </div>
 
           {/* Accesos de desarrollo: simulan distintas identidades de ClaveÚnica
               para probar el login diferido (solo ciudadano vs. doble rol). */}
@@ -60,8 +60,10 @@ export default function Login() {
           </div>
 
           <p className="pt-2 text-center text-xs text-green-100/70">
-            ClaveÚnica + JWT llegará en una fase posterior. Tras autenticar, si la
-            persona es funcionaria podrá elegir App ciudadana o Panel municipal.
+            El botón de ClaveÚnica queda a la espera de las credenciales del
+            municipio; hasta entonces se entra por los accesos de desarrollo. Tras
+            autenticar, si la persona es funcionaria podrá elegir App ciudadana o
+            Panel municipal.
           </p>
         </div>
       </div>

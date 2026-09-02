@@ -62,11 +62,27 @@ Credenciales locales (definidas en `docker-compose.yml`):
 
 ---
 
-## 3. Backend (NestJS)
+## 3. Núcleo compartido + backends (npm workspaces)
+
+`packages/arca-core` (entidades TypeORM + `AuthModule`), `apps/backend` y `apps/backend-admin`
+son **npm workspaces** — un solo `package.json` en la raíz los administra. **Un solo
+`npm install` desde la raíz** resuelve los tres de una:
+
+```bash
+npm install          # desde la raíz del repo — NO desde apps/backend
+npm run build:core
+```
+
+> **No correr `npm install` dentro de `apps/backend` ni `apps/backend-admin`.** Rompe el
+> hoisting de dependencias entre workspaces: algunos paquetes (`ts-node`,
+> `@nestjs/platform-express`) quedan instalados en el lugar equivocado y el servidor no
+> arranca o `migration:run` falla con `Cannot find module`. Si eso pasa, borrar
+> `node_modules` de la raíz y de ambos backends y volver a correr `npm install` desde la raíz.
+
+### 3.1 Backend ciudadano (`apps/backend`, :3000)
 
 ```bash
 cd apps/backend
-npm install
 cp .env.example .env.local
 ```
 
@@ -88,16 +104,14 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 ```
 
-Ejecutar migraciones y arrancar:
+Ejecutar migraciones (único proyecto que las corre) y arrancar:
 
 ```bash
 npm run migration:run
 npm run start:dev
 ```
 
-API en: **http://localhost:3000**
-
-### Verificar backend
+### Verificar backend ciudadano
 
 ```bash
 curl http://localhost:3000/api/health
@@ -106,8 +120,25 @@ curl http://localhost:3000/api/residuos/catalogo
 
 Respuesta health esperada: `{"status":"ok","db":"connected"}`
 
-> **Nota:** el backend expone todas sus rutas bajo el prefijo `/api` (`app.setGlobalPrefix('api')`
-> en `main.ts`), para poder compartir un único origen con el frontend detrás de ngrok.
+### 3.2 Backend admin (`apps/backend-admin`, :3001)
+
+Misma base de datos que el backend ciudadano, sin migraciones propias
+(`synchronize: false`, `apps/backend/src/database/migrations/` sigue siendo el único dueño
+del esquema).
+
+```bash
+cd apps/backend-admin
+cp .env.example .env.local
+# Mismas credenciales BD que apps/backend: DB_USERNAME=arca_user  DB_PASSWORD=arca_pass
+npm run start:dev
+```
+
+```bash
+curl http://localhost:3001/api/health
+```
+
+> **Nota:** ambos backends exponen sus rutas bajo el prefijo `/api` (`app.setGlobalPrefix('api')`
+> en `main.ts`).
 
 ---
 
@@ -161,8 +192,8 @@ Agregar a `.gitignore` del frontend (Vite suele ignorar `.env.local` por defecto
 
 > **Ruta relativa a propósito:** `vite.config.ts` tiene un proxy que reenvía `/api` al backend
 > (`http://localhost:3000`). Así el frontend y el backend quedan detrás de un único origen —
-> funciona igual en `localhost:5173` que a través de un túnel ngrok con dominio fijo, sin tener
-> que cambiar variables de entorno según el entorno.
+> funciona igual en local que detrás de un túnel, sin tener que cambiar variables de entorno
+> según el entorno.
 
 ### 4.4 CORS — ya configurado en backend
 
@@ -255,6 +286,26 @@ export async function crearSolicitudRetiro(data: {
 
 ---
 
+## 4.9 Panel admin (`apps/admin-web`, :5174)
+
+App Vite independiente (no es workspace, `npm install` propio), separada del frontend
+ciudadano. Habla con `apps/backend-admin` (:3001), no con `apps/backend`.
+
+```bash
+cd apps/admin-web
+npm install
+# .env.local → VITE_API_URL=/api
+npm run dev
+```
+
+Abrir: **http://localhost:5174**
+
+> **Deuda declarada:** todavía no tiene login ni guard de sesión propios (ver
+> `apps/admin-web/README.md`). Hasta que exista, sus llamadas a `apps/backend-admin`
+> devuelven 401 — es esperado, no un error de setup.
+
+---
+
 ## 5. Otros roles — inicio rápido
 
 ### Benjamín (auth)
@@ -279,13 +330,23 @@ docker compose up -d
 docker compose down
 docker compose logs mysql
 
-# Backend
+# Raíz — workspaces (núcleo compartido + los dos backends)
+npm install
+npm run build:core
+npm run build:watch -w @arca/core   # recompila el core en cada cambio, en otra terminal
+
+# Backend ciudadano
 cd apps/backend
 npm run start:dev
 npm run migration:run
 npm run migration:revert   # revertir última migración
 npm run build
 npm test
+
+# Backend admin — sin migraciones propias
+cd apps/backend-admin
+npm run start:dev
+npm run build
 
 # Ver tablas en MySQL
 docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLES;"
@@ -307,16 +368,18 @@ docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLE
 | `wsl --update` da `REGDB_E_CLASSNOTREG` | Reparar Windows Installer: `net stop msiserver`, `msiexec /unregister`, `msiexec /regserver`, `net start msiserver`. Si persiste, `sfc /scannow` + `DISM /Online /Cleanup-Image /RestoreHealth` y reintentar `wsl --install` |
 | Script `.ps1` tira `TerminatorExpectedAtEndOfString` en una línea que se ve bien | Encoding: PowerShell 5.1 sin BOM lee mal tildes/guiones especiales. Evitar caracteres no-ASCII en los `.ps1` |
 | `EADDRINUSE` al reiniciar backend/frontend | Puede haber procesos `node` colgados de corridas anteriores: `Get-Process node | Stop-Process -Force` y volver a arrancar |
-| ngrok: `Error reading configuration file ... unknown version '3'` | `ngrok.yml` debe usar `version: "2"` (el agente instalado no soporta `"3"`) |
-| ngrok: `ERR_NGROK_4018` (sesión no autenticada) al usar `--config` propio | El `--config` custom no incluye el archivo por defecto con el authtoken. Pasar ambos: `--config <default> --config ngrok.yml` (ya lo hace `start-ngrok.ps1`) |
-| ngrok: `ERR_NGROK_121` (agente muy viejo) | `ngrok update` (el instalado por winget puede quedar desactualizado) |
-| ngrok: dos túneles devuelven la misma URL | La cuenta free solo tiene 1 dominio estático — no se pueden tunelizar backend y frontend por separado con dominios propios gratis. Ver sección 10 (arquitectura de un solo túnel) |
+| `Cannot find module 'ts-node'` en `migration:run`, o `No driver (HTTP) has been selected` al arrancar un backend | `npm install` se corrió dentro de `apps/backend` o `apps/backend-admin` en vez de la raíz, y quedó mal el hoisting entre workspaces. Borrar `node_modules` de la raíz y de ambos backends, y `npm install` de nuevo **desde la raíz** |
+| `Entity metadata for X#relacion was not found` al arrancar un backend | Falta una entidad relacionada en el `entities:` (o `forFeature()`) de ese backend — TypeORM necesita conocer toda entidad que aparezca en una relación, aunque ese backend nunca la consulte directo. Ver `apps/backend-admin/src/app.module.ts` |
+| `npm run build:core` no se corrió y el backend usa tipos viejos de `@arca/core` | El core se compila a `packages/arca-core/dist/`; los backends lo importan compilado, no en vivo. Los scripts `prebuild`/`prestart:dev` ya lo hacen solos, pero si algo queda desincronizado, correr `npm run build:core` a mano |
 
 ---
 
 ## 8. Documentación relacionada
 
-- [`BACKEND_FASE1.md`](./BACKEND_FASE1.md) — Qué se implementó en backend Fase 1
+- [`BACKEND_FASE1.md`](./BACKEND_FASE1.md) — Qué se implementó en el backend ciudadano Fase 1
+- [`../packages/arca-core/README.md`](../packages/arca-core/README.md) — Núcleo compartido, regla de PR revisado
+- [`../apps/backend-admin/README.md`](../apps/backend-admin/README.md) — API del panel
+- [`../apps/admin-web/README.md`](../apps/admin-web/README.md) — Panel municipal
 - [`CLAUDE.md`](../CLAUDE.md) — Git Flow y convenciones del equipo
 - [`README.md`](../README.md) — Producto, stack y roadmap
 - [`ARCA_database_schema.dbml`](../ARCA_database_schema.dbml) — Schema completo (19 tablas)
@@ -348,11 +411,14 @@ git pull origin develop
 
 docker compose up -d
 
-cd apps/backend
+# Workspaces: un solo npm install en la raíz resuelve el núcleo compartido y
+# los dos backends. NO correr npm install dentro de apps/backend(-admin).
 npm install
+npm run build:core
+
+cd apps/backend
 cp .env.example .env.local
 # Completar en .env.local: DB_USERNAME=arca_user  DB_PASSWORD=arca_pass
-
 npm run migration:run
 npm run start:dev
 ```
@@ -364,83 +430,55 @@ curl http://localhost:3000/api/health
 curl http://localhost:3000/api/residuos/catalogo
 ```
 
-### C. Frontend (solo Maximiliano)
+### C. Backend admin
 
-Con el backend corriendo en `:3000`:
+Misma base de datos, sin migraciones propias:
+
+```bash
+cd apps/backend-admin
+cp .env.example .env.local
+# Mismas credenciales BD que apps/backend
+npm run start:dev
+```
+
+### D. Frontends (cada uno con su propio `npm install`)
+
+Con los backends corriendo:
 
 ```bash
 cd apps/frontend
+npm install
+# .env.local → VITE_API_URL=/api  y  VITE_ADMIN_URL=http://localhost:5174
+npm run dev
+```
+
+```bash
+cd apps/admin-web
 npm install
 # .env.local → VITE_API_URL=/api
 npm run dev
 ```
 
-Abrir `http://localhost:5173`.
+Abrir `http://localhost:5173` (PWA) y `http://localhost:5174` (panel).
 
 ### Checklist mínimo
 
 - [ ] Git, Node 18+, Docker instalados
 - [ ] Repo clonado y rama correcta
 - [ ] `docker compose up -d`
-- [ ] `npm install` + `.env.local` en `apps/backend`
-- [ ] `npm run migration:run`
-- [ ] `npm run start:dev` → `/api/health` responde OK
+- [ ] `npm install` en la **raíz** (workspaces) + `npm run build:core`
+- [ ] `.env.local` en `apps/backend` y `apps/backend-admin`
+- [ ] `npm run migration:run` (solo en `apps/backend`)
+- [ ] `npm run start:dev` en ambos backends → `/api/health` responde OK en :3000 y :3001
+- [ ] `npm install` + `.env.local` + `npm run dev` en `apps/frontend` y `apps/admin-web`
 
 ---
 
-## 10. Acceso desde el celular (ngrok) + scripts de automatización
+## 10. Acceso remoto
 
-Para probar la PWA en un celular real (no solo en el navegador de la PC), el equipo usa **ngrok**
-con **un solo túnel de dominio fijo** apuntando al frontend. El propio Vite hace de proxy interno
-hacia el backend, así que todo el tráfico (HTML, JS, y llamadas a la API) pasa por **un único
-origen** — no hace falta exponer el backend por separado ni reconfigurar nada cada vez que se
-reinicia el túnel.
-
-```
-Celular → https://<dominio-fijo>.ngrok-free.dev
-              │
-              ▼
-        Vite dev server (:5173)
-              │  proxy interno /api/* → http://localhost:3000
-              ▼
-        Backend NestJS (:3000, prefijo global /api)
-              │
-              ▼
-        MySQL (Docker, :3306)
-```
-
-Por eso el backend expone todo bajo `/api` (`app.setGlobalPrefix('api')` en `main.ts`) y el
-frontend usa `VITE_API_URL=/api` (ruta relativa, no absoluta) — así el mismo build funciona
-tanto en `localhost:5173` como detrás del túnel, sin variables que cambien según el entorno.
-
-### Scripts (raíz del repo)
-
-| Script | Qué hace |
-|---|---|
-| `setup.ps1` | Instala dependencias, configura `.env.local` (backend y frontend), levanta MySQL, corre migraciones y arranca backend + frontend en ventanas nuevas. Idempotente: se puede correr de nuevo sin romper nada. |
-| `start-ngrok.ps1` | Levanta el túnel ngrok (`ngrok.yml`) con el dominio fijo reservado en la cuenta y muestra la URL pública. Verifica que backend/frontend estén corriendo antes de levantar el túnel. |
-| `ngrok.yml` | Config de ngrok: un único túnel `app` → `localhost:5173` con `domain:` fijo. |
-
-### Prerrequisitos de ngrok (una sola vez por PC/cuenta)
-
-1. Instalar: `winget install ngrok.ngrok`
-2. Autenticar (con tu propio token, nunca lo compartas por chat/Slack en texto plano):
-   ```powershell
-   ngrok config add-authtoken TU_TOKEN
-   ```
-3. Reservar un dominio estático gratis en https://dashboard.ngrok.com/domains y ponerlo en el
-   campo `domain:` de `ngrok.yml`. **Es por cuenta:** si otro integrante del equipo corre este
-   script con su propia cuenta ngrok, tiene que reservar su propio dominio y reemplazarlo ahí.
-
-### Uso
-
-```powershell
-cd "FDS A.R.C.A"
-.\setup.ps1         # si no estan corriendo backend/frontend
-.\start-ngrok.ps1
-```
-
-Abrir la URL que imprime el script desde el celular. La **primera vez** ngrok muestra una
-pantalla de aviso ("You are about to visit...") — hay que tocar **Visit Site** una vez; después
-no vuelve a aparecer para esa sesión de navegador. Las llamadas `fetch` del frontend ya mandan el
-header `ngrok-skip-browser-warning` para no depender de esa cookie.
+El equipo trabaja **en local**; no hay túnel público configurado. Lo único que se demuestra a
+distancia (a la municipalidad) es la PWA ciudadana, y por ahora eso se hace en persona o con
+capturas — no hace falta exponer nada a internet para el trabajo diario. Si en algún momento
+hace falta volver a exponer un servicio (por ejemplo para una demo remota), evaluarlo en ese
+momento: la arquitectura de un solo origen (`VITE_API_URL=/api` + proxy de Vite) sigue
+haciendo que cualquier solución de túnel sea simple de aplicar.

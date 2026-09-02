@@ -16,13 +16,6 @@ export function RequireSession({ children }: { children: ReactElement }) {
   return usuarioCiudadanoId ? children : <Navigate to="/login" replace />;
 }
 
-export function RequireAdmin({ children }: { children: ReactElement }) {
-  const { usuarioCiudadanoId, esAdministrador, cargando } = useSession();
-  if (cargando) return <Cargando />;
-  if (!usuarioCiudadanoId) return <Navigate to="/login" replace />;
-  return esAdministrador ? children : <Navigate to="/inicio" replace />;
-}
-
 type Tab = { to: string; label: string; icon: string };
 const TABS: Tab[] = [
   { to: '/inicio', label: 'Inicio', icon: '🏠' },

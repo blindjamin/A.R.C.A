@@ -45,7 +45,9 @@ export default function SeleccionInicio() {
           </button>
 
           <button
-            onClick={() => navigate('/admin')}
+            onClick={() => {
+              window.location.href = import.meta.env.VITE_ADMIN_URL as string;
+            }}
             className="flex w-full items-center gap-4 rounded-2xl bg-white/10 p-4 text-left backdrop-blur transition-colors hover:bg-white/15"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-2xl">

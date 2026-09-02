@@ -54,7 +54,7 @@ src/
 ├── api/arca.ts                  # Capa única de acceso a la API (fetch tipado)
 ├── auth/SessionContext.tsx      # Identidad temporal (mock hasta ClaveÚnica real)
 ├── components/
-│   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected, RequireAdmin
+│   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected
 │   └── ui/                      # UI Kit — primitivos reutilizables
 │       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader
 │       ├── EmptyState · BackButton · PriceTag
@@ -69,10 +69,15 @@ src/
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
 │   ├── Login · SeleccionInicio · Inicio
-│   ├── MisSolicitudes · AdminSolicitudes · Proximamente
+│   └── MisSolicitudes · Proximamente
 ├── index.css                    # Tokens y clases utilitarias del UI Kit
 └── App.tsx                      # Router: arma las rutas y monta solicitudRetiroRoutes
 ```
+
+> Las pantallas de panel admin (`AdminSolicitudes`, `AdminAuditoria`) se movieron a
+> `apps/admin-web` en la migración de separación del panel admin (2026-09-01). El botón
+> "Modo funcionario" de `SeleccionInicio.tsx` navega a `VITE_ADMIN_URL` con
+> `window.location.href` — es otro origen, no una ruta de este router.
 
 ### Criterio de organización
 
@@ -96,11 +101,6 @@ src/
 
 ## Acceso desde el celular
 
-`vite.config.ts` tiene `allowedHosts: true` para permitir el túnel de ngrok. Desde la raíz:
-
-```powershell
-.\start-ngrok.ps1
-```
-
-Un solo túnel alcanza para todo, porque Vite ya proxea `/api` al backend.
-Ver [`docs/SETUP_LOCAL.md`](../../docs/SETUP_LOCAL.md) §10.
+`vite.config.ts` tiene `allowedHosts: true` para permitir exponer el dev server con un túnel
+(el equipo trabaja en local; ver `docs/SETUP_LOCAL.md` si hace falta demostrar la PWA a
+distancia).

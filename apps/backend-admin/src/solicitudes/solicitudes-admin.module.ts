@@ -1,0 +1,15 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule, SolicitudRetiro, UsuarioAdministrador } from '@arca/core';
+import { SolicitudesAdminController } from './solicitudes-admin.controller';
+import { SolicitudesAdminService } from './solicitudes-admin.service';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([SolicitudRetiro, UsuarioAdministrador]),
+    AuthModule,
+  ],
+  controllers: [SolicitudesAdminController],
+  providers: [SolicitudesAdminService],
+})
+export class SolicitudesAdminModule {}

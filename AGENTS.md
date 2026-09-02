@@ -79,10 +79,13 @@ sin modismos regionales, salvo que un integrante del equipo indique lo contrario
 
 | Área | Alcance |
 |---|---|
-| **Backend** | `apps/backend/` — API, servicios, entidades, DTOs |
-| **Frontend** | `apps/frontend/` — PWA, pantallas, UI Kit, capa de API del cliente |
-| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan |
-| **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `start-ngrok.ps1`, `ngrok.yml`, CI |
+| **Backend ciudadano** | `apps/backend/` — API, servicios, entidades propias, DTOs (Miguel + Javier) |
+| **Frontend ciudadano** | `apps/frontend/` — PWA, pantallas, UI Kit, capa de API del cliente (Ana + Maxi) |
+| **Backend admin** | `apps/backend-admin/` — API del panel municipal (Benjamín) |
+| **Frontend admin** | `apps/admin-web/` — panel municipal (Benjamín) |
+| **Núcleo compartido** | `packages/arca-core/` — entidades TypeORM y `AuthModule` que ambos backends importan. Cambia solo por **PR revisado por alguien de backend ciudadano** (regla A.7 abajo) |
+| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`, ningún otro proyecto corre migraciones) |
+| **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `package.json` raíz (workspaces), CI |
 | **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `CLAUDE_proyecto.md`, `AGENTS.md` |
 
 Una vez definida el área, **el trabajo se limita a esa área**. No abrir ni modificar archivos
@@ -138,11 +141,24 @@ hay que pedirlo antes de ejecutar `git checkout -b`. No inventar el nombre ni su
 - Antes de integrar a `develop`, correr localmente (todavía no hay CI configurado):
 
 ```bash
-cd apps/backend && npm run lint && npm run test && npm run build
+npm run build:core
+cd packages/arca-core   && npm run test
 ```
 
 ```bash
-cd apps/frontend && npm run lint && npm run build
+cd apps/backend         && npm run lint && npm run test && npm run build
+```
+
+```bash
+cd apps/backend-admin   && npm run lint && npm run build
+```
+
+```bash
+cd apps/frontend        && npm run lint && npm run build
+```
+
+```bash
+cd apps/admin-web       && npm run lint && npm run build
 ```
 
 ## A.9 CONFIRMAR ANTES DE COMMITEAR O INTEGRAR
@@ -160,9 +176,12 @@ los `.md` que hayan quedado desfasados por lo que se hizo:
 
 | Si se tocó… | Revisar |
 |---|---|
-| Endpoints, entidades, migraciones | `apps/backend/README.md`, `docs/BACKEND_FASE1.md` |
-| Pantallas, UI Kit, estructura de `src/` | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
-| Setup, scripts, Docker, ngrok | `docs/SETUP_LOCAL.md`, `README.md` |
+| Endpoints, entidades o migraciones del ciudadano | `apps/backend/README.md`, `docs/BACKEND_FASE1.md` |
+| Endpoints del panel admin | `apps/backend-admin/README.md` |
+| Entidades o `AuthModule` compartidos | `packages/arca-core/README.md` |
+| Pantallas, UI Kit, estructura de `src/` ciudadano | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
+| Pantallas del panel admin | `apps/admin-web/README.md` |
+| Setup, scripts, Docker | `docs/SETUP_LOCAL.md`, `README.md` |
 | Estructura del repo o del stack | `README.md`, `CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
 | Ramas, workflow o convenciones | `CLAUDE.md` |
 | Reglas de IA | Este archivo |
@@ -210,8 +229,57 @@ con esa misma regla.
 | `ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
 | Sistema CAS Chile (Power Builder + Sybase) | Está fuera del alcance de ARCA. No integrar |
 | Ramas `master` y `develop` en directo | Siempre vía rama temporal + merge |
-| Authtoken y dominio de ngrok | Credencial personal de cada integrante |
 | Archivos de un área que no es la de la sesión | Ver regla A.7 — requiere avisar y abrir un PR |
+
+## A.13 DECLARAR EN CADA COMMIT CÓMO SE PRODUJO EL CAMBIO
+
+Todo commit termina con tres líneas. No son un formulario: son las tres preguntas que alguien
+—un compañero, la comisión de Feria de Software, el municipio— va a hacer sobre ese cambio
+cuando ya nadie recuerde el contexto.
+
+```
+IA: agente
+HU: HU-07
+Revisor: javier
+```
+
+| Línea | Valores | Qué responde |
+|---|---|---|
+| `IA:` | `agente` · `asistido` · `no` | Cómo se produjo el código |
+| `HU:` | `HU-07` · `ninguna` | Qué historia de usuario avanza |
+| `Revisor:` | nombre · `pendiente` | Quién responde por la revisión |
+
+**`IA: agente`** — lo generó un agente y la persona lo revisó antes de commitear.
+**`IA: asistido`** — lo escribió la persona con autocompletado o sugerencias puntuales.
+**`IA: no`** — lo escribió la persona sin ayuda de IA.
+
+Ante la duda entre `agente` y `asistido`, el criterio es simple: si la estructura del cambio la
+propuso la IA, es `agente`. Marcar `agente` no es una confesión ni penaliza a nadie: es lo que
+permite priorizar dónde poner atención al revisar.
+
+### Por qué es obligatorio y no opcional
+
+- **Revisión.** Un cambio marcado `agente` se revisa distinto que uno escrito a mano: no se busca
+  un error de tipeo, se busca una suposición inventada. Sin la marca, todos los cambios se
+  revisan igual, que en la práctica significa que ninguno se revisa bien.
+- **Defensa de Feria de Software.** Cada integrante tiene que poder explicar su propio código
+  (regla B.1). El trailer es el registro de quién respondía por qué parte, semanas después.
+- **Trazabilidad.** `HU:` cierra la cadena épica → historia de usuario → rama → commit, que hoy
+  se corta en la rama.
+
+### Cómo se cumple sin esfuerzo
+
+Una sola vez, desde cualquier carpeta dentro del repositorio:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+```
+
+Desde ahí las tres líneas aparecen solas cada vez que se abre el editor de commit; solo hay que
+completarlas. Un hook las valida: si falta una, el commit no pasa y el mensaje de error dice
+exactamente qué corregir.
+
+Los merges, los reverts y los `fixup!` quedan exentos: esos mensajes los genera git.
 
 ---
 
@@ -227,7 +295,7 @@ En la defensa de Feria de Software, cada integrante tiene que poder explicar su 
 
 No pegar en un prompt ni exponer a una herramienta de IA:
 
-- **Credenciales:** contraseñas de base de datos, `.env.local`, tokens de GitHub, authtoken de ngrok.
+- **Credenciales:** contraseñas de base de datos, `.env.local`, tokens de GitHub.
 - **Accesos al servidor municipal:** usuarios y claves de SSH o cPanel.
 - **Datos personales de vecinos:** RUT, nombres, direcciones, teléfonos, correos, y fotos de
   solicitudes (que llevan ubicación asociada).
@@ -255,9 +323,12 @@ dato.
 
 ## B.5 Transparencia en los commits
 
-No hace falta marcar cada línea, pero **el equipo tiene que poder saber qué se hizo con IA**.
-Si un commit es sustancialmente generado por IA, conviene dejarlo dicho en el cuerpo del
-mensaje. Sirve para revisarlo con más atención y es honesto de cara a la evaluación.
+Cada commit declara cómo se produjo, con la línea `IA:` que exige la regla A.13. No hace falta
+marcar línea por línea: basta con el origen del cambio en su conjunto.
+
+Declarar `agente` no penaliza a nadie ni implica menos mérito. Lo que sí es un problema es
+commitear código generado que no se entiende: eso lo prohíbe la regla B.1, y es independiente de
+cómo se declare.
 
 ## B.6 Ante la duda, preguntar al equipo
 
@@ -267,4 +338,4 @@ sale más caro que consultar.
 
 ---
 
-**Última actualización:** 2026-08-17 · Equipo COM Tech
+**Última actualización:** 2026-08-29 · Equipo COM Tech

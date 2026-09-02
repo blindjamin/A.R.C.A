@@ -1,9 +1,0 @@
-version: "2"
-tunnels:
-  app:
-    proto: http
-    addr: 5173
-    # Dominio estatico fijo reservado en tu cuenta ngrok free.
-    # Si otro integrante del equipo usa este script con su propia cuenta,
-    # tiene que reservar su propio dominio y reemplazarlo aca.
-    domain: ongoing-delusion-drizzle.ngrok-free.dev
