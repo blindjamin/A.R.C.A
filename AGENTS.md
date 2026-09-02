@@ -79,10 +79,13 @@ sin modismos regionales, salvo que un integrante del equipo indique lo contrario
 
 | Área | Alcance |
 |---|---|
-| **Backend** | `apps/backend/` — API, servicios, entidades, DTOs |
-| **Frontend** | `apps/frontend/` — PWA, pantallas, UI Kit, capa de API del cliente |
-| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan |
-| **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `start-ngrok.ps1`, `ngrok.yml`, CI |
+| **Backend ciudadano** | `apps/backend/` — API, servicios, entidades propias, DTOs (Miguel + Javier) |
+| **Frontend ciudadano** | `apps/frontend/` — PWA, pantallas, UI Kit, capa de API del cliente (Ana + Maxi) |
+| **Backend admin** | `apps/backend-admin/` — API del panel municipal (Benjamín) |
+| **Frontend admin** | `apps/admin-web/` — panel municipal (Benjamín) |
+| **Núcleo compartido** | `packages/arca-core/` — entidades TypeORM y `AuthModule` que ambos backends importan. Cambia solo por **PR revisado por alguien de backend ciudadano** (regla A.7 abajo) |
+| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`, ningún otro proyecto corre migraciones) |
+| **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `package.json` raíz (workspaces), CI |
 | **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `CLAUDE_proyecto.md`, `AGENTS.md` |
 
 Una vez definida el área, **el trabajo se limita a esa área**. No abrir ni modificar archivos
@@ -138,11 +141,24 @@ hay que pedirlo antes de ejecutar `git checkout -b`. No inventar el nombre ni su
 - Antes de integrar a `develop`, correr localmente (todavía no hay CI configurado):
 
 ```bash
-cd apps/backend && npm run lint && npm run test && npm run build
+npm run build:core
+cd packages/arca-core   && npm run test
 ```
 
 ```bash
-cd apps/frontend && npm run lint && npm run build
+cd apps/backend         && npm run lint && npm run test && npm run build
+```
+
+```bash
+cd apps/backend-admin   && npm run lint && npm run build
+```
+
+```bash
+cd apps/frontend        && npm run lint && npm run build
+```
+
+```bash
+cd apps/admin-web       && npm run lint && npm run build
 ```
 
 ## A.9 CONFIRMAR ANTES DE COMMITEAR O INTEGRAR
@@ -160,9 +176,12 @@ los `.md` que hayan quedado desfasados por lo que se hizo:
 
 | Si se tocó… | Revisar |
 |---|---|
-| Endpoints, entidades, migraciones | `apps/backend/README.md`, `docs/BACKEND_FASE1.md` |
-| Pantallas, UI Kit, estructura de `src/` | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
-| Setup, scripts, Docker, ngrok | `docs/SETUP_LOCAL.md`, `README.md` |
+| Endpoints, entidades o migraciones del ciudadano | `apps/backend/README.md`, `docs/BACKEND_FASE1.md` |
+| Endpoints del panel admin | `apps/backend-admin/README.md` |
+| Entidades o `AuthModule` compartidos | `packages/arca-core/README.md` |
+| Pantallas, UI Kit, estructura de `src/` ciudadano | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
+| Pantallas del panel admin | `apps/admin-web/README.md` |
+| Setup, scripts, Docker | `docs/SETUP_LOCAL.md`, `README.md` |
 | Estructura del repo o del stack | `README.md`, `CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
 | Ramas, workflow o convenciones | `CLAUDE.md` |
 | Reglas de IA | Este archivo |
@@ -210,7 +229,6 @@ con esa misma regla.
 | `ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
 | Sistema CAS Chile (Power Builder + Sybase) | Está fuera del alcance de ARCA. No integrar |
 | Ramas `master` y `develop` en directo | Siempre vía rama temporal + merge |
-| Authtoken y dominio de ngrok | Credencial personal de cada integrante |
 | Archivos de un área que no es la de la sesión | Ver regla A.7 — requiere avisar y abrir un PR |
 
 ## A.13 DECLARAR EN CADA COMMIT CÓMO SE PRODUJO EL CAMBIO
@@ -277,7 +295,7 @@ En la defensa de Feria de Software, cada integrante tiene que poder explicar su 
 
 No pegar en un prompt ni exponer a una herramienta de IA:
 
-- **Credenciales:** contraseñas de base de datos, `.env.local`, tokens de GitHub, authtoken de ngrok.
+- **Credenciales:** contraseñas de base de datos, `.env.local`, tokens de GitHub.
 - **Accesos al servidor municipal:** usuarios y claves de SSH o cPanel.
 - **Datos personales de vecinos:** RUT, nombres, direcciones, teléfonos, correos, y fotos de
   solicitudes (que llevan ubicación asociada).

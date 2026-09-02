@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ResiduoCatalogo } from './entities/residuo-catalogo.entity';
+import { ResiduoCatalogo } from '@arca/core';
 import { ResiduosController } from './residuos.controller';
 import { ResiduosService } from './residuos.service';
 

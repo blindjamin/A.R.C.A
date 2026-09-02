@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { EstadoSolicitudRetiro } from '../entities/estado-solicitud-retiro.enum';
+import { EstadoSolicitudRetiro } from '@arca/core';
 
 export class FilterSolicitudesRetiroDto {
   @IsOptional()

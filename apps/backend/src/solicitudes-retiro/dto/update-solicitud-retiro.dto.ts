@@ -6,7 +6,7 @@ import {
   IsUUID,
   MaxLength,
 } from 'class-validator';
-import { EstadoSolicitudRetiro } from '../entities/estado-solicitud-retiro.enum';
+import { EstadoSolicitudRetiro } from '@arca/core';
 
 export class UpdateSolicitudRetiroDto {
   @IsOptional()

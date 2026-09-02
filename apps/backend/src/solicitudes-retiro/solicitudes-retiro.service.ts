@@ -6,17 +6,19 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
-import { AuthUser } from '../auth/interfaces/auth-user.interface';
+import {
+  type AuthUser,
+  EstadoSolicitudRetiro,
+  RolAdministrador,
+  SolicitudRetiro,
+  UsuarioAdministrador,
+  UsuarioCiudadano,
+} from '@arca/core';
 import { ResiduosService } from '../residuos/residuos.service';
-import { RolAdministrador } from '../users/entities/rol-administrador.enum';
-import { UsuarioAdministrador } from '../users/entities/usuario-administrador.entity';
-import { UsuarioCiudadano } from '../users/entities/usuario-ciudadano.entity';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
 import { UpdateSolicitudRetiroDto } from './dto/update-solicitud-retiro.dto';
-import { EstadoSolicitudRetiro } from './entities/estado-solicitud-retiro.enum';
-import { SolicitudRetiro } from './entities/solicitud-retiro.entity';
 
 @Injectable()
 export class SolicitudesRetiroService {
@@ -122,6 +124,10 @@ export class SolicitudesRetiroService {
     return solicitud;
   }
 
+  // PENDIENTE (avisar a Javier, HU-13): sin llamador desde que el @Patch(':id')
+  // del controller se movió a apps/backend-admin (Fase 3, migración admin). No
+  // se borra por cuenta propia (regla A.4) — la lógica de cambio de estado es
+  // suya; que decida si queda, se borra o se comparte con el nuevo service.
   async update(
     id: number,
     dto: UpdateSolicitudRetiroDto,
