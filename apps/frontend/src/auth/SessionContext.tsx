@@ -7,7 +7,11 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { fetchPerfilAcceso, type PerfilAcceso } from '../api/arca';
+import {
+  fetchPerfilAcceso,
+  STORAGE_KEY_SESION,
+  type PerfilAcceso,
+} from '../api/arca';
 
 // UUIDs sembrados por migración en el backend (auth mock).
 // TEMPORAL: cuando Benjamín integre JWT/ClaveÚnica, la identidad saldrá del token
@@ -18,7 +22,7 @@ export const DEV_USERS = {
   funcionario: '00000000-0000-4000-8000-000000000002', // doble rol (ciudadano + operador)
 } as const;
 
-const STORAGE_KEY = 'arca.usuarioCiudadanoId';
+const STORAGE_KEY = STORAGE_KEY_SESION;
 
 interface SessionContextValue {
   usuarioCiudadanoId: string | null;

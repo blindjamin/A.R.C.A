@@ -79,10 +79,26 @@ export const formatearPrecio = (clp: number): string =>
 // Header requerido cuando se accede vía tunel ngrok (free tier): sin el, ngrok
 // intercepta el request y devuelve una pagina HTML de advertencia en vez de
 // dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
+// DEUDA DECLARADA — identidad de desarrollo del panel municipal.
+// apps/admin-web todavía no tiene login propio: la pantalla de acceso con
+// ClaveÚnica vive en apps/frontend. Como el AuthGuard de @arca/core es global
+// (HU-13), sin este header toda llamada del panel responde 401.
+//
+// Es el UUID del ciudadano de doble rol que siembra la migración
+// seed-operador-demo, no el de usuarios_administradores: AuthService resuelve
+// el perfil a partir de la identidad ciudadana y de ahí deduce el rol.
+//
+// Se elimina cuando HU-12 cierre el callback y el panel tenga su propia sesión.
+const IDENTIDAD_DEV_PANEL = '00000000-0000-4000-8000-000000000002';
+
 function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(path, {
     ...init,
-    headers: { ...init?.headers, 'ngrok-skip-browser-warning': 'true' },
+    headers: {
+      ...init?.headers,
+      'ngrok-skip-browser-warning': 'true',
+      Authorization: `Bearer ${IDENTIDAD_DEV_PANEL}`,
+    },
   });
 }
 

@@ -3,6 +3,12 @@
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
+// Clave de localStorage donde SessionContext guarda la identidad de la sesión.
+// Vive acá y no en SessionContext porque `apiFetch` la necesita para armar el
+// header Authorization, y SessionContext ya importa de este módulo: al revés
+// quedaría un import circular.
+export const STORAGE_KEY_SESION = 'arca.usuarioCiudadanoId';
+
 export interface ResiduoCatalogo {
   id: number;
   nombre: string;
@@ -79,9 +85,20 @@ export const formatearPrecio = (clp: number): string =>
 // intercepta el request y devuelve una pagina HTML de advertencia en vez de
 // dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
 function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+  const usuarioCiudadanoId = localStorage.getItem(STORAGE_KEY_SESION);
+
   return fetch(path, {
     ...init,
-    headers: { ...init?.headers, 'ngrok-skip-browser-warning': 'true' },
+    headers: {
+      ...init?.headers,
+      'ngrok-skip-browser-warning': 'true',
+      // Identidad de la sesión. Hoy es el UUID del ciudadano que guarda
+      // SessionContext al entrar; cuando HU-12 emita el JWT, acá viaja el token
+      // firmado sin que cambie nada más de esta capa.
+      ...(usuarioCiudadanoId
+        ? { Authorization: `Bearer ${usuarioCiudadanoId}` }
+        : {}),
+    },
   });
 }
 
