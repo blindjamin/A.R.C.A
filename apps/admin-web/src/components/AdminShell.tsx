@@ -2,10 +2,12 @@ import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import SelectorPerfilDev from './SelectorPerfilDev';
 
+import { perfilDevActual } from '../api/admin';
+
 const NAV = [
-  { to: '/', label: 'Solicitudes', icon: '📋', end: true },
-  { to: '/mapa-calor', label: 'Mapa de calor', icon: '🗺️', end: false },
-  { to: '/auditoria', label: 'Auditoría', icon: '🛡️', end: false },
+  { to: '/', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
+  { to: '/mapa-calor', label: 'Mapa de calor', icon: '🗺️', end: false, reqAdmin: false },
+  { to: '/auditoria', label: 'Auditoría', icon: '🛡️', end: false, reqAdmin: true },
 ];
 
 // Layout de escritorio del panel: barra lateral fija + contenido. Reemplaza el
@@ -13,16 +15,19 @@ const NAV = [
 // ciudadano (no tiene sentido la tab bar móvil de AppShell.tsx en un panel
 // municipal de escritorio).
 export default function AdminShell({ children }: { children: ReactNode }) {
+  const isAdmin = perfilDevActual() === 'admin';
+  const visibleNav = NAV.filter(item => !item.reqAdmin || isAdmin);
+
   return (
     <div className="flex min-h-screen w-full bg-canvas">
       <aside className="flex w-60 shrink-0 flex-col border-r border-line bg-white">
         <div className="border-b border-line px-5 py-4">
           <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
-            A.R.C.A. · Panel
+            A.R.C.A. — Panel
           </span>
         </div>
         <nav className="flex flex-col gap-1 p-3">
-          {NAV.map((item) => (
+          {visibleNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

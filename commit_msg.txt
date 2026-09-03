@@ -1,9 +1,9 @@
-feat(admin): agregar mapa de calor por sectores (HU-07)
+fix(admin): ocultar auditoria a no-administradores en frontend
 
-Implementación del endpoint de agregación en backend-admin y
-pantalla del mapa en admin-web con renderizado de CircleMarkers
-por sector.
+Se restringe la visibilidad del link en la barra lateral y
+se protege la ruta con una redirección para que solo
+el rol de administrador pueda acceder al registro de auditoría.
 
 IA: agente
-HU: HU-07
-Revisor: miguel
+HU: ninguna
+Revisor: pendiente
