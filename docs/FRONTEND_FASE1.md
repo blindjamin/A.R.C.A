@@ -338,7 +338,7 @@ los endpoints correspondientes.
 | Redux Toolkit + RTK Query | Cuando crezca el estado (marketplace, credits, sesión) |
 | EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
 | EP-04 Circular Credits | Saldo + historial en perfil |
-| EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, modal de asignación HU-08 y auditoría HU-13). Falta panel funcionario completo, mapa de calor (**Leaflet** + OpenStreetMap), reportes |
+| EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, modal de asignación HU-08, auditoría HU-13, mapa de calor con **Leaflet** HU-07). Falta panel funcionario completo, reportes |
 | Programación con operadores | ✅ Hecho: Modal `AsignarRetiroModal` con fecha, franja y operador asignado (HU-08) |
 | Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
 | Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |

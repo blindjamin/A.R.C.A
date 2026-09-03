@@ -31,6 +31,7 @@ Copiar `.env.example` a `.env.local` — mismas credenciales de base de datos qu
 | `GET` | `/api/admin/solicitudes` | Listado global de solicitudes de retiro, filtro opcional por `estado` — **sin** filtro por dueño (a diferencia del equivalente en `apps/backend`) |
 | `GET` | `/api/admin/solicitudes/:id` | Detalle |
 | `PATCH` | `/api/admin/solicitudes/:id` | Cambiar estado / asignar operador |
+| `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos. |
 
 Protegidos con `RolesGuard` de `@arca/core` (lectura: ADMIN/OPERADOR/PATROCINADOR; el PATCH:
 ADMIN/OPERADOR).
