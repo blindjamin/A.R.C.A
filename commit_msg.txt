@@ -1,0 +1,9 @@
+feat(admin): agregar mapa de calor por sectores (HU-07)
+
+Implementación del endpoint de agregación en backend-admin y
+pantalla del mapa en admin-web con renderizado de CircleMarkers
+por sector.
+
+IA: agente
+HU: HU-07
+Revisor: miguel

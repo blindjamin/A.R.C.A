@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule, SolicitudRetiro, UsuarioAdministrador } from '@arca/core';
+import {
+  AuditoriaModule,
+  AuthModule,
+  SolicitudRetiro,
+  UsuarioAdministrador,
+} from '@arca/core';
 import { SolicitudesAdminController } from './solicitudes-admin.controller';
 import { SolicitudesAdminService } from './solicitudes-admin.service';
 
@@ -8,6 +13,7 @@ import { SolicitudesAdminService } from './solicitudes-admin.service';
   imports: [
     TypeOrmModule.forFeature([SolicitudRetiro, UsuarioAdministrador]),
     AuthModule,
+    AuditoriaModule,
   ],
   controllers: [SolicitudesAdminController],
   providers: [SolicitudesAdminService],

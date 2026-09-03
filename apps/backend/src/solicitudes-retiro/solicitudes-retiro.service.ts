@@ -7,10 +7,14 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import {
+  AccionAuditoria,
+  AuditoriaService,
   type AuthUser,
   EstadoSolicitudRetiro,
+  type OrigenPeticion,
   RolAdministrador,
   SolicitudRetiro,
+  TipoActorAuditoria,
   UsuarioAdministrador,
   UsuarioCiudadano,
 } from '@arca/core';
@@ -30,11 +34,13 @@ export class SolicitudesRetiroService {
     @InjectRepository(UsuarioAdministrador)
     private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
     private readonly residuosService: ResiduosService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   async create(
     dto: CreateSolicitudRetiroDto,
     user: AuthUser,
+    origen?: OrigenPeticion,
   ): Promise<SolicitudRetiro> {
     if (dto.usuarioCiudadanoId !== user.ciudadanoId) {
       throw new ForbiddenException(
@@ -77,7 +83,23 @@ export class SolicitudesRetiroService {
       estado: EstadoSolicitudRetiro.PENDIENTE,
     });
 
-    return this.solicitudRetiroRepository.save(solicitud);
+    const guardada = await this.solicitudRetiroRepository.save(solicitud);
+
+    // Se registra el estado inicial y nada más. La descripción y las
+    // coordenadas que trae el DTO son datos personales del vecino: quedan en
+    // `solicitudes_retiro`, donde el borrado los alcanza, y no se copian a la
+    // auditoría, que por su naturaleza se conserva.
+    await this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: user,
+      entidad: 'solicitudes_retiro',
+      entidadId: guardada.id,
+      accion: AccionAuditoria.CREATE,
+      datosNuevos: { estado: guardada.estado },
+      origen,
+    });
+
+    return guardada;
   }
 
   findAll(
@@ -158,6 +180,7 @@ export class SolicitudesRetiroService {
     id: number,
     dto: CancelarSolicitudRetiroDto,
     user: AuthUser,
+    origen?: OrigenPeticion,
   ): Promise<SolicitudRetiro> {
     const solicitud = await this.findOne(id);
 
@@ -184,10 +207,28 @@ export class SolicitudesRetiroService {
       );
     }
 
+    const estadoAnterior = solicitud.estado;
+
     solicitud.estado = EstadoSolicitudRetiro.CANCELADA;
     solicitud.razonRechazo = dto.motivo ?? 'Cancelada por el ciudadano';
 
-    return this.solicitudRetiroRepository.save(solicitud);
+    const guardada = await this.solicitudRetiroRepository.save(solicitud);
+
+    // Solo el estado. `razonRechazo` también cambia, pero su contenido es texto
+    // libre escrito por el vecino y puede llevar datos personales; por la regla
+    // de minimización se deja constancia de que cambió, no de qué dice.
+    await this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: user,
+      entidad: 'solicitudes_retiro',
+      entidadId: guardada.id,
+      accion: AccionAuditoria.UPDATE,
+      datosAnteriores: { estado: estadoAnterior },
+      datosNuevos: { estado: guardada.estado },
+      origen,
+    });
+
+    return guardada;
   }
 
   private aplicarCambioEstado(

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import { fetchMapaCalor } from '../api/admin';
 import type { SectorMapaCalor } from '../api/admin';
-import { EmptyState } from '../components/ui';
+
 
 export default function MapaCalor() {
   const navigate = useNavigate();
