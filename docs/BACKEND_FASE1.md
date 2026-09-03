@@ -109,6 +109,7 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
 | `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
 | `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
+| `GET` | `/api/operadores` | Administradores activos para el modal de asignación (**HU-08**, roles `admin`/`operador`) |
 
 > **Movido a `apps/backend-admin` (2026-09-01):** `PATCH /api/solicitudes-retiro/{id}` (cambiar
 > estado/operador/fecha/razón) vive ahora en `PATCH /api/admin/solicitudes/{id}`, puerto 3001.
@@ -134,6 +135,7 @@ UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (propias, o municipal sin filtro) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
 | `PATCH admin/solicitudes/{id}` (en `apps/backend-admin`, :3001) | Rol `admin` u `operador` |
+| `GET /operadores` | Rol `admin` u `operador` |
 
 En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
 
@@ -247,7 +249,7 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
 | ~~Control de acceso por roles (HU-13)~~ | ✅ Hecho | `auth/`: guards, `@Roles`, auth dev Bearer UUID |
 | Endurecer máquina de estados | Pendiente | Hoy reversible para pruebas; reponer con flag/permiso |
-| `GET /api/operadores` | Javier (HU-08) | Listar administradores activos para modal de asignación |
+| ~~`GET /api/operadores`~~ | ✅ Hecho | HU-08 — `OperadoresModule` lista administradores activos |
 | PR merge HU-13 a `develop` | Javier | Rama `2026-08-31-javier-hu13-control-acceso` |
 
 ---

@@ -1,7 +1,7 @@
 # Frontend Fase 1 — Resumen de implementación
 
 > **Integrado en:** `develop` (rama de trabajo `mvp` + sprint 2)
-> **Última actualización:** 2026-08-31
+> **Última actualización:** 2026-09-03
 > **Equipo:** COM Tech — Feria de Software 2026
 
 Documento de hito que resume la implementación del frontend (PWA ciudadana y panel de administración) y
@@ -230,11 +230,14 @@ cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifi
 ## Panel Administrativo y Asignación (EP-03 / Sprint 2)
 
 ### 1. Asignación y Programación de Retiros (HU-08)
-Implementado mediante el componente interactivo `AsignarRetiroModal.tsx` integrado en el detalle de cada solicitud en `AdminSolicitudes.tsx`:
+Implementado en `apps/admin-web` (`AsignarRetiroModal.tsx` + detalle en `Solicitudes.tsx`):
 - **Selección de fecha:** Selector de fecha de retiro programada.
-- **Franjas horarias:** Selección rápida entre turnos *Mañana (09:00 - 13:00)*, *Tarde (14:00 - 18:00)* o *Personalizada* con selector manual de hora.
-- **Operador asignado:** Selector dinámico de operadores municipales en servicio.
-- **Persistencia:** Al confirmar, se invoca `actualizarSolicitud()` actualizando `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada` en formato ISO.
+- **Franjas horarias:** Selección rápida entre turnos *Mañana*, *Tarde*, *Noche* o *Personalizada*.
+- **Operador asignado:** Select en el modal. **Hoy usa `OPERADORES_DEMO` hardcodeado**; el backend
+  ciudadano ya expone `GET /api/operadores` (HU-08) en el puerto 3000. Cablear el panel a ese
+  listado (o exponer el mismo en `backend-admin` :3001) queda como PR aparte de frontend admin.
+- **Persistencia:** Al confirmar, `actualizarSolicitud()` hace `PATCH /api/admin/solicitudes/{id}`
+  con `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada` (ISO) contra `backend-admin`.
 
 ### 2. Trazabilidad y Logs de Auditoría (HU-13)
 Pantalla `/admin/auditoria` (`AdminAuditoria.tsx`) accesible desde la barra superior de navegación del panel administrativo:
@@ -339,7 +342,7 @@ los endpoints correspondientes.
 | EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
 | EP-04 Circular Credits | Saldo + historial en perfil |
 | EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, modal de asignación HU-08, auditoría HU-13, mapa de calor con **Leaflet** HU-07). Falta panel funcionario completo, reportes |
-| Programación con operadores | ✅ Hecho: Modal `AsignarRetiroModal` con fecha, franja y operador asignado (HU-08) |
+| Programación con operadores | ✅ UI hecha (`AsignarRetiroModal`). Backend: `GET /api/operadores` listo en :3000. **Pendiente:** dejar de usar `OPERADORES_DEMO` en el panel (PR admin-web) |
 | Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
 | Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
 | Proteger el panel admin | ⛔ Sin gate de sesión en `apps/admin-web` (deuda declarada, migración 2026-09-01). Falta login ClaveÚnica propio + guard real |

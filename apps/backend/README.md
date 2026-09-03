@@ -85,6 +85,7 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
+| `GET` | `/api/operadores` | Listar administradores activos para asignar retiros (**HU-08**, roles `admin`/`operador`) |
 
 Estados de una solicitud (`EstadoSolicitudRetiro`):
 `pendiente` · `asignada` · `en_proceso` · `completada` · `cancelada`
@@ -115,6 +116,7 @@ ciudadana y el perfil municipal es una extensión sobre ella.
 | `GET /health`, `GET /residuos/catalogo` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
+| `GET /operadores` | Rol `admin` u `operador` |
 
 > **`PATCH solicitudes-retiro/:id` (cambiar estado, `admin`/`operador`) se movió a
 > `apps/backend-admin`** (`PATCH /api/admin/solicitudes/:id`, puerto 3001) en la migración de
@@ -138,6 +140,7 @@ src/
 │   └── migrations/              # Migraciones versionadas, en orden de timestamp — único dueño del esquema
 ├── residuos/                    # Catálogo de residuos (entidad en @arca/core)
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en @arca/core)
+├── operadores/                  # Listado de administradores activos (HU-08)
 └── users/                       # UsersService/Controller/Module — entidades en @arca/core;
                                     provee PERFIL_ACCESO_RESOLVER para AuthModule
 ```
