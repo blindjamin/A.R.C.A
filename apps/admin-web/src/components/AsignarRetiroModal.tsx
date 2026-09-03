@@ -3,13 +3,13 @@ import type { EstadoSolicitud, SolicitudRetiro } from '../api/admin';
 
 type FranjaHoraria = 'manana' | 'tarde' | 'noche' | 'personalizada';
 
-type OperadorDemo = {
+export type OperadorDemo = {
   id: string;
   nombre: string;
   turno: string;
 };
 
-const OPERADORES_DEMO: OperadorDemo[] = [
+export const OPERADORES_DEMO: OperadorDemo[] = [
   { id: '00000000-0000-4000-8000-0000000000A4', nombre: 'Carlos Rojas', turno: 'Mañana' },
   { id: '00000000-0000-4000-8000-0000000000A5', nombre: 'María Silva', turno: 'Tarde' },
   { id: '00000000-0000-4000-8000-0000000000A6', nombre: 'Tomás Ortega', turno: 'Noche' },

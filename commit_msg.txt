@@ -1,0 +1,8 @@
+fix(admin): dropdown de operadores en cambiar estado y arreglar auditoria
+
+Se reutilizó la lista de operadores de AsignarRetiroModal en Solicitudes.tsx,
+y se recuperó el merge que ocultaba el botón de Auditoría a los operadores.
+
+IA: agente
+HU: ninguna
+Revisor: pendiente
