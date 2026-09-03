@@ -97,7 +97,18 @@ Hasta que Benjamín integre ClaveÚnica/JWT, las rutas protegidas exigen:
 Authorization: Bearer <uuid-usuario-ciudadano>
 ```
 
-UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
+UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`,
+doble rol administrador `…0003`.
+
+Los tres se usan como `Authorization: Bearer <uuid>` mientras no exista el JWT. Van los ids de
+**`usuarios_ciudadanos`**, no los de `usuarios_administradores`: la identidad es siempre la
+ciudadana y el perfil municipal es una extensión sobre ella.
+
+| UUID | Perfil | Alcance |
+|---|---|---|
+| `…0001` | Solo ciudadano | Sus propias solicitudes |
+| `…0002` | Ciudadano + operador (Camila) | Panel municipal, **sin** acceso a la auditoría |
+| `…0003` | Ciudadano + admin (Carlos) | Panel municipal **y** registro de auditoría |
 
 | Ruta | Quién puede |
 |---|---|
@@ -149,6 +160,27 @@ siempre en una migración nueva.
 | `1782163400000` | `create-solicitudes-retiro` — solicitudes de retiro |
 | `1782163500000` | `seed-operador-demo` — operador municipal de demo |
 | `1782163600000` | `replace-catalogo-precios-reales` — catálogo con precios reales |
+| `1782163700000` | `create-auditoria` — registro auditable de acciones (HU-14) |
+| `1782163800000` | `seed-admin-demo` — funcionario con rol `admin` (Carlos Álvarez) |
+
+### Se escriben a mano — no usar `migration:generate`
+
+El comando existe en TypeORM y **no hay que usarlo en este proyecto**. Genera el SQL comparando
+las entidades contra la base, pero con *sus* convenciones: llaves foráneas con nombres
+autogenerados (`FK_256b2c7703037151828570ad6f5` en vez de `fk_solicitudes_operador`), timestamps
+con precisión de microsegundos, índices renombrados.
+
+Como las migraciones de acá están escritas a mano con nombres legibles, TypeORM lee esas
+diferencias de estilo como cambios pendientes y propone **reescribir el esquema completo**: no
+solo la tabla nueva, sino las llaves foráneas y los timestamps de todas las tablas existentes.
+
+No es que algo esté mal —la base funciona y las entidades mapean bien—, pero aplicar esa
+migración sin leerla rompe el esquema. Si se necesita una tabla o columna nueva, se escribe la
+migración a mano siguiendo el estilo de las anteriores.
+
+> `migration:generate` sí sirve como **verificación**: si se genera y el archivo resultante no
+> menciona la tabla en la que estás trabajando, esa entidad calza con la base. Hay que borrar el
+> archivo generado después, nunca aplicarlo.
 
 ---
 

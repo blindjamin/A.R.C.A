@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
+import SelectorPerfilDev from './SelectorPerfilDev';
 
 const NAV = [
   { to: '/', label: 'Solicitudes', icon: '📋', end: true },
@@ -36,6 +37,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
+        <div className="mt-auto">
+          <SelectorPerfilDev />
+        </div>
       </aside>
       <main className="min-w-0 flex-1 px-6 py-6">{children}</main>
     </div>

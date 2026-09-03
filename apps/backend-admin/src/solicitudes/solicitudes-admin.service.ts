@@ -6,10 +6,33 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import {
+  AccionAuditoria,
+  AuditoriaService,
+  type AuthUser,
   EstadoSolicitudRetiro,
+  type OrigenPeticion,
   SolicitudRetiro,
+  TipoActorAuditoria,
   UsuarioAdministrador,
 } from '@arca/core';
+
+/**
+ * Campos de la solicitud que se auditan cuando cambian.
+ *
+ * La lista es explícita a propósito: si mañana se agrega una columna con datos
+ * personales del vecino, no entra sola al registro de auditoría. Cualquier
+ * campo nuevo se suma acá de forma deliberada.
+ */
+const CAMPOS_AUDITADOS = [
+  'estado',
+  'operadorAsignadoId',
+  'fechaProgramada',
+] as const;
+
+type CampoAuditado = (typeof CAMPOS_AUDITADOS)[number];
+
+/** Fotografía de los campos auditados, para comparar antes y después. */
+type Fotografia = Record<CampoAuditado, unknown>;
 import { FilterSolicitudesAdminDto } from './dto/filter-solicitudes-admin.dto';
 import { UpdateSolicitudAdminDto } from './dto/update-solicitud-admin.dto';
 
@@ -26,6 +49,7 @@ export class SolicitudesAdminService {
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
     @InjectRepository(UsuarioAdministrador)
     private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   findAll(filtros: FilterSolicitudesAdminDto = {}): Promise<SolicitudRetiro[]> {
@@ -62,8 +86,11 @@ export class SolicitudesAdminService {
   async update(
     id: number,
     dto: UpdateSolicitudAdminDto,
+    user?: AuthUser,
+    origen?: OrigenPeticion,
   ): Promise<SolicitudRetiro> {
     const solicitud = await this.findOne(id);
+    const antes = this.fotografiar(solicitud);
 
     if (dto.operadorAsignadoId !== undefined) {
       await this.validarOperador(dto.operadorAsignadoId);
@@ -82,7 +109,79 @@ export class SolicitudesAdminService {
       this.aplicarCambioEstado(solicitud, dto.estado);
     }
 
-    return this.solicitudRetiroRepository.save(solicitud);
+    const guardada = await this.solicitudRetiroRepository.save(solicitud);
+
+    // La fotografía posterior sale de una lectura fresca, no del objeto que
+    // devuelve `save`. Cuando `findOne` trae cargada la relación
+    // `operadorAsignado`, TypeORM reconstruye la columna FK a partir de esa
+    // relación después de guardar: el UPDATE escribe el operador nuevo en la
+    // base, pero la entidad en memoria vuelve a mostrar el anterior. Auditar
+    // ese objeto haría que las asignaciones de operador no quedaran
+    // registradas — en silencio, porque la operación responde 200.
+    //
+    // Además es lo correcto de fondo: la auditoría debe registrar lo que quedó
+    // persistido, no lo que la aplicación creyó asignar.
+    const persistida = await this.solicitudRetiroRepository.findOne({
+      where: { id: guardada.id },
+    });
+
+    const despues = this.fotografiar(persistida ?? guardada);
+    const cambios = this.diferencias(antes, despues);
+
+    // Si el PATCH no cambió ninguno de los campos auditados no se registra
+    // nada: una fila de auditoría que dice "no pasó nada" solo agrega ruido a
+    // la pantalla que después alguien tiene que leer.
+    if (Object.keys(cambios.nuevos).length > 0) {
+      await this.auditoriaService.registrar({
+        tipoActor: TipoActorAuditoria.ADMINISTRADOR,
+        actor: user,
+        entidad: 'solicitudes_retiro',
+        entidadId: guardada.id,
+        accion: AccionAuditoria.UPDATE,
+        datosAnteriores: cambios.anteriores,
+        datosNuevos: cambios.nuevos,
+        origen,
+      });
+    }
+
+    return guardada;
+  }
+
+  /** Toma los campos auditados de la solicitud, para comparar antes y después. */
+  private fotografiar(solicitud: SolicitudRetiro): Fotografia {
+    return {
+      estado: solicitud.estado,
+      operadorAsignadoId: solicitud.operadorAsignadoId,
+      fechaProgramada: solicitud.fechaProgramada?.toISOString() ?? null,
+    };
+  }
+
+  /**
+   * Devuelve solo los campos que efectivamente cambiaron.
+   *
+   * Es la regla de minimización aplicada: la auditoría guarda el campo
+   * modificado, nunca la fila completa. Así los datos personales del vecino
+   * —descripción, coordenadas— nunca se copian a un registro que después no se
+   * puede borrar.
+   */
+  private diferencias(
+    antes: Fotografia,
+    despues: Fotografia,
+  ): {
+    anteriores: Record<string, unknown>;
+    nuevos: Record<string, unknown>;
+  } {
+    const anteriores: Record<string, unknown> = {};
+    const nuevos: Record<string, unknown> = {};
+
+    for (const campo of CAMPOS_AUDITADOS) {
+      if (antes[campo] !== despues[campo]) {
+        anteriores[campo] = antes[campo];
+        nuevos[campo] = despues[campo];
+      }
+    }
+
+    return { anteriores, nuevos };
   }
 
   private aplicarCambioEstado(

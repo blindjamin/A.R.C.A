@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ResiduosModule } from '../residuos/residuos.module';
 import {
+  AuditoriaModule,
   AuthModule,
   SolicitudRetiro,
   UsuarioAdministrador,
@@ -19,6 +20,7 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
     ]),
     ResiduosModule,
     AuthModule,
+    AuditoriaModule,
   ],
   controllers: [SolicitudesRetiroController],
   providers: [SolicitudesRetiroService],

@@ -79,17 +79,48 @@ export const formatearPrecio = (clp: number): string =>
 // Header requerido cuando se accede vía tunel ngrok (free tier): sin el, ngrok
 // intercepta el request y devuelve una pagina HTML de advertencia en vez de
 // dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
-// DEUDA DECLARADA — identidad de desarrollo del panel municipal.
+// DEUDA DECLARADA — identidades de desarrollo del panel municipal.
 // apps/admin-web todavía no tiene login propio: la pantalla de acceso con
 // ClaveÚnica vive en apps/frontend. Como el AuthGuard de @arca/core es global
 // (HU-13), sin este header toda llamada del panel responde 401.
 //
-// Es el UUID del ciudadano de doble rol que siembra la migración
-// seed-operador-demo, no el de usuarios_administradores: AuthService resuelve
-// el perfil a partir de la identidad ciudadana y de ahí deduce el rol.
+// Todo este bloque —las identidades, el selector y su almacenamiento— se borra
+// cuando HU-12 cierre el callback y el panel tenga su propia sesión.
 //
-// Se elimina cuando HU-12 cierre el callback y el panel tenga su propia sesión.
-const IDENTIDAD_DEV_PANEL = '00000000-0000-4000-8000-000000000002';
+// Van los UUID de `usuarios_ciudadanos`, no los de `usuarios_administradores`:
+// AuthService resuelve el perfil a partir de la identidad ciudadana y de ahí
+// deduce el rol municipal.
+//
+// Hay dos porque el panel expone áreas con permisos distintos: las solicitudes
+// las opera cualquier funcionario, pero el registro de auditoría es solo para
+// rol `admin` (HU-14). Poder alternar deja ver esa diferencia desde la
+// interfaz, que es justamente lo que HU-13 tiene que demostrar.
+export const IDENTIDADES_DEV = {
+  admin: {
+    id: '00000000-0000-4000-8000-000000000003',
+    nombre: 'Carlos Álvarez',
+    rol: 'Administrador',
+  },
+  operador: {
+    id: '00000000-0000-4000-8000-000000000002',
+    nombre: 'Camila Operadora',
+    rol: 'Operador',
+  },
+} as const;
+
+export type PerfilDev = keyof typeof IDENTIDADES_DEV;
+
+const STORAGE_KEY_PERFIL = 'arca.panel.perfilDev';
+
+export function perfilDevActual(): PerfilDev {
+  return localStorage.getItem(STORAGE_KEY_PERFIL) === 'operador'
+    ? 'operador'
+    : 'admin';
+}
+
+export function cambiarPerfilDev(perfil: PerfilDev): void {
+  localStorage.setItem(STORAGE_KEY_PERFIL, perfil);
+}
 
 function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return fetch(path, {
@@ -97,7 +128,7 @@ function apiFetch(path: string, init?: RequestInit): Promise<Response> {
     headers: {
       ...init?.headers,
       'ngrok-skip-browser-warning': 'true',
-      Authorization: `Bearer ${IDENTIDAD_DEV_PANEL}`,
+      Authorization: `Bearer ${IDENTIDADES_DEV[perfilDevActual()].id}`,
     },
   });
 }
@@ -156,8 +187,10 @@ export function actualizarSolicitud(
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
-// --- Logs de Auditoría (Sprint 5 mock API) ----------------------------------
+// --- Registro de auditoría (HU-14) ------------------------------------------
 
+// El shape lo definió esta pantalla antes de que existiera el backend; el
+// endpoint se adaptó a ella, así que la interfaz no cambió al dejar el mock.
 export interface AuditoriaLog {
   id: number;
   usuario: string;
@@ -168,104 +201,19 @@ export interface AuditoriaLog {
   createdAt: string;
 }
 
-const MOCK_AUDITORIA: AuditoriaLog[] = [
-  {
-    id: 1,
-    usuario: 'Benjamín Paicil',
-    rol: 'Administrador',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '192.168.1.100',
-    createdAt: '2026-08-29T10:15:30Z',
-  },
-  {
-    id: 2,
-    usuario: 'Carmen González',
-    rol: 'Vecino',
-    accion: 'Crear solicitud',
-    objetoAfectado: 'Solicitud #1024',
-    ip: '190.162.45.12',
-    createdAt: '2026-08-29T11:02:15Z',
-  },
-  {
-    id: 3,
-    usuario: 'Carlos Álvarez',
-    rol: 'Administrador',
-    accion: 'Asignar operador',
-    objetoAfectado: 'Solicitud #1024 (Operador #3)',
-    ip: '192.168.1.115',
-    createdAt: '2026-08-29T11:20:00Z',
-  },
-  {
-    id: 4,
-    usuario: 'Maximiliano López',
-    rol: 'Operador',
-    accion: 'Cambio estado a: en_proceso',
-    objetoAfectado: 'Solicitud #1024',
-    ip: '200.12.87.54',
-    createdAt: '2026-08-29T12:05:40Z',
-  },
-  {
-    id: 5,
-    usuario: 'Carmen González',
-    rol: 'Vecino',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '190.162.45.12',
-    createdAt: '2026-08-29T13:45:10Z',
-  },
-  {
-    id: 6,
-    usuario: 'Ana Araya',
-    rol: 'Administrador',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '192.168.1.102',
-    createdAt: '2026-08-29T14:10:00Z',
-  },
-  {
-    id: 7,
-    usuario: 'Ana Araya',
-    rol: 'Administrador',
-    accion: 'Actualizar catálogo',
-    objetoAfectado: 'Residuo ID #5 (Refrigerador)',
-    ip: '192.168.1.102',
-    createdAt: '2026-08-29T14:15:33Z',
-  },
-  {
-    id: 8,
-    usuario: 'Miguel Segovia',
-    rol: 'Vecino',
-    accion: 'Cancelar solicitud',
-    objetoAfectado: 'Solicitud #1022',
-    ip: '186.105.74.22',
-    createdAt: '2026-08-29T15:30:12Z',
-  },
-  {
-    id: 9,
-    usuario: 'Javier Figueroa',
-    rol: 'Administrador',
-    accion: 'Inicio de sesión',
-    objetoAfectado: 'Sistema (Auth)',
-    ip: '192.168.1.108',
-    createdAt: '2026-08-29T15:58:00Z',
-  },
-  {
-    id: 10,
-    usuario: 'Javier Figueroa',
-    rol: 'Administrador',
-    accion: 'Exportar logs de auditoría',
-    objetoAfectado: 'Logs Excel/PDF (Rango: 7 días)',
-    ip: '192.168.1.108',
-    createdAt: '2026-08-29T16:05:44Z',
-  },
-];
+/**
+ * Registro auditable de acciones críticas.
+ *
+ * Requiere rol `admin`: a diferencia del resto del panel, un operador recibe
+ * 403 acá. Es información de control interno sobre lo que hace cada
+ * funcionario, no información operativa.
+ *
+ * Consultar este registro queda a su vez auditado, con acción ACCESO.
+ */
+export function fetchAuditoriaLogs(limite?: number): Promise<AuditoriaLog[]> {
+  const qs = limite ? `?limite=${limite}` : '';
 
-export function fetchAuditoriaLogs(): Promise<AuditoriaLog[]> {
-  // Simulamos un retraso de red de 300ms para realismo.
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve([...MOCK_AUDITORIA].sort((a, b) => b.id - a.id));
-    }, 300);
-  });
+  return apiFetch(`${API_URL}/admin/auditoria${qs}`).then((r) =>
+    handle<AuditoriaLog[]>(r),
+  );
 }

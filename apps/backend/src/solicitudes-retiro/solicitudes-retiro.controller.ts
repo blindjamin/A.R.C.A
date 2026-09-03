@@ -7,8 +7,22 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from '@nestjs/common';
-import { CurrentUser, type AuthUser } from '@arca/core';
+import type { Request } from 'express';
+import { CurrentUser, type AuthUser, type OrigenPeticion } from '@arca/core';
+
+/**
+ * Datos de la petición que acompañan a las acciones auditadas (HU-14).
+ *
+ * Se leen acá y se pasan al service: la lógica de negocio no depende de
+ * Express, y así las acciones que no vienen de una petición HTTP simplemente
+ * no los envían.
+ */
+const origenDe = (req: Request): OrigenPeticion => ({
+  ip: req.ip ?? null,
+  userAgent: req.headers['user-agent'] ?? null,
+});
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
@@ -21,8 +35,12 @@ export class SolicitudesRetiroController {
   ) {}
 
   @Post()
-  create(@Body() dto: CreateSolicitudRetiroDto, @CurrentUser() user: AuthUser) {
-    return this.solicitudesRetiroService.create(dto, user);
+  create(
+    @Body() dto: CreateSolicitudRetiroDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
+    return this.solicitudesRetiroService.create(dto, user, origenDe(req));
   }
 
   @Get()
@@ -51,7 +69,13 @@ export class SolicitudesRetiroController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CancelarSolicitudRetiroDto,
     @CurrentUser() user: AuthUser,
+    @Req() req: Request,
   ) {
-    return this.solicitudesRetiroService.cancelarPorCiudadano(id, dto, user);
+    return this.solicitudesRetiroService.cancelarPorCiudadano(
+      id,
+      dto,
+      user,
+      origenDe(req),
+    );
   }
 }

@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { IdentityModule } from './identity/identity.module';
 import { SolicitudesAdminModule } from './solicitudes/solicitudes-admin.module';
+import { AuditoriaAdminModule } from './auditoria/auditoria-admin.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SolicitudesAdminModule } from './solicitudes/solicitudes-admin.module';
     AuthModule,
     HealthModule,
     SolicitudesAdminModule,
+    AuditoriaAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
