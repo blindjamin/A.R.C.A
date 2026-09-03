@@ -14,6 +14,7 @@ import {
 } from '../components/ui';
 import AsignarRetiroModal, {
   type AsignacionRetiroPayload,
+  OPERADORES_DEMO
 } from '../components/AsignarRetiroModal';
 
 const ESTADOS: EstadoSolicitud[] = [
@@ -276,12 +277,18 @@ function DetalleSolicitud({
         <h2 className="font-bold">Cambiar estado</h2>
 
         <div className="space-y-2">
-          <input
+          <select
             value={operadorId}
             onChange={(e) => setOperadorId(e.target.value)}
-            placeholder="ID del operador (UUID) — requerido para asignar"
-            className="w-full rounded-md border border-line px-3 py-2 text-sm"
-          />
+            className="w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-slate-800"
+          >
+            <option value="">Selecciona un operador (requerido para asignar)</option>
+            {OPERADORES_DEMO.map((op) => (
+              <option key={op.id} value={op.id}>
+                {op.nombre} - {op.turno}
+              </option>
+            ))}
+          </select>
           <input
             type="datetime-local"
             value={fechaProgramada}
