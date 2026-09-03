@@ -1,9 +1,10 @@
-feat(admin): agregar mapa de calor por sectores (HU-07)
+fix(admin): corregir asignación de operadores (UUIDs reales)
 
-Implementación del endpoint de agregación en backend-admin y
-pantalla del mapa en admin-web con renderizado de CircleMarkers
-por sector.
+Se creó una migración para sembrar en la BD los 4 operadores de prueba
+que el panel muestra en el dropdown, de modo que sus IDs sean UUIDs válidos.
+El frontend fue actualizado para usar estos UUIDs al hacer el PATCH,
+evitando el error 400 del backend.
 
 IA: agente
-HU: HU-07
-Revisor: miguel
+HU: ninguna
+Revisor: pendiente

@@ -10,10 +10,10 @@ type OperadorDemo = {
 };
 
 const OPERADORES_DEMO: OperadorDemo[] = [
-  { id: 'op-01', nombre: 'Carlos Rojas', turno: 'Mañana' },
-  { id: 'op-02', nombre: 'María Silva', turno: 'Tarde' },
-  { id: 'op-03', nombre: 'Tomás Ortega', turno: 'Noche' },
-  { id: 'op-04', nombre: 'Valentina Ruiz', turno: 'Administración' },
+  { id: '00000000-0000-4000-8000-0000000000A4', nombre: 'Carlos Rojas', turno: 'Mañana' },
+  { id: '00000000-0000-4000-8000-0000000000A5', nombre: 'María Silva', turno: 'Tarde' },
+  { id: '00000000-0000-4000-8000-0000000000A6', nombre: 'Tomás Ortega', turno: 'Noche' },
+  { id: '00000000-0000-4000-8000-0000000000A7', nombre: 'Valentina Ruiz', turno: 'Administración' },
 ];
 
 const FRANJAS: Array<{ value: FranjaHoraria; label: string; hora: string }> = [
