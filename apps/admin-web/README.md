@@ -36,6 +36,7 @@ src/
 │   └── ui/               ← copia de 6 átomos de apps/frontend — ver deuda abajo
 └── pages/
     ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx
+    ├── MapaCalor.tsx     ← Mapa de calor por sectores (HU-07)
     └── Auditoria.tsx     ← ex AdminAuditoria.tsx (datos mock, Sprint 5)
 ```
 

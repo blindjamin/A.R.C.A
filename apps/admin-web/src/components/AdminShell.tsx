@@ -4,6 +4,7 @@ import SelectorPerfilDev from './SelectorPerfilDev';
 
 const NAV = [
   { to: '/', label: 'Solicitudes', icon: '📋', end: true },
+  { to: '/mapa-calor', label: 'Mapa de calor', icon: '🗺️', end: false },
   { to: '/auditoria', label: 'Auditoría', icon: '🛡️', end: false },
 ];
 

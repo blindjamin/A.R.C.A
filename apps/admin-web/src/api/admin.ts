@@ -187,6 +187,26 @@ export function actualizarSolicitud(
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
+// --- Mapa de calor ----------------------------------------------------------
+
+export interface SectorMapaCalor {
+  sector: string;
+  lat: number;
+  lng: number;
+  total: number;
+  pendientes: number;
+  intensidad: 'alta' | 'media' | 'baja';
+}
+
+export function fetchMapaCalor(
+  metrica: 'volumen' | 'pendientes' = 'volumen',
+): Promise<SectorMapaCalor[]> {
+  const params = new URLSearchParams({ metrica });
+  return apiFetch(`${API_URL}/admin/mapa-calor?${params.toString()}`).then((r) =>
+    handle<SectorMapaCalor[]>(r),
+  );
+}
+
 // --- Registro de auditoría (HU-14) ------------------------------------------
 
 // El shape lo definió esta pantalla antes de que existiera el backend; el

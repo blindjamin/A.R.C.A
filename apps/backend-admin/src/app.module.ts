@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { IdentityModule } from './identity/identity.module';
 import { SolicitudesAdminModule } from './solicitudes/solicitudes-admin.module';
 import { AuditoriaAdminModule } from './auditoria/auditoria-admin.module';
+import { MapaCalorModule } from './mapa-calor/mapa-calor.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AuditoriaAdminModule } from './auditoria/auditoria-admin.module';
     HealthModule,
     SolicitudesAdminModule,
     AuditoriaAdminModule,
+    MapaCalorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
