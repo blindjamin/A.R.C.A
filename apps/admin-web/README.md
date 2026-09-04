@@ -40,6 +40,15 @@ src/
     └── Auditoria.tsx     ← ex AdminAuditoria.tsx (datos mock, Sprint 5)
 ```
 
+## Deuda declarada: operadores del modal (HU-08)
+
+`AsignarRetiroModal` y el select de “Cambiar estado” en `Solicitudes.tsx` usan
+`OPERADORES_DEMO` (UUIDs fijos). El backend ciudadano ya expone
+`GET /api/operadores` (roles `admin`/`operador`, puerto **3000**). Este panel solo proxea a
+`backend-admin` (**3001**), así que cablear el listado real implica o bien llamar al API
+ciudadano, o bien replicar/exponer el listado en `backend-admin`. **PR aparte** (frontend
+admin / acuerdo de equipo).
+
 ## Deuda declarada: UI Kit duplicado
 
 `src/components/ui/` es una **copia**, no la fuente de verdad — esa sigue siendo
