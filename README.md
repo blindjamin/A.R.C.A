@@ -46,7 +46,7 @@ La plataforma prioriza la **economía circular**: antes de que un objeto sea ret
 > Se listan en **orden de roadmap**, no numérico.
 
 ### EP-01 — Fundación y Seguridad
-Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, administrador, operador, patrocinador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
+Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, operador y administrador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
 
 ### EP-02 — Interfaz Ciudadana
 Completa la experiencia del vecino. La clasificación por IA se ejecuta localmente en el navegador con **TensorFlow.js**, funcionando como **apoyo y no como decisión final**: el usuario siempre confirma o corrige la categoría sugerida, y puede clasificar manualmente desde el catálogo cuando la IA no detecta el residuo. Suma el seguimiento de la solicitud, las notificaciones de cambio de estado, el feedback post-retiro y una FAQ por categoría.
