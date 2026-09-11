@@ -73,6 +73,7 @@ A.R.C.A/
 | `1782163400000-create-solicitudes-retiro` | `solicitudes_retiro` + usuario dev de prueba |
 | `1782163500000-seed-operador-demo` | Usuario demo **doble rol** (ciudadano `…0002` + operador `…00A2`) |
 | `1782163600000-replace-catalogo-precios-reales` | Columna `precio` (CLP) en `residuos_catalogo`; catálogo reemplazado por los **26 ítems reales** de `costo retiro Voluminosos.xlsx` (Municipalidad de Santo Domingo). Borra las `solicitudes_retiro` existentes (datos de prueba dependientes del catálogo viejo por FK). |
+| `1782164000000-remove-rol-patrocinador` | Quita `patrocinador` de `usuarios_administradores.rol`: quedan `admin` y `operador`. Se detiene si alguna fila todavía usa ese valor. |
 
 **Comando:** `npm run migration:run` (desde `apps/backend/`)
 

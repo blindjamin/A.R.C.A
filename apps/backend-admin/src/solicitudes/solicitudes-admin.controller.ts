@@ -30,11 +30,7 @@ import { SolicitudesAdminService } from './solicitudes-admin.service';
 
 @Controller('admin/solicitudes')
 @UseGuards(RolesGuard)
-@Roles(
-  RolAdministrador.ADMIN,
-  RolAdministrador.OPERADOR,
-  RolAdministrador.PATROCINADOR,
-)
+@Roles(RolAdministrador.ADMIN, RolAdministrador.OPERADOR)
 export class SolicitudesAdminController {
   constructor(
     private readonly solicitudesAdminService: SolicitudesAdminService,

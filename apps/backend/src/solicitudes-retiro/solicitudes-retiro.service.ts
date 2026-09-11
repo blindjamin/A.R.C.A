@@ -287,11 +287,9 @@ export class SolicitudesRetiroService {
       return false;
     }
 
-    return [
-      RolAdministrador.ADMIN,
-      RolAdministrador.OPERADOR,
-      RolAdministrador.PATROCINADOR,
-    ].includes(user.rol);
+    return [RolAdministrador.ADMIN, RolAdministrador.OPERADOR].includes(
+      user.rol,
+    );
   }
 
   private verificarAccesoLectura(

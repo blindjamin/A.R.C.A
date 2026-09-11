@@ -138,7 +138,7 @@ Todo el dominio está detrás de un WAF municipal. Se coordina con el municipio 
 Las fotos se guardan como **archivos en directorio protegido** del servidor (fuera del directorio público) y se sirven vía API con autenticación. En la BD solo se almacena la ruta relativa. Esto protege datos personales y de ubicación.
 
 ### 5.8 ClaveÚnica como único método de autenticación
-No existe registro con usuario/contraseña local. Toda autenticación pasa por ClaveÚnica OAuth2. Los roles (vecino, administrador, operador, patrocinador) se gestionan en la base de datos.
+No existe registro con usuario/contraseña local. Toda autenticación pasa por ClaveÚnica OAuth2. Los roles (vecino, operador y administrador) se gestionan en la base de datos.
 
 ### 5.9 Dominio propio
 El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo anual está reflejado en la tabla de costos de la arquitectura convertido a valor mensual aproximado.
