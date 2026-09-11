@@ -66,7 +66,7 @@ Table usuarios_administradores {
   apellido varchar(255) [not null]
   email_institucional varchar(255) [unique, not null]
   telefono_institucional varchar(20)
-  rol enum('admin', 'operador', 'patrocinador') [not null]
+  rol enum('admin', 'operador') [not null]
   cargo varchar(150)
   fecha_ingreso timestamp [not null]
   activo boolean [default: true, note: "false = desvinculado, conserva historial para auditoría"]
