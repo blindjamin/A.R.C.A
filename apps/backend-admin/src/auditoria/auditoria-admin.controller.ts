@@ -27,7 +27,7 @@ import {
  * Consulta del registro auditable (HU-14).
  *
  * **Solo rol `admin`**, a diferencia del resto del panel, que también admite
- * operador y patrocinador. La auditoría expone qué hizo cada funcionario: es
+ * `operador`. La auditoría expone qué hizo cada funcionario: es
  * información de control interno, no operativa, y el municipio definió que la
  * revise una jefatura.
  */

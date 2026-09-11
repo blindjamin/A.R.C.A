@@ -33,8 +33,7 @@ Copiar `.env.example` a `.env.local` — mismas credenciales de base de datos qu
 | `PATCH` | `/api/admin/solicitudes/:id` | Cambiar estado / asignar operador |
 | `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos. |
 
-Protegidos con `RolesGuard` de `@arca/core` (lectura: ADMIN/OPERADOR/PATROCINADOR; el PATCH:
-ADMIN/OPERADOR).
+Protegidos con `RolesGuard` de `@arca/core`: `ADMIN` y `OPERADOR`, tanto para lectura como para el PATCH.
 
 ## Por qué existe `src/identity/`
 
