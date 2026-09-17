@@ -109,6 +109,10 @@ export class SolicitudRetiro {
   @Column({ name: 'tomada_hasta', type: 'timestamp', nullable: true })
   tomadaHasta: Date | null;
 
+  /** Último lote en que se derivó a la empresa operadora (`derivacion-excel`). */
+  @Column({ name: 'lote_derivacion_id', type: 'int', nullable: true })
+  loteDerivacionId: number | null;
+
   @Column({ name: 'razon_rechazo', type: 'text', nullable: true })
   razonRechazo: string | null;
 
