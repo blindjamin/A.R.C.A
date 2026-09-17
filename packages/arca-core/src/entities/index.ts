@@ -17,6 +17,7 @@ export { UsuarioAdministrador } from './usuario-administrador.entity';
 export { SesionAdministrador } from './sesion-administrador.entity';
 export { ResiduoCatalogo } from './residuo-catalogo.entity';
 export { EstadoSolicitudRetiro } from './estado-solicitud-retiro.enum';
+export { EstadoPagoSolicitud } from './estado-pago-solicitud.enum';
 export { SolicitudRetiro } from './solicitud-retiro.entity';
 export { AccionAuditoria } from './accion-auditoria.enum';
 export { TipoActorAuditoria } from './tipo-actor-auditoria.enum';

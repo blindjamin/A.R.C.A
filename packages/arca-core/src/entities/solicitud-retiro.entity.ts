@@ -10,6 +10,7 @@ import {
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
 import { UsuarioAdministrador } from './usuario-administrador.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
+import { EstadoPagoSolicitud } from './estado-pago-solicitud.enum';
 import { EstadoSolicitudRetiro } from './estado-solicitud-retiro.enum';
 
 @Entity('solicitudes_retiro')
@@ -26,9 +27,24 @@ export class SolicitudRetiro {
   @Column({
     type: 'enum',
     enum: EstadoSolicitudRetiro,
-    default: EstadoSolicitudRetiro.PENDIENTE,
+    default: EstadoSolicitudRetiro.EN_REVISION,
   })
   estado: EstadoSolicitudRetiro;
+
+  @Column({
+    name: 'estado_pago',
+    type: 'enum',
+    enum: EstadoPagoSolicitud,
+    default: EstadoPagoSolicitud.NO_APLICA,
+  })
+  estadoPago: EstadoPagoSolicitud;
+
+  /**
+   * Monto en CLP congelado al aprobar. Si después cambia el precio del
+   * catálogo, la solicitud conserva lo que se le cobró al vecino.
+   */
+  @Column({ type: 'int', nullable: true })
+  monto: number | null;
 
   @Column({ type: 'text', nullable: true })
   descripcion: string | null;
@@ -62,19 +78,21 @@ export class SolicitudRetiro {
   @Column({ name: 'fecha_solicitud', type: 'timestamp' })
   fechaSolicitud: Date;
 
-  @Column({ name: 'fecha_programada', type: 'timestamp', nullable: true })
-  fechaProgramada: Date | null;
-
-  @Column({ name: 'fecha_completada', type: 'timestamp', nullable: true })
-  fechaCompletada: Date | null;
+  /** Última decisión de revisión: aprobar, pedir modificación o rechazar. */
+  @Column({ name: 'fecha_revision', type: 'timestamp', nullable: true })
+  fechaRevision: Date | null;
 
   @Column({
-    name: 'operador_asignado_id',
+    name: 'revisado_por_id',
     type: 'varchar',
     length: 36,
     nullable: true,
   })
-  operadorAsignadoId: string | null;
+  revisadoPorId: string | null;
+
+  /** Cuándo se registró el resultado del retiro (`retirada` o `no_realizada`). */
+  @Column({ name: 'fecha_cierre', type: 'timestamp', nullable: true })
+  fechaCierre: Date | null;
 
   @Column({ name: 'razon_rechazo', type: 'text', nullable: true })
   razonRechazo: string | null;
@@ -94,6 +112,6 @@ export class SolicitudRetiro {
   residuoCatalogo: ResiduoCatalogo;
 
   @ManyToOne(() => UsuarioAdministrador, { nullable: true })
-  @JoinColumn({ name: 'operador_asignado_id' })
-  operadorAsignado: UsuarioAdministrador | null;
+  @JoinColumn({ name: 'revisado_por_id' })
+  revisadoPor: UsuarioAdministrador | null;
 }
