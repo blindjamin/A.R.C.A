@@ -17,6 +17,17 @@ src/
                   propia de ningún backend — se comparte para no duplicarlo.
 ```
 
+> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
+> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
+> En este paquete (**PR 1**, revisa back ciudadano): `EstadoSolicitudRetiro` con los estados nuevos,
+> `EstadoPagoSolicitud` nuevo, `RolAdministrador` = `admin` · `funcionario`, columnas nuevas en
+> `SolicitudRetiro` y un módulo `src/solicitudes/` con las reglas de transición (`validarTransicion`,
+> `transicionesDisponibles`, `aplicarTransicion`). Ningún backend debe cambiar `estado` sin pasar por ellas.
+> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+
 ## Regla para tocar este paquete
 
 **Cambia solo por PR revisado por alguien de backend ciudadano** (Miguel o Javier) — es código

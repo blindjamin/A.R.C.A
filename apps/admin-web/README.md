@@ -42,6 +42,15 @@ src/
 
 ## Deuda declarada: operadores del modal (HU-08)
 
+> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
+> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> Esta deuda **deja de aplicar**: en el PR 3 se eliminan `AsignarRetiroModal`, `OPERADORES_DEMO` y el
+> selector de operador y fecha. La pantalla de Solicitudes mostrará solo las acciones que el backend
+> devuelve en `transicionesDisponibles`, y la identidad de demo «Operador» pasa a «Funcionario».
+> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+
 `AsignarRetiroModal` y el select de “Cambiar estado” en `Solicitudes.tsx` usan
 `OPERADORES_DEMO` (UUIDs fijos). El backend ciudadano ya expone
 `GET /api/operadores` (roles `admin`/`operador`, puerto **3000**). Este panel solo proxea a

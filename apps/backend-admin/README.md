@@ -35,6 +35,18 @@ Copiar `.env.example` a `.env.local` — mismas credenciales de base de datos qu
 
 Protegidos con `RolesGuard` de `@arca/core`: `ADMIN` y `OPERADOR`, tanto para lectura como para el PATCH.
 
+> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
+> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
+> En este backend (**PR 3**): rol `OPERADOR` → `FUNCIONARIO`; `PATCH /api/admin/solicitudes/:id` acepta
+> solo `{ estado }` y lo valida con el core (reabrir es solo de admin); `GET /api/admin/solicitudes/:id`
+> agrega `transicionesDisponibles`; «pendientes» del mapa de calor pasa a `en_revision`,
+> `requiere_modificacion`, `aprobada` y `derivada`. Módulos siguientes: revisión, derivación en Excel,
+> métricas y configuración.
+> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+
 ## Por qué existe `src/identity/`
 
 `RolesGuard` necesita que `request.user` ya esté resuelto por `AuthGuard`, y `AuthGuard`
