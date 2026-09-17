@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -7,14 +8,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import {
   AccionAuditoria,
+  type ActorCiclo,
+  aplicarTransicion,
   AuditoriaService,
   type AuthUser,
   EstadoSolicitudRetiro,
   type OrigenPeticion,
+  RolAdministrador,
   SolicitudRetiro,
   TipoActorAuditoria,
-  UsuarioAdministrador,
+  TransicionInvalidaError,
+  transicionesDisponibles,
 } from '@arca/core';
+import { FilterSolicitudesAdminDto } from './dto/filter-solicitudes-admin.dto';
+import { UpdateSolicitudAdminDto } from './dto/update-solicitud-admin.dto';
 
 /**
  * Campos de la solicitud que se auditan cuando cambian.
@@ -25,30 +32,36 @@ import {
  */
 const CAMPOS_AUDITADOS = [
   'estado',
-  'operadorAsignadoId',
-  'fechaProgramada',
+  'estadoPago',
+  'monto',
+  'revisadoPorId',
+  'fechaCierre',
 ] as const;
 
 type CampoAuditado = (typeof CAMPOS_AUDITADOS)[number];
 
 /** Fotografía de los campos auditados, para comparar antes y después. */
 type Fotografia = Record<CampoAuditado, unknown>;
-import { FilterSolicitudesAdminDto } from './dto/filter-solicitudes-admin.dto';
-import { UpdateSolicitudAdminDto } from './dto/update-solicitud-admin.dto';
+
+export type SolicitudDetalle = SolicitudRetiro & {
+  /** Estados a los que el usuario de la sesión puede mover la solicitud. */
+  transicionesDisponibles: EstadoSolicitudRetiro[];
+};
 
 /**
  * Vista admin de solicitudes: sin filtro por dueño (el equivalente en
  * apps/backend/src/solicitudes-retiro/solicitudes-retiro.service.ts sí filtra
  * por usuarioCiudadanoId salvo acceso municipal). Servicio propio y simple,
  * como pide la Fase 3 del plan — no comparte código con el ciudadano.
+ *
+ * Los cambios de estado pasan por las reglas de `@arca/core`
+ * (spec `ciclo-solicitud`): este service no decide qué transición es válida.
  */
 @Injectable()
 export class SolicitudesAdminService {
   constructor(
     @InjectRepository(SolicitudRetiro)
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
-    @InjectRepository(UsuarioAdministrador)
-    private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
     private readonly auditoriaService: AuditoriaService,
   ) {}
 
@@ -66,13 +79,18 @@ export class SolicitudesAdminService {
     });
   }
 
+  /**
+   * Sin la relación `revisadoPor` a propósito: este es el objeto que `update`
+   * guarda, y cuando una relación ManyToOne viene cargada TypeORM reescribe la
+   * columna FK con ella al guardar — el revisor nuevo quedaría pisado por el
+   * anterior.
+   */
   async findOne(id: number): Promise<SolicitudRetiro> {
     const solicitud = await this.solicitudRetiroRepository.findOne({
       where: { id },
       relations: {
         residuoCatalogo: true,
         usuarioCiudadano: true,
-        operadorAsignado: true,
       },
     });
 
@@ -83,44 +101,60 @@ export class SolicitudesAdminService {
     return solicitud;
   }
 
+  /** Detalle para el panel, con las acciones que la sesión puede ejecutar. */
+  async detalle(id: number, user: AuthUser): Promise<SolicitudDetalle> {
+    const solicitud = await this.solicitudRetiroRepository.findOne({
+      where: { id },
+      relations: {
+        residuoCatalogo: true,
+        usuarioCiudadano: true,
+        revisadoPor: true,
+      },
+    });
+
+    if (!solicitud) {
+      throw new NotFoundException(`Solicitud de retiro ${id} no encontrada`);
+    }
+
+    return {
+      ...solicitud,
+      transicionesDisponibles: transicionesDisponibles(solicitud.estado, {
+        actor: this.actorDe(user),
+        estadoPago: solicitud.estadoPago,
+      }),
+    };
+  }
+
   async update(
     id: number,
     dto: UpdateSolicitudAdminDto,
-    user?: AuthUser,
+    user: AuthUser,
     origen?: OrigenPeticion,
   ): Promise<SolicitudRetiro> {
     const solicitud = await this.findOne(id);
     const antes = this.fotografiar(solicitud);
 
-    if (dto.operadorAsignadoId !== undefined) {
-      await this.validarOperador(dto.operadorAsignadoId);
-      solicitud.operadorAsignadoId = dto.operadorAsignadoId;
-    }
-
-    if (dto.fechaProgramada !== undefined) {
-      solicitud.fechaProgramada = new Date(dto.fechaProgramada);
-    }
-
-    if (dto.razonRechazo !== undefined) {
-      solicitud.razonRechazo = dto.razonRechazo;
-    }
-
-    if (dto.estado !== undefined) {
-      this.aplicarCambioEstado(solicitud, dto.estado);
+    try {
+      aplicarTransicion(solicitud, dto.estado, {
+        actor: this.actorDe(user),
+        administradorId: user.administradorId,
+        precioCatalogo: solicitud.residuoCatalogo?.precio,
+        ahora: new Date(),
+      });
+    } catch (error) {
+      if (error instanceof TransicionInvalidaError) {
+        throw error.motivo === 'actor'
+          ? new ForbiddenException(error.message)
+          : new BadRequestException(error.message);
+      }
+      throw error;
     }
 
     const guardada = await this.solicitudRetiroRepository.save(solicitud);
 
     // La fotografía posterior sale de una lectura fresca, no del objeto que
-    // devuelve `save`. Cuando `findOne` trae cargada la relación
-    // `operadorAsignado`, TypeORM reconstruye la columna FK a partir de esa
-    // relación después de guardar: el UPDATE escribe el operador nuevo en la
-    // base, pero la entidad en memoria vuelve a mostrar el anterior. Auditar
-    // ese objeto haría que las asignaciones de operador no quedaran
-    // registradas — en silencio, porque la operación responde 200.
-    //
-    // Además es lo correcto de fondo: la auditoría debe registrar lo que quedó
-    // persistido, no lo que la aplicación creyó asignar.
+    // devuelve `save`: la auditoría debe registrar lo que quedó persistido, no
+    // lo que la aplicación creyó asignar.
     const persistida = await this.solicitudRetiroRepository.findOne({
       where: { id: guardada.id },
     });
@@ -128,9 +162,8 @@ export class SolicitudesAdminService {
     const despues = this.fotografiar(persistida ?? guardada);
     const cambios = this.diferencias(antes, despues);
 
-    // Si el PATCH no cambió ninguno de los campos auditados no se registra
-    // nada: una fila de auditoría que dice "no pasó nada" solo agrega ruido a
-    // la pantalla que después alguien tiene que leer.
+    // Si no cambió ninguno de los campos auditados no se registra nada: una
+    // fila de auditoría que dice "no pasó nada" solo agrega ruido.
     if (Object.keys(cambios.nuevos).length > 0) {
       await this.auditoriaService.registrar({
         tipoActor: TipoActorAuditoria.ADMINISTRADOR,
@@ -147,13 +180,25 @@ export class SolicitudesAdminService {
     return guardada;
   }
 
+  /** `RolesGuard` ya garantiza que la sesión es admin o funcionario. */
+  private actorDe(user: AuthUser): ActorCiclo {
+    return user.rol === RolAdministrador.ADMIN ? 'admin' : 'funcionario';
+  }
+
   /** Toma los campos auditados de la solicitud, para comparar antes y después. */
   private fotografiar(solicitud: SolicitudRetiro): Fotografia {
     return {
       estado: solicitud.estado,
-      operadorAsignadoId: solicitud.operadorAsignadoId,
-      fechaProgramada: solicitud.fechaProgramada?.toISOString() ?? null,
+      estadoPago: solicitud.estadoPago,
+      monto: solicitud.monto,
+      revisadoPorId: solicitud.revisadoPorId,
+      fechaCierre: this.fechaIso(solicitud.fechaCierre),
     };
+  }
+
+  // mysql2 puede devolver la fecha como Date o como texto según la conexión.
+  private fechaIso(fecha: Date | string | null): string | null {
+    return fecha ? new Date(fecha).toISOString() : null;
   }
 
   /**
@@ -182,45 +227,5 @@ export class SolicitudesAdminService {
     }
 
     return { anteriores, nuevos };
-  }
-
-  private aplicarCambioEstado(
-    solicitud: SolicitudRetiro,
-    nuevoEstado: EstadoSolicitudRetiro,
-  ): void {
-    if (nuevoEstado === solicitud.estado) {
-      return;
-    }
-
-    if (
-      nuevoEstado === EstadoSolicitudRetiro.ASIGNADA &&
-      !solicitud.operadorAsignadoId
-    ) {
-      throw new BadRequestException(
-        'Para asignar la solicitud debe indicar un operador (operadorAsignadoId)',
-      );
-    }
-
-    if (nuevoEstado === EstadoSolicitudRetiro.COMPLETADA) {
-      solicitud.fechaCompletada = new Date();
-    } else {
-      solicitud.fechaCompletada = null;
-    }
-
-    solicitud.estado = nuevoEstado;
-  }
-
-  private async validarOperador(operadorId: string): Promise<void> {
-    const operador = await this.usuarioAdministradorRepository.findOne({
-      where: { id: operadorId },
-    });
-
-    if (!operador) {
-      throw new NotFoundException(`Operador ${operadorId} no encontrado`);
-    }
-
-    if (!operador.activo) {
-      throw new BadRequestException('El operador asignado no está activo');
-    }
   }
 }
