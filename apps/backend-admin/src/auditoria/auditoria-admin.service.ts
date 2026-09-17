@@ -41,6 +41,7 @@ const ETIQUETA_ENTIDAD: Record<string, string> = {
   usuarios_administradores: 'Funcionario',
   auditoria: 'Registro de auditoría',
   notas_solicitud: 'Nota interna',
+  lotes_derivacion: 'Lote de derivación',
 };
 
 @Injectable()
@@ -123,7 +124,9 @@ export class AuditoriaAdminService {
   private describirAccion(fila: Auditoria): string {
     if (fila.accion === AccionAuditoria.LOGIN) return 'Inicio de sesión';
     if (fila.accion === AccionAuditoria.ACCESO) {
-      return 'Acceso al registro de auditoría';
+      return fila.entidad === 'lotes_derivacion'
+        ? 'Descarga del Excel de derivación'
+        : 'Acceso al registro de auditoría';
     }
     if (fila.accion === AccionAuditoria.CREATE) return 'Creación';
     if (fila.accion === AccionAuditoria.DELETE) return 'Eliminación';

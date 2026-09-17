@@ -9,6 +9,7 @@ import { SolicitudesAdminModule } from './solicitudes/solicitudes-admin.module';
 import { MapaCalorModule } from './mapa-calor/mapa-calor.module';
 import { AuditoriaAdminModule } from './auditoria/auditoria-admin.module';
 import { ResiduosAdminModule } from './residuos/residuos-admin.module';
+import { DerivacionesAdminModule } from './derivaciones/derivaciones-admin.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { ResiduosAdminModule } from './residuos/residuos-admin.module';
     MapaCalorModule,
     AuditoriaAdminModule,
     ResiduosAdminModule,
+    DerivacionesAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
