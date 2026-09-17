@@ -7,6 +7,7 @@ import {
   EstadoSolicitudRetiro,
   RolAdministrador,
   type SolicitudRetiro,
+  type UsuarioAdministrador,
 } from '@arca/core';
 import type { Repository } from 'typeorm';
 import { SolicitudesAdminService } from './solicitudes-admin.service';
@@ -58,8 +59,15 @@ function montar(fila: SolicitudRetiro) {
   };
   const auditoria = { registrar: jest.fn(() => Promise.resolve()) };
 
+  const funcionarios = {
+    findOne: jest.fn(() =>
+      Promise.resolve({ id: 'x', nombre: 'Camila', apellido: 'Operadora' }),
+    ),
+  };
+
   const service = new SolicitudesAdminService(
     repositorio as unknown as Repository<SolicitudRetiro>,
+    funcionarios as unknown as Repository<UsuarioAdministrador>,
     auditoria as unknown as AuditoriaService,
   );
 
@@ -67,36 +75,36 @@ function montar(fila: SolicitudRetiro) {
 }
 
 describe('SolicitudesAdminService.update', () => {
-  it('aprobar congela monto y pago, registra revisor y audita', async () => {
-    const { service, auditoria, guardada } = montar(filaBase());
+  it('derivar una aprobada sin cobro guarda y audita el cambio', async () => {
+    const { service, auditoria, guardada } = montar(
+      filaBase({ estado: EstadoSolicitudRetiro.APROBADA }),
+    );
 
     await service.update(
       7,
-      { estado: EstadoSolicitudRetiro.APROBADA },
+      { estado: EstadoSolicitudRetiro.DERIVADA },
       FUNCIONARIO,
     );
 
-    expect(guardada()).toMatchObject({
-      estado: EstadoSolicitudRetiro.APROBADA,
-      estadoPago: EstadoPagoSolicitud.PENDIENTE,
-      monto: 15000,
-      revisadoPorId: FUNCIONARIO.administradorId,
-    });
+    expect(guardada().estado).toBe(EstadoSolicitudRetiro.DERIVADA);
     expect(auditoria.registrar).toHaveBeenCalledTimes(1);
     expect(auditoria.registrar).toHaveBeenCalledWith(
       expect.objectContaining({
         accion: AccionAuditoria.UPDATE,
         entidadId: 7,
-        datosAnteriores: expect.objectContaining({
-          estado: EstadoSolicitudRetiro.EN_REVISION,
-        }) as unknown,
-        datosNuevos: expect.objectContaining({
-          estado: EstadoSolicitudRetiro.APROBADA,
-          estadoPago: EstadoPagoSolicitud.PENDIENTE,
-          monto: 15000,
-        }) as unknown,
+        datosAnteriores: { estado: EstadoSolicitudRetiro.APROBADA },
+        datosNuevos: { estado: EstadoSolicitudRetiro.DERIVADA },
       }),
     );
+  });
+
+  it('una decisión de revisión por PATCH responde 400 (va por POST /revision)', async () => {
+    const { service, repositorio } = montar(filaBase());
+
+    await expect(
+      service.update(7, { estado: EstadoSolicitudRetiro.APROBADA }, ADMIN),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repositorio.save).not.toHaveBeenCalled();
   });
 
   it('una transición que no existe responde 400 y no guarda', async () => {
@@ -156,16 +164,23 @@ describe('SolicitudesAdminService.update', () => {
 });
 
 describe('SolicitudesAdminService.detalle', () => {
-  it('en revisión ofrece las tres decisiones al funcionario', async () => {
+  it('en revisión no ofrece transiciones por PATCH: se decide con /revision', async () => {
     const { service } = montar(filaBase());
 
     const detalle = await service.detalle(7, FUNCIONARIO);
 
-    expect(detalle.transicionesDisponibles).toEqual([
-      EstadoSolicitudRetiro.APROBADA,
-      EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
-      EstadoSolicitudRetiro.RECHAZADA,
-    ]);
+    expect(detalle.transicionesDisponibles).toEqual([]);
+    expect(detalle.tomadaPor).toBeNull();
+  });
+
+  it('aprobada sin cobro ofrece derivar', async () => {
+    const { service } = montar(
+      filaBase({ estado: EstadoSolicitudRetiro.APROBADA }),
+    );
+
+    expect(
+      (await service.detalle(7, FUNCIONARIO)).transicionesDisponibles,
+    ).toEqual([EstadoSolicitudRetiro.DERIVADA]);
   });
 
   it('rechazada: nada para el funcionario, reabrir para el admin', async () => {

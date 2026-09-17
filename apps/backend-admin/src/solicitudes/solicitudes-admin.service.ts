@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,43 +7,43 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import {
   AccionAuditoria,
-  type ActorCiclo,
   aplicarTransicion,
   AuditoriaService,
   type AuthUser,
+  DECISIONES_REVISION,
   EstadoSolicitudRetiro,
   type OrigenPeticion,
-  RolAdministrador,
   SolicitudRetiro,
   TipoActorAuditoria,
-  TransicionInvalidaError,
   transicionesDisponibles,
+  UsuarioAdministrador,
 } from '@arca/core';
+import {
+  actorDe,
+  comoHttp,
+  diferencias,
+  fotografiar,
+} from './auditoria-solicitud';
 import { FilterSolicitudesAdminDto } from './dto/filter-solicitudes-admin.dto';
 import { UpdateSolicitudAdminDto } from './dto/update-solicitud-admin.dto';
 
-/**
- * Campos de la solicitud que se auditan cuando cambian.
- *
- * La lista es explícita a propósito: si mañana se agrega una columna con datos
- * personales del vecino, no entra sola al registro de auditoría. Cualquier
- * campo nuevo se suma acá de forma deliberada.
- */
-const CAMPOS_AUDITADOS = [
-  'estado',
-  'estadoPago',
-  'monto',
-  'revisadoPorId',
-  'fechaCierre',
-] as const;
+export interface FuncionarioResumen {
+  id: string;
+  nombre: string;
+  apellido: string;
+}
 
-type CampoAuditado = (typeof CAMPOS_AUDITADOS)[number];
-
-/** Fotografía de los campos auditados, para comparar antes y después. */
-type Fotografia = Record<CampoAuditado, unknown>;
-
-export type SolicitudDetalle = SolicitudRetiro & {
-  /** Estados a los que el usuario de la sesión puede mover la solicitud. */
+export type SolicitudDetalle = Omit<
+  SolicitudRetiro,
+  'revisadoPor' | 'tomadaPor'
+> & {
+  revisadoPor: FuncionarioResumen | null;
+  /** Funcionario con la toma vigente, si la hay. */
+  tomadaPor: FuncionarioResumen | null;
+  /**
+   * Estados a los que la sesión puede mover la solicitud con `PATCH`. Las
+   * decisiones de revisión no aparecen: se toman con `POST /revision`.
+   */
   transicionesDisponibles: EstadoSolicitudRetiro[];
 };
 
@@ -62,6 +61,8 @@ export class SolicitudesAdminService {
   constructor(
     @InjectRepository(SolicitudRetiro)
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
+    @InjectRepository(UsuarioAdministrador)
+    private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
     private readonly auditoriaService: AuditoriaService,
   ) {}
 
@@ -72,10 +73,15 @@ export class SolicitudesAdminService {
       where.estado = filtros.estado;
     }
 
+    // La cola de revisión se atiende por orden de llegada: primero lo que más
+    // lleva esperando.
+    const orden =
+      filtros.estado === EstadoSolicitudRetiro.EN_REVISION ? 'ASC' : 'DESC';
+
     return this.solicitudRetiroRepository.find({
       where,
       relations: { residuoCatalogo: true },
-      order: { fechaSolicitud: 'DESC' },
+      order: { fechaSolicitud: orden },
     });
   }
 
@@ -103,25 +109,25 @@ export class SolicitudesAdminService {
 
   /** Detalle para el panel, con las acciones que la sesión puede ejecutar. */
   async detalle(id: number, user: AuthUser): Promise<SolicitudDetalle> {
-    const solicitud = await this.solicitudRetiroRepository.findOne({
-      where: { id },
-      relations: {
-        residuoCatalogo: true,
-        usuarioCiudadano: true,
-        revisadoPor: true,
-      },
-    });
+    const solicitud = await this.findOne(id);
 
-    if (!solicitud) {
-      throw new NotFoundException(`Solicitud de retiro ${id} no encontrada`);
-    }
+    const tomaVigente =
+      !!solicitud.tomadaPorId &&
+      !!solicitud.tomadaHasta &&
+      new Date(solicitud.tomadaHasta) > new Date();
+
+    const disponibles = transicionesDisponibles(solicitud.estado, {
+      actor: actorDe(user),
+      estadoPago: solicitud.estadoPago,
+    }).filter((hacia) => !this.esDecisionDeRevision(solicitud.estado, hacia));
 
     return {
       ...solicitud,
-      transicionesDisponibles: transicionesDisponibles(solicitud.estado, {
-        actor: this.actorDe(user),
-        estadoPago: solicitud.estadoPago,
-      }),
+      revisadoPor: await this.resumenFuncionario(solicitud.revisadoPorId),
+      tomadaPor: tomaVigente
+        ? await this.resumenFuncionario(solicitud.tomadaPorId)
+        : null,
+      transicionesDisponibles: disponibles,
     };
   }
 
@@ -132,22 +138,24 @@ export class SolicitudesAdminService {
     origen?: OrigenPeticion,
   ): Promise<SolicitudRetiro> {
     const solicitud = await this.findOne(id);
-    const antes = this.fotografiar(solicitud);
+
+    if (this.esDecisionDeRevision(solicitud.estado, dto.estado)) {
+      throw new BadRequestException(
+        'Las decisiones de revisión se registran con POST /admin/solicitudes/:id/revision',
+      );
+    }
+
+    const antes = fotografiar(solicitud);
 
     try {
       aplicarTransicion(solicitud, dto.estado, {
-        actor: this.actorDe(user),
+        actor: actorDe(user),
         administradorId: user.administradorId,
         precioCatalogo: solicitud.residuoCatalogo?.precio,
         ahora: new Date(),
       });
     } catch (error) {
-      if (error instanceof TransicionInvalidaError) {
-        throw error.motivo === 'actor'
-          ? new ForbiddenException(error.message)
-          : new BadRequestException(error.message);
-      }
-      throw error;
+      throw comoHttp(error);
     }
 
     const guardada = await this.solicitudRetiroRepository.save(solicitud);
@@ -159,8 +167,7 @@ export class SolicitudesAdminService {
       where: { id: guardada.id },
     });
 
-    const despues = this.fotografiar(persistida ?? guardada);
-    const cambios = this.diferencias(antes, despues);
+    const cambios = diferencias(antes, fotografiar(persistida ?? guardada));
 
     // Si no cambió ninguno de los campos auditados no se registra nada: una
     // fila de auditoría que dice "no pasó nada" solo agrega ruido.
@@ -180,52 +187,29 @@ export class SolicitudesAdminService {
     return guardada;
   }
 
-  /** `RolesGuard` ya garantiza que la sesión es admin o funcionario. */
-  private actorDe(user: AuthUser): ActorCiclo {
-    return user.rol === RolAdministrador.ADMIN ? 'admin' : 'funcionario';
+  private esDecisionDeRevision(
+    desde: EstadoSolicitudRetiro,
+    hacia: EstadoSolicitudRetiro,
+  ): boolean {
+    return (
+      desde === EstadoSolicitudRetiro.EN_REVISION &&
+      (DECISIONES_REVISION as readonly EstadoSolicitudRetiro[]).includes(hacia)
+    );
   }
 
-  /** Toma los campos auditados de la solicitud, para comparar antes y después. */
-  private fotografiar(solicitud: SolicitudRetiro): Fotografia {
-    return {
-      estado: solicitud.estado,
-      estadoPago: solicitud.estadoPago,
-      monto: solicitud.monto,
-      revisadoPorId: solicitud.revisadoPorId,
-      fechaCierre: this.fechaIso(solicitud.fechaCierre),
-    };
-  }
-
-  // mysql2 puede devolver la fecha como Date o como texto según la conexión.
-  private fechaIso(fecha: Date | string | null): string | null {
-    return fecha ? new Date(fecha).toISOString() : null;
-  }
-
-  /**
-   * Devuelve solo los campos que efectivamente cambiaron.
-   *
-   * Es la regla de minimización aplicada: la auditoría guarda el campo
-   * modificado, nunca la fila completa. Así los datos personales del vecino
-   * —descripción, coordenadas— nunca se copian a un registro que después no se
-   * puede borrar.
-   */
-  private diferencias(
-    antes: Fotografia,
-    despues: Fotografia,
-  ): {
-    anteriores: Record<string, unknown>;
-    nuevos: Record<string, unknown>;
-  } {
-    const anteriores: Record<string, unknown> = {};
-    const nuevos: Record<string, unknown> = {};
-
-    for (const campo of CAMPOS_AUDITADOS) {
-      if (antes[campo] !== despues[campo]) {
-        anteriores[campo] = antes[campo];
-        nuevos[campo] = despues[campo];
-      }
-    }
-
-    return { anteriores, nuevos };
+  private async resumenFuncionario(
+    id: string | null,
+  ): Promise<FuncionarioResumen | null> {
+    if (!id) return null;
+    const funcionario = await this.usuarioAdministradorRepository.findOne({
+      where: { id },
+    });
+    return funcionario
+      ? {
+          id: funcionario.id,
+          nombre: funcionario.nombre,
+          apellido: funcionario.apellido,
+        }
+      : null;
   }
 }

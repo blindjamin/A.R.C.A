@@ -40,6 +40,7 @@ const ETIQUETA_ENTIDAD: Record<string, string> = {
   usuarios_ciudadanos: 'Vecino',
   usuarios_administradores: 'Funcionario',
   auditoria: 'Registro de auditoría',
+  notas_solicitud: 'Nota interna',
 };
 
 @Injectable()
