@@ -9,6 +9,8 @@ import { SolicitudRetiro } from './solicitud-retiro.entity';
 import { AccionAuditoria } from './accion-auditoria.enum';
 import { TipoActorAuditoria } from './tipo-actor-auditoria.enum';
 import { Auditoria } from './auditoria.entity';
+import { RevisionSolicitud } from './revision-solicitud.entity';
+import { NotaSolicitud } from './nota-solicitud.entity';
 
 export { RolAdministrador } from './rol-administrador.enum';
 export { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -22,6 +24,9 @@ export { SolicitudRetiro } from './solicitud-retiro.entity';
 export { AccionAuditoria } from './accion-auditoria.enum';
 export { TipoActorAuditoria } from './tipo-actor-auditoria.enum';
 export { Auditoria } from './auditoria.entity';
+export { MotivoRevision } from './motivo-revision.enum';
+export { RevisionSolicitud } from './revision-solicitud.entity';
+export { NotaSolicitud } from './nota-solicitud.entity';
 
 // Usado por apps/backend/src/database/data-source.ts: el glob __dirname +
 // '/../**/*.entity' que usaba antes de la migración no encuentra las
@@ -35,4 +40,6 @@ export const ENTIDADES = [
   ResiduoCatalogo,
   SolicitudRetiro,
   Auditoria,
+  RevisionSolicitud,
+  NotaSolicitud,
 ];

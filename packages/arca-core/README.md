@@ -36,6 +36,12 @@ La tabla completa de transiciones está en `docs/specs/SPEC-ciclo-solicitud.md` 
 núcleo no puede saber —si el vecino es dueño de la solicitud, si viene un motivo— lo valida el
 endpoint que llama.
 
+Las **decisiones de revisión** (aprobar, pedir modificación, rechazar) además pasan por
+`validarRevision` (`src/solicitudes/revision-solicitud.ts`): motivo de `MotivoRevision` según la
+decisión, comentario obligatorio al pedir modificación o con motivo `otro`, y lista de verificación
+completa (`ITEMS_CHECKLIST_APROBACION`) para aprobar. El historial queda en `RevisionSolicitud`
+y las notas internas en `NotaSolicitud`. Ver `docs/specs/SPEC-revision-solicitudes.md`.
+
 ## Regla para tocar este paquete
 
 **Cambia solo por PR revisado por alguien de backend ciudadano** (Miguel o Javier) — es código
