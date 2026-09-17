@@ -137,4 +137,4 @@ admin-auth + ciclo-solicitud ─► configuracion-admin   (en paralelo)
 | Módulo | Spec | Estado |
 |---|---|---|
 | `ciclo-solicitud` | [SPEC-ciclo-solicitud.md](SPEC-ciclo-solicitud.md) · [plan](../../tasks/plan.md) | Núcleo, BD y panel implementados; backend y app ciudadana pendientes |
-| `revision-solicitudes` | [SPEC-revision-solicitudes.md](SPEC-revision-solicitudes.md) Núcleo, BD y panel implementados (sin fotos, que esperan `fotos-solicitud`); backend y app ciudadana pendientes |
+| `revision-solicitudes` | [SPEC-revision-solicitudes.md](SPEC-revision-solicitudes.md) | Núcleo, BD y panel implementados (sin fotos, que esperan `fotos-solicitud`); backend y app ciudadana pendientes |
