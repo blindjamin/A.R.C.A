@@ -45,10 +45,13 @@ export class MapaCalorService {
     const sinUbicacion = { total: 0, pendientes: 0 };
 
     for (const sol of solicitudes) {
+      // Pendiente = todavía no se cierra: en revisión, esperando corrección
+      // del vecino, aprobada sin derivar o derivada sin resultado.
       const isPendiente = [
-        EstadoSolicitudRetiro.PENDIENTE,
-        EstadoSolicitudRetiro.ASIGNADA,
-        EstadoSolicitudRetiro.EN_PROCESO,
+        EstadoSolicitudRetiro.EN_REVISION,
+        EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+        EstadoSolicitudRetiro.APROBADA,
+        EstadoSolicitudRetiro.DERIVADA,
       ].includes(sol.estado);
 
       if (!sol.latitudCapturada || !sol.longitudCapturada) {

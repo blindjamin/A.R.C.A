@@ -5,7 +5,7 @@ import { FilterMapaCalorDto } from './dto/filter-mapa-calor.dto';
 
 @Controller('admin/mapa-calor')
 @UseGuards(RolesGuard)
-@Roles(RolAdministrador.ADMIN, RolAdministrador.OPERADOR)
+@Roles(RolAdministrador.ADMIN, RolAdministrador.FUNCIONARIO)
 export class MapaCalorController {
   constructor(private readonly mapaCalorService: MapaCalorService) {}
 

@@ -31,7 +31,7 @@ const LIMITE_MAXIMO = 500;
 
 const ETIQUETA_ROL: Record<RolAdministrador, string> = {
   [RolAdministrador.ADMIN]: 'Administrador',
-  [RolAdministrador.OPERADOR]: 'Operador',
+  [RolAdministrador.FUNCIONARIO]: 'Funcionario',
 };
 
 const ETIQUETA_ENTIDAD: Record<string, string> = {
