@@ -32,9 +32,12 @@ src/
 ├── components/
 │   ├── AdminShell.tsx    ← layout de escritorio (sidebar), reemplaza el header por pantalla
 │   │                        que tenían Solicitudes/Auditoria antes de la migración
+│   ├── RevisionSolicitud.tsx ← tarjeta «Revisión» (checklist, motivos, categoría), historial y
+│   │                            notas internas (docs/specs/SPEC-revision-solicitudes.md)
 │   └── ui/               ← copia de 6 átomos de apps/frontend — ver deuda abajo
 └── pages/
-    ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx
+    ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx; cola «En revisión» con aviso +48 h y toma
+    │                        automática al abrir el detalle
     ├── MapaCalor.tsx     ← Mapa de calor por sectores (HU-07)
     └── Auditoria.tsx     ← ex AdminAuditoria.tsx (datos mock, Sprint 5)
 ```

@@ -67,6 +67,8 @@ export interface SolicitudRetiro {
 /** Lo que devuelve `GET /admin/solicitudes/:id`. */
 export interface SolicitudDetalle extends SolicitudRetiro {
   revisadoPor?: FuncionarioResumen | null;
+  /** Funcionario con la toma vigente; `null` si nadie la está revisando. */
+  tomadaPor?: FuncionarioResumen | null;
   /** Estados a los que la sesión actual puede mover la solicitud. */
   transicionesDisponibles: EstadoSolicitud[];
 }
@@ -205,6 +207,181 @@ export function actualizarSolicitud(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   }).then((r) => handle<SolicitudRetiro>(r));
+}
+
+// --- Revisión (docs/specs/SPEC-revision-solicitudes.md) --------------------
+
+export type DecisionRevision = 'aprobada' | 'requiere_modificacion' | 'rechazada';
+
+export type MotivoRevision =
+  | 'foto_insuficiente'
+  | 'categoria_incorrecta'
+  | 'descripcion_incompleta'
+  | 'direccion_incompleta'
+  | 'fuera_de_comuna'
+  | 'residuo_no_admitido'
+  | 'duplicada'
+  | 'contenido_inapropiado'
+  | 'otro';
+
+// Copia de MOTIVOS_POR_DECISION e ITEMS_CHECKLIST_APROBACION de @arca/core
+// (admin-web no puede importar el paquete). El backend valida igual: si estas
+// listas se desincronizan, la decisión responde 400, no queda mal guardada.
+export const MOTIVOS_POR_DECISION: Record<
+  Exclude<DecisionRevision, 'aprobada'>,
+  MotivoRevision[]
+> = {
+  requiere_modificacion: [
+    'foto_insuficiente',
+    'categoria_incorrecta',
+    'descripcion_incompleta',
+    'direccion_incompleta',
+    'otro',
+  ],
+  rechazada: [
+    'fuera_de_comuna',
+    'residuo_no_admitido',
+    'duplicada',
+    'contenido_inapropiado',
+    'otro',
+  ],
+};
+
+export const ETIQUETA_MOTIVO: Record<MotivoRevision, string> = {
+  foto_insuficiente: 'La foto no permite ver el residuo',
+  categoria_incorrecta: 'Categoría incorrecta',
+  descripcion_incompleta: 'Descripción incompleta',
+  direccion_incompleta: 'Dirección incompleta',
+  fuera_de_comuna: 'Dirección fuera de la comuna',
+  residuo_no_admitido: 'Residuo no admitido',
+  duplicada: 'Solicitud duplicada',
+  contenido_inapropiado: 'Contenido inapropiado',
+  otro: 'Otro',
+};
+
+export const ITEMS_CHECKLIST_APROBACION = [
+  { id: 'foto_clara', label: 'La foto muestra el residuo con claridad' },
+  { id: 'residuo_coincide', label: 'El residuo coincide con la categoría' },
+  { id: 'volumen_razonable', label: 'El volumen es razonable para un retiro' },
+  { id: 'direccion_en_comuna', label: 'La dirección está dentro de la comuna' },
+  { id: 'no_duplicada', label: 'No está duplicada' },
+] as const;
+
+export interface RevisarSolicitudInput {
+  decision: DecisionRevision;
+  motivo?: MotivoRevision;
+  comentario?: string;
+  checklist?: Record<string, boolean>;
+}
+
+export interface RevisionHistorial {
+  id: number;
+  decision: DecisionRevision;
+  motivo: MotivoRevision | null;
+  comentario: string | null;
+  checklist: Record<string, boolean> | null;
+  revisor: string;
+  createdAt: string;
+}
+
+export interface NotaSolicitud {
+  id: number;
+  texto: string;
+  autor: string;
+  createdAt: string;
+}
+
+export type ResiduoResumen = Pick<
+  ResiduoCatalogo,
+  'id' | 'nombre' | 'categoria' | 'precio'
+>;
+
+const jsonInit = (method: string, data?: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: data === undefined ? undefined : JSON.stringify(data),
+});
+
+/** `handle` arma "Error 400: {json}"; se muestra solo el mensaje del backend. */
+export function mensajeDeError(e: unknown): string {
+  const texto = e instanceof Error ? e.message : String(e);
+  const json = texto.indexOf('{');
+  if (json === -1) return texto;
+  try {
+    const { message } = JSON.parse(texto.slice(json)) as {
+      message?: string | string[];
+    };
+    if (Array.isArray(message)) return message.join('. ');
+    return message ?? texto;
+  } catch {
+    return texto;
+  }
+}
+
+/** Respuestas 204 sin cuerpo. */
+async function handleVacio(res: Response): Promise<void> {
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Error ${res.status}: ${body || res.statusText}`);
+  }
+}
+
+/** Toma la solicitud por 15 minutos. Responde 409 si la tiene otro funcionario. */
+export function tomarSolicitud(id: number): Promise<{ tomadaHasta: string }> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/toma`, {
+    method: 'POST',
+  }).then((r) => handle<{ tomadaHasta: string }>(r));
+}
+
+export function liberarSolicitud(id: number): Promise<void> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/toma`, {
+    method: 'DELETE',
+  }).then(handleVacio);
+}
+
+export function revisarSolicitud(
+  id: number,
+  data: RevisarSolicitudInput,
+): Promise<SolicitudRetiro> {
+  return apiFetch(
+    `${API_URL}/admin/solicitudes/${id}/revision`,
+    jsonInit('POST', data),
+  ).then((r) => handle<SolicitudRetiro>(r));
+}
+
+export function fetchRevisiones(id: number): Promise<RevisionHistorial[]> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/revisiones`).then((r) =>
+    handle<RevisionHistorial[]>(r),
+  );
+}
+
+export function corregirCategoria(
+  id: number,
+  residuoCatalogoId: number,
+): Promise<void> {
+  return apiFetch(
+    `${API_URL}/admin/solicitudes/${id}/categoria`,
+    jsonInit('PATCH', { residuoCatalogoId }),
+  ).then(handleVacio);
+}
+
+export function fetchNotas(id: number): Promise<NotaSolicitud[]> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/notas`).then((r) =>
+    handle<NotaSolicitud[]>(r),
+  );
+}
+
+export function crearNota(id: number, texto: string): Promise<NotaSolicitud> {
+  return apiFetch(
+    `${API_URL}/admin/solicitudes/${id}/notas`,
+    jsonInit('POST', { texto }),
+  ).then((r) => handle<NotaSolicitud>(r));
+}
+
+export function fetchResiduos(): Promise<ResiduoResumen[]> {
+  return apiFetch(`${API_URL}/admin/residuos`).then((r) =>
+    handle<ResiduoResumen[]>(r),
+  );
 }
 
 // --- Mapa de calor ----------------------------------------------------------

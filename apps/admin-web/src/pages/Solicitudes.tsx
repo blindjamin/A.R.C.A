@@ -4,6 +4,9 @@ import {
   fetchSolicitud,
   fetchSolicitudesAdmin,
   formatearPrecio,
+  liberarSolicitud,
+  mensajeDeError,
+  tomarSolicitud,
   type EstadoPago,
   type EstadoSolicitud,
   type SolicitudDetalle,
@@ -15,6 +18,10 @@ import {
   EstadoPill,
   ListItemCard,
 } from '../components/ui';
+import {
+  HistorialYNotas,
+  TarjetaRevision,
+} from '../components/RevisionSolicitud';
 
 const FILTROS: { value: EstadoSolicitud | 'todas'; label: string }[] = [
   { value: 'todas', label: 'Todas' },
@@ -47,6 +54,14 @@ const ETIQUETA_PAGO: Record<EstadoPago, string> = {
   pagado: 'Pagado',
 };
 
+// Plazo tras el cual una solicitud en revisión se marca como atrasada.
+const HORAS_ATRASO = 48;
+
+const atrasada = (s: SolicitudRetiro): boolean =>
+  s.estado === 'en_revision' &&
+  Date.now() - new Date(s.fechaSolicitud).getTime() >
+    HORAS_ATRASO * 60 * 60 * 1000;
+
 const formatoFecha = (iso?: string | null): string =>
   iso
     ? new Date(iso).toLocaleString('es-CL', {
@@ -58,7 +73,9 @@ const formatoFecha = (iso?: string | null): string =>
     : '—';
 
 export default function Solicitudes() {
-  const [filtro, setFiltro] = useState<EstadoSolicitud | 'todas'>('todas');
+  const [filtro, setFiltro] = useState<EstadoSolicitud | 'todas'>(
+    'en_revision',
+  );
   const [items, setItems] = useState<SolicitudRetiro[]>([]);
   const [seleccionId, setSeleccionId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,7 +156,17 @@ export default function Solicitudes() {
                   </>
                 }
                 titleBadge={<EstadoPill estado={s.estado} />}
-                lines={[s.descripcion ?? 'Sin descripción', formatoFecha(s.fechaSolicitud)]}
+                lines={[
+                  s.descripcion ?? 'Sin descripción',
+                  <>
+                    {formatoFecha(s.fechaSolicitud)}
+                    {atrasada(s) && (
+                      <span className="font-semibold text-rose-600">
+                        {' '}· +{HORAS_ATRASO} h sin revisar
+                      </span>
+                    )}
+                  </>,
+                ]}
                 onClick={() => setSeleccionId(s.id)}
               />
             </li>
@@ -164,23 +191,53 @@ function DetalleSolicitud({
   const [guardando, setGuardando] = useState(false);
   // Acción elegida esperando confirmación.
   const [porConfirmar, setPorConfirmar] = useState<EstadoSolicitud | null>(null);
+  // La tiene tomada otro funcionario: la revisión queda en solo lectura.
+  const [tomadaPorOtro, setTomadaPorOtro] = useState(false);
+  // Sube cada vez que la solicitud cambia, para recargar historial y notas.
+  const [version, setVersion] = useState(0);
 
   const cargar = () =>
     fetchSolicitud(id)
-      .then(setSolicitud)
+      .then((s) => {
+        setSolicitud(s);
+        setVersion((v) => v + 1);
+      })
       .catch((e: Error) => setError(e.message));
 
+  // Al abrir una solicitud en revisión el panel la toma, para que dos
+  // funcionarios no la revisen a la vez, y la libera al salir del detalle.
   useEffect(() => {
     let cancelado = false;
-    fetchSolicitud(id)
-      .then((s) => {
-        if (!cancelado) setSolicitud(s);
-      })
-      .catch((e: Error) => {
-        if (!cancelado) setError(e.message);
-      });
+    let tomada = false;
+
+    const abrir = async () => {
+      try {
+        const s = await fetchSolicitud(id);
+        // Si ya se salió (o StrictMode desmontó), no se toma: soltarla después
+        // podría liberar la toma del montaje que sí sigue abierto.
+        if (cancelado) return;
+        if (s.estado === 'en_revision') {
+          try {
+            await tomarSolicitud(id);
+            tomada = true;
+            if (cancelado) void liberarSolicitud(id);
+          } catch (e) {
+            if (!(e as Error).message.startsWith('Error 409')) throw e;
+            if (!cancelado) setTomadaPorOtro(true);
+          }
+        }
+        // Se vuelve a leer para mostrar quién la tiene tomada.
+        const actual = s.estado === 'en_revision' ? await fetchSolicitud(id) : s;
+        if (!cancelado) setSolicitud(actual);
+      } catch (e) {
+        if (!cancelado) setError(mensajeDeError(e));
+      }
+    };
+    void abrir();
+
     return () => {
       cancelado = true;
+      if (tomada) void liberarSolicitud(id);
     };
   }, [id]);
 
@@ -267,63 +324,86 @@ function DetalleSolicitud({
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
 
-      <div className="card space-y-3 p-5">
-        <h2 className="font-bold">Acciones</h2>
-
-        {solicitud.transicionesDisponibles.length === 0 ? (
-          <p className="text-sm text-slate">
-            No hay acciones disponibles para tu perfil en este estado.
-          </p>
-        ) : porConfirmar ? (
-          <div className="space-y-3">
-            <p className="text-sm text-ink">
-              ¿Confirmas la acción <strong>«{ACCION[porConfirmar].label}»</strong> para la
-              solicitud #{solicitud.id}?
+      {solicitud.estado === 'en_revision' && (
+        <>
+          {tomadaPorOtro && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              {solicitud.tomadaPor
+                ? `${solicitud.tomadaPor.nombre} ${solicitud.tomadaPor.apellido} está revisando esta solicitud.`
+                : 'Otro funcionario está revisando esta solicitud.'}{' '}
+              Puedes verla, pero no decidir hasta que la libere.
             </p>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={confirmar}
-                disabled={guardando}
-                className="btn-primary"
-              >
-                {guardando ? 'Guardando…' : 'Confirmar'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPorConfirmar(null)}
-                disabled={guardando}
-                className="btn-ghost"
-              >
-                Volver
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {solicitud.transicionesDisponibles.map((estado) => (
-              <button
-                key={estado}
-                type="button"
-                onClick={() => setPorConfirmar(estado)}
-                className={`pill border px-4 py-2 text-sm ${
-                  ACCION[estado].peligro
-                    ? 'border-rose-600 text-rose-600 hover:bg-rose-100'
-                    : 'border-green-700 text-green-700 hover:bg-green-50'
-                }`}
-              >
-                {ACCION[estado].label}
-              </button>
-            ))}
-          </div>
-        )}
+          )}
+          <TarjetaRevision
+            solicitud={solicitud}
+            soloLectura={tomadaPorOtro}
+            onCambio={cargar}
+          />
+        </>
+      )}
 
-        {solicitud.estado === 'aprobada' && solicitud.estadoPago === 'pendiente' && (
-          <p className="text-xs text-slate-2">
-            Se podrá derivar cuando el vecino complete el pago.
-          </p>
-        )}
-      </div>
+      {(solicitud.estado !== 'en_revision' ||
+        solicitud.transicionesDisponibles.length > 0) && (
+        <div className="card space-y-3 p-5">
+          <h2 className="font-bold">Acciones</h2>
+
+          {solicitud.transicionesDisponibles.length === 0 ? (
+            <p className="text-sm text-slate">
+              No hay acciones disponibles para tu perfil en este estado.
+            </p>
+          ) : porConfirmar ? (
+            <div className="space-y-3">
+              <p className="text-sm text-ink">
+                ¿Confirmas la acción <strong>«{ACCION[porConfirmar].label}»</strong> para la
+                solicitud #{solicitud.id}?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={confirmar}
+                  disabled={guardando}
+                  className="btn-primary"
+                >
+                  {guardando ? 'Guardando…' : 'Confirmar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPorConfirmar(null)}
+                  disabled={guardando}
+                  className="btn-ghost"
+                >
+                  Volver
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {solicitud.transicionesDisponibles.map((estado) => (
+                <button
+                  key={estado}
+                  type="button"
+                  onClick={() => setPorConfirmar(estado)}
+                  className={`pill border px-4 py-2 text-sm ${
+                    ACCION[estado].peligro
+                      ? 'border-rose-600 text-rose-600 hover:bg-rose-100'
+                      : 'border-green-700 text-green-700 hover:bg-green-50'
+                  }`}
+                >
+                  {ACCION[estado].label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {solicitud.estado === 'aprobada' && solicitud.estadoPago === 'pendiente' && (
+            <p className="text-xs text-slate-2">
+              Se podrá derivar cuando el vecino complete el pago.
+            </p>
+          )}
+        </div>
+      )}
+
+      <HistorialYNotas solicitudId={solicitud.id} version={version} />
     </div>
   );
 }
