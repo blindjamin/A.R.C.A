@@ -441,6 +441,36 @@ export async function descargarExcelLote(id: number): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+// --- Métricas (docs/specs/SPEC-dashboard-metricas.md) -----------------------
+
+export type RangoMetricas = 7 | 30 | 90;
+
+export interface Metricas {
+  dias: RangoMetricas;
+  desde: string;
+  hasta: string;
+  recibidas: number;
+  serieDiaria: { fecha: string; total: number }[];
+  cola: { enRevision: number; atrasadas: number };
+  horasPromedioRevision: number | null;
+  decisiones: Record<DecisionRevision, number>;
+  motivos: { motivo: MotivoRevision; total: number }[];
+  porCategoria: { categoria: string; total: number }[];
+  derivacion: {
+    lotes: number;
+    derivadas: number;
+    retiradas: number;
+    noRealizadas: number;
+  };
+  recaudacion: number;
+}
+
+export function fetchMetricas(dias: RangoMetricas): Promise<Metricas> {
+  return apiFetch(`${API_URL}/admin/metricas?dias=${dias}`).then((r) =>
+    handle<Metricas>(r),
+  );
+}
+
 // --- Mapa de calor ----------------------------------------------------------
 
 export interface SectorMapaCalor {

@@ -38,6 +38,8 @@ src/
 └── pages/
     ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx; cola «En revisión» con aviso +48 h y toma
     │                        automática al abrir el detalle
+    ├── Metricas.tsx      ← indicadores con rango de 7/30/90 días, barras en CSS
+    │                        (docs/specs/SPEC-dashboard-metricas.md)
     ├── Derivacion.tsx    ← lotes para la empresa operadora: generar y descargar el Excel
     │                        (docs/specs/SPEC-derivacion-excel.md)
     ├── MapaCalor.tsx     ← Mapa de calor por sectores (HU-07)

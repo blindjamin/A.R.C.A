@@ -4,6 +4,7 @@ import Solicitudes from './pages/Solicitudes';
 import Auditoria from './pages/Auditoria';
 import MapaCalor from './pages/MapaCalor';
 import Derivacion from './pages/Derivacion';
+import Metricas from './pages/Metricas';
 import { perfilDevActual } from './api/admin';
 
 // TODO(deuda declarada en la migración admin): esta app todavía no tiene su
@@ -15,6 +16,7 @@ export default function App() {
       <AdminShell>
         <Routes>
           <Route path="/" element={<Solicitudes />} />
+          <Route path="/metricas" element={<Metricas />} />
           <Route path="/derivacion" element={<Derivacion />} />
           <Route path="/mapa-calor" element={<MapaCalor />} />
           <Route
