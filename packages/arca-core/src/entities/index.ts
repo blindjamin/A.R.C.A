@@ -11,6 +11,7 @@ import { TipoActorAuditoria } from './tipo-actor-auditoria.enum';
 import { Auditoria } from './auditoria.entity';
 import { RevisionSolicitud } from './revision-solicitud.entity';
 import { NotaSolicitud } from './nota-solicitud.entity';
+import { LoteDerivacion } from './lote-derivacion.entity';
 
 export { RolAdministrador } from './rol-administrador.enum';
 export { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -27,6 +28,7 @@ export { Auditoria } from './auditoria.entity';
 export { MotivoRevision } from './motivo-revision.enum';
 export { RevisionSolicitud } from './revision-solicitud.entity';
 export { NotaSolicitud } from './nota-solicitud.entity';
+export { LoteDerivacion } from './lote-derivacion.entity';
 
 // Usado por apps/backend/src/database/data-source.ts: el glob __dirname +
 // '/../**/*.entity' que usaba antes de la migración no encuentra las
@@ -42,4 +44,5 @@ export const ENTIDADES = [
   Auditoria,
   RevisionSolicitud,
   NotaSolicitud,
+  LoteDerivacion,
 ];
