@@ -21,26 +21,42 @@ export interface ResiduoCatalogo {
   updatedAt: string;
 }
 
+// Ciclo de revisión y derivación (docs/specs/SPEC-ciclo-solicitud.md). Qué
+// transiciones son válidas lo decide el backend: el panel solo muestra las que
+// vienen en `transicionesDisponibles`.
 export type EstadoSolicitud =
-  | 'pendiente'
-  | 'asignada'
-  | 'en_proceso'
-  | 'completada'
+  | 'en_revision'
+  | 'requiere_modificacion'
+  | 'aprobada'
+  | 'rechazada'
+  | 'derivada'
+  | 'retirada'
+  | 'no_realizada'
   | 'cancelada';
+
+export type EstadoPago = 'no_aplica' | 'pendiente' | 'pagado';
+
+export interface FuncionarioResumen {
+  id: string;
+  nombre: string;
+  apellido: string;
+}
 
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
   residuoCatalogoId: number;
   estado: EstadoSolicitud;
+  estadoPago: EstadoPago;
+  monto: number | null;
   descripcion: string | null;
   direccionAnonimizada?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
   fechaSolicitud: string;
-  fechaProgramada?: string | null;
-  fechaCompletada?: string | null;
-  operadorAsignadoId?: string | null;
+  fechaRevision?: string | null;
+  revisadoPorId?: string | null;
+  fechaCierre?: string | null;
   razonRechazo?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -48,11 +64,15 @@ export interface SolicitudRetiro {
   residuoCatalogo?: ResiduoCatalogo;
 }
 
+/** Lo que devuelve `GET /admin/solicitudes/:id`. */
+export interface SolicitudDetalle extends SolicitudRetiro {
+  revisadoPor?: FuncionarioResumen | null;
+  /** Estados a los que la sesión actual puede mover la solicitud. */
+  transicionesDisponibles: EstadoSolicitud[];
+}
+
 export interface ActualizarSolicitudInput {
-  estado?: EstadoSolicitud;
-  operadorAsignadoId?: string;
-  fechaProgramada?: string;
-  razonRechazo?: string;
+  estado: EstadoSolicitud;
 }
 
 // --- Overlay visual ---------------------------------------------------------
@@ -101,10 +121,10 @@ export const IDENTIDADES_DEV = {
     nombre: 'Carlos Álvarez',
     rol: 'Administrador',
   },
-  operador: {
+  funcionario: {
     id: '00000000-0000-4000-8000-000000000002',
     nombre: 'Camila Operadora',
-    rol: 'Operador',
+    rol: 'Funcionario',
   },
 } as const;
 
@@ -113,8 +133,8 @@ export type PerfilDev = keyof typeof IDENTIDADES_DEV;
 const STORAGE_KEY_PERFIL = 'arca.panel.perfilDev';
 
 export function perfilDevActual(): PerfilDev {
-  return localStorage.getItem(STORAGE_KEY_PERFIL) === 'operador'
-    ? 'operador'
+  return localStorage.getItem(STORAGE_KEY_PERFIL) === 'funcionario'
+    ? 'funcionario'
     : 'admin';
 }
 
@@ -170,9 +190,9 @@ export function fetchSolicitudesAdmin(
   );
 }
 
-export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
+export function fetchSolicitud(id: number): Promise<SolicitudDetalle> {
   return apiFetch(`${API_URL}/admin/solicitudes/${id}`).then((r) =>
-    handle<SolicitudRetiro>(r),
+    handle<SolicitudDetalle>(r),
   );
 }
 
@@ -224,7 +244,7 @@ export interface AuditoriaLog {
 /**
  * Registro auditable de acciones críticas.
  *
- * Requiere rol `admin`: a diferencia del resto del panel, un operador recibe
+ * Requiere rol `admin`: a diferencia del resto del panel, un funcionario recibe
  * 403 acá. Es información de control interno sobre lo que hace cada
  * funcionario, no información operativa.
  *

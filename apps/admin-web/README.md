@@ -32,7 +32,6 @@ src/
 ├── components/
 │   ├── AdminShell.tsx    ← layout de escritorio (sidebar), reemplaza el header por pantalla
 │   │                        que tenían Solicitudes/Auditoria antes de la migración
-│   ├── AsignarRetiroModal.tsx
 │   └── ui/               ← copia de 6 átomos de apps/frontend — ver deuda abajo
 └── pages/
     ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx
