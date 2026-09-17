@@ -46,7 +46,7 @@ La plataforma prioriza la **economía circular**: antes de que un objeto sea ret
 > Se listan en **orden de roadmap**, no numérico.
 
 ### EP-01 — Fundación y Seguridad
-Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, operador y administrador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
+Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, funcionario y administrador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
 
 ### EP-02 — Interfaz Ciudadana
 Completa la experiencia del vecino. La clasificación por IA se ejecuta localmente en el navegador con **TensorFlow.js**, funcionando como **apoyo y no como decisión final**: el usuario siempre confirma o corrige la categoría sugerida, y puede clasificar manualmente desde el catálogo cuando la IA no detecta el residuo. Suma el seguimiento de la solicitud, las notificaciones de cambio de estado, el feedback post-retiro y una FAQ por categoría.
@@ -55,7 +55,14 @@ Completa la experiencia del vecino. La clasificación por IA se ejecuta localmen
 Espacio para que vecinos publiquen e intercambien artículos antes de que sean retirados por el municipio. Incluye chat en tiempo real (WebSocket) y trazabilidad de entregas. Absorbe el sistema de incentivos **Circular Credits**: los créditos se otorgan al confirmar la entrega y son consultables con historial desde el perfil, junto con las estadísticas de CO₂ ahorrado y el ranking de impacto.
 
 ### EP-04 — Dashboard Administrativo Municipal
-Panel para funcionarios con métricas en tiempo real, mapa georreferenciado de solicitudes, asignación de retiros a operadores y reportes exportables en PDF/CSV. Incorpora el ciclo operativo del retiro: marcar «en ruta», subir la foto del retiro con GPS y marcar «retirado».
+Panel para funcionarios que actúan como **último filtro** de cada solicitud: revisan las fotos y los datos, y aprueban, piden una modificación o rechazan. Las solicitudes aprobadas se **derivan a la empresa operadora externa** en un Excel generado con un botón, y el resultado del retiro se registra después. Incluye métricas del ciclo, mapa por sector, pago maqueteado y reportes.
+
+> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
+> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> Los retiros en terreno («en ruta», foto con GPS, rutas de operadores) quedan **fuera del alcance** de A.R.C.A.
+> Detalle: [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [spec `ciclo-solicitud`](docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](tasks/plan.md)
 
 ### EP-06 — Confianza y Comunidad
 Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante calificaciones, denuncia de incumplimientos y moderación municipal con bloqueo de usuarios.
@@ -216,7 +223,7 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 |---|---|
 | **Catálogo de residuos** | ✅ `GET /api/residuos/catalogo` con **precios reales** en base de datos |
 | **Solicitud de retiro** | ✅ Crear, listar, ver detalle y cancelar — conectado al backend |
-| **Panel municipal (EP-04 base)** | ✅ Listar, filtrar por estado, detalle y cambio de estado reversible |
+| **Panel municipal (EP-04 base)** | ✅ Listar, filtrar por estado, detalle y cambio de estado reversible · 🔄 replanteo aprobado: revisión y derivación a empresa externa ([mapa](docs/specs/MAPA_PANEL_MUNICIPAL.md)) |
 | **Login diferido** | ✅ Gate por `perfil-acceso`: funcionario elige contexto, ciudadano va directo a la PWA |
 | **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |

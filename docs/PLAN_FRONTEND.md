@@ -45,7 +45,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 | Login (ClaveÚnica) | `/login` | ✅ **backend** | Primera vista. Mock: accesos dev Vecino / Funcionario |
 | Gate login diferido | `/` | ✅ **backend** | Funcionario → selección; solo ciudadano → `/inicio` |
 | Selección de contexto | `/` (admin) | ✅ **backend** | Solo funcionarios: App ciudadana / Panel municipal |
-| Panel admin | `/admin` | ✅ **backend** | `RequireAdmin`. Listar/filtrar/detalle + estado **reversible** (EP-03 base) |
+| Panel admin | `/admin` | ✅ **backend** | `RequireAdmin`. Listar/filtrar/detalle + estado **reversible** (EP-03 base). 🔄 Replanteo aprobado: ver [`docs/specs/`](specs/MAPA_PANEL_MUNICIPAL.md) |
 | Inicio / Dashboard | `/inicio` | ✅ | Tarjeta de créditos/impacto **estática** (demo, falta EP-04) |
 | Captura residuo | `/solicitar` | ✅ esqueleto | Cámara/galería **solo visual** (no obligatoria) |
 | Analizando IA | `/solicitar/analizando` | ✅ esqueleto | Scan animado mock (~2.2s) |

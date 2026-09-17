@@ -230,6 +230,14 @@ cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifi
 ## Panel Administrativo y Asignación (EP-03 / Sprint 2)
 
 ### 1. Asignación y Programación de Retiros (HU-08)
+
+> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
+> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> Esta sección queda **obsoleta** cuando entre el PR 3: la asignación de operadores y la programación de
+> fecha y franja se eliminan del panel.
+> Detalle: [mapa del panel](../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [spec `ciclo-solicitud`](../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../tasks/plan.md)
 Implementado en `apps/admin-web` (`AsignarRetiroModal.tsx` + detalle en `Solicitudes.tsx`):
 - **Selección de fecha:** Selector de fecha de retiro programada.
 - **Franjas horarias:** Selección rápida entre turnos *Mañana*, *Tarde*, *Noche* o *Personalizada*.
@@ -342,7 +350,7 @@ los endpoints correspondientes.
 | EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
 | EP-04 Circular Credits | Saldo + historial en perfil |
 | EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, modal de asignación HU-08, auditoría HU-13, mapa de calor con **Leaflet** HU-07). Falta panel funcionario completo, reportes |
-| Programación con operadores | ✅ UI hecha (`AsignarRetiroModal`). Backend: `GET /api/operadores` listo en :3000. **Pendiente:** dejar de usar `OPERADORES_DEMO` en el panel (PR admin-web) |
+| Programación con operadores | ❌ **Descartada** (replanteo 2026-09-17): los retiros los ejecuta una empresa externa. Se elimina en el PR 3 del [plan](../tasks/plan.md) |
 | Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
 | Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
 | Proteger el panel admin | ⛔ Sin gate de sesión en `apps/admin-web` (deuda declarada, migración 2026-09-01). Falta login ClaveÚnica propio + guard real |

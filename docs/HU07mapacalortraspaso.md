@@ -1,5 +1,8 @@
 # HU-07 — Dashboard de solicitudes de retiro con mapa (panel municipal)
 
+> **Nota (2026-09-17):** documento histórico. Los estados y el rol `operador` que menciona cambian con el
+> replanteo del panel; ver [`docs/specs/SPEC-ciclo-solicitud.md`](specs/SPEC-ciclo-solicitud.md).
+
 > **Documento de traspaso.** Contiene todo el contexto necesario para implementar la HU-07 del
 > proyecto A.R.C.A. sin acceso a la conversación previa. Todo lo marcado como *verificado* fue
 > comprobado leyendo el código del repositorio el 2026-09-02, no la documentación.
