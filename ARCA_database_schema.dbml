@@ -126,6 +126,7 @@ Table solicitudes_retiro {
   fecha_cierre timestamp [note: "Resultado del retiro informado por la empresa (retirada / no_realizada)"]
   tomada_por_id varchar(36) [note: "Funcionario que tiene tomada la solicitud para revisarla"]
   tomada_hasta timestamp [note: "Vencimiento de la toma (15 min)"]
+  lote_derivacion_id int [note: "Último lote en que se derivó a la empresa"]
   razon_rechazo text
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
@@ -152,6 +153,14 @@ Table notas_solicitud {
   autor_id varchar(36) [not null]
   texto text [not null, note: "Solo interna del panel"]
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table lotes_derivacion {
+  id int [primary key, increment]
+  generado_por_id varchar(36) [not null]
+  cantidad int [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  Note: "Excel entregado a la empresa operadora; el archivo se arma en cada descarga"
 }
 
 Table horarios_retiro {
@@ -399,6 +408,8 @@ Ref: revisiones_solicitud.solicitud_retiro_id > solicitudes_retiro.id
 Ref: revisiones_solicitud.revisado_por_id > usuarios_administradores.id
 Ref: notas_solicitud.solicitud_retiro_id > solicitudes_retiro.id
 Ref: notas_solicitud.autor_id > usuarios_administradores.id
+Ref: solicitudes_retiro.lote_derivacion_id > lotes_derivacion.id
+Ref: lotes_derivacion.generado_por_id > usuarios_administradores.id
 
 Ref: horarios_retiro.solicitud_retiro_id > solicitudes_retiro.id
 Ref: horarios_retiro.operador_asignado_id > usuarios_administradores.id
