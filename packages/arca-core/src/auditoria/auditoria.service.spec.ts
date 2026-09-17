@@ -28,7 +28,7 @@ const dobleRol: AuthUser = {
   ciudadanoId: DOBLE_ROL_CIUDADANO_ID,
   esAdministrador: true,
   administradorId: ADMINISTRADOR_ID,
-  rol: RolAdministrador.OPERADOR,
+  rol: RolAdministrador.FUNCIONARIO,
 };
 
 describe('AuditoriaService', () => {
@@ -153,11 +153,11 @@ describe('AuditoriaService', () => {
         entidadId: 42,
         accion: AccionAuditoria.UPDATE,
         datosAnteriores: { estado: 'pendiente' },
-        datosNuevos: { estado: 'asignada' },
+        datosNuevos: { estado: 'aprobada' },
       });
 
       expect(guardado.datosAnteriores).toEqual({ estado: 'pendiente' });
-      expect(guardado.datosNuevos).toEqual({ estado: 'asignada' });
+      expect(guardado.datosNuevos).toEqual({ estado: 'aprobada' });
     });
 
     it('deja los campos en null cuando la acción no tiene antes y después', async () => {

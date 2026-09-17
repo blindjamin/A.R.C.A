@@ -301,8 +301,11 @@ npm run dev
 Abrir: **http://localhost:5174**
 
 > **Deuda declarada:** todavía no tiene login ni guard de sesión propios (ver
-> `apps/admin-web/README.md`). Hasta que exista, sus llamadas a `apps/backend-admin`
-> devuelven 401 — es esperado, no un error de setup.
+> `apps/admin-web/README.md`). Mientras tanto, el selector «Sesión de prueba» de la barra lateral
+> alterna entre dos identidades de desarrollo: **Carlos Álvarez** (admin, ve la auditoría) y
+> **Camila Operadora** (funcionario). Si el panel responde con errores de columnas inexistentes,
+> falta correr `npm run migration:run` en `apps/backend`: la revisión, la derivación y las métricas
+> usan las migraciones del replanteo del 2026-09-17.
 
 ---
 

@@ -30,7 +30,7 @@ import { SolicitudesAdminService } from './solicitudes-admin.service';
 
 @Controller('admin/solicitudes')
 @UseGuards(RolesGuard)
-@Roles(RolAdministrador.ADMIN, RolAdministrador.OPERADOR)
+@Roles(RolAdministrador.ADMIN, RolAdministrador.FUNCIONARIO)
 export class SolicitudesAdminController {
   constructor(
     private readonly solicitudesAdminService: SolicitudesAdminService,
@@ -42,12 +42,15 @@ export class SolicitudesAdminController {
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.solicitudesAdminService.findOne(id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.solicitudesAdminService.detalle(id, user);
   }
 
   @Patch(':id')
-  @Roles(RolAdministrador.ADMIN, RolAdministrador.OPERADOR)
+  @Roles(RolAdministrador.ADMIN, RolAdministrador.FUNCIONARIO)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateSolicitudAdminDto,

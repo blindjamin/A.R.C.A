@@ -10,7 +10,7 @@ import {
  *
  * El panel todavía no tiene login propio (ver el bloque de identidades en
  * api/admin.ts). Mientras tanto, esto permite alternar entre el administrador y
- * el operador para comprobar el control de acceso por rol desde la interfaz:
+ * el funcionario para comprobar el control de acceso por rol desde la interfaz:
  * ambos gestionan solicitudes, pero solo el administrador ve el registro de
  * auditoría.
  *

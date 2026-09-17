@@ -8,6 +8,9 @@ import { IdentityModule } from './identity/identity.module';
 import { SolicitudesAdminModule } from './solicitudes/solicitudes-admin.module';
 import { MapaCalorModule } from './mapa-calor/mapa-calor.module';
 import { AuditoriaAdminModule } from './auditoria/auditoria-admin.module';
+import { ResiduosAdminModule } from './residuos/residuos-admin.module';
+import { DerivacionesAdminModule } from './derivaciones/derivaciones-admin.module';
+import { MetricasAdminModule } from './metricas/metricas-admin.module';
 
 @Module({
   imports: [
@@ -38,6 +41,9 @@ import { AuditoriaAdminModule } from './auditoria/auditoria-admin.module';
     SolicitudesAdminModule,
     MapaCalorModule,
     AuditoriaAdminModule,
+    ResiduosAdminModule,
+    DerivacionesAdminModule,
+    MetricasAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

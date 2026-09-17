@@ -90,6 +90,16 @@ Todos cuelgan del prefijo `/api`.
 Estados de una solicitud (`EstadoSolicitudRetiro`):
 `pendiente` · `asignada` · `en_proceso` · `completada` · `cancelada`
 
+> ⚠️ **Replanteo del 2026-09-17: el núcleo y la base ya cambiaron, este backend todavía no.**
+> La empresa que ejecuta los retiros es **externa**: A.R.C.A. no asigna operadores; el funcionario
+> **revisa, aprueba y deriva** las solicitudes desde el panel.
+> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
+> Con `@arca/core` actualizado, **este proyecto no compila** hasta hacer lo de §2 de los pendientes:
+> crear en `en_revision`, cancelar con `aplicarTransicion`, quitar `update()` y `GET /api/operadores`, y
+> `OPERADOR` → `FUNCIONARIO`. Lo descrito en esta sección y en la de autenticación es el estado anterior.
+> Detalle: [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
+
 ### Autenticación (HU-13 — desarrollo)
 
 Hasta que Benjamín integre ClaveÚnica/JWT, las rutas protegidas exigen:

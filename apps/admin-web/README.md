@@ -32,22 +32,31 @@ src/
 ├── components/
 │   ├── AdminShell.tsx    ← layout de escritorio (sidebar), reemplaza el header por pantalla
 │   │                        que tenían Solicitudes/Auditoria antes de la migración
-│   ├── AsignarRetiroModal.tsx
+│   ├── RevisionSolicitud.tsx ← tarjeta «Revisión» (checklist, motivos, categoría), historial y
+│   │                            notas internas (docs/specs/SPEC-revision-solicitudes.md)
 │   └── ui/               ← copia de 6 átomos de apps/frontend — ver deuda abajo
 └── pages/
-    ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx
+    ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx; cola «En revisión» con aviso +48 h y toma
+    │                        automática al abrir el detalle
+    ├── Metricas.tsx      ← indicadores con rango de 7/30/90 días, barras en CSS
+    │                        (docs/specs/SPEC-dashboard-metricas.md)
+    ├── Derivacion.tsx    ← lotes para la empresa operadora: generar y descargar el Excel
+    │                        (docs/specs/SPEC-derivacion-excel.md)
     ├── MapaCalor.tsx     ← Mapa de calor por sectores (HU-07)
-    └── Auditoria.tsx     ← ex AdminAuditoria.tsx (datos mock, Sprint 5)
+    └── Auditoria.tsx     ← ex AdminAuditoria.tsx; registro de auditoría real, solo rol admin (HU-14)
 ```
 
-## Deuda declarada: operadores del modal (HU-08)
+## Ciclo de solicitud (replanteo del 2026-09-17)
 
-`AsignarRetiroModal` y el select de “Cambiar estado” en `Solicitudes.tsx` usan
-`OPERADORES_DEMO` (UUIDs fijos). El backend ciudadano ya expone
-`GET /api/operadores` (roles `admin`/`operador`, puerto **3000**). Este panel solo proxea a
-`backend-admin` (**3001**), así que cablear el listado real implica o bien llamar al API
-ciudadano, o bien replicar/exponer el listado en `backend-admin`. **PR aparte** (frontend
-admin / acuerdo de equipo).
+Los retiros los ejecuta una empresa **externa**: el panel no asigna operadores. La pantalla de
+Solicitudes muestra solo las acciones que el backend devuelve en `transicionesDisponibles`, y las
+decisiones de revisión (aprobar, pedir modificación, rechazar) van por la tarjeta «Revisión».
+Specs: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+[pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md).
+
+**Deuda declarada:** `MOTIVOS_POR_DECISION` e `ITEMS_CHECKLIST_APROBACION` en `api/admin.ts`
+son copia de `@arca/core` (este proyecto no puede importar el paquete). Si cambian allá, hay
+que copiarlos; mientras tanto el backend responde 400 y no guarda nada inválido.
 
 ## Deuda declarada: UI Kit duplicado
 

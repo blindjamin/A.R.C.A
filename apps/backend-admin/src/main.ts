@@ -14,6 +14,10 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      // Un campo desconocido responde 400 en vez de ignorarse en silencio: un
+      // cliente que todavía mande `operadorAsignadoId` se entera de que ya no
+      // existe, en lugar de recibir 200 sin que se haya guardado nada.
+      forbidNonWhitelisted: true,
       transform: true,
     }),
   );

@@ -147,6 +147,13 @@ Detalle de implementación: [`apps/backend/README.md`](../apps/backend/README.md
 
 ### Cambio de estado (PATCH admin)
 
+> ⚠️ **Nota histórica (replanteo del 2026-09-17).** Lo descrito abajo (estado libre y reversible,
+> `asignada` con operador) **ya se reemplazó** en `apps/backend-admin` por la tabla de transiciones de
+> `@arca/core`, con permisos por actor (vecino, funcionario, admin). En el backend ciudadano,
+> `GET /api/operadores` se elimina como parte de los pendientes.
+> Detalle: [pendientes del equipo](PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](specs/SPEC-ciclo-solicitud.md)
+
 > Esta lógica corre hoy en `apps/backend-admin` (`PATCH /api/admin/solicitudes/{id}`), no acá
 > — se documenta igual porque el criterio de negocio es el mismo y sigue siendo válido.
 

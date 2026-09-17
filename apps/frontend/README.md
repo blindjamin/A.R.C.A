@@ -5,6 +5,16 @@ PWA mobile-first del proyecto A.R.C.A. Construida con **React 18 + TypeScript + 
 > Documentación detallada de la fase actual: [`docs/FRONTEND_FASE1.md`](../../docs/FRONTEND_FASE1.md)
 > Roadmap y pendientes por fase: [`docs/PLAN_FRONTEND.md`](../../docs/PLAN_FRONTEND.md)
 
+> ⚠️ **Replanteo del 2026-09-17: el núcleo, la base y el panel ya cambiaron, la PWA todavía no.**
+> La empresa que ejecuta los retiros es **externa**: A.R.C.A. no asigna operadores; el funcionario
+> **revisa, aprueba y deriva** las solicitudes.
+> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
+> Por hacer en la PWA (Ana o Maxi): tipos en `api/arca.ts`, etiquetas para el vecino en `estadoMeta.ts`
+> y Cancelar solo en `en_revision`, `requiere_modificacion` o `aprobada` **sin pagar**. Después vienen la
+> pantalla «tu solicitud requiere cambios», la subida de fotos, los datos de contacto y el pago maqueteado.
+> Detalle: [pendientes del equipo §5](../../docs/PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
+
 ---
 
 ## Arrancar en local

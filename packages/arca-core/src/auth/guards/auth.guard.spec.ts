@@ -5,7 +5,7 @@ import { AuthUser } from '../interfaces/auth-user.interface';
 import { AuthGuard, RolesGuard } from './auth.guard';
 
 const ROL_ADMIN = 'admin' as const;
-const ROL_OPERADOR = 'operador' as const;
+const ROL_FUNCIONARIO = 'funcionario' as const;
 
 describe('RolesGuard', () => {
   let guard: RolesGuard;
@@ -47,16 +47,16 @@ describe('RolesGuard', () => {
   });
 
   it('permite si el rol coincide', () => {
-    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([ROL_OPERADOR]);
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue([ROL_FUNCIONARIO]);
 
-    const operador: AuthUser = {
+    const funcionario: AuthUser = {
       ciudadanoId: '00000000-0000-4000-8000-000000000002',
       esAdministrador: true,
       administradorId: '00000000-0000-4000-8000-0000000000A2',
-      rol: ROL_OPERADOR,
+      rol: ROL_FUNCIONARIO,
     };
 
-    expect(guard.canActivate(buildContext(operador))).toBe(true);
+    expect(guard.canActivate(buildContext(funcionario))).toBe(true);
   });
 });
 
