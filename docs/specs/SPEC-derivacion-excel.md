@@ -1,6 +1,6 @@
 # Spec: `derivacion-excel` — Entregar las solicitudes aprobadas a la empresa operadora
 
-> **Estado:** BORRADOR — implementación en curso (panel) · **Fecha:** 2026-09-17
+> **Estado:** BORRADOR — implementado en el panel; pendiente de revisión del equipo · **Fecha:** 2026-09-17
 > **Autor:** Benjamín Paicil (con asistencia de IA)
 > **Módulo del mapa:** [`derivacion-excel`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `revision-solicitudes` (y, para dirección real y contacto, `datos-retiro`, que todavía no existe)
 

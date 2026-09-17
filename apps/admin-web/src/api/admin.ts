@@ -384,6 +384,63 @@ export function fetchResiduos(): Promise<ResiduoResumen[]> {
   );
 }
 
+// --- Derivación a la empresa (docs/specs/SPEC-derivacion-excel.md) ---------
+
+export interface ResumenDerivacion {
+  /** Aprobadas con el pago resuelto: entran en el próximo lote. */
+  listas: number;
+  /** Aprobadas que esperan el pago del vecino. */
+  bloqueadasPorPago: number;
+}
+
+export interface LoteDerivacion {
+  id: number;
+  cantidad: number;
+  generadoPor: string;
+  createdAt: string;
+}
+
+export function fetchResumenDerivacion(): Promise<ResumenDerivacion> {
+  return apiFetch(`${API_URL}/admin/derivaciones/resumen`).then((r) =>
+    handle<ResumenDerivacion>(r),
+  );
+}
+
+export function fetchLotesDerivacion(): Promise<LoteDerivacion[]> {
+  return apiFetch(`${API_URL}/admin/derivaciones`).then((r) =>
+    handle<LoteDerivacion[]>(r),
+  );
+}
+
+export function crearLoteDerivacion(): Promise<{ id: number; cantidad: number }> {
+  return apiFetch(`${API_URL}/admin/derivaciones`, { method: 'POST' }).then(
+    (r) => handle<{ id: number; cantidad: number }>(r),
+  );
+}
+
+/**
+ * Descarga el Excel del lote. Va por `fetch` y no por un enlace porque la
+ * petición necesita el header Authorization; cada descarga queda auditada.
+ */
+export async function descargarExcelLote(id: number): Promise<void> {
+  const res = await apiFetch(`${API_URL}/admin/derivaciones/${id}/excel`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Error ${res.status}: ${body || res.statusText}`);
+  }
+
+  const disposicion = res.headers.get('content-disposition') ?? '';
+  const nombre =
+    /filename="([^"]+)"/.exec(disposicion)?.[1] ?? `arca-lote-${id}.xlsx`;
+
+  const url = URL.createObjectURL(await res.blob());
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = nombre;
+  enlace.click();
+  URL.revokeObjectURL(url);
+}
+
 // --- Mapa de calor ----------------------------------------------------------
 
 export interface SectorMapaCalor {

@@ -38,6 +38,8 @@ src/
 └── pages/
     ├── Solicitudes.tsx   ← ex AdminSolicitudes.tsx; cola «En revisión» con aviso +48 h y toma
     │                        automática al abrir el detalle
+    ├── Derivacion.tsx    ← lotes para la empresa operadora: generar y descargar el Excel
+    │                        (docs/specs/SPEC-derivacion-excel.md)
     ├── MapaCalor.tsx     ← Mapa de calor por sectores (HU-07)
     └── Auditoria.tsx     ← ex AdminAuditoria.tsx (datos mock, Sprint 5)
 ```
