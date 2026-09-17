@@ -90,6 +90,18 @@ Todos cuelgan del prefijo `/api`.
 Estados de una solicitud (`EstadoSolicitudRetiro`):
 `pendiente` · `asignada` · `en_proceso` · `completada` · `cancelada`
 
+> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
+> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
+> En este backend (**PR 2 — lo implementa Miguel o Javier**): crear deja la solicitud en `en_revision`,
+> cancelar usa las reglas de `@arca/core` (solo `en_revision`, `requiere_modificacion` o `aprobada` sin pagar),
+> se elimina `GET /api/operadores` y el `update()` sin uso, y el rol `OPERADOR` pasa a `FUNCIONARIO`.
+> La migración (PR 1) quita `operador_asignado_id` y `fecha_programada` y agrega `estado_pago`, `monto`,
+> `fecha_revision` y `revisado_por_id`.
+> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+
 ### Autenticación (HU-13 — desarrollo)
 
 Hasta que Benjamín integre ClaveÚnica/JWT, las rutas protegidas exigen:

@@ -124,11 +124,34 @@ Table solicitudes_retiro {
   fecha_revision timestamp [note: "Última decisión de revisión (aprobar, pedir modificación, rechazar)"]
   revisado_por_id varchar(36) [note: "Funcionario o admin que tomó esa decisión"]
   fecha_cierre timestamp [note: "Resultado del retiro informado por la empresa (retirada / no_realizada)"]
+  tomada_por_id varchar(36) [note: "Funcionario que tiene tomada la solicitud para revisarla"]
+  tomada_hasta timestamp [note: "Vencimiento de la toma (15 min)"]
   razon_rechazo text
-
-  Note: "El retiro lo ejecuta una empresa externa: el municipio revisa y deriva, no asigna operadores."
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "El retiro lo ejecuta una empresa externa: el municipio revisa y deriva, no asigna operadores."
+}
+
+Table revisiones_solicitud {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null]
+  revisado_por_id varchar(36) [not null]
+  decision enum('aprobada', 'requiere_modificacion', 'rechazada') [not null]
+  motivo varchar(50) [note: "MotivoRevision de @arca/core"]
+  comentario text [note: "Lo ve el vecino; no se copia a auditoría"]
+  checklist json [note: "Lista de verificación al aprobar"]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Historial de decisiones de revisión. No se edita."
+}
+
+Table notas_solicitud {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null]
+  autor_id varchar(36) [not null]
+  texto text [not null, note: "Solo interna del panel"]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
 }
 
 Table horarios_retiro {
@@ -371,6 +394,11 @@ Ref: sesiones_administrador.usuario_administrador_id > usuarios_administradores.
 Ref: solicitudes_retiro.usuario_ciudadano_id > usuarios_ciudadanos.id
 Ref: solicitudes_retiro.residuo_catalogo_id > residuos_catalogo.id
 Ref: solicitudes_retiro.revisado_por_id > usuarios_administradores.id
+Ref: solicitudes_retiro.tomada_por_id > usuarios_administradores.id
+Ref: revisiones_solicitud.solicitud_retiro_id > solicitudes_retiro.id
+Ref: revisiones_solicitud.revisado_por_id > usuarios_administradores.id
+Ref: notas_solicitud.solicitud_retiro_id > solicitudes_retiro.id
+Ref: notas_solicitud.autor_id > usuarios_administradores.id
 
 Ref: horarios_retiro.solicitud_retiro_id > solicitudes_retiro.id
 Ref: horarios_retiro.operador_asignado_id > usuarios_administradores.id

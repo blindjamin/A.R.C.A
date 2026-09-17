@@ -94,6 +94,21 @@ export class SolicitudRetiro {
   @Column({ name: 'fecha_cierre', type: 'timestamp', nullable: true })
   fechaCierre: Date | null;
 
+  /**
+   * Funcionario que tiene tomada la solicitud para revisarla, hasta
+   * `tomadaHasta`. Evita que dos personas revisen la misma a la vez.
+   */
+  @Column({
+    name: 'tomada_por_id',
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+  })
+  tomadaPorId: string | null;
+
+  @Column({ name: 'tomada_hasta', type: 'timestamp', nullable: true })
+  tomadaHasta: Date | null;
+
   @Column({ name: 'razon_rechazo', type: 'text', nullable: true })
   razonRechazo: string | null;
 

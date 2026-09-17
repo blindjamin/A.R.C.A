@@ -138,7 +138,7 @@ Todo el dominio está detrás de un WAF municipal. Se coordina con el municipio 
 Las fotos se guardan como **archivos en directorio protegido** del servidor (fuera del directorio público) y se sirven vía API con autenticación. En la BD solo se almacena la ruta relativa. Esto protege datos personales y de ubicación.
 
 ### 5.8 ClaveÚnica como único método de autenticación
-No existe registro con usuario/contraseña local. Toda autenticación pasa por ClaveÚnica OAuth2. Los roles (vecino, operador y administrador) se gestionan en la base de datos.
+No existe registro con usuario/contraseña local. Toda autenticación pasa por ClaveÚnica OAuth2. Los roles (vecino, operador y administrador) se gestionan en la base de datos. *(Replanteo aprobado 2026-09-17: `operador` pasa a llamarse `funcionario`; ver `docs/specs/SPEC-ciclo-solicitud.md`.)*
 
 ### 5.9 Dominio propio
 El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo anual está reflejado en la tabla de costos de la arquitectura convertido a valor mensual aproximado.
@@ -373,6 +373,14 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
 ---
 
 ## 13. Estado actual del proyecto
+
+> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
+> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> Afecta a HU-07, HU-08 (pasa a «derivar a la empresa operadora»), HU-13, HU-31 y HU-32 (retiro en
+> terreno, fuera de alcance). El PO debe actualizar el backlog. Rol `operador` → `funcionario`.
+> Detalle: [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [spec `ciclo-solicitud`](docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](tasks/plan.md)
 
 - **Fase:** Inicio de implementación — Fase 1 (MVP).
 - **Código:** ya existe (monorepo `apps/`). Lo construido a la fecha:
