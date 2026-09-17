@@ -43,26 +43,20 @@ src/
     ├── Derivacion.tsx    ← lotes para la empresa operadora: generar y descargar el Excel
     │                        (docs/specs/SPEC-derivacion-excel.md)
     ├── MapaCalor.tsx     ← Mapa de calor por sectores (HU-07)
-    └── Auditoria.tsx     ← ex AdminAuditoria.tsx (datos mock, Sprint 5)
+    └── Auditoria.tsx     ← ex AdminAuditoria.tsx; registro de auditoría real, solo rol admin (HU-14)
 ```
 
-## Deuda declarada: operadores del modal (HU-08)
+## Ciclo de solicitud (replanteo del 2026-09-17)
 
-> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
-> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
-> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
-> Esta deuda **deja de aplicar**: en el PR 3 se eliminan `AsignarRetiroModal`, `OPERADORES_DEMO` y el
-> selector de operador y fecha. La pantalla de Solicitudes mostrará solo las acciones que el backend
-> devuelve en `transicionesDisponibles`, y la identidad de demo «Operador» pasa a «Funcionario».
-> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
-> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+Los retiros los ejecuta una empresa **externa**: el panel no asigna operadores. La pantalla de
+Solicitudes muestra solo las acciones que el backend devuelve en `transicionesDisponibles`, y las
+decisiones de revisión (aprobar, pedir modificación, rechazar) van por la tarjeta «Revisión».
+Specs: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+[pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md).
 
-`AsignarRetiroModal` y el select de “Cambiar estado” en `Solicitudes.tsx` usan
-`OPERADORES_DEMO` (UUIDs fijos). El backend ciudadano ya expone
-`GET /api/operadores` (roles `admin`/`operador`, puerto **3000**). Este panel solo proxea a
-`backend-admin` (**3001**), así que cablear el listado real implica o bien llamar al API
-ciudadano, o bien replicar/exponer el listado en `backend-admin`. **PR aparte** (frontend
-admin / acuerdo de equipo).
+**Deuda declarada:** `MOTIVOS_POR_DECISION` e `ITEMS_CHECKLIST_APROBACION` en `api/admin.ts`
+son copia de `@arca/core` (este proyecto no puede importar el paquete). Si cambian allá, hay
+que copiarlos; mientras tanto el backend responde 400 y no guarda nada inválido.
 
 ## Deuda declarada: UI Kit duplicado
 

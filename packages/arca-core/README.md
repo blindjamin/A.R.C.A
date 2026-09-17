@@ -15,8 +15,9 @@ src/
 │                 AuthService y su AuthModule.
 ├── health/     ← HealthModule (GET /api/health, chequea la conexión a MySQL). Sin lógica
 │                 propia de ningún backend — se comparte para no duplicarlo.
-└── solicitudes/ ← Reglas del ciclo de vida de una solicitud: validarTransicion,
-                   transicionesDisponibles y aplicarTransicion (funciones puras, con tests).
+└── solicitudes/ ← Reglas del ciclo de vida de una solicitud (validarTransicion,
+                   transicionesDisponibles, aplicarTransicion) y de su revisión
+                   (validarRevision, motivos y checklist). Funciones puras, con tests.
 ```
 
 ## Ciclo de vida de una solicitud
@@ -41,6 +42,9 @@ Las **decisiones de revisión** (aprobar, pedir modificación, rechazar) además
 decisión, comentario obligatorio al pedir modificación o con motivo `otro`, y lista de verificación
 completa (`ITEMS_CHECKLIST_APROBACION`) para aprobar. El historial queda en `RevisionSolicitud`
 y las notas internas en `NotaSolicitud`. Ver `docs/specs/SPEC-revision-solicitudes.md`.
+
+Los lotes entregados a la empresa operadora quedan en `LoteDerivacion`, y cada solicitud guarda el
+último lote en que salió (`loteDerivacionId`). Ver `docs/specs/SPEC-derivacion-excel.md`.
 
 ## Regla para tocar este paquete
 
@@ -68,7 +72,8 @@ npm test
 ```
 
 Son los specs de auth de HU-12/HU-13 (`auth.service`, `AuthGuard`/`RolesGuard`,
-`ClaveUnicaController`/`Service`) — se movieron acá tal cual desde `apps/backend/src/auth/`.
+`ClaveUnicaController`/`Service`), que se movieron acá tal cual desde `apps/backend/src/auth/`, más
+los de las reglas de `src/solicitudes/` (ciclo de vida y revisión).
 
 ## Decisión de arquitectura: `PERFIL_ACCESO_RESOLVER`
 

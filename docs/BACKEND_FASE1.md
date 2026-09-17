@@ -147,15 +147,12 @@ Detalle de implementación: [`apps/backend/README.md`](../apps/backend/README.md
 
 ### Cambio de estado (PATCH admin)
 
-> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
-> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
-> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
-> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
-> Lo descrito abajo (estado libre y reversible, `asignada` con operador) **se reemplaza** por una tabla de
-> transiciones en `@arca/core` con permisos por actor (vecino, funcionario, admin). `GET /api/operadores`
-> se elimina.
-> Detalle: [mapa del panel](../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
-> [spec `ciclo-solicitud`](../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../tasks/plan.md)
+> ⚠️ **Nota histórica (replanteo del 2026-09-17).** Lo descrito abajo (estado libre y reversible,
+> `asignada` con operador) **ya se reemplazó** en `apps/backend-admin` por la tabla de transiciones de
+> `@arca/core`, con permisos por actor (vecino, funcionario, admin). En el backend ciudadano,
+> `GET /api/operadores` se elimina como parte de los pendientes.
+> Detalle: [pendientes del equipo](PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](specs/SPEC-ciclo-solicitud.md)
 
 > Esta lógica corre hoy en `apps/backend-admin` (`PATCH /api/admin/solicitudes/{id}`), no acá
 > — se documenta igual porque el criterio de negocio es el mismo y sigue siendo válido.

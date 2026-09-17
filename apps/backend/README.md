@@ -90,17 +90,15 @@ Todos cuelgan del prefijo `/api`.
 Estados de una solicitud (`EstadoSolicitudRetiro`):
 `pendiente` · `asignada` · `en_proceso` · `completada` · `cancelada`
 
-> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
-> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
-> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> ⚠️ **Replanteo del 2026-09-17: el núcleo y la base ya cambiaron, este backend todavía no.**
+> La empresa que ejecuta los retiros es **externa**: A.R.C.A. no asigna operadores; el funcionario
+> **revisa, aprueba y deriva** las solicitudes desde el panel.
 > Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
-> En este backend (**PR 2 — lo implementa Miguel o Javier**): crear deja la solicitud en `en_revision`,
-> cancelar usa las reglas de `@arca/core` (solo `en_revision`, `requiere_modificacion` o `aprobada` sin pagar),
-> se elimina `GET /api/operadores` y el `update()` sin uso, y el rol `OPERADOR` pasa a `FUNCIONARIO`.
-> La migración (PR 1) quita `operador_asignado_id` y `fecha_programada` y agrega `estado_pago`, `monto`,
-> `fecha_revision` y `revisado_por_id`.
-> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
-> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+> Con `@arca/core` actualizado, **este proyecto no compila** hasta hacer lo de §2 de los pendientes:
+> crear en `en_revision`, cancelar con `aplicarTransicion`, quitar `update()` y `GET /api/operadores`, y
+> `OPERADOR` → `FUNCIONARIO`. Lo descrito en esta sección y en la de autenticación es el estado anterior.
+> Detalle: [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
 
 ### Autenticación (HU-13 — desarrollo)
 

@@ -1,6 +1,6 @@
 # Mapa de capacidades — Panel municipal (replanteo)
 
-> **Estado:** APROBADO (2026-09-17)
+> **Estado:** APROBADO (2026-09-17) · Lo que falta, por área: [PENDIENTES_EQUIPO.md](../PENDIENTES_EQUIPO.md)
 > **Autor:** Benjamín Paicil (con asistencia de IA)
 > **Reemplaza:** el plan anterior de asignación de operadores y rutas (`docs/ADMIN_PANEL_PENDIENTE.md`, eliminado)
 
@@ -136,7 +136,7 @@ admin-auth + ciclo-solicitud ─► configuracion-admin   (en paralelo)
 
 | Módulo | Spec | Estado |
 |---|---|---|
-| `ciclo-solicitud` | [SPEC-ciclo-solicitud.md](SPEC-ciclo-solicitud.md) · [plan](../../tasks/plan.md) | Núcleo, BD y panel implementados; backend y app ciudadana pendientes |
+| `ciclo-solicitud` | [SPEC-ciclo-solicitud.md](SPEC-ciclo-solicitud.md) · [pendientes](../PENDIENTES_EQUIPO.md) | Núcleo, BD y panel implementados; backend y app ciudadana pendientes |
 | `revision-solicitudes` | [SPEC-revision-solicitudes.md](SPEC-revision-solicitudes.md) | Núcleo, BD y panel implementados (sin fotos, que esperan `fotos-solicitud`); backend y app ciudadana pendientes |
 | `derivacion-excel` | [SPEC-derivacion-excel.md](SPEC-derivacion-excel.md) | Núcleo, BD y panel implementados; dirección real y contacto esperan `datos-retiro` |
 | `dashboard-metricas` | [SPEC-dashboard-metricas.md](SPEC-dashboard-metricas.md) | Panel implementado (sin cambios de esquema); zona horaria de la conexión por corregir |

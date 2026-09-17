@@ -138,7 +138,7 @@ Todo el dominio está detrás de un WAF municipal. Se coordina con el municipio 
 Las fotos se guardan como **archivos en directorio protegido** del servidor (fuera del directorio público) y se sirven vía API con autenticación. En la BD solo se almacena la ruta relativa. Esto protege datos personales y de ubicación.
 
 ### 5.8 ClaveÚnica como único método de autenticación
-No existe registro con usuario/contraseña local. Toda autenticación pasa por ClaveÚnica OAuth2. Los roles (vecino, operador y administrador) se gestionan en la base de datos. *(Replanteo aprobado 2026-09-17: `operador` pasa a llamarse `funcionario`; ver `docs/specs/SPEC-ciclo-solicitud.md`.)*
+No existe registro con usuario/contraseña local. Toda autenticación pasa por ClaveÚnica OAuth2. Los roles (vecino, funcionario y administrador) se gestionan en la base de datos. *(Hasta el replanteo del 2026-09-17 el funcionario se llamaba `operador`; ver `docs/specs/SPEC-ciclo-solicitud.md`.)*
 
 ### 5.9 Dominio propio
 El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo anual está reflejado en la tabla de costos de la arquitectura convertido a valor mensual aproximado.
@@ -200,10 +200,10 @@ EP-06 todavía no existe como issue.
 | HU-19 | EP-03 | Estadísticas personales de CO₂ ahorrado | Low | Front + Back |
 | HU-20 | EP-03 | Ranking de ciudadanos por impacto | Low | Back |
 | HU-07 | EP-04 | Dashboard de solicitudes de retiro con mapa (admin) | High | Front + Back |
-| HU-08 | EP-04 | Programar y asignar retiros a operadores | Medium | Back |
+| HU-08 | EP-04 | Programar y asignar retiros a operadores *(replanteo: derivar a la empresa operadora en Excel; el PO actualiza el texto)* | Medium | Back |
 | HU-09 | EP-04 | Generar reporte de gestión (PDF/CSV) | Low | Back |
-| HU-31 | EP-04 | Marcar solicitud como «en ruta» | Medium | Back |
-| HU-32 | EP-04 | Subir foto del retiro con GPS | Medium | Front + Back |
+| HU-31 | EP-04 | Marcar solicitud como «en ruta» *(fuera de alcance tras el replanteo)* | Medium | Back |
+| HU-32 | EP-04 | Subir foto del retiro con GPS *(fuera de alcance tras el replanteo)* | Medium | Front + Back |
 | HU-33 | EP-04 | Marcar solicitud como «retirado» | Medium | Back |
 | HU-12 | EP-01 | Iniciar sesión con ClaveÚnica | Highest | Front + Back |
 | HU-13 | EP-01 | Control de acceso por roles | High | Back |
@@ -291,12 +291,15 @@ de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF 
 │       └── src/
 │           ├── entities/        ← usuarios, sesiones, catálogo, solicitudes-retiro (fuente única, ex apps/backend)
 │           ├── auth/            ← AuthGuard, RolesGuard, ClaveÚnica, decorators (ex apps/backend/src/auth)
+│           ├── solicitudes/     ← Reglas del ciclo de vida y de la revisión de solicitudes (funciones puras)
 │           └── health/          ← HealthModule — sin lógica propia de ningún backend, compartido
 ├── docs/
 │   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, workspaces, backends, frontends, scripts)
 │   ├── BACKEND_FASE1.md         ← Resumen de implementación backend ciudadano Fase 1 (EP-02)
 │   ├── FRONTEND_FASE1.md        ← Resumen de implementación frontend ciudadano Fase 1 (EP-02)
-│   └── PLAN_FRONTEND.md         ← Roadmap del frontend por fases + deuda técnica (documento vivo)
+│   ├── PLAN_FRONTEND.md         ← Roadmap del frontend por fases + deuda técnica (documento vivo)
+│   ├── PENDIENTES_EQUIPO.md     ← Qué falta revisar, arreglar e implementar del replanteo del panel
+│   └── specs/                   ← Mapa del panel municipal y un spec por módulo
 └── apps/
     ├── backend/                 ← API ciudadana — NestJS + TypeORM (residuos, solicitudes-retiro), rutas bajo /api
     │   ├── README.md            ← Guía de la API: scripts, entorno, endpoints, migraciones
@@ -374,13 +377,13 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
 
 ## 13. Estado actual del proyecto
 
-> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
-> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
-> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
-> Afecta a HU-07, HU-08 (pasa a «derivar a la empresa operadora»), HU-13, HU-31 y HU-32 (retiro en
-> terreno, fuera de alcance). El PO debe actualizar el backlog. Rol `operador` → `funcionario`.
-> Detalle: [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
-> [spec `ciclo-solicitud`](docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](tasks/plan.md)
+> ✅ **Replanteo del 2026-09-17: implementado en el núcleo, la base de datos y el panel.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. no asigna
+> operadores; el funcionario **revisa, aprueba y deriva** las solicitudes. Rol `operador` → `funcionario`.
+> Afecta a HU-07, HU-08 (pasa a «derivar a la empresa operadora»), HU-13, HU-30, HU-31 y HU-32
+> (retiro en terreno, fuera de alcance). El PO debe actualizar el backlog.
+> Detalle: [pendientes del equipo](docs/PENDIENTES_EQUIPO.md) ·
+> [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md)
 
 - **Fase:** Inicio de implementación — Fase 1 (MVP).
 - **Código:** ya existe (monorepo `apps/`). Lo construido a la fecha:
@@ -404,8 +407,10 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     `docs/FRONTEND_FASE1.md`.
   - **Panel admin (`apps/admin-web` + `apps/backend-admin`)** — separado del frontend/backend
     ciudadano en la migración de 2026-09-01. Copia de los mismos 6 átomos de UI, capa de API
-    propia, sin login/guard de sesión todavía (deuda declarada). Detalle en los README de
-    ambos proyectos.
+    propia, sin login/guard de sesión todavía (deuda declarada). Desde el replanteo del
+    2026-09-17: revisión de solicitudes (checklist, motivos, toma, notas), derivación a la
+    empresa en Excel, métricas, mapa de calor y auditoría. Detalle en los README de ambos
+    proyectos y en `docs/specs/`.
   - **Infra local** — `docker-compose.yml` (MySQL 8) + `docs/SETUP_LOCAL.md`.
   - **Automatización local** — `setup.ps1` instala todo (workspaces del núcleo compartido y
     los dos backends, `npm install` propio en cada frontend) y levanta los cuatro proyectos.

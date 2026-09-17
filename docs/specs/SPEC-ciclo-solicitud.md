@@ -1,6 +1,6 @@
 # Spec: `ciclo-solicitud` — Nuevo ciclo de vida de la solicitud de retiro
 
-> **Estado:** APROBADO (2026-09-17) — pendiente de implementación
+> **Estado:** APROBADO (2026-09-17) — núcleo, BD y panel implementados; backend ciudadano y PWA pendientes ([PENDIENTES_EQUIPO.md](../PENDIENTES_EQUIPO.md))
 > **Fecha:** 2026-09-17 · **Autor:** Benjamín Paicil (con asistencia de IA)
 > **Módulo del mapa:** [`ciclo-solicitud`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** —
 
@@ -148,6 +148,10 @@ simplemente quedan como `funcionario`.
 
 ## 3. Impacto por área y división en PRs
 
+> **Actualización (2026-09-17):** el núcleo, la BD y el panel se entregaron en **un solo PR**, revisado
+> por Miguel y Javier, que además suben a esa rama los arreglos del backend ciudadano antes del merge.
+> La PWA va en un PR aparte después. La tabla queda como referencia de qué cambia en cada área.
+
 Por la regla A.7, cada área va en su propio PR. Como el cambio de ENUM rompe a quien lea los
 valores viejos, **los PR se integran a `develop` en secuencia el mismo día**, en este orden:
 
@@ -259,11 +263,11 @@ const TRANSICIONES: ReadonlyArray<{
 
 ## 10. Criterios de éxito verificables
 
-- [ ] `npm run test` en `arca-core` pasa, con al menos un test por cada fila de §2.1.
+- [x] `npm run test` en `arca-core` pasa, con al menos un test por cada fila de §2.1.
 - [ ] `grep -rn "operador_asignado\|operadorAsignado\|fechaProgramada\|OPERADORES_DEMO\|RolAdministrador.OPERADOR" apps packages` (sin `node_modules`, `dist` ni migraciones antiguas) no devuelve resultados.
-- [ ] `migration:run` y `migration:revert` corren sin errores sobre la base de demo.
+- [x] `migration:run` y `migration:revert` corren sin errores sobre la base de demo.
 - [ ] Lint y build de los 5 proyectos pasan.
-- [ ] En el panel, una solicitud `en_revision` solo ofrece Aprobar, Pedir modificación y Rechazar.
+- [x] En el panel, una solicitud `en_revision` solo ofrece Aprobar, Pedir modificación y Rechazar.
 - [ ] En la PWA, el botón Cancelar aparece solo en los estados de §2.1.
 
 ## 11. Decisiones (antes preguntas abiertas)
@@ -274,3 +278,4 @@ const TRANSICIONES: ReadonlyArray<{
 | 2 | Una solicitud `cancelada` **no** se puede reabrir | 2026-09-17 |
 | 3 | PR 2 (backend ciudadano) lo implementa **Miguel o Javier**; PR 4 (PWA) lo implementa **Ana o Maxi**. PR 1 y PR 3, Benjamín | 2026-09-17 |
 | 4 | Cada rama se nombra al crearla, con el patrón `fecha-persona-descripcion` | 2026-09-17 |
+| 5 | Núcleo, BD y panel van en un solo PR revisado por Miguel y Javier (reemplaza la división de la decisión 3 para esas partes) | 2026-09-17 |

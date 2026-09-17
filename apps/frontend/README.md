@@ -5,16 +5,15 @@ PWA mobile-first del proyecto A.R.C.A. Construida con **React 18 + TypeScript + 
 > Documentación detallada de la fase actual: [`docs/FRONTEND_FASE1.md`](../../docs/FRONTEND_FASE1.md)
 > Roadmap y pendientes por fase: [`docs/PLAN_FRONTEND.md`](../../docs/PLAN_FRONTEND.md)
 
-> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
-> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
-> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
+> ⚠️ **Replanteo del 2026-09-17: el núcleo, la base y el panel ya cambiaron, la PWA todavía no.**
+> La empresa que ejecuta los retiros es **externa**: A.R.C.A. no asigna operadores; el funcionario
+> **revisa, aprueba y deriva** las solicitudes.
 > Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
-> En la PWA (**PR 4 — lo implementa Ana o Maxi**): actualizar tipos en `api/arca.ts` y etiquetas en
-> `estadoMeta.ts` (textos para el vecino en la spec §3), y en `MisSolicitudes.tsx` mostrar Cancelar solo
-> en `en_revision`, `requiere_modificacion` o `aprobada` **sin pagar**. Más adelante vendrán la pantalla
-> «tu solicitud requiere cambios», la subida de fotos, los datos de contacto para el retiro y el pago maqueteado.
-> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
-> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+> Por hacer en la PWA (Ana o Maxi): tipos en `api/arca.ts`, etiquetas para el vecino en `estadoMeta.ts`
+> y Cancelar solo en `en_revision`, `requiere_modificacion` o `aprobada` **sin pagar**. Después vienen la
+> pantalla «tu solicitud requiere cambios», la subida de fotos, los datos de contacto y el pago maqueteado.
+> Detalle: [pendientes del equipo §5](../../docs/PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
 
 ---
 

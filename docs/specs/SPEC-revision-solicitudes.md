@@ -1,6 +1,6 @@
 # Spec: `revision-solicitudes` — El funcionario como último filtro
 
-> **Estado:** BORRADOR — implementación en curso (panel) · **Fecha:** 2026-09-17
+> **Estado:** BORRADOR — implementado en el panel; backend ciudadano y PWA pendientes ([PENDIENTES_EQUIPO.md](../PENDIENTES_EQUIPO.md)) · **Fecha:** 2026-09-17
 > **Autor:** Benjamín Paicil (con asistencia de IA)
 > **Módulo del mapa:** [`revision-solicitudes`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `ciclo-solicitud` (y, para las fotos, `fotos-solicitud`, que todavía no existe)
 

@@ -43,19 +43,14 @@ Copiar `.env.example` a `.env.local` — mismas credenciales de base de datos qu
 | `GET` | `/api/admin/residuos` | Catálogo de residuos de solo lectura (`id`, `nombre`, `categoria`, `precio`) para corregir la categoría |
 | `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos. |
 
-Protegidos con `RolesGuard` de `@arca/core`: `ADMIN` y `OPERADOR`, tanto para lectura como para el PATCH.
+Protegidos con `RolesGuard` de `@arca/core`: `ADMIN` y `FUNCIONARIO`, salvo la auditoría, que es solo
+`ADMIN`. Reabrir una solicitud `rechazada` o `retirada` también es solo de admin (lo decide el core).
 
-> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
-> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
-> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
-> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
-> En este backend (**PR 3**): rol `OPERADOR` → `FUNCIONARIO`; `PATCH /api/admin/solicitudes/:id` acepta
-> solo `{ estado }` y lo valida con el core (reabrir es solo de admin); `GET /api/admin/solicitudes/:id`
-> agrega `transicionesDisponibles`; «pendientes» del mapa de calor pasa a `en_revision`,
-> `requiere_modificacion`, `aprobada` y `derivada`. Módulos siguientes: revisión, derivación en Excel,
-> métricas y configuración.
-> Detalle: [mapa del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
-> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](../../tasks/plan.md)
+> ✅ **Replanteo del 2026-09-17 implementado en este backend.** Ningún service asigna `estado`
+> directamente: todo pasa por `aplicarTransicion` y `validarRevision` de `@arca/core`. La auditoría
+> registra solo campos cambiados y códigos, nunca comentarios, notas ni el contenido del Excel.
+> Detalle: [specs del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md)
 
 ## Por qué existe `src/identity/`
 

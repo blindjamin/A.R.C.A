@@ -57,12 +57,13 @@ Espacio para que vecinos publiquen e intercambien artículos antes de que sean r
 ### EP-04 — Dashboard Administrativo Municipal
 Panel para funcionarios que actúan como **último filtro** de cada solicitud: revisan las fotos y los datos, y aprueban, piden una modificación o rechazan. Las solicitudes aprobadas se **derivan a la empresa operadora externa** en un Excel generado con un botón, y el resultado del retiro se registra después. Incluye métricas del ciclo, mapa por sector, pago maqueteado y reportes.
 
-> ⚠️ **Cambio aprobado el 2026-09-17, en implementación — todavía no está en el código.**
-> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. deja de asignar
-> operadores y el funcionario pasa a **revisar, aprobar y derivar** las solicitudes.
-> Los retiros en terreno («en ruta», foto con GPS, rutas de operadores) quedan **fuera del alcance** de A.R.C.A.
-> Detalle: [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
-> [spec `ciclo-solicitud`](docs/specs/SPEC-ciclo-solicitud.md) · [plan de trabajo](tasks/plan.md)
+> ✅ **Replanteo del 2026-09-17: implementado en el núcleo, la base de datos y el panel.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. no asigna
+> operadores; el funcionario **revisa, aprueba y deriva** las solicitudes. Rol `operador` → `funcionario`.
+> Los retiros en terreno («en ruta», foto con GPS, rutas) quedan **fuera del alcance**.
+> Falta adaptar el backend ciudadano y la PWA a los estados nuevos.
+> Detalle: [pendientes del equipo](docs/PENDIENTES_EQUIPO.md) ·
+> [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md)
 
 ### EP-06 — Confianza y Comunidad
 Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante calificaciones, denuncia de incumplimientos y moderación municipal con bloqueo de usuarios.
@@ -223,7 +224,8 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 |---|---|
 | **Catálogo de residuos** | ✅ `GET /api/residuos/catalogo` con **precios reales** en base de datos |
 | **Solicitud de retiro** | ✅ Crear, listar, ver detalle y cancelar — conectado al backend |
-| **Panel municipal (EP-04 base)** | ✅ Listar, filtrar por estado, detalle y cambio de estado reversible · 🔄 replanteo aprobado: revisión y derivación a empresa externa ([mapa](docs/specs/MAPA_PANEL_MUNICIPAL.md)) |
+| **Panel municipal (EP-04)** | ✅ Revisión con checklist, motivos, toma y notas internas · derivación a la empresa en Excel · métricas · mapa de calor · auditoría ([mapa](docs/specs/MAPA_PANEL_MUNICIPAL.md)) |
+| **Ciclo de solicitud nuevo** | 🟡 Núcleo, BD y panel listos · backend ciudadano y PWA por adaptar ([pendientes](docs/PENDIENTES_EQUIPO.md)) |
 | **Login diferido** | ✅ Gate por `perfil-acceso`: funcionario elige contexto, ciudadano va directo a la PWA |
 | **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |
@@ -249,6 +251,8 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 | [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) | Qué se implementó en el backend ciudadano: endpoints, entidades, migraciones |
 | [`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) | Qué se implementó en el frontend ciudadano: UI Kit, pantallas, capa de API |
 | [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md) | Roadmap del frontend por fases y deuda técnica |
+| [`docs/specs/MAPA_PANEL_MUNICIPAL.md`](docs/specs/MAPA_PANEL_MUNICIPAL.md) | Replanteo del panel municipal: módulos, decisiones y specs de cada uno |
+| [`docs/PENDIENTES_EQUIPO.md`](docs/PENDIENTES_EQUIPO.md) | Qué falta revisar, arreglar e implementar del replanteo, por área |
 | [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API ciudadana: scripts, entorno, endpoints, migraciones |
 | [`apps/backend-admin/README.md`](apps/backend-admin/README.md) | Guía de la API del panel: scripts, entorno, endpoints |
 | [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA: scripts, estructura de `src/`, convenciones |
@@ -316,7 +320,7 @@ numeración es la del tablero de GitHub: EP-05 está cerrada y EP-06 está por c
 |---|---|---|
 | HU-26 | Preferencias de notificaciones | Complementa a HU-23, que sí se incorpora |
 | HU-27, HU-28, HU-29 | Referidos: generar código, registro con código, bonificación | Tabla `referidos` |
-| HU-30 | Ver ruta asignada en mapa | Sin ella el operador trabaja desde un listado en vez de un mapa |
+| HU-30 | Ver ruta asignada en mapa | Con el replanteo del 2026-09-17 las rutas las gestiona la empresa externa; el PO debe reclasificarla |
 
 **Propuestas para eliminar:**
 
