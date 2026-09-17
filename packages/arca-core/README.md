@@ -13,9 +13,28 @@ src/
 │                 apps/backend/src/database/data-source.ts para las migraciones.
 ├── auth/       ← AuthGuard, RolesGuard, ClaveÚnica, decorators (Public, Roles, CurrentUser),
 │                 AuthService y su AuthModule.
-└── health/     ← HealthModule (GET /api/health, chequea la conexión a MySQL). Sin lógica
-                  propia de ningún backend — se comparte para no duplicarlo.
+├── health/     ← HealthModule (GET /api/health, chequea la conexión a MySQL). Sin lógica
+│                 propia de ningún backend — se comparte para no duplicarlo.
+└── solicitudes/ ← Reglas del ciclo de vida de una solicitud: validarTransicion,
+                   transicionesDisponibles y aplicarTransicion (funciones puras, con tests).
 ```
+
+## Ciclo de vida de una solicitud
+
+Los retiros los ejecuta una empresa externa: el municipio **revisa y deriva**, no asigna
+operadores. Estados (`EstadoSolicitudRetiro`): `en_revision` · `requiere_modificacion` ·
+`aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`. El pago
+(maqueta) va aparte, en `EstadoPagoSolicitud`: `no_aplica` · `pendiente` · `pagado`. Roles
+municipales (`RolAdministrador`): `admin` y `funcionario`.
+
+**Ningún backend asigna `estado` directamente**: se llama a `aplicarTransicion`, que valida
+quién puede hacer el cambio y aplica sus efectos (congelar el monto al aprobar, fecha de
+revisión, fecha de cierre). Si la transición no es válida lanza `TransicionInvalidaError`, cuyo
+`motivo` indica cómo responder: `actor` → `403`; `estado` o `pago` → `400`.
+
+La tabla completa de transiciones está en `docs/specs/SPEC-ciclo-solicitud.md` §2.1. Lo que el
+núcleo no puede saber —si el vecino es dueño de la solicitud, si viene un motivo— lo valida el
+endpoint que llama.
 
 ## Regla para tocar este paquete
 
