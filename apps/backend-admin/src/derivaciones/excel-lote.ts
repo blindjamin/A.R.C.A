@@ -4,6 +4,7 @@ import {
   type LoteDerivacion,
   type SolicitudRetiro,
 } from '@arca/core';
+import { aproximarCoordenadas } from './coordenadas-aproximadas';
 
 const ETIQUETA_PAGO: Record<EstadoPagoSolicitud, string> = {
   [EstadoPagoSolicitud.NO_APLICA]: 'Sin cobro',
@@ -19,15 +20,15 @@ const aHoraLocal = (fecha: Date | string | null): Date | null => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
 };
 
-const aNumero = (valor: string | null): number | null =>
-  valor === null ? null : Number(valor);
-
 /**
  * Arma el Excel de un lote (spec `derivacion-excel` §2.2).
  *
  * Sin fotos y sin identificador del vecino: la empresa necesita saber qué
  * retirar y dónde, no quién lo pidió. Las columnas con datos personales nuevos
  * se agregan solo con `datos-retiro` y de forma deliberada.
+ *
+ * Las coordenadas salen aproximadas a 20 metros
+ * (ver `coordenadas-aproximadas.ts`): ubican la cuadra, no la vivienda.
  */
 export async function generarExcelLote(
   lote: LoteDerivacion,
@@ -63,14 +64,21 @@ export async function generarExcelLote(
     { header: 'Instrucciones de recogida', key: 'instrucciones', width: 36 },
     { header: 'Descripción', key: 'descripcion', width: 40 },
     { header: 'Dirección', key: 'direccion', width: 36 },
-    { header: 'Latitud', key: 'latitud', width: 13 },
-    { header: 'Longitud', key: 'longitud', width: 13 },
+    // El encabezado dice "aprox." a propósito: quien use el Excel tiene que
+    // saber que el punto ubica la cuadra y no la puerta de la casa.
+    { header: 'Latitud aprox. (20 m)', key: 'latitud', width: 20 },
+    { header: 'Longitud aprox. (20 m)', key: 'longitud', width: 20 },
     { header: 'Pago', key: 'pago', width: 12 },
     { header: 'Monto', key: 'monto', width: 12, style: { numFmt: '"$"#,##0' } },
   ];
   hoja.getRow(1).font = { bold: true };
 
   for (const s of solicitudes) {
+    const ubicacion = aproximarCoordenadas(
+      s.latitudCapturada,
+      s.longitudCapturada,
+    );
+
     hoja.addRow({
       lote: lote.id,
       solicitud: s.id,
@@ -81,8 +89,8 @@ export async function generarExcelLote(
       instrucciones: s.residuoCatalogo?.instruccionesRecogida ?? null,
       descripcion: s.descripcion,
       direccion: s.direccionAnonimizada,
-      latitud: aNumero(s.latitudCapturada),
-      longitud: aNumero(s.longitudCapturada),
+      latitud: ubicacion.latitud,
+      longitud: ubicacion.longitud,
       pago: ETIQUETA_PAGO[s.estadoPago],
       monto: s.monto,
     });
