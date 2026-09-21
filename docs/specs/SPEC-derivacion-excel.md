@@ -65,11 +65,32 @@ el último lote en que salió. Si vuelve a derivarse, se sobrescribe con el lote
 | Instrucciones de recogida | `residuos_catalogo.instrucciones_recogida` |
 | Descripción | `descripcion` |
 | Dirección | `direccion_anonimizada` (hasta que exista `datos-retiro`) |
-| Latitud · Longitud | `latitud_capturada` · `longitud_capturada` |
+| Latitud aprox. · Longitud aprox. (20 m) | `latitud_capturada` · `longitud_capturada`, llevadas a una grilla de 20 m (ver 2.2.1) |
 | Pago · Monto | `estado_pago` · `monto` |
 
 Cuando `datos-retiro` exista, se agregan dirección real, referencia y contacto. Mientras tanto la
 empresa recibe la dirección aproximada y las coordenadas.
+
+#### 2.2.1 Las coordenadas salen aproximadas
+
+**Decisión del Product Owner (2026-09-21).** Las columnas guardaban la posición con precisión de
+centímetros, que es la puerta de la casa del vecino. Eso dejaba sin efecto la dirección aproximada
+de la fila de al lado: cualquiera pega el par de coordenadas en un mapa y llega a la vivienda.
+
+El punto se lleva al centro de una celda de 20 metros (`coordenadas-aproximadas.ts`). La empresa
+recibe la cuadra, no la casa. El desplazamiento máximo es de unos 14 metros.
+
+Dos propiedades que la implementación tiene que conservar:
+
+- **Irreversible:** se redondea, no se desplaza con una fórmula. No hay clave que permita recuperar
+  el punto exacto desde el Excel.
+- **Estable:** el mismo lote descargado dos veces entrega el mismo punto. Si variara en cada
+  descarga, promediar varias descargas devolvería la ubicación original.
+
+> **Pendiente asociado:** hoy la app del vecino **no envía dirección**, así que la columna
+> «Dirección» va vacía y estas coordenadas son el único dato de ubicación del Excel. Cuando exista
+> `datos-retiro`, la dirección real pasa a ser la referencia para la empresa y estas coordenadas
+> quedan como apoyo.
 
 ### 2.3 API del panel (`apps/backend-admin`)
 
