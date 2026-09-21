@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule, HealthModule } from '@arca/core';
-import { OperadoresModule } from './operadores/operadores.module';
 import { ResiduosModule } from './residuos/residuos.module';
 import { SolicitudesRetiroModule } from './solicitudes-retiro/solicitudes-retiro.module';
 import { UsersModule } from './users/users.module';
@@ -30,7 +29,6 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,
-    OperadoresModule,
   ],
   controllers: [AppController],
   providers: [AppService],

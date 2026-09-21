@@ -41,7 +41,7 @@ describe('AuthService', () => {
         id: '00000000-0000-4000-8000-0000000000A2',
         nombre: 'Camila',
         apellido: 'Operadora',
-        rol: RolAdministrador.OPERADOR,
+        rol: RolAdministrador.FUNCIONARIO,
       },
     });
 
@@ -50,7 +50,7 @@ describe('AuthService', () => {
     );
 
     expect(user.ciudadanoId).toBe(ciudadanoId);
-    expect(user.rol).toBe(RolAdministrador.OPERADOR);
+    expect(user.rol).toBe(RolAdministrador.FUNCIONARIO);
     expect(user.esAdministrador).toBe(true);
   });
 

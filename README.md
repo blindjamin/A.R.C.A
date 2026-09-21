@@ -46,7 +46,7 @@ La plataforma prioriza la **economía circular**: antes de que un objeto sea ret
 > Se listan en **orden de roadmap**, no numérico.
 
 ### EP-01 — Fundación y Seguridad
-Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, operador y administrador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
+Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, funcionario y administrador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
 
 ### EP-02 — Interfaz Ciudadana
 Completa la experiencia del vecino. La clasificación por IA se ejecuta localmente en el navegador con **TensorFlow.js**, funcionando como **apoyo y no como decisión final**: el usuario siempre confirma o corrige la categoría sugerida, y puede clasificar manualmente desde el catálogo cuando la IA no detecta el residuo. Suma el seguimiento de la solicitud, las notificaciones de cambio de estado, el feedback post-retiro y una FAQ por categoría.
@@ -55,7 +55,15 @@ Completa la experiencia del vecino. La clasificación por IA se ejecuta localmen
 Espacio para que vecinos publiquen e intercambien artículos antes de que sean retirados por el municipio. Incluye chat en tiempo real (WebSocket) y trazabilidad de entregas. Absorbe el sistema de incentivos **Circular Credits**: los créditos se otorgan al confirmar la entrega y son consultables con historial desde el perfil, junto con las estadísticas de CO₂ ahorrado y el ranking de impacto.
 
 ### EP-04 — Dashboard Administrativo Municipal
-Panel para funcionarios con métricas en tiempo real, mapa georreferenciado de solicitudes, asignación de retiros a operadores y reportes exportables en PDF/CSV. Incorpora el ciclo operativo del retiro: marcar «en ruta», subir la foto del retiro con GPS y marcar «retirado».
+Panel para funcionarios que actúan como **último filtro** de cada solicitud: revisan las fotos y los datos, y aprueban, piden una modificación o rechazan. Las solicitudes aprobadas se **derivan a la empresa operadora externa** en un Excel generado con un botón, y el resultado del retiro se registra después. Incluye métricas del ciclo, mapa por sector, pago maqueteado y reportes.
+
+> ✅ **Replanteo del 2026-09-17: implementado en el núcleo, la base de datos y el panel.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. no asigna
+> operadores; el funcionario **revisa, aprueba y deriva** las solicitudes. Rol `operador` → `funcionario`.
+> Los retiros en terreno («en ruta», foto con GPS, rutas) quedan **fuera del alcance**.
+> Backend ciudadano adaptado (§2). Falta la PWA (§5) y lo post-merge (§3).
+> Detalle: [pendientes del equipo](docs/PENDIENTES_EQUIPO.md) ·
+> [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md)
 
 ### EP-06 — Confianza y Comunidad
 Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante calificaciones, denuncia de incumplimientos y moderación municipal con bloqueo de usuarios.
@@ -216,7 +224,8 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 |---|---|
 | **Catálogo de residuos** | ✅ `GET /api/residuos/catalogo` con **precios reales** en base de datos |
 | **Solicitud de retiro** | ✅ Crear, listar, ver detalle y cancelar — conectado al backend |
-| **Panel municipal (EP-04 base)** | ✅ Listar, filtrar por estado, detalle y cambio de estado reversible |
+| **Panel municipal (EP-04)** | ✅ Revisión con checklist, motivos, toma y notas internas · derivación a la empresa en Excel · métricas · mapa de calor · auditoría ([mapa](docs/specs/MAPA_PANEL_MUNICIPAL.md)) |
+| **Ciclo de solicitud nuevo** | 🟡 Núcleo, BD, panel y backend ciudadano listos · PWA por adaptar ([pendientes](docs/PENDIENTES_EQUIPO.md) §5) |
 | **Login diferido** | ✅ Gate por `perfil-acceso`: funcionario elige contexto, ciudadano va directo a la PWA |
 | **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |
@@ -242,6 +251,8 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 | [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) | Qué se implementó en el backend ciudadano: endpoints, entidades, migraciones |
 | [`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) | Qué se implementó en el frontend ciudadano: UI Kit, pantallas, capa de API |
 | [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md) | Roadmap del frontend por fases y deuda técnica |
+| [`docs/specs/MAPA_PANEL_MUNICIPAL.md`](docs/specs/MAPA_PANEL_MUNICIPAL.md) | Replanteo del panel municipal: módulos, decisiones y specs de cada uno |
+| [`docs/PENDIENTES_EQUIPO.md`](docs/PENDIENTES_EQUIPO.md) | Qué falta revisar, arreglar e implementar del replanteo, por área |
 | [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API ciudadana: scripts, entorno, endpoints, migraciones |
 | [`apps/backend-admin/README.md`](apps/backend-admin/README.md) | Guía de la API del panel: scripts, entorno, endpoints |
 | [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA: scripts, estructura de `src/`, convenciones |
@@ -309,7 +320,7 @@ numeración es la del tablero de GitHub: EP-05 está cerrada y EP-06 está por c
 |---|---|---|
 | HU-26 | Preferencias de notificaciones | Complementa a HU-23, que sí se incorpora |
 | HU-27, HU-28, HU-29 | Referidos: generar código, registro con código, bonificación | Tabla `referidos` |
-| HU-30 | Ver ruta asignada en mapa | Sin ella el operador trabaja desde un listado en vez de un mapa |
+| HU-30 | Ver ruta asignada en mapa | Con el replanteo del 2026-09-17 las rutas las gestiona la empresa externa; el PO debe reclasificarla |
 
 **Propuestas para eliminar:**
 

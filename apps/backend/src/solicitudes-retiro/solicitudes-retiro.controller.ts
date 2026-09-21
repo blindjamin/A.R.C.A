@@ -59,10 +59,9 @@ export class SolicitudesRetiroController {
     return this.solicitudesRetiroService.findOne(id, user);
   }
 
-  // PATCH /:id (cambio de estado / asignar operador, @Roles ADMIN|OPERADOR) se
-  // movió a apps/backend-admin (Fase 3 de la migración admin): es la única ruta
-  // de este controller que se elimina. Sigue en pie en
-  // apps/backend-admin/src/solicitudes/solicitudes-admin.controller.ts.
+  // El cambio de estado municipal vive en apps/backend-admin
+  // (PATCH /api/admin/solicitudes/:id y POST …/revision). Acá solo el vecino
+  // crea, lista, ve y cancela sus solicitudes.
 
   @Patch(':id/cancelar')
   cancelar(

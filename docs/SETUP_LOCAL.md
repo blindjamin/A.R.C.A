@@ -245,7 +245,7 @@ Orden sugerido de pantallas:
 
 3. **Mis solicitudes**  
    - `GET {VITE_API_URL}/solicitudes-retiro?usuarioCiudadanoId=00000000-0000-4000-8000-000000000001`  
-   - Listar estado (`pendiente`, etc.) y residuo asociado
+   - Listar estado (`en_revision`, etc.) y residuo asociado
 
 > **Auth:** el UUID de arriba es **solo desarrollo**. Cuando Benjamín integre JWT, el frontend usará el token y dejará de enviar `usuarioCiudadanoId` en el body.
 
@@ -301,8 +301,11 @@ npm run dev
 Abrir: **http://localhost:5174**
 
 > **Deuda declarada:** todavía no tiene login ni guard de sesión propios (ver
-> `apps/admin-web/README.md`). Hasta que exista, sus llamadas a `apps/backend-admin`
-> devuelven 401 — es esperado, no un error de setup.
+> `apps/admin-web/README.md`). Mientras tanto, el selector «Sesión de prueba» de la barra lateral
+> alterna entre dos identidades de desarrollo: **Carlos Álvarez** (admin, ve la auditoría) y
+> **Camila Operadora** (funcionario). Si el panel responde con errores de columnas inexistentes,
+> falta correr `npm run migration:run` en `apps/backend`: la revisión, la derivación y las métricas
+> usan las migraciones del replanteo del 2026-09-17.
 
 ---
 

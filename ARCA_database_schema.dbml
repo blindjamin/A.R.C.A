@@ -66,7 +66,7 @@ Table usuarios_administradores {
   apellido varchar(255) [not null]
   email_institucional varchar(255) [unique, not null]
   telefono_institucional varchar(20)
-  rol enum('admin', 'operador') [not null]
+  rol enum('admin', 'funcionario') [not null]
   cargo varchar(150)
   fecha_ingreso timestamp [not null]
   activo boolean [default: true, note: "false = desvinculado, conserva historial para auditoría"]
@@ -113,18 +113,54 @@ Table solicitudes_retiro {
   id int [primary key, increment]
   usuario_ciudadano_id varchar(36) [not null, note: "Quién solicita el retiro"]
   residuo_catalogo_id int [not null]
-  estado enum('pendiente', 'asignada', 'en_proceso', 'completada', 'cancelada') [default: 'pendiente']
+  estado enum('en_revision', 'requiere_modificacion', 'aprobada', 'rechazada', 'derivada', 'retirada', 'no_realizada', 'cancelada') [default: 'en_revision', note: "Transiciones en @arca/core (ciclo-solicitud)"]
+  estado_pago enum('no_aplica', 'pendiente', 'pagado') [not null, default: 'no_aplica', note: "Pago maqueteado; se cobra después de aprobar"]
+  monto int [note: "CLP congelado al aprobar"]
   descripcion text
   direccion_anonimizada varchar(255) [note: "Hash de la dirección para mapeos internos"]
   latitud_capturada decimal(10,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   longitud_capturada decimal(11,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   fecha_solicitud timestamp [not null]
-  fecha_programada timestamp
-  fecha_completada timestamp
-  operador_asignado_id varchar(36) [note: "Funcionario (rol operador) que gestiona el retiro"]
+  fecha_revision timestamp [note: "Última decisión de revisión (aprobar, pedir modificación, rechazar)"]
+  revisado_por_id varchar(36) [note: "Funcionario o admin que tomó esa decisión"]
+  fecha_cierre timestamp [note: "Resultado del retiro informado por la empresa (retirada / no_realizada)"]
+  tomada_por_id varchar(36) [note: "Funcionario que tiene tomada la solicitud para revisarla"]
+  tomada_hasta timestamp [note: "Vencimiento de la toma (15 min)"]
+  lote_derivacion_id int [note: "Último lote en que se derivó a la empresa"]
   razon_rechazo text
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "El retiro lo ejecuta una empresa externa: el municipio revisa y deriva, no asigna operadores."
+}
+
+Table revisiones_solicitud {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null]
+  revisado_por_id varchar(36) [not null]
+  decision enum('aprobada', 'requiere_modificacion', 'rechazada') [not null]
+  motivo varchar(50) [note: "MotivoRevision de @arca/core"]
+  comentario text [note: "Lo ve el vecino; no se copia a auditoría"]
+  checklist json [note: "Lista de verificación al aprobar"]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Historial de decisiones de revisión. No se edita."
+}
+
+Table notas_solicitud {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null]
+  autor_id varchar(36) [not null]
+  texto text [not null, note: "Solo interna del panel"]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
+Table lotes_derivacion {
+  id int [primary key, increment]
+  generado_por_id varchar(36) [not null]
+  cantidad int [not null]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  Note: "Excel entregado a la empresa operadora; el archivo se arma en cada descarga"
 }
 
 Table horarios_retiro {
@@ -366,7 +402,14 @@ Ref: sesiones_administrador.usuario_administrador_id > usuarios_administradores.
 // Retiros
 Ref: solicitudes_retiro.usuario_ciudadano_id > usuarios_ciudadanos.id
 Ref: solicitudes_retiro.residuo_catalogo_id > residuos_catalogo.id
-Ref: solicitudes_retiro.operador_asignado_id > usuarios_administradores.id
+Ref: solicitudes_retiro.revisado_por_id > usuarios_administradores.id
+Ref: solicitudes_retiro.tomada_por_id > usuarios_administradores.id
+Ref: revisiones_solicitud.solicitud_retiro_id > solicitudes_retiro.id
+Ref: revisiones_solicitud.revisado_por_id > usuarios_administradores.id
+Ref: notas_solicitud.solicitud_retiro_id > solicitudes_retiro.id
+Ref: notas_solicitud.autor_id > usuarios_administradores.id
+Ref: solicitudes_retiro.lote_derivacion_id > lotes_derivacion.id
+Ref: lotes_derivacion.generado_por_id > usuarios_administradores.id
 
 Ref: horarios_retiro.solicitud_retiro_id > solicitudes_retiro.id
 Ref: horarios_retiro.operador_asignado_id > usuarios_administradores.id

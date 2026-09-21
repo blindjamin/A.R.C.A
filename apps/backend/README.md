@@ -85,10 +85,17 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
-| `GET` | `/api/operadores` | Listar administradores activos para asignar retiros (**HU-08**, roles `admin`/`operador`) |
 
 Estados de una solicitud (`EstadoSolicitudRetiro`):
-`pendiente` · `asignada` · `en_proceso` · `completada` · `cancelada`
+`en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`
+
+El retiro lo ejecuta una empresa **externa**: este backend no asigna operadores. El vecino crea la
+solicitud en `en_revision` y puede cancelarla (vía `aplicarTransicion` del núcleo) mientras esté en
+`en_revision`, `requiere_modificacion` o `aprobada` sin pago `pagado`. La revisión, derivación y
+cambio de estado municipal viven en `apps/backend-admin`.
+
+Detalle: [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md) ·
+[spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
 
 ### Autenticación (HU-13 — desarrollo)
 
@@ -98,7 +105,7 @@ Hasta que Benjamín integre ClaveÚnica/JWT, las rutas protegidas exigen:
 Authorization: Bearer <uuid-usuario-ciudadano>
 ```
 
-UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`,
+UUIDs de demo (migraciones): ciudadano `…0001`, doble rol funcionario `…0002`,
 doble rol administrador `…0003`.
 
 Los tres se usan como `Authorization: Bearer <uuid>` mientras no exista el JWT. Van los ids de
@@ -108,19 +115,18 @@ ciudadana y el perfil municipal es una extensión sobre ella.
 | UUID | Perfil | Alcance |
 |---|---|---|
 | `…0001` | Solo ciudadano | Sus propias solicitudes |
-| `…0002` | Ciudadano + operador (Camila) | Panel municipal, **sin** acceso a la auditoría |
-| `…0003` | Ciudadano + admin (Carlos) | Panel municipal **y** registro de auditoría |
+| `…0002` | Ciudadano + funcionario (Camila) | Lectura municipal de solicitudes (sin auditoría) |
+| `…0003` | Ciudadano + admin (Carlos) | Lectura municipal **y** registro de auditoría |
 
 | Ruta | Quién puede |
 |---|---|
 | `GET /health`, `GET /residuos/catalogo` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
-| `GET /operadores` | Rol `admin` u `operador` |
 
-> **`PATCH solicitudes-retiro/:id` (cambiar estado, `admin`/`operador`) se movió a
-> `apps/backend-admin`** (`PATCH /api/admin/solicitudes/:id`, puerto 3001) en la migración de
-> separación del panel admin (2026-09-01). Es el único endpoint que salió de este backend.
+> **El cambio de estado municipal** (`admin`/`funcionario`) vive en
+> `apps/backend-admin` (`PATCH /api/admin/solicitudes/:id` y `POST …/revision`, puerto 3001).
+> `GET /api/operadores` se eliminó: ya no hay asignación de operadores en A.R.C.A.
 
 En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
 
@@ -140,7 +146,6 @@ src/
 │   └── migrations/              # Migraciones versionadas, en orden de timestamp — único dueño del esquema
 ├── residuos/                    # Catálogo de residuos (entidad en @arca/core)
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en @arca/core)
-├── operadores/                  # Listado de administradores activos (HU-08)
 └── users/                       # UsersService/Controller/Module — entidades en @arca/core;
                                     provee PERFIL_ACCESO_RESOLVER para AuthModule
 ```
@@ -165,6 +170,9 @@ siempre en una migración nueva.
 | `1782163600000` | `replace-catalogo-precios-reales` — catálogo con precios reales |
 | `1782163700000` | `create-auditoria` — registro auditable de acciones (HU-14) |
 | `1782163800000` | `seed-admin-demo` — funcionario con rol `admin` (Carlos Álvarez) |
+| `1782164100000` | `ciclo-solicitud-revision` — estados nuevos, pago, rol `funcionario`, sin columnas de operador |
+| `1782164200000` | `revision-solicitudes` — historial de revisiones, notas y toma |
+| `1782164300000` | `lotes-derivacion` — lotes Excel hacia la empresa operadora |
 
 ### Se escriben a mano — no usar `migration:generate`
 

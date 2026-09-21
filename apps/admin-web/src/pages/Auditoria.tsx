@@ -24,13 +24,13 @@ const formatoFecha = (iso: string): string =>
 // Retorna un estilo visual para la criticidad de la acción.
 const colorAccion = (accion: string): string => {
   const a = accion.toLowerCase();
-  if (a.includes('cancelar') || a.includes('eliminar') || a.includes('rechazo')) {
+  if (a.includes('cancelar') || a.includes('eliminar') || a.includes('rechazada')) {
     return 'bg-rose-50 text-rose-700 border-rose-200';
   }
   if (a.includes('inicio') || a.includes('sesión') || a.includes('login')) {
     return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   }
-  if (a.includes('asignar') || a.includes('operador')) {
+  if (a.includes('aprobada') || a.includes('derivada')) {
     return 'bg-sky-50 text-sky-700 border-sky-200';
   }
   if (a.includes('catálogo') || a.includes('actualizar')) {
@@ -70,10 +70,10 @@ export default function Auditoria() {
         return matchText && (accion.includes('sesión') || accion.includes('login') || accion.includes('auth'));
       }
       if (filtro === 'solicitudes') {
-        return matchText && (accion.includes('solicitud') || accion.includes('operador') || accion.includes('estado'));
+        return matchText && (accion.includes('solicitud') || accion.includes('estado'));
       }
       if (filtro === 'sistema') {
-        return matchText && (!accion.includes('sesión') && !accion.includes('login') && !accion.includes('solicitud') && !accion.includes('operador'));
+        return matchText && (!accion.includes('sesión') && !accion.includes('login') && !accion.includes('solicitud') && !accion.includes('estado'));
       }
       return matchText;
     });

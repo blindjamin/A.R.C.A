@@ -107,15 +107,14 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
 | `GET` | `/api/solicitudes-retiro` | Listar solicitudes (con acceso municipal, sin filtro por dueño) |
 | `GET` | `/api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
-| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
-| `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
+| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo) |
+| `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud (vía `aplicarTransicion`) |
 | `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
-| `GET` | `/api/operadores` | Administradores activos para el modal de asignación (**HU-08**, roles `admin`/`operador`) |
 
-> **Movido a `apps/backend-admin` (2026-09-01):** `PATCH /api/solicitudes-retiro/{id}` (cambiar
-> estado/operador/fecha/razón) vive ahora en `PATCH /api/admin/solicitudes/{id}`, puerto 3001.
-> El método `update()` sigue en `solicitudes-retiro.service.ts` sin llamador — pendiente que
-> Javier decida si se borra o se comparte con el service nuevo (no se tocó de paso, regla A.4).
+> **Movido a `apps/backend-admin` (2026-09-01):** el cambio de estado municipal vive en
+> `PATCH /api/admin/solicitudes/{id}` y `POST …/revision` (puerto 3001).
+> **Eliminado (replanteo 2026-09-17 / §2 2026-09-21):** `GET /api/operadores` y el método
+> `update()` del service ciudadano (sin llamador). El vecino solo crea, lista, ve y cancela.
 
 ### Control de acceso por roles (HU-13)
 
@@ -128,15 +127,14 @@ exigen:
 Authorization: Bearer <uuid-usuario-ciudadano>
 ```
 
-UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
+UUIDs de demo (migraciones): ciudadano `…0001`, doble rol funcionario `…0002`.
 
 | Ruta | Acceso |
 |---|---|
 | `GET /health`, `GET /residuos/catalogo`, `GET /` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (propias, o municipal sin filtro) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
-| `PATCH admin/solicitudes/{id}` (en `apps/backend-admin`, :3001) | Rol `admin` u `operador` |
-| `GET /operadores` | Rol `admin` u `operador` |
+| `PATCH admin/solicitudes/{id}` (en `apps/backend-admin`, :3001) | Rol `admin` o `funcionario` |
 
 En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
 
@@ -147,20 +145,26 @@ Detalle de implementación: [`apps/backend/README.md`](../apps/backend/README.md
 
 ### Cambio de estado (PATCH admin)
 
-> Esta lógica corre hoy en `apps/backend-admin` (`PATCH /api/admin/solicitudes/{id}`), no acá
-> — se documenta igual porque el criterio de negocio es el mismo y sigue siendo válido.
+> ⚠️ **Nota histórica (replanteo del 2026-09-17).** Lo descrito abajo (estado libre y reversible,
+> `asignada` con operador) **ya se reemplazó** en `apps/backend-admin` por la tabla de transiciones de
+> `@arca/core`, con permisos por actor (vecino, funcionario, admin). En el backend ciudadano (§2,
+> 2026-09-21): crear nace en `en_revision`, cancelar usa `aplicarTransicion`, y `GET /api/operadores`
+> ya no existe.
+> Detalle: [pendientes del equipo](PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](specs/SPEC-ciclo-solicitud.md)
 
-El panel municipal puede fijar **cualquier** estado, incluido **revertir** (ej.
-`completada → pendiente`), para operar y probar el flujo. El backend solo conserva
-invariantes de datos:
+> Esta lógica de cambio de estado municipal corre en `apps/backend-admin`
+> (`PATCH /api/admin/solicitudes/{id}` y revisión), no acá.
 
-- `asignada` exige `operadorAsignadoId` de un administrador **activo**.
-- `completada` setea `fechaCompletada`; al **salir** de completada se limpia.
-- La cancelación del ciudadano solo procede sobre **sus** solicitudes en estado
+El texto siguiente describe el **modelo viejo** (solo contexto histórico):
+
+- `asignada` exigía `operadorAsignadoId` de un administrador **activo**.
+- `completada` seteaba `fechaCompletada`; al **salir** de completada se limpiaba.
+- La cancelación del ciudadano solo procedía sobre **sus** solicitudes en estado
   `pendiente` o `asignada` (valida propiedad → `403` si es ajena).
 
-> Nota: la máquina de estados estricta (`pendiente→asignada→en_proceso→completada`)
-> se relajó a propósito para esta fase. Endurecerla queda como pendiente (flag/permiso).
+> **Hoy:** cancelar solo en `en_revision` · `requiere_modificacion` · `aprobada` sin pago `pagado`,
+> vía el núcleo. Ver `apps/backend/README.md`.
 
 ### Login diferido
 
@@ -245,12 +249,12 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Frontend React PWA | Maximiliano | Ver `docs/SETUP_LOCAL.md` |
 | Migraciones restantes del DBML | Javier | horarios, fotos, marketplace, credits, etc. |
 | Subida de fotos | Javier | Fase posterior |
-| ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados) |
-| ~~Cancelación por ciudadano~~ | ✅ Hecho | Rama `admin-municipal` (`PATCH /:id/cancelar`) |
+| ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados); hoy ciclo de revisión en `backend-admin` |
+| ~~Cancelación por ciudadano~~ | ✅ Hecho | `aplicarTransicion` + estados nuevos (§2, 2026-09-21) |
 | ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
 | ~~Control de acceso por roles (HU-13)~~ | ✅ Hecho | `auth/`: guards, `@Roles`, auth dev Bearer UUID |
-| Endurecer máquina de estados | Pendiente | Hoy reversible para pruebas; reponer con flag/permiso |
-| ~~`GET /api/operadores`~~ | ✅ Hecho | HU-08 — `OperadoresModule` lista administradores activos |
+| ~~Adaptar backend al ciclo nuevo (§2)~~ | ✅ Hecho | Crear `en_revision`, sin `operadores/`, rol `funcionario` |
+| ~~`GET /api/operadores`~~ | ❌ Eliminado | Replanteo: no hay asignación de operadores |
 | PR merge HU-13 a `develop` | Javier | Rama `2026-08-31-javier-hu13-control-acceso` |
 
 ---

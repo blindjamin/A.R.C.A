@@ -21,26 +21,42 @@ export interface ResiduoCatalogo {
   updatedAt: string;
 }
 
+// Ciclo de revisión y derivación (docs/specs/SPEC-ciclo-solicitud.md). Qué
+// transiciones son válidas lo decide el backend: el panel solo muestra las que
+// vienen en `transicionesDisponibles`.
 export type EstadoSolicitud =
-  | 'pendiente'
-  | 'asignada'
-  | 'en_proceso'
-  | 'completada'
+  | 'en_revision'
+  | 'requiere_modificacion'
+  | 'aprobada'
+  | 'rechazada'
+  | 'derivada'
+  | 'retirada'
+  | 'no_realizada'
   | 'cancelada';
+
+export type EstadoPago = 'no_aplica' | 'pendiente' | 'pagado';
+
+export interface FuncionarioResumen {
+  id: string;
+  nombre: string;
+  apellido: string;
+}
 
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
   residuoCatalogoId: number;
   estado: EstadoSolicitud;
+  estadoPago: EstadoPago;
+  monto: number | null;
   descripcion: string | null;
   direccionAnonimizada?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
   fechaSolicitud: string;
-  fechaProgramada?: string | null;
-  fechaCompletada?: string | null;
-  operadorAsignadoId?: string | null;
+  fechaRevision?: string | null;
+  revisadoPorId?: string | null;
+  fechaCierre?: string | null;
   razonRechazo?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -48,11 +64,17 @@ export interface SolicitudRetiro {
   residuoCatalogo?: ResiduoCatalogo;
 }
 
+/** Lo que devuelve `GET /admin/solicitudes/:id`. */
+export interface SolicitudDetalle extends SolicitudRetiro {
+  revisadoPor?: FuncionarioResumen | null;
+  /** Funcionario con la toma vigente; `null` si nadie la está revisando. */
+  tomadaPor?: FuncionarioResumen | null;
+  /** Estados a los que la sesión actual puede mover la solicitud. */
+  transicionesDisponibles: EstadoSolicitud[];
+}
+
 export interface ActualizarSolicitudInput {
-  estado?: EstadoSolicitud;
-  operadorAsignadoId?: string;
-  fechaProgramada?: string;
-  razonRechazo?: string;
+  estado: EstadoSolicitud;
 }
 
 // --- Overlay visual ---------------------------------------------------------
@@ -101,10 +123,10 @@ export const IDENTIDADES_DEV = {
     nombre: 'Carlos Álvarez',
     rol: 'Administrador',
   },
-  operador: {
+  funcionario: {
     id: '00000000-0000-4000-8000-000000000002',
     nombre: 'Camila Operadora',
-    rol: 'Operador',
+    rol: 'Funcionario',
   },
 } as const;
 
@@ -113,8 +135,8 @@ export type PerfilDev = keyof typeof IDENTIDADES_DEV;
 const STORAGE_KEY_PERFIL = 'arca.panel.perfilDev';
 
 export function perfilDevActual(): PerfilDev {
-  return localStorage.getItem(STORAGE_KEY_PERFIL) === 'operador'
-    ? 'operador'
+  return localStorage.getItem(STORAGE_KEY_PERFIL) === 'funcionario'
+    ? 'funcionario'
     : 'admin';
 }
 
@@ -170,9 +192,9 @@ export function fetchSolicitudesAdmin(
   );
 }
 
-export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
+export function fetchSolicitud(id: number): Promise<SolicitudDetalle> {
   return apiFetch(`${API_URL}/admin/solicitudes/${id}`).then((r) =>
-    handle<SolicitudRetiro>(r),
+    handle<SolicitudDetalle>(r),
   );
 }
 
@@ -185,6 +207,268 @@ export function actualizarSolicitud(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   }).then((r) => handle<SolicitudRetiro>(r));
+}
+
+// --- Revisión (docs/specs/SPEC-revision-solicitudes.md) --------------------
+
+export type DecisionRevision = 'aprobada' | 'requiere_modificacion' | 'rechazada';
+
+export type MotivoRevision =
+  | 'foto_insuficiente'
+  | 'categoria_incorrecta'
+  | 'descripcion_incompleta'
+  | 'direccion_incompleta'
+  | 'fuera_de_comuna'
+  | 'residuo_no_admitido'
+  | 'duplicada'
+  | 'contenido_inapropiado'
+  | 'otro';
+
+// Copia de MOTIVOS_POR_DECISION e ITEMS_CHECKLIST_APROBACION de @arca/core
+// (admin-web no puede importar el paquete). El backend valida igual: si estas
+// listas se desincronizan, la decisión responde 400, no queda mal guardada.
+export const MOTIVOS_POR_DECISION: Record<
+  Exclude<DecisionRevision, 'aprobada'>,
+  MotivoRevision[]
+> = {
+  requiere_modificacion: [
+    'foto_insuficiente',
+    'categoria_incorrecta',
+    'descripcion_incompleta',
+    'direccion_incompleta',
+    'otro',
+  ],
+  rechazada: [
+    'fuera_de_comuna',
+    'residuo_no_admitido',
+    'duplicada',
+    'contenido_inapropiado',
+    'otro',
+  ],
+};
+
+export const ETIQUETA_MOTIVO: Record<MotivoRevision, string> = {
+  foto_insuficiente: 'La foto no permite ver el residuo',
+  categoria_incorrecta: 'Categoría incorrecta',
+  descripcion_incompleta: 'Descripción incompleta',
+  direccion_incompleta: 'Dirección incompleta',
+  fuera_de_comuna: 'Dirección fuera de la comuna',
+  residuo_no_admitido: 'Residuo no admitido',
+  duplicada: 'Solicitud duplicada',
+  contenido_inapropiado: 'Contenido inapropiado',
+  otro: 'Otro',
+};
+
+export const ITEMS_CHECKLIST_APROBACION = [
+  { id: 'foto_clara', label: 'La foto muestra el residuo con claridad' },
+  { id: 'residuo_coincide', label: 'El residuo coincide con la categoría' },
+  { id: 'volumen_razonable', label: 'El volumen es razonable para un retiro' },
+  { id: 'direccion_en_comuna', label: 'La dirección está dentro de la comuna' },
+  { id: 'no_duplicada', label: 'No está duplicada' },
+] as const;
+
+export interface RevisarSolicitudInput {
+  decision: DecisionRevision;
+  motivo?: MotivoRevision;
+  comentario?: string;
+  checklist?: Record<string, boolean>;
+}
+
+export interface RevisionHistorial {
+  id: number;
+  decision: DecisionRevision;
+  motivo: MotivoRevision | null;
+  comentario: string | null;
+  checklist: Record<string, boolean> | null;
+  revisor: string;
+  createdAt: string;
+}
+
+export interface NotaSolicitud {
+  id: number;
+  texto: string;
+  autor: string;
+  createdAt: string;
+}
+
+export type ResiduoResumen = Pick<
+  ResiduoCatalogo,
+  'id' | 'nombre' | 'categoria' | 'precio'
+>;
+
+const jsonInit = (method: string, data?: unknown): RequestInit => ({
+  method,
+  headers: { 'Content-Type': 'application/json' },
+  body: data === undefined ? undefined : JSON.stringify(data),
+});
+
+/** `handle` arma "Error 400: {json}"; se muestra solo el mensaje del backend. */
+export function mensajeDeError(e: unknown): string {
+  const texto = e instanceof Error ? e.message : String(e);
+  const json = texto.indexOf('{');
+  if (json === -1) return texto;
+  try {
+    const { message } = JSON.parse(texto.slice(json)) as {
+      message?: string | string[];
+    };
+    if (Array.isArray(message)) return message.join('. ');
+    return message ?? texto;
+  } catch {
+    return texto;
+  }
+}
+
+/** Respuestas 204 sin cuerpo. */
+async function handleVacio(res: Response): Promise<void> {
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Error ${res.status}: ${body || res.statusText}`);
+  }
+}
+
+/** Toma la solicitud por 15 minutos. Responde 409 si la tiene otro funcionario. */
+export function tomarSolicitud(id: number): Promise<{ tomadaHasta: string }> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/toma`, {
+    method: 'POST',
+  }).then((r) => handle<{ tomadaHasta: string }>(r));
+}
+
+export function liberarSolicitud(id: number): Promise<void> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/toma`, {
+    method: 'DELETE',
+  }).then(handleVacio);
+}
+
+export function revisarSolicitud(
+  id: number,
+  data: RevisarSolicitudInput,
+): Promise<SolicitudRetiro> {
+  return apiFetch(
+    `${API_URL}/admin/solicitudes/${id}/revision`,
+    jsonInit('POST', data),
+  ).then((r) => handle<SolicitudRetiro>(r));
+}
+
+export function fetchRevisiones(id: number): Promise<RevisionHistorial[]> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/revisiones`).then((r) =>
+    handle<RevisionHistorial[]>(r),
+  );
+}
+
+export function corregirCategoria(
+  id: number,
+  residuoCatalogoId: number,
+): Promise<void> {
+  return apiFetch(
+    `${API_URL}/admin/solicitudes/${id}/categoria`,
+    jsonInit('PATCH', { residuoCatalogoId }),
+  ).then(handleVacio);
+}
+
+export function fetchNotas(id: number): Promise<NotaSolicitud[]> {
+  return apiFetch(`${API_URL}/admin/solicitudes/${id}/notas`).then((r) =>
+    handle<NotaSolicitud[]>(r),
+  );
+}
+
+export function crearNota(id: number, texto: string): Promise<NotaSolicitud> {
+  return apiFetch(
+    `${API_URL}/admin/solicitudes/${id}/notas`,
+    jsonInit('POST', { texto }),
+  ).then((r) => handle<NotaSolicitud>(r));
+}
+
+export function fetchResiduos(): Promise<ResiduoResumen[]> {
+  return apiFetch(`${API_URL}/admin/residuos`).then((r) =>
+    handle<ResiduoResumen[]>(r),
+  );
+}
+
+// --- Derivación a la empresa (docs/specs/SPEC-derivacion-excel.md) ---------
+
+export interface ResumenDerivacion {
+  /** Aprobadas con el pago resuelto: entran en el próximo lote. */
+  listas: number;
+  /** Aprobadas que esperan el pago del vecino. */
+  bloqueadasPorPago: number;
+}
+
+export interface LoteDerivacion {
+  id: number;
+  cantidad: number;
+  generadoPor: string;
+  createdAt: string;
+}
+
+export function fetchResumenDerivacion(): Promise<ResumenDerivacion> {
+  return apiFetch(`${API_URL}/admin/derivaciones/resumen`).then((r) =>
+    handle<ResumenDerivacion>(r),
+  );
+}
+
+export function fetchLotesDerivacion(): Promise<LoteDerivacion[]> {
+  return apiFetch(`${API_URL}/admin/derivaciones`).then((r) =>
+    handle<LoteDerivacion[]>(r),
+  );
+}
+
+export function crearLoteDerivacion(): Promise<{ id: number; cantidad: number }> {
+  return apiFetch(`${API_URL}/admin/derivaciones`, { method: 'POST' }).then(
+    (r) => handle<{ id: number; cantidad: number }>(r),
+  );
+}
+
+/**
+ * Descarga el Excel del lote. Va por `fetch` y no por un enlace porque la
+ * petición necesita el header Authorization; cada descarga queda auditada.
+ */
+export async function descargarExcelLote(id: number): Promise<void> {
+  const res = await apiFetch(`${API_URL}/admin/derivaciones/${id}/excel`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Error ${res.status}: ${body || res.statusText}`);
+  }
+
+  const disposicion = res.headers.get('content-disposition') ?? '';
+  const nombre =
+    /filename="([^"]+)"/.exec(disposicion)?.[1] ?? `arca-lote-${id}.xlsx`;
+
+  const url = URL.createObjectURL(await res.blob());
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = nombre;
+  enlace.click();
+  URL.revokeObjectURL(url);
+}
+
+// --- Métricas (docs/specs/SPEC-dashboard-metricas.md) -----------------------
+
+export type RangoMetricas = 7 | 30 | 90;
+
+export interface Metricas {
+  dias: RangoMetricas;
+  desde: string;
+  hasta: string;
+  recibidas: number;
+  serieDiaria: { fecha: string; total: number }[];
+  cola: { enRevision: number; atrasadas: number };
+  horasPromedioRevision: number | null;
+  decisiones: Record<DecisionRevision, number>;
+  motivos: { motivo: MotivoRevision; total: number }[];
+  porCategoria: { categoria: string; total: number }[];
+  derivacion: {
+    lotes: number;
+    derivadas: number;
+    retiradas: number;
+    noRealizadas: number;
+  };
+  recaudacion: number;
+}
+
+export function fetchMetricas(dias: RangoMetricas): Promise<Metricas> {
+  return apiFetch(`${API_URL}/admin/metricas?dias=${dias}`).then((r) =>
+    handle<Metricas>(r),
+  );
 }
 
 // --- Mapa de calor ----------------------------------------------------------
@@ -224,7 +508,7 @@ export interface AuditoriaLog {
 /**
  * Registro auditable de acciones críticas.
  *
- * Requiere rol `admin`: a diferencia del resto del panel, un operador recibe
+ * Requiere rol `admin`: a diferencia del resto del panel, un funcionario recibe
  * 403 acá. Es información de control interno sobre lo que hace cada
  * funcionario, no información operativa.
  *

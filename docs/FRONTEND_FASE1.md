@@ -28,7 +28,7 @@ ciudadano y administrativo de punta a punta:
 - Flujo "Solicitar retiro" con **esqueleto de IA** (captura → análisis → sugerencia → éxito)
 - Catálogo, creación y seguimiento de solicitudes contra el backend real
 - **Login temporal y diferido** según perfil (`vecino` vs `funcionario`)
-- **Panel administrativo:** gestión y cambio de estados de solicitudes, asignación/programación con operadores (HU-08) y registro de auditoría con KPIs (HU-13)
+- **Panel administrativo:** gestión y cambio de estados de solicitudes y registro de auditoría con KPIs (HU-13). *(La asignación de operadores se eliminó con el replanteo del 2026-09-17.)*
 
 ---
 
@@ -230,14 +230,21 @@ cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifi
 ## Panel Administrativo y Asignación (EP-03 / Sprint 2)
 
 ### 1. Asignación y Programación de Retiros (HU-08)
-Implementado en `apps/admin-web` (`AsignarRetiroModal.tsx` + detalle en `Solicitudes.tsx`):
-- **Selección de fecha:** Selector de fecha de retiro programada.
-- **Franjas horarias:** Selección rápida entre turnos *Mañana*, *Tarde*, *Noche* o *Personalizada*.
-- **Operador asignado:** Select en el modal. **Hoy usa `OPERADORES_DEMO` hardcodeado**; el backend
-  ciudadano ya expone `GET /api/operadores` (HU-08) en el puerto 3000. Cablear el panel a ese
-  listado (o exponer el mismo en `backend-admin` :3001) queda como PR aparte de frontend admin.
-- **Persistencia:** Al confirmar, `actualizarSolicitud()` hace `PATCH /api/admin/solicitudes/{id}`
-  con `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada` (ISO) contra `backend-admin`.
+
+> ⚠️ **Obsoleto desde el replanteo del 2026-09-17.** La asignación de operadores, la programación
+> de fecha y franja y `AsignarRetiroModal.tsx` **se eliminaron** del panel: los retiros los ejecuta
+> una empresa externa. Se conserva como historia. Estado actual:
+> [`apps/admin-web/README.md`](../apps/admin-web/README.md) ·
+> [mapa del panel](specs/MAPA_PANEL_MUNICIPAL.md)
+>
+> **Ya no aplica** el cableado a `GET /api/operadores` ni `OPERADORES_DEMO`: ese endpoint se
+> eliminó del backend ciudadano (§2) y el modal de asignación salió del panel.
+
+~~Implementado en `apps/admin-web` (`AsignarRetiroModal.tsx` + detalle en `Solicitudes.tsx`):~~
+- ~~**Selección de fecha:** Selector de fecha de retiro programada.~~
+- ~~**Franjas horarias:** Selección rápida entre turnos *Mañana*, *Tarde*, *Noche* o *Personalizada*.~~
+- ~~**Operador asignado:** Select en el modal con `OPERADORES_DEMO` / `GET /api/operadores`.~~
+- ~~**Persistencia:** `PATCH` con `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada`.~~
 
 ### 2. Trazabilidad y Logs de Auditoría (HU-13)
 Pantalla `/admin/auditoria` (`AdminAuditoria.tsx`) accesible desde la barra superior de navegación del panel administrativo:
@@ -320,7 +327,7 @@ npm run lint      # ESLint
    (leído desde `GET /api/solicitudes-retiro`).
 8. Ingresar como funcionario municipal → el botón "Modo funcionario" navega a `VITE_ADMIN_URL`
    (`apps/admin-web`, http://localhost:5174 en local) para gestionar solicitudes, cambiar
-   estados o programar asignación con operador (HU-08).
+   estados, revisar solicitudes y derivarlas a la empresa operadora.
 9. Dentro del panel, ir a "Auditoría" → consultar KPIs y registros de actividad del sistema (HU-13).
 
 ---
@@ -341,8 +348,8 @@ los endpoints correspondientes.
 | Redux Toolkit + RTK Query | Cuando crezca el estado (marketplace, credits, sesión) |
 | EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
 | EP-04 Circular Credits | Saldo + historial en perfil |
-| EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, modal de asignación HU-08, auditoría HU-13, mapa de calor con **Leaflet** HU-07). Falta panel funcionario completo, reportes |
-| Programación con operadores | ✅ UI hecha (`AsignarRetiroModal`). Backend: `GET /api/operadores` listo en :3000. **Pendiente:** dejar de usar `OPERADORES_DEMO` en el panel (PR admin-web) |
+| EP-03 Dashboard municipal | ✅ En `apps/admin-web`: revisión de solicitudes, derivación en Excel, métricas, auditoría y mapa de calor con **Leaflet**. Falta reportes y configuración |
+| Programación con operadores | ❌ **Descartada** (replanteo 2026-09-17): los retiros los ejecuta una empresa externa. Ya eliminada del panel ([pendientes](PENDIENTES_EQUIPO.md)) |
 | Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
 | Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
 | Proteger el panel admin | ⛔ Sin gate de sesión en `apps/admin-web` (deuda declarada, migración 2026-09-01). Falta login ClaveÚnica propio + guard real |

@@ -5,7 +5,6 @@ import {
   AuditoriaModule,
   AuthModule,
   SolicitudRetiro,
-  UsuarioAdministrador,
   UsuarioCiudadano,
 } from '@arca/core';
 import { SolicitudesRetiroController } from './solicitudes-retiro.controller';
@@ -13,11 +12,7 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      SolicitudRetiro,
-      UsuarioCiudadano,
-      UsuarioAdministrador,
-    ]),
+    TypeOrmModule.forFeature([SolicitudRetiro, UsuarioCiudadano]),
     ResiduosModule,
     AuthModule,
     AuditoriaModule,
