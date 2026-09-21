@@ -26,12 +26,11 @@ las aprobadas se entregan a la empresa en un Excel. El rol `operador` pasa a lla
 | Migraciones `1782164100000`, `1782164200000` y `1782164300000` + DBML | ✅ Hechas, probadas con `run` → `revert` → `run` |
 | `apps/backend-admin`: ciclo, revisión, derivación con Excel y métricas | ✅ Hecho, con 32 tests |
 | `apps/admin-web`: Solicitudes con revisión, Derivación y Métricas | ✅ Hecho, probado en navegador |
-| `apps/backend` (backend ciudadano) | ⛔ **No compila** con el núcleo nuevo. Ver §2 |
+| `apps/backend` (backend ciudadano) | ✅ §2 hecha (2026-09-21, Javier): crea en `en_revision`, cancela con `aplicarTransicion`, sin `operadores/` |
 | `apps/frontend` (PWA) | ⚠️ Compila, pero muestra los estados viejos. Ver §5 |
 
-> **El PR no se puede integrar a `develop` hasta cerrar §2.** Si entra antes, `apps/backend` no
-> compila. Lo recomendable es que Miguel o Javier suban los arreglos de §2 **a la misma rama del
-> PR** (o a una rama creada desde ella, integrada antes del merge).
+> **§2 del backend ciudadano ya está en la rama del PR.** Queda la revisión §1, el merge acordado
+> y el PR aparte de la PWA (§5). Después del merge: §3 (zona horaria, reenvío, fotos, datos-retiro).
 
 ---
 
@@ -93,42 +92,41 @@ No es su área, pero es backend y conviene una segunda mirada:
 
 ## 2. Arreglar antes del merge — backend ciudadano (Miguel o Javier)
 
-`apps/backend` hoy **no compila**: `npx tsc --noEmit` da 17 errores en `operadores/` y
-`solicitudes-retiro/solicitudes-retiro.service.ts`, porque usan valores que ya no existen
-(`OPERADOR`, `PENDIENTE`, `ASIGNADA`, `COMPLETADA`, `operadorAsignado`, `fechaProgramada` y
-`fechaCompletada`).
+> ✅ **Hecho (2026-09-21, Javier)** en la rama `2026-09-17-benjamin-panel-ciclo-solicitud`.
+> `apps/backend` compila y pasa lint/test/build. `GET /api/operadores` responde 404.
 
 ### 2.1 Crear y cancelar con el ciclo nuevo
 
 En `src/solicitudes-retiro/solicitudes-retiro.service.ts`:
 
-- [ ] `create` deja la solicitud en `EstadoSolicitudRetiro.EN_REVISION`.
-- [ ] `cancelarPorCiudadano` usa `aplicarTransicion(solicitud, CANCELADA, { actor: 'vecino', ahora })`
+- [x] `create` deja la solicitud en `EstadoSolicitudRetiro.EN_REVISION`.
+- [x] `cancelarPorCiudadano` usa `aplicarTransicion(solicitud, CANCELADA, { actor: 'vecino', ahora })`
   y traduce `TransicionInvalidaError`: `motivo === 'actor'` → 403 y el resto → 400. Solo se cancela en
   `en_revision`, `requiere_modificacion` o `aprobada`, y nunca con `estadoPago === 'pagado'`.
-- [ ] Borrar `update()`, `aplicarCambioEstado`, `validarOperador` y `dto/update-solicitud-retiro.dto.ts`:
+- [x] Borrar `update()`, `aplicarCambioEstado`, `validarOperador` y `dto/update-solicitud-retiro.dto.ts`:
   no tienen uso, porque el cambio de estado del funcionario vive en `apps/backend-admin`.
-- [ ] `tieneAccesoLecturaMunicipal` usa `RolAdministrador.FUNCIONARIO`.
-- [ ] Quitar `operadorAsignado` de las relaciones del `findOne`.
-- [ ] La auditoría de crear y cancelar sigue registrando solo el `estado`.
+- [x] `tieneAccesoLecturaMunicipal` usa `RolAdministrador.FUNCIONARIO`.
+- [x] Quitar `operadorAsignado` de las relaciones del `findOne`.
+- [x] La auditoría de crear y cancelar sigue registrando solo el `estado`.
 
 **Criterios:** crear responde `estado: en_revision`; cancelar una `derivada` responde 400; cancelar la
 solicitud de otro vecino responde 403.
-**Verificar:** un `solicitudes-retiro.service.spec.ts` nuevo con esos casos.
+**Verificar:** un `solicitudes-retiro.service.spec.ts` nuevo con esos casos. ✅
 
 ### 2.2 Eliminar el módulo de operadores
 
-- [ ] Borrar `src/operadores/` (controller, service, spec y module) y quitarlo de `app.module.ts`.
-- [ ] Borrar las carpetas vacías `asignacion/`, `core/` y `workflow/` de `src/solicitudes-retiro/`.
+- [x] Borrar `src/operadores/` (controller, service, spec y module) y quitarlo de `app.module.ts`.
+- [x] Borrar las carpetas vacías `asignacion/`, `core/` y `workflow/` de `src/solicitudes-retiro/`
+  (no existían en el árbol; no había nada que borrar).
 
 **Criterios:** `GET /api/operadores` responde 404 y `GET /api/health` responde 200.
 
 ### 2.3 Documentación de su área
 
-- [ ] `apps/backend/README.md`: tabla de endpoints sin `/api/operadores`, estados nuevos, rol
+- [x] `apps/backend/README.md`: tabla de endpoints sin `/api/operadores`, estados nuevos, rol
   `funcionario` en la tabla de UUID de demo, y quitar el aviso ⚠️ una vez hecho.
-- [ ] `docs/BACKEND_FASE1.md`: el aviso de la sección «Cambio de estado» puede quedar como nota
-  histórica.
+- [x] `docs/BACKEND_FASE1.md`: el aviso de la sección «Cambio de estado» queda como nota histórica;
+  endpoints y pendientes actualizados.
 
 ### 2.4 Verificación
 
@@ -138,8 +136,11 @@ cd apps/backend && npm run lint && npm run test && npm run build
 npm run migration:run
 ```
 
-Criterio final del spec: este comando no devuelve resultados (sin `node_modules`, `dist` ni
-migraciones antiguas):
+✅ Lint/test/build del backend ciudadano en verde (2026-09-21).
+
+Criterio final del spec (sin `node_modules`, `dist` ni migraciones antiguas): en `apps/backend` y
+`packages` no quedan `operadorAsignado` / `RolAdministrador.OPERADOR`. Siguen menciones en
+`apps/frontend` (§5, PR aparte) y un comentario en `backend-admin/src/main.ts`.
 
 ```bash
 grep -rn "operador_asignado\|operadorAsignado\|fechaProgramada\|OPERADORES_DEMO\|RolAdministrador.OPERADOR" apps packages
@@ -216,7 +217,7 @@ existen. Miguel, como PO, coordina el traspaso.
 
 ## 6. Integración
 
-1. Miguel y Javier revisan §1 y cierran §2 en la rama del PR.
+1. Miguel y Javier revisan §1. **§2 ya está cerrada** en la rama del PR.
 2. Se confirma el día de integración. Mientras dure esa ventana, nadie integra otra cosa a `develop`.
 3. Merge del PR a `develop`.
 4. Cada integrante, en su máquina:

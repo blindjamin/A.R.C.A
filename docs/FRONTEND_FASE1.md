@@ -236,14 +236,15 @@ cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifi
 > una empresa externa. Se conserva como historia. Estado actual:
 > [`apps/admin-web/README.md`](../apps/admin-web/README.md) ·
 > [mapa del panel](specs/MAPA_PANEL_MUNICIPAL.md)
-Implementado en `apps/admin-web` (`AsignarRetiroModal.tsx` + detalle en `Solicitudes.tsx`):
-- **Selección de fecha:** Selector de fecha de retiro programada.
-- **Franjas horarias:** Selección rápida entre turnos *Mañana*, *Tarde*, *Noche* o *Personalizada*.
-- **Operador asignado:** Select en el modal. **Hoy usa `OPERADORES_DEMO` hardcodeado**; el backend
-  ciudadano ya expone `GET /api/operadores` (HU-08) en el puerto 3000. Cablear el panel a ese
-  listado (o exponer el mismo en `backend-admin` :3001) queda como PR aparte de frontend admin.
-- **Persistencia:** Al confirmar, `actualizarSolicitud()` hace `PATCH /api/admin/solicitudes/{id}`
-  con `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada` (ISO) contra `backend-admin`.
+>
+> **Ya no aplica** el cableado a `GET /api/operadores` ni `OPERADORES_DEMO`: ese endpoint se
+> eliminó del backend ciudadano (§2) y el modal de asignación salió del panel.
+
+~~Implementado en `apps/admin-web` (`AsignarRetiroModal.tsx` + detalle en `Solicitudes.tsx`):~~
+- ~~**Selección de fecha:** Selector de fecha de retiro programada.~~
+- ~~**Franjas horarias:** Selección rápida entre turnos *Mañana*, *Tarde*, *Noche* o *Personalizada*.~~
+- ~~**Operador asignado:** Select en el modal con `OPERADORES_DEMO` / `GET /api/operadores`.~~
+- ~~**Persistencia:** `PATCH` con `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada`.~~
 
 ### 2. Trazabilidad y Logs de Auditoría (HU-13)
 Pantalla `/admin/auditoria` (`AdminAuditoria.tsx`) accesible desde la barra superior de navegación del panel administrativo:

@@ -61,7 +61,7 @@ Panel para funcionarios que actúan como **último filtro** de cada solicitud: r
 > La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. no asigna
 > operadores; el funcionario **revisa, aprueba y deriva** las solicitudes. Rol `operador` → `funcionario`.
 > Los retiros en terreno («en ruta», foto con GPS, rutas) quedan **fuera del alcance**.
-> Falta adaptar el backend ciudadano y la PWA a los estados nuevos.
+> Backend ciudadano adaptado (§2). Falta la PWA (§5) y lo post-merge (§3).
 > Detalle: [pendientes del equipo](docs/PENDIENTES_EQUIPO.md) ·
 > [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md)
 
@@ -225,7 +225,7 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 | **Catálogo de residuos** | ✅ `GET /api/residuos/catalogo` con **precios reales** en base de datos |
 | **Solicitud de retiro** | ✅ Crear, listar, ver detalle y cancelar — conectado al backend |
 | **Panel municipal (EP-04)** | ✅ Revisión con checklist, motivos, toma y notas internas · derivación a la empresa en Excel · métricas · mapa de calor · auditoría ([mapa](docs/specs/MAPA_PANEL_MUNICIPAL.md)) |
-| **Ciclo de solicitud nuevo** | 🟡 Núcleo, BD y panel listos · backend ciudadano y PWA por adaptar ([pendientes](docs/PENDIENTES_EQUIPO.md)) |
+| **Ciclo de solicitud nuevo** | 🟡 Núcleo, BD, panel y backend ciudadano listos · PWA por adaptar ([pendientes](docs/PENDIENTES_EQUIPO.md) §5) |
 | **Login diferido** | ✅ Gate por `perfil-acceso`: funcionario elige contexto, ciudadano va directo a la PWA |
 | **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |

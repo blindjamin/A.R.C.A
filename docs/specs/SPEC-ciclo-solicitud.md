@@ -1,6 +1,6 @@
 # Spec: `ciclo-solicitud` — Nuevo ciclo de vida de la solicitud de retiro
 
-> **Estado:** APROBADO (2026-09-17) — núcleo, BD y panel implementados; backend ciudadano y PWA pendientes ([PENDIENTES_EQUIPO.md](../PENDIENTES_EQUIPO.md))
+> **Estado:** APROBADO (2026-09-17) — núcleo, BD, panel y backend ciudadano (§2) implementados; PWA pendiente ([PENDIENTES_EQUIPO.md](../PENDIENTES_EQUIPO.md) §5)
 > **Fecha:** 2026-09-17 · **Autor:** Benjamín Paicil (con asistencia de IA)
 > **Módulo del mapa:** [`ciclo-solicitud`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** —
 
@@ -264,10 +264,11 @@ const TRANSICIONES: ReadonlyArray<{
 ## 10. Criterios de éxito verificables
 
 - [x] `npm run test` en `arca-core` pasa, con al menos un test por cada fila de §2.1.
-- [ ] `grep -rn "operador_asignado\|operadorAsignado\|fechaProgramada\|OPERADORES_DEMO\|RolAdministrador.OPERADOR" apps packages` (sin `node_modules`, `dist` ni migraciones antiguas) no devuelve resultados.
+- [ ] `grep -rn "operador_asignado\|operadorAsignado\|fechaProgramada\|OPERADORES_DEMO\|RolAdministrador.OPERADOR" apps packages` (sin `node_modules`, `dist` ni migraciones antiguas) no devuelve resultados. *(backend limpio; quedan restos en `apps/frontend` hasta §5)*
 - [x] `migration:run` y `migration:revert` corren sin errores sobre la base de demo.
 - [ ] Lint y build de los 5 proyectos pasan.
 - [x] En el panel, una solicitud `en_revision` solo ofrece Aprobar, Pedir modificación y Rechazar.
+- [x] Backend ciudadano: crear → `en_revision`; cancelar vía core (§2, 2026-09-21).
 - [ ] En la PWA, el botón Cancelar aparece solo en los estados de §2.1.
 
 ## 11. Decisiones (antes preguntas abiertas)

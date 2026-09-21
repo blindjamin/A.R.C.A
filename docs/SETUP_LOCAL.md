@@ -245,7 +245,7 @@ Orden sugerido de pantallas:
 
 3. **Mis solicitudes**  
    - `GET {VITE_API_URL}/solicitudes-retiro?usuarioCiudadanoId=00000000-0000-4000-8000-000000000001`  
-   - Listar estado (`pendiente`, etc.) y residuo asociado
+   - Listar estado (`en_revision`, etc.) y residuo asociado
 
 > **Auth:** el UUID de arriba es **solo desarrollo**. Cuando Benjamín integre JWT, el frontend usará el token y dejará de enviar `usuarioCiudadanoId` en el body.
 

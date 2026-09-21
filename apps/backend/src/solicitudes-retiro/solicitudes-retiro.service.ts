@@ -8,21 +8,22 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import {
   AccionAuditoria,
+  aplicarTransicion,
   AuditoriaService,
   type AuthUser,
+  EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
   type OrigenPeticion,
   RolAdministrador,
   SolicitudRetiro,
   TipoActorAuditoria,
-  UsuarioAdministrador,
+  TransicionInvalidaError,
   UsuarioCiudadano,
 } from '@arca/core';
 import { ResiduosService } from '../residuos/residuos.service';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
-import { UpdateSolicitudRetiroDto } from './dto/update-solicitud-retiro.dto';
 
 @Injectable()
 export class SolicitudesRetiroService {
@@ -31,8 +32,6 @@ export class SolicitudesRetiroService {
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
     @InjectRepository(UsuarioCiudadano)
     private readonly usuarioCiudadanoRepository: Repository<UsuarioCiudadano>,
-    @InjectRepository(UsuarioAdministrador)
-    private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
     private readonly residuosService: ResiduosService,
     private readonly auditoriaService: AuditoriaService,
   ) {}
@@ -80,7 +79,8 @@ export class SolicitudesRetiroService {
       latitudCapturada: dto.latitudCapturada ?? null,
       longitudCapturada: dto.longitudCapturada ?? null,
       fechaSolicitud: new Date(),
-      estado: EstadoSolicitudRetiro.PENDIENTE,
+      estado: EstadoSolicitudRetiro.EN_REVISION,
+      estadoPago: EstadoPagoSolicitud.NO_APLICA,
     });
 
     const guardada = await this.solicitudRetiroRepository.save(solicitud);
@@ -131,7 +131,6 @@ export class SolicitudesRetiroService {
       relations: {
         residuoCatalogo: true,
         usuarioCiudadano: true,
-        operadorAsignado: true,
       },
     });
 
@@ -144,36 +143,6 @@ export class SolicitudesRetiroService {
     }
 
     return solicitud;
-  }
-
-  // PENDIENTE (avisar a Javier, HU-13): sin llamador desde que el @Patch(':id')
-  // del controller se movió a apps/backend-admin (Fase 3, migración admin). No
-  // se borra por cuenta propia (regla A.4) — la lógica de cambio de estado es
-  // suya; que decida si queda, se borra o se comparte con el nuevo service.
-  async update(
-    id: number,
-    dto: UpdateSolicitudRetiroDto,
-  ): Promise<SolicitudRetiro> {
-    const solicitud = await this.findOne(id);
-
-    if (dto.operadorAsignadoId !== undefined) {
-      await this.validarOperador(dto.operadorAsignadoId);
-      solicitud.operadorAsignadoId = dto.operadorAsignadoId;
-    }
-
-    if (dto.fechaProgramada !== undefined) {
-      solicitud.fechaProgramada = new Date(dto.fechaProgramada);
-    }
-
-    if (dto.razonRechazo !== undefined) {
-      solicitud.razonRechazo = dto.razonRechazo;
-    }
-
-    if (dto.estado !== undefined) {
-      this.aplicarCambioEstado(solicitud, dto);
-    }
-
-    return this.solicitudRetiroRepository.save(solicitud);
   }
 
   async cancelarPorCiudadano(
@@ -196,21 +165,24 @@ export class SolicitudesRetiroService {
       );
     }
 
-    const cancelablesPorCiudadano = [
-      EstadoSolicitudRetiro.PENDIENTE,
-      EstadoSolicitudRetiro.ASIGNADA,
-    ];
-
-    if (!cancelablesPorCiudadano.includes(solicitud.estado)) {
-      throw new BadRequestException(
-        `No se puede cancelar una solicitud en estado "${solicitud.estado}"`,
-      );
-    }
-
     const estadoAnterior = solicitud.estado;
 
-    solicitud.estado = EstadoSolicitudRetiro.CANCELADA;
-    solicitud.razonRechazo = dto.motivo ?? 'Cancelada por el ciudadano';
+    try {
+      aplicarTransicion(solicitud, EstadoSolicitudRetiro.CANCELADA, {
+        actor: 'vecino',
+        ahora: new Date(),
+      });
+    } catch (error) {
+      throw this.comoHttp(error);
+    }
+
+    // Motivo opcional del vecino: queda en la solicitud (borrable), no en
+    // auditoría. El ciclo solo mueve el estado; el texto libre es aparte.
+    if (dto.motivo !== undefined) {
+      solicitud.razonRechazo = dto.motivo;
+    } else if (!solicitud.razonRechazo) {
+      solicitud.razonRechazo = 'Cancelada por el ciudadano';
+    }
 
     const guardada = await this.solicitudRetiroRepository.save(solicitud);
 
@@ -231,55 +203,20 @@ export class SolicitudesRetiroService {
     return guardada;
   }
 
-  private aplicarCambioEstado(
-    solicitud: SolicitudRetiro,
-    dto: UpdateSolicitudRetiroDto,
-  ): void {
-    const nuevoEstado = dto.estado as EstadoSolicitudRetiro;
-
-    if (nuevoEstado === solicitud.estado) {
-      return;
-    }
-
-    // El panel municipal puede mover el estado en cualquier dirección (incl.
-    // revertir) para operar/probar. Solo se conservan invariantes de datos:
-    if (
-      nuevoEstado === EstadoSolicitudRetiro.ASIGNADA &&
-      !solicitud.operadorAsignadoId
-    ) {
-      throw new BadRequestException(
-        'Para asignar la solicitud debe indicar un operador (operadorAsignadoId)',
-      );
-    }
-
-    if (nuevoEstado === EstadoSolicitudRetiro.COMPLETADA) {
-      solicitud.fechaCompletada = new Date();
-    } else {
-      // Al salir de "completada" la fecha de cierre deja de tener sentido.
-      solicitud.fechaCompletada = null;
-    }
-
-    solicitud.estado = nuevoEstado;
-  }
-
-  private async validarOperador(operadorId: string): Promise<void> {
-    const operador = await this.usuarioAdministradorRepository.findOne({
-      where: { id: operadorId },
-    });
-
-    if (!operador) {
-      throw new NotFoundException(`Operador ${operadorId} no encontrado`);
-    }
-
-    if (!operador.activo) {
-      throw new BadRequestException('El operador asignado no está activo');
-    }
-  }
-
   findByUsuarioCiudadanoId(
     usuarioCiudadanoId: string,
   ): Promise<SolicitudRetiro[]> {
     return this.findAll({ usuarioCiudadanoId });
+  }
+
+  /** Traduce errores del ciclo del núcleo a respuestas HTTP. */
+  private comoHttp(error: unknown): Error {
+    if (error instanceof TransicionInvalidaError) {
+      return error.motivo === 'actor'
+        ? new ForbiddenException(error.message)
+        : new BadRequestException(error.message);
+    }
+    return error instanceof Error ? error : new Error(String(error));
   }
 
   private tieneAccesoLecturaMunicipal(user: AuthUser): boolean {
@@ -287,7 +224,7 @@ export class SolicitudesRetiroService {
       return false;
     }
 
-    return [RolAdministrador.ADMIN, RolAdministrador.OPERADOR].includes(
+    return [RolAdministrador.ADMIN, RolAdministrador.FUNCIONARIO].includes(
       user.rol,
     );
   }

@@ -382,6 +382,7 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
 > operadores; el funcionario **revisa, aprueba y deriva** las solicitudes. Rol `operador` → `funcionario`.
 > Afecta a HU-07, HU-08 (pasa a «derivar a la empresa operadora»), HU-13, HU-30, HU-31 y HU-32
 > (retiro en terreno, fuera de alcance). El PO debe actualizar el backlog.
+> Backend ciudadano adaptado (§2, 2026-09-21). Queda la PWA (§5) y lo post-merge (§3).
 > Detalle: [pendientes del equipo](docs/PENDIENTES_EQUIPO.md) ·
 > [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md)
 

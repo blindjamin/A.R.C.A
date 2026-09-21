@@ -136,7 +136,7 @@ admin-auth + ciclo-solicitud ─► configuracion-admin   (en paralelo)
 
 | Módulo | Spec | Estado |
 |---|---|---|
-| `ciclo-solicitud` | [SPEC-ciclo-solicitud.md](SPEC-ciclo-solicitud.md) · [pendientes](../PENDIENTES_EQUIPO.md) | Núcleo, BD y panel implementados; backend y app ciudadana pendientes |
-| `revision-solicitudes` | [SPEC-revision-solicitudes.md](SPEC-revision-solicitudes.md) | Núcleo, BD y panel implementados (sin fotos, que esperan `fotos-solicitud`); backend y app ciudadana pendientes |
+| `ciclo-solicitud` | [SPEC-ciclo-solicitud.md](SPEC-ciclo-solicitud.md) · [pendientes](../PENDIENTES_EQUIPO.md) | Núcleo, BD, panel y backend ciudadano (§2) listos; PWA pendiente (§5) |
+| `revision-solicitudes` | [SPEC-revision-solicitudes.md](SPEC-revision-solicitudes.md) | Núcleo, BD y panel implementados (sin fotos); reenvío/última revisión al vecino pendientes (§3.2); PWA pendiente |
 | `derivacion-excel` | [SPEC-derivacion-excel.md](SPEC-derivacion-excel.md) | Núcleo, BD y panel implementados; dirección real y contacto esperan `datos-retiro` |
 | `dashboard-metricas` | [SPEC-dashboard-metricas.md](SPEC-dashboard-metricas.md) | Panel implementado (sin cambios de esquema); zona horaria de la conexión por corregir |
