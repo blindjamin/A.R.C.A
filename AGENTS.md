@@ -228,7 +228,7 @@ con esa misma regla.
 | Migraciones ya aplicadas | Se corrigen con una **migración nueva**, jamás editando una existente |
 | `ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
 | Sistema CAS Chile (Power Builder + Sybase) | Está fuera del alcance de ARCA. No integrar |
-| Ramas `master` y `develop` en directo | Siempre vía rama temporal + merge |
+| Ramas `master` y `develop` en directo | Siempre vía rama temporal + pull request (regla A.14) |
 | Archivos de un área que no es la de la sesión | Ver regla A.7 — requiere avisar y abrir un PR |
 
 ## A.13 DECLARAR EN CADA COMMIT CÓMO SE PRODUJO EL CAMBIO
@@ -280,6 +280,53 @@ completarlas. Un hook las valida: si falta una, el commit no pasa y el mensaje d
 exactamente qué corregir.
 
 Los merges, los reverts y los `fixup!` quedan exentos: esos mensajes los genera git.
+
+## A.14 UN PULL REQUEST SE INTEGRA CON LA APROBACIÓN DE SU REVISOR
+
+Todo pull request hacia `develop` termina su descripción con tres líneas:
+
+```
+IA: agente
+HU: HU-07
+Revisor: Starossta
+```
+
+| Línea | Valores |
+|---|---|
+| `IA:` | `agente` · `asistido` · `no`. Si algún commit del PR es `agente`, el PR es `agente` |
+| `HU:` | `HU-07` · `HU-07, HU-08` · `ninguna` |
+| `Revisor:` | usuario de GitHub de quien revisa. **No puede ser quien abre el PR** |
+
+El PR **no se integra hasta que esa persona lo apruebe**. Si después de la aprobación entran
+commits nuevos, la aprobación deja de valer y hay que pedirla otra vez: se aprueba lo que se
+leyó, no lo que llegó después.
+
+### Por qué
+
+Hasta ahora casi ningún PR tuvo revisión de otra persona: se abrían y se integraban en minutos.
+El trailer `Revisor:` de A.13 declara quién *debería* revisar, pero nada comprobaba que lo
+hiciera. Esta regla convierte esa declaración en una aprobación real, registrada en GitHub.
+
+Revisar un cambio generado por un agente no es buscar errores de tipeo: es comprobar que lo que
+supone existe de verdad. Tres preguntas mínimas antes de aprobar un PR con `IA: agente`:
+
+1. ¿Los endpoints, tablas y columnas que usa existen realmente en el repositorio?
+2. ¿Respeta las decisiones de stack ya tomadas (regla A.5)?
+3. ¿Quien lo abrió puede explicar qué hace (regla B.1)?
+
+### Cómo se cumple
+
+- **Con Claude Code:** pedir "abre el PR". La skill `abrir-pr` pregunta los tres datos, muestra
+  el aviso de esta regla y crea el PR con el revisor ya solicitado.
+- **Desde la web de GitHub:** la plantilla trae las tres líneas; solo hay que completarlas. Si
+  el revisor no quedó solicitado, el check lo solicita solo.
+- **Con otra herramienta de IA:** al pedir un PR, el agente sigue las instrucciones de
+  `.claude/skills/abrir-pr/SKILL.md`. Este párrafo es el que se lo indica, porque Cursor,
+  Copilot y Claude Code leen `AGENTS.md`.
+- **A mano:** completar las tres líneas. El check valida igual.
+
+Si falta un dato o el revisor no ha aprobado, el check **A.14 revisor declarado** aparece en
+rojo con el motivo, y el botón de merge queda bloqueado.
 
 ---
 
@@ -338,4 +385,4 @@ sale más caro que consultar.
 
 ---
 
-**Última actualización:** 2026-08-29 · Equipo COM Tech
+**Última actualización:** 2026-09-25 · Equipo COM Tech

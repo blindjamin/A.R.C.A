@@ -1,0 +1,91 @@
+# Regla A.14 de AGENTS.md: un pull request a develop no se integra sin la aprobacion
+# del revisor que declara en su descripcion, que no puede ser quien lo abrio.
+#
+# Para que bloquee de verdad, este job tiene que estar marcado como check obligatorio
+# en la proteccion de develop. Ver gobernanza/parche-equipo/AGENTS-A14-propuesta.md.
+
+name: Regla A.14
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  revisor:
+    name: A.14 revisor declarado
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (pr.base.ref !== 'develop') return;
+
+            const campo = (nombre) => {
+              const m = (pr.body || '').match(new RegExp(`^${nombre}:[ \\t]*(.+)$`, 'mi'));
+              return m ? m[1].trim() : '';
+            };
+            const ia = campo('IA').toLowerCase();
+            const hu = campo('HU');
+            const revisor = campo('Revisor').replace(/^@/, '');
+            const autor = pr.user.login;
+
+            const errores = [];
+            if (!['agente', 'asistido', 'no'].includes(ia))
+              errores.push("'IA:' tiene que ser agente, asistido o no.");
+            if (!/^(HU-\d{1,2}(\s*,\s*HU-\d{1,2})*|ninguna)$/i.test(hu))
+              errores.push("'HU:' tiene que ser HU-07 (o varias separadas por coma) o 'ninguna'.");
+            if (!revisor)
+              errores.push("Falta 'Revisor:' con el usuario de GitHub de quien revisa.");
+            else if (revisor.toLowerCase() === autor.toLowerCase())
+              errores.push('El revisor no puede ser quien abrio el pull request.');
+
+            const aviso =
+              '\nRegla A.14 de AGENTS.md, acordada por el equipo: este pull request no se ' +
+              'integra sin la aprobacion del revisor declarado.';
+
+            if (errores.length) {
+              core.setFailed('Descripcion incompleta:\n- ' + errores.join('\n- ') + aviso);
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const reviews = await github.paginate(github.rest.pulls.listReviews,
+              { owner, repo, pull_number: pr.number });
+
+            // Ultima opinion del revisor; los comentarios sueltos no cuentan como decision.
+            const decision = reviews
+              .filter(r => r.user.login.toLowerCase() === revisor.toLowerCase())
+              .filter(r => ['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(r.state))
+              .pop();
+
+            if (!decision) {
+              // Si el PR se abrio desde la web, el revisor todavia no fue solicitado.
+              const pedidos = pr.requested_reviewers.map(u => u.login.toLowerCase());
+              if (!pedidos.includes(revisor.toLowerCase())) {
+                await github.rest.pulls.requestReviewers(
+                  { owner, repo, pull_number: pr.number, reviewers: [revisor] });
+              }
+              core.setFailed(`Esperando la revision de @${revisor}.` + aviso);
+              return;
+            }
+
+            if (decision.state !== 'APPROVED') {
+              core.setFailed(`@${revisor} no ha aprobado (estado: ${decision.state}).` + aviso);
+              return;
+            }
+
+            // Una aprobacion vale para la version que se reviso, no para commits posteriores.
+            if (decision.commit_id !== pr.head.sha) {
+              core.setFailed(`@${revisor} aprobo una version anterior; hay commits nuevos sin revisar.` + aviso);
+              return;
+            }
+
+            core.info(`Aprobado por @${revisor}. HU: ${hu} · IA: ${ia}`);
