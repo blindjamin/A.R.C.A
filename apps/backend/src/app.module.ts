@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule, HealthModule } from '@arca/core';
+import { AuthModule, HealthModule, SeguridadModule } from '@arca/core';
 import { ResiduosModule } from './residuos/residuos.module';
 import { SolicitudesRetiroModule } from './solicitudes-retiro/solicitudes-retiro.module';
 import { UsersModule } from './users/users.module';
@@ -24,6 +24,9 @@ import { UsersModule } from './users/users.module';
       autoLoadEntities: true,
       synchronize: false,
     }),
+    // Antes que AuthModule: el rate limiting corta el abuso antes de resolver
+    // la sesión (los guards globales corren en orden de registro).
+    SeguridadModule,
     AuthModule,
     HealthModule,
     UsersModule,
