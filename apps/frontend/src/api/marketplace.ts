@@ -5,20 +5,31 @@
 // lleguen, se cambia solo el interruptor de abajo y las pantallas no se tocan.
 //
 // Endpoints esperados (para Javier):
-//   GET  /marketplace/articulos?tipo=&categoria=&texto=&lat=&lon=
-//        → ArticuloMarketplace[]  (solo estado 'disponible')
-//   GET  /marketplace/articulos/:id?lat=&lon=
-//        → ArticuloMarketplace
-//   POST /marketplace/articulos  (multipart/form-data: tipo, titulo,
-//        descripcion, residuoCatalogoId, foto?)
-//        → ArticuloMarketplace
+//   GET   /marketplace/articulos?tipo=&categoria=&texto=&lat=&lon=
+//         → ArticuloMarketplace[]  (solo estado 'disponible')
+//   GET   /marketplace/articulos/:id?lat=&lon=
+//         → ArticuloMarketplace
+//   POST  /marketplace/articulos  (multipart/form-data: tipo, titulo,
+//         descripcion, residuoCatalogoId, foto?)
+//         → ArticuloMarketplace
+//   GET   /marketplace/mis-articulos
+//         → ArticuloMarketplace[]  (los de la sesión, todos los estados,
+//           más recientes primero)
+//   PATCH /marketplace/articulos/:id/retirar
+//         → ArticuloMarketplace con estado 'retirado'. Solo si es de la
+//           sesión y está 'disponible'; si no, 403 / 409.
 //
-// Privacidad: `lat`/`lon` son el punto de QUIEN MIRA, ya redondeado a 20 m en
-// el navegador. El backend calcula `banda` con `bandaPorMetros` (ver
-// features/marketplace/distancia.ts) y NUNCA devuelve la coordenada del
-// artículo. Sin `lat`/`lon`, `banda` viene en null.
+// Privacidad:
+// - `lat`/`lon` son el punto de QUIEN MIRA, ya redondeado a 20 m en el
+//   navegador. El backend calcula `banda` con `bandaPorMetros` (ver
+//   features/marketplace/distancia.ts) y NUNCA devuelve la coordenada del
+//   artículo. Sin `lat`/`lon`, `banda` viene en null.
+// - La respuesta NO incluye el id de quien publica. Mientras no exista el JWT
+//   (HU-12) ese UUID es la credencial que viaja en Authorization: exponerlo
+//   permitiría hacerse pasar por esa persona. Para saber si un artículo es
+//   propio, el backend compara con la sesión y devuelve `esPropio`.
 
-import { apiFetch, handle } from './arca';
+import { apiFetch, fetchCatalogo, handle } from './arca';
 import {
   bandaPorMetros,
   type BandaDistancia,
@@ -40,7 +51,6 @@ export type EstadoArticulo =
   | 'completado';
 
 export interface PublicadorMarketplace {
-  id: string;
   /** Nombre real entregado por ClaveÚnica (decisión de producto). */
   nombre: string;
   /** Promedio de estrellas (1–5); null si nunca lo han calificado. */
@@ -63,6 +73,8 @@ export interface ArticuloMarketplace {
   /** Banda de distancia a quien mira; null si no compartió su ubicación. */
   banda: BandaDistancia | null;
   publicador: PublicadorMarketplace;
+  /** true si lo publicó la persona de la sesión. Lo calcula el backend. */
+  esPropio: boolean;
   fechaPublicacion: string;
 }
 
@@ -139,10 +151,27 @@ export function publicarArticulo(
   }).then((r) => handle<ArticuloMarketplace>(r));
 }
 
+export function listarMisPublicaciones(): Promise<ArticuloMarketplace[]> {
+  if (USAR_DATOS_DE_EJEMPLO) return ejemploMisPublicaciones();
+
+  return apiFetch(`${API_URL}/marketplace/mis-articulos`).then((r) =>
+    handle<ArticuloMarketplace[]>(r),
+  );
+}
+
+export function retirarArticulo(id: number): Promise<ArticuloMarketplace> {
+  if (USAR_DATOS_DE_EJEMPLO) return ejemploRetirar(id);
+
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/retirar`, {
+    method: 'PATCH',
+  }).then((r) => handle<ArticuloMarketplace>(r));
+}
+
 // --- Datos de ejemplo -------------------------------------------------------
 // Solo se usan con USAR_DATOS_DE_EJEMPLO = true. Imitan la semántica que
-// tendrá el backend (filtros, banda solo con origen) para que las pantallas se
-// comporten igual cuando se cambie el interruptor.
+// tendrá el backend (filtros, banda solo con origen, reglas de retiro) para
+// que las pantallas se comporten igual cuando se cambie el interruptor.
+// Viven en memoria: se reinician al recargar la página.
 
 // Mismo valor para todos los objetos, solo para probar (decisión de producto).
 const CREDITOS_POR_ARTICULO_EJEMPLO = 10;
@@ -153,21 +182,17 @@ const RETARDO_EJEMPLO_MS = 400;
 type ArticuloEjemplo = Omit<ArticuloMarketplace, 'banda'> & { metros: number };
 
 const publicador = (
-  id: string,
   nombre: string,
   calificacionPromedio: number | null,
   cantidadCalificaciones: number,
-): PublicadorMarketplace => ({
-  id,
-  nombre,
-  calificacionPromedio,
-  cantidadCalificaciones,
-});
+): PublicadorMarketplace => ({ nombre, calificacionPromedio, cantidadCalificaciones });
 
-const CAMILA = publicador('ej-1', 'Camila Rojas Muñoz', 4.8, 12);
-const JORGE = publicador('ej-2', 'Jorge Soto Pérez', 4.2, 5);
-const VALENTINA = publicador('ej-3', 'Valentina Díaz Contreras', null, 0);
-const PEDRO = publicador('ej-4', 'Pedro Fuentes Araya', 3.6, 3);
+const CAMILA = publicador('Camila Rojas Muñoz', 4.8, 12);
+const JORGE = publicador('Jorge Soto Pérez', 4.2, 5);
+const VALENTINA = publicador('Valentina Díaz Contreras', null, 0);
+const PEDRO = publicador('Pedro Fuentes Araya', 3.6, 3);
+// La persona de la sesión, en los datos de ejemplo.
+const YO = publicador('Tú (vecino de ejemplo)', 5, 1);
 
 const articulo = (
   id: number,
@@ -179,17 +204,19 @@ const articulo = (
   pub: PublicadorMarketplace,
   metros: number,
   diasAtras: number,
+  estado: EstadoArticulo = 'disponible',
 ): ArticuloEjemplo => ({
   id,
   tipo,
   titulo,
   descripcion,
-  estado: 'disponible',
+  estado,
   residuoCatalogoId,
   categoria,
   fotoUrl: null,
   creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
   publicador: pub,
+  esPropio: pub === YO,
   fechaPublicacion: new Date(Date.now() - diasAtras * 86_400_000).toISOString(),
   metros,
 });
@@ -203,6 +230,8 @@ const articulosEjemplo: ArticuloEjemplo[] = [
   articulo(6, 'regalo', 'Microondas', 'Calienta bien, el plato giratorio no gira.', 'Electrónica', 6, JORGE, 400, 6),
   articulo(7, 'intercambio', 'Lavadora automática 7 kg', 'Le falla el centrifugado; ideal para repuestos.', 'Línea Blanca', 7, VALENTINA, 4_700, 8),
   articulo(8, 'regalo', 'Colchón de 2 plazas', 'Limpio, sin manchas. Retirar en el día.', 'Otros', 8, PEDRO, 9_100, 10),
+  articulo(9, 'regalo', 'Silla de escritorio', 'Con ruedas, el respaldo se reclina.', 'Muebles', 9, YO, 0, 7),
+  articulo(10, 'intercambio', 'Horno eléctrico', 'Lo cambié por una estufa.', 'Línea Blanca', 10, YO, 0, 20, 'completado'),
 ];
 
 let siguienteIdEjemplo = articulosEjemplo.length + 1;
@@ -215,7 +244,8 @@ const aPublico = (
   origen?: Coordenadas | null,
 ): ArticuloMarketplace => ({
   ...resto,
-  banda: origen ? bandaPorMetros(metros) : null,
+  // Lo propio no lleva banda: la distancia a tu propia casa no aporta.
+  banda: origen && !resto.esPropio ? bandaPorMetros(metros) : null,
 });
 
 // "sofa" debe encontrar "Sofá", como hace MySQL con su collation por defecto.
@@ -246,7 +276,10 @@ async function ejemploObtener(
 ): Promise<ArticuloMarketplace> {
   await esperar();
   const encontrado = articulosEjemplo.find((a) => a.id === id);
-  if (!encontrado) throw new Error('Error 404: Artículo no encontrado');
+  // Lo retirado o completado ajeno ya no se muestra; lo propio sí.
+  if (!encontrado || (encontrado.estado !== 'disponible' && !encontrado.esPropio)) {
+    throw new Error('Error 404: Artículo no encontrado');
+  }
   return aPublico(encontrado, origen);
 }
 
@@ -254,6 +287,11 @@ async function ejemploPublicar(
   input: PublicarArticuloInput,
 ): Promise<ArticuloMarketplace> {
   await esperar();
+  // El backend resolverá la categoría con el residuo; acá se imita con el catálogo.
+  const categoria = await fetchCatalogo()
+    .then((items) => items.find((i) => i.id === input.residuoCatalogoId)?.categoria)
+    .catch(() => undefined);
+
   const nuevo: ArticuloEjemplo = {
     id: siguienteIdEjemplo++,
     tipo: input.tipo,
@@ -261,14 +299,36 @@ async function ejemploPublicar(
     descripcion: input.descripcion ?? null,
     estado: 'disponible',
     residuoCatalogoId: input.residuoCatalogoId,
-    categoria: 'Otros',
-    // Vista previa local mientras no exista la subida real.
+    categoria: categoria ?? 'Otros',
+    // URL propia (no la de la vista previa, que la pantalla libera al salir).
     fotoUrl: input.foto ? URL.createObjectURL(input.foto) : null,
     creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
-    publicador: publicador('ej-yo', 'Tú (ejemplo)', null, 0),
+    publicador: YO,
+    esPropio: true,
     fechaPublicacion: new Date().toISOString(),
     metros: 0,
   };
   articulosEjemplo.unshift(nuevo);
   return aPublico(nuevo);
+}
+
+async function ejemploMisPublicaciones(): Promise<ArticuloMarketplace[]> {
+  await esperar();
+  return articulosEjemplo
+    .filter((a) => a.esPropio)
+    .sort((a, b) => b.fechaPublicacion.localeCompare(a.fechaPublicacion))
+    .map((a) => aPublico(a));
+}
+
+async function ejemploRetirar(id: number): Promise<ArticuloMarketplace> {
+  await esperar();
+  const encontrado = articulosEjemplo.find((a) => a.id === id);
+  if (!encontrado || !encontrado.esPropio) {
+    throw new Error('Error 403: Solo puedes retirar tus propias publicaciones');
+  }
+  if (encontrado.estado !== 'disponible') {
+    throw new Error('Error 409: Solo se puede retirar un artículo disponible');
+  }
+  encontrado.estado = 'retirado';
+  return aPublico(encontrado);
 }

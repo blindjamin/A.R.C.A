@@ -1,6 +1,7 @@
 import { iconoPorCategoria } from '../../api/arca';
 import type { ArticuloMarketplace } from '../../api/marketplace';
 import { ETIQUETA_BANDA } from '../../features/marketplace/distancia';
+import { TIPO_ARTICULO_META } from '../../features/marketplace/formato';
 import Estrellas from './Estrellas';
 
 interface ArticuloCardProps {
@@ -28,13 +29,9 @@ export default function ArticuloCard({ articulo, onClick }: ArticuloCardProps) {
           </span>
         )}
         <span
-          className={`pill absolute left-2 top-2 font-semibold sm:left-3 sm:top-3 ${
-            tipo === 'regalo'
-              ? 'bg-gold-100 text-gold-600'
-              : 'bg-green-100 text-green-700'
-          }`}
+          className={`pill absolute left-2 top-2 font-semibold sm:left-3 sm:top-3 ${TIPO_ARTICULO_META[tipo].clase}`}
         >
-          {tipo === 'regalo' ? '🎁 Regalo' : '🔄 Intercambio'}
+          {TIPO_ARTICULO_META[tipo].etiqueta}
         </span>
       </div>
 
