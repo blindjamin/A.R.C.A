@@ -21,9 +21,11 @@
 //
 // Privacidad:
 // - `lat`/`lon` son el punto de QUIEN MIRA, ya redondeado a 20 m en el
-//   navegador. El backend calcula `banda` con `bandaPorMetros` (ver
-//   features/marketplace/distancia.ts) y NUNCA devuelve la coordenada del
-//   artículo. Sin `lat`/`lon`, `banda` viene en null.
+//   navegador. El backend calcula `banda` con UbicacionMarketplaceModule
+//   (apps/backend/src/marketplace/ubicacion/: grilla de 250 m y límite de
+//   orígenes por vecino, contra la triangulación) y NUNCA devuelve la
+//   coordenada del artículo. Sin `lat`/`lon`, o si el vecino superó el límite
+//   de orígenes, `banda` viene en null.
 // - La respuesta NO incluye el id de quien publica. Mientras no exista el JWT
 //   (HU-12) ese UUID es la credencial que viaja en Authorization: exponerlo
 //   permitiría hacerse pasar por esa persona. Para saber si un artículo es

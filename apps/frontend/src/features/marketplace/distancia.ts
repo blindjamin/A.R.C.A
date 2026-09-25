@@ -6,6 +6,13 @@ import { useEffect, useState } from 'react';
 // banda la calcula el BACKEND: la API no le entrega a nadie la coordenada del
 // artículo, ni siquiera la aproximada, porque con ella se ubica la casa de
 // quien publica. El navegador solo envía su propio punto, ya redondeado a 20 m.
+//
+// La regla que vale es la del backend
+// (apps/backend/src/marketplace/ubicacion/ubicacion-marketplace.ts): mide sobre
+// una grilla de 250 m —vuelve a aproximar este punto, porque no confía en el
+// cliente— y limita cuántos orígenes distintos puede usar cada vecino, para
+// que no se pueda triangular la ubicación de un artículo. Lo de este archivo
+// solo alimenta los datos de ejemplo y la privacidad del lado del navegador.
 
 export type BandaDistancia = 'menos_1km' | '1_5km' | '5_10km' | 'mas_10km';
 
@@ -17,9 +24,10 @@ export const ETIQUETA_BANDA: Record<BandaDistancia, string> = {
 };
 
 /**
- * Regla de corte entre bandas. La usan los datos de ejemplo; el backend debe
- * aplicar exactamente la misma, midiendo entre coordenadas ya aproximadas a
- * 20 m. Los límites caen en la banda más cercana (1000 m → "menos de 1 km").
+ * Regla de corte entre bandas, la misma que `bandaPorMetros` del backend. Aquí
+ * solo la usan los datos de ejemplo; la banda real llega calculada en la API
+ * sobre la grilla de 250 m. Los límites caen en la banda más cercana
+ * (1000 m → "menos de 1 km").
  */
 export function bandaPorMetros(metros: number): BandaDistancia {
   if (metros <= 1_000) return 'menos_1km';
@@ -41,10 +49,13 @@ const aGrilla = (valor: number, paso: number): number =>
   Number((Math.round(valor / paso) * paso).toFixed(DECIMALES));
 
 /**
- * Lleva el punto al centro de su celda de 20 m. Es el mismo algoritmo que
+ * Lleva el punto al centro de su celda de 20 m antes de que salga del teléfono.
+ * Es el mismo algoritmo que
  * apps/backend-admin/src/derivaciones/coordenadas-aproximadas.ts (copiado, no
  * importado: son apps distintas). Redondear no se puede revertir y es estable,
  * así que enviar el punto varias veces no permite promediarlo hacia el exacto.
+ * El backend después lo lleva a su grilla de 250 m; esto solo evita que el
+ * punto exacto viaje por la red o quede en logs.
  */
 export function aproximarA20m(latitud: number, longitud: number): Coordenadas {
   const pasoLatitud = RADIO_APROXIMACION_M / METROS_POR_GRADO_LATITUD;
