@@ -84,7 +84,8 @@ export const formatearPrecio = (clp: number): string =>
 // Header requerido cuando se accede vía tunel ngrok (free tier): sin el, ngrok
 // intercepta el request y devuelve una pagina HTML de advertencia en vez de
 // dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
-function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+// Exportado para que otros módulos de API (ej. marketplace.ts) no lo dupliquen.
+export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const usuarioCiudadanoId = localStorage.getItem(STORAGE_KEY_SESION);
 
   return fetch(path, {
@@ -102,7 +103,7 @@ function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-async function handle<T>(res: Response): Promise<T> {
+export async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Error ${res.status}: ${body || res.statusText}`);

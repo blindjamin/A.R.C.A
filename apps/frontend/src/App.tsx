@@ -3,6 +3,7 @@ import { SessionProvider, useSession } from './auth/SessionContext';
 import { Cargando, Protected } from './components/AppShell';
 import { SolicitudFlowProvider } from './features/solicitud-retiro/SolicitudFlowContext';
 import solicitudRetiroRoutes from './features/solicitud-retiro/routes';
+import marketplaceRoutes from './features/marketplace/routes';
 import Login from './pages/Login';
 import SeleccionInicio from './pages/SeleccionInicio';
 import Inicio from './pages/Inicio';
@@ -54,19 +55,10 @@ export default function App() {
                 </Protected>
               }
             />
-            <Route
-              path="/marketplace/subir"
-              element={
-                <Protected>
-                  <Proximamente
-                    titulo="Subir al Marketplace"
-                    icono="♻️"
-                    epica="EP-02"
-                    descripcion="Publica tu residuo para que otro vecino lo reutilice. El Marketplace P2P llega en una fase posterior."
-                  />
-                </Protected>
-              }
-            />
+
+            {/* Marketplace P2P: listado, detalle y publicar
+                (definido en features/marketplace/routes.tsx) */}
+            {marketplaceRoutes}
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
