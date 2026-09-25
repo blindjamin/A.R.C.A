@@ -84,10 +84,18 @@ export default function Listado() {
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <ScreenHeader
-          title="Marketplace"
-          subtitle="Regala o intercambia con tus vecinos."
-        />
+        <div>
+          <ScreenHeader
+            title="Marketplace"
+            subtitle="Regala o intercambia con tus vecinos."
+          />
+          <button
+            onClick={() => navigate('/marketplace/mis-publicaciones')}
+            className="mt-1 text-sm font-semibold text-green-700 hover:underline"
+          >
+            Mis publicaciones →
+          </button>
+        </div>
         <button onClick={irAPublicar} className="btn-gold shrink-0">
           ♻️ Publicar
         </button>

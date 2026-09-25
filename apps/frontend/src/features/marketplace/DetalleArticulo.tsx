@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { iconoPorCategoria } from '../../api/arca';
-import { obtenerArticulo, type ArticuloMarketplace } from '../../api/marketplace';
+import {
+  obtenerArticulo,
+  retirarArticulo,
+  type ArticuloMarketplace,
+} from '../../api/marketplace';
 import {
   BackButton,
   EmptyState,
@@ -10,6 +14,58 @@ import {
 } from '../../components/ui';
 import { ETIQUETA_BANDA, useOrigenAproximado } from './distancia';
 import { ESTADO_ARTICULO_META, TIPO_ARTICULO_META, haceCuanto } from './formato';
+
+// Retirar pide confirmación en línea (segundo clic), sin window.confirm.
+function RetirarPublicacion({ id, onRetirado }: { id: number; onRetirado: () => void }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const [retirando, setRetirando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const retirar = async () => {
+    setRetirando(true);
+    setError(null);
+    try {
+      await retirarArticulo(id);
+      onRetirado();
+    } catch (e) {
+      setError((e as Error).message);
+      setRetirando(false);
+    }
+  };
+
+  if (!confirmando) {
+    return (
+      <button onClick={() => setConfirmando(true)} className="btn-outline w-full">
+        Retirar publicación
+      </button>
+    );
+  }
+
+  return (
+    <div className="card space-y-3 p-4">
+      <p className="text-sm text-ink-2">
+        ¿Retirar esta publicación? Tus vecinos dejarán de verla.
+      </p>
+      {error && <p className="text-xs text-rose-600">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setConfirmando(false)}
+          disabled={retirando}
+          className="btn-ghost flex-1"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={retirar}
+          disabled={retirando}
+          className="btn flex-1 bg-rose-600 text-white"
+        >
+          {retirando ? 'Retirando…' : 'Sí, retirar'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface Resultado {
   clave: string;
@@ -91,7 +147,13 @@ export default function DetalleArticulo() {
 
       {recienPublicado && (
         <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-          ✅ ¡Tu artículo ya está publicado! Tus vecinos ya pueden verlo.
+          ✅ ¡Tu artículo ya está publicado! Tus vecinos ya pueden verlo.{' '}
+          <button
+            onClick={() => navigate('/marketplace/mis-publicaciones')}
+            className="font-semibold underline"
+          >
+            Ver mis publicaciones
+          </button>
         </div>
       )}
 
@@ -156,9 +218,15 @@ export default function DetalleArticulo() {
       </section>
 
       {esPropio ? (
-        <p className="text-center">
+        <div className="space-y-3 text-center">
           <span className="pill bg-green-100 text-green-700">Es tu publicación</span>
-        </p>
+          {estado === 'disponible' && (
+            <RetirarPublicacion
+              id={articulo.id}
+              onRetirado={() => navigate('/marketplace/mis-publicaciones')}
+            />
+          )}
+        </div>
       ) : (
         <div className="space-y-2">
           <button className="btn-primary w-full py-3.5" disabled>
