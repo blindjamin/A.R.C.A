@@ -5,11 +5,11 @@ import SelectorPerfilDev from './SelectorPerfilDev';
 import { perfilDevActual } from '../api/admin';
 
 const NAV = [
-  { to: '/', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
-  { to: '/metricas', label: 'Métricas', icon: '📊', end: false, reqAdmin: false },
-  { to: '/derivacion', label: 'Derivación', icon: '📦', end: false, reqAdmin: false },
-  { to: '/mapa-calor', label: 'Mapa de calor', icon: '🗺️', end: false, reqAdmin: false },
-  { to: '/auditoria', label: 'Auditoría', icon: '🛡️', end: false, reqAdmin: true },
+  { to: '/admin', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
+  { to: '/admin/metricas', label: 'Métricas', icon: '📊', end: false, reqAdmin: false },
+  { to: '/admin/derivacion', label: 'Derivación', icon: '📦', end: false, reqAdmin: false },
+  { to: '/admin/mapa-calor', label: 'Mapa de calor', icon: '🗺️', end: false, reqAdmin: false },
+  { to: '/admin/auditoria', label: 'Auditoría', icon: '🛡️', end: false, reqAdmin: true },
 ];
 
 // Layout de escritorio del panel: barra lateral fija + contenido. Reemplaza el

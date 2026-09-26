@@ -166,7 +166,7 @@ async function handle<T>(res: Response): Promise<T> {
     const textBody = await res.text();
     throw new Error(
       `Error de Integración: El servidor no devolvió una respuesta JSON válida (Content-Type: ${contentType || 'ninguno'}). ` +
-      `Esto suele ocurrir si el backend no está corriendo en el puerto 3001 o si las variables de entorno están desconfiguradas. ` +
+      `Esto suele ocurrir si el backend no está corriendo en el puerto 3000 o si las variables de entorno están desconfiguradas. ` +
       `Cuerpo de respuesta: ${textBody.substring(0, 100)}...`
     );
   }
