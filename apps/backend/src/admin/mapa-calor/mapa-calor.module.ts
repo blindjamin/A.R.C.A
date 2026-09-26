@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { SolicitudRetiro } from '@arca/core';
+import { SolicitudRetiro } from '../../core';
 import { MapaCalorController } from './mapa-calor.controller';
 import { MapaCalorService } from './mapa-calor.service';
 

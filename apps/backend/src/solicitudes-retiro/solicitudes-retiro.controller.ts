@@ -10,7 +10,7 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { CurrentUser, type AuthUser, type OrigenPeticion } from '@arca/core';
+import { CurrentUser, type AuthUser, type OrigenPeticion } from '../core';
 
 /**
  * Datos de la petición que acompañan a las acciones auditadas (HU-14).

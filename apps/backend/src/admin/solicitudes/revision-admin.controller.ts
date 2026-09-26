@@ -19,7 +19,7 @@ import {
   RolAdministrador,
   Roles,
   RolesGuard,
-} from '@arca/core';
+} from '../../core';
 import { CorregirCategoriaDto } from './dto/corregir-categoria.dto';
 import { CrearNotaDto } from './dto/crear-nota.dto';
 import { RevisarSolicitudDto } from './dto/revisar-solicitud.dto';

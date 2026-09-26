@@ -19,7 +19,7 @@ import {
   SolicitudRetiro,
   TipoActorAuditoria,
   validarRevision,
-} from '@arca/core';
+} from '../../core';
 import {
   actorDe,
   comoHttp,

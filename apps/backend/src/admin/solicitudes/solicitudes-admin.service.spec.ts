@@ -8,7 +8,7 @@ import {
   RolAdministrador,
   type SolicitudRetiro,
   type UsuarioAdministrador,
-} from '@arca/core';
+} from '../../core';
 import type { Repository } from 'typeorm';
 import { SolicitudesAdminService } from './solicitudes-admin.service';
 

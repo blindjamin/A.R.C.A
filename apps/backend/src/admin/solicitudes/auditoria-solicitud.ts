@@ -6,7 +6,7 @@ import {
   RolAdministrador,
   type SolicitudRetiro,
   TransicionInvalidaError,
-} from '@arca/core';
+} from '../../core';
 
 /**
  * Campos de la solicitud que se auditan cuando cambian.

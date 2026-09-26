@@ -1,7 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { configurarProxyConfiable } from '@arca/core';
+import { configurarProxyConfiable } from './core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {

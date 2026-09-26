@@ -8,7 +8,7 @@ import {
   type ResiduoCatalogo,
   type SolicitudRetiro,
   type UsuarioCiudadano,
-} from '@arca/core';
+} from '../core';
 import type { Repository } from 'typeorm';
 import type { ResiduosService } from '../residuos/residuos.service';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';

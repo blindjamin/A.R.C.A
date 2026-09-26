@@ -9,7 +9,7 @@ import {
   LoteDerivacion,
   RolAdministrador,
   type SolicitudRetiro,
-} from '@arca/core';
+} from '../../core';
 import { DerivacionesAdminService } from './derivaciones-admin.service';
 
 const FUNCIONARIO: AuthUser = {

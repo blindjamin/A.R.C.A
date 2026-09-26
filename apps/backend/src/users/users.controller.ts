@@ -1,5 +1,5 @@
 import { Controller, ForbiddenException, Get, Param } from '@nestjs/common';
-import { CurrentUser, type AuthUser } from '@arca/core';
+import { CurrentUser, type AuthUser } from '../core';
 import { UsersService } from './users.service';
 
 @Controller('usuarios')

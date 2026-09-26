@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { Roles, RolesGuard, RolAdministrador } from '@arca/core';
+import { Roles, RolesGuard, RolAdministrador } from '../../core';
 import { MapaCalorService } from './mapa-calor.service';
 import { FilterMapaCalorDto } from './dto/filter-mapa-calor.dto';
 

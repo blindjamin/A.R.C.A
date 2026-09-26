@@ -13,7 +13,7 @@ import {
   MotivoRevision,
   RolAdministrador,
   type SolicitudRetiro,
-} from '@arca/core';
+} from '../../core';
 import type { Repository } from 'typeorm';
 import { RevisionAdminService } from './revision-admin.service';
 

@@ -97,7 +97,7 @@ corren en este mismo proceso, puerto 3000, código en `src/admin/`.
 |---|---|---|
 | `GET` | `/api/admin/solicitudes` | Listado global de solicitudes de retiro, filtro opcional por `estado` — **sin** filtro por dueño (a diferencia del equivalente del ciudadano). Con `estado=en_revision` ordena de la más antigua a la más nueva |
 | `GET` | `/api/admin/solicitudes/:id` | Detalle, con `revisadoPor`, `tomadaPor` y `transicionesDisponibles` (estados a los que la sesión puede mover la solicitud con `PATCH`; no incluye las decisiones de revisión) |
-| `PATCH` | `/api/admin/solicitudes/:id` | Cambiar estado. Body: solo `{ estado }`; lo valida `aplicarTransicion` de `@arca/core` (`403` si el rol no puede, `400` si la transición no existe o falta el pago). Cualquier otro campo responde `400`. Desde `en_revision`, aprobar, pedir modificación o rechazar responde `400`: van por `POST /revision` |
+| `PATCH` | `/api/admin/solicitudes/:id` | Cambiar estado. Body: solo `{ estado }`; lo valida `aplicarTransicion` de `src/core` (`403` si el rol no puede, `400` si la transición no existe o falta el pago). Cualquier otro campo responde `400`. Desde `en_revision`, aprobar, pedir modificación o rechazar responde `400`: van por `POST /revision` |
 | `POST` / `DELETE` | `/api/admin/solicitudes/:id/toma` | Toma la solicitud por 15 minutos para revisarla (`409` si la tiene otro funcionario) o la libera |
 | `POST` | `/api/admin/solicitudes/:id/revision` | Decisión de revisión: `{ decision, motivo?, comentario?, checklist? }`, validada con `validarRevision` y `aplicarTransicion`. Guarda la fila de historial en la misma transacción |
 | `GET` | `/api/admin/solicitudes/:id/revisiones` | Historial de revisiones, de la más nueva a la más antigua |
@@ -110,11 +110,11 @@ corren en este mismo proceso, puerto 3000, código en `src/admin/`.
 | `GET` | `/api/admin/residuos` | Catálogo de residuos de solo lectura (`id`, `nombre`, `categoria`, `precio`) para corregir la categoría |
 | `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos |
 
-Protegidos con `RolesGuard` de `@arca/core`: `ADMIN` y `FUNCIONARIO`, salvo la auditoría, que es solo
+Protegidos con `RolesGuard` de `src/core`: `ADMIN` y `FUNCIONARIO`, salvo la auditoría, que es solo
 `ADMIN`. Reabrir una solicitud `rechazada` o `retirada` también es solo de admin (lo decide el core).
 
 > ✅ **Replanteo del 2026-09-17.** Ningún service asigna `estado` directamente: todo pasa por
-> `aplicarTransicion` y `validarRevision` de `@arca/core`. La auditoría registra solo campos
+> `aplicarTransicion` y `validarRevision` de `src/core`. La auditoría registra solo campos
 > cambiados y códigos, nunca comentarios, notas ni el contenido del Excel.
 > Detalle: [specs del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
 > [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md)
@@ -173,13 +173,14 @@ En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
 ```
 src/
 ├── main.ts                      # Bootstrap: CORS, prefijo /api, ValidationPipe global
-├── app.module.ts                # Módulo raíz — importa AuthModule de @arca/core
+├── app.module.ts                # Módulo raíz — importa AuthModule de src/core
+├── core/                        # Núcleo compartido (ver sección de abajo)
 ├── database/
-│   ├── data-source.ts           # DataSource de TypeORM (entities: ENTIDADES de @arca/core)
+│   ├── data-source.ts           # DataSource de TypeORM (entities: ENTIDADES de src/core)
 │   └── migrations/              # Migraciones versionadas, en orden de timestamp — único dueño del esquema
-├── residuos/                    # Catálogo de residuos (entidad en @arca/core)
-├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en @arca/core)
-├── users/                       # UsersService/Controller/Module — entidades en @arca/core;
+├── residuos/                    # Catálogo de residuos (entidad en src/core)
+├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en src/core)
+├── users/                       # UsersService/Controller/Module — entidades en src/core;
 │                                   provee PERFIL_ACCESO_RESOLVER para AuthModule
 └── admin/                       # Panel municipal (ex apps/backend-admin, movido en backend-unificado)
     ├── auditoria/
@@ -190,11 +191,70 @@ src/
     └── solicitudes/
 ```
 
-> **`auth/`, `health/` y las entidades TypeORM viven en `packages/arca-core`** desde la
-> migración de separación del panel admin (2026-09-01). `health/` se sumó después: era un
-> `HealthController` sin ninguna lógica propia de este backend, así que compartirlo era mejor
-> que duplicarlo. Detalle en
-> [`../../packages/arca-core/README.md`](../../packages/arca-core/README.md).
+## Núcleo (`src/core/`)
+
+Hasta la reabsorción del paquete compartido (CORE-1), `auth/`, `health/`, `entities/` y
+`solicitudes/` (reglas del ciclo de vida) vivían en el workspace aparte `packages/arca-core`,
+consumido por `apps/backend` y por el extinto `apps/backend-admin`. Con un solo backend, ya no
+había a quién compartírselo: el código se movió tal cual a `src/core/`, sin cambios de
+comportamiento.
+
+```
+src/core/
+├── entities/    ← usuarios, sesiones, catálogo, solicitudes-retiro (TypeORM)
+│                  ENTIDADES (index.ts) es la lista explícita que usa
+│                  src/database/data-source.ts para las migraciones.
+├── auth/        ← AuthGuard, RolesGuard, ClaveÚnica, decorators (Public, Roles, CurrentUser),
+│                  AuthService y su AuthModule.
+├── health/      ← HealthModule (GET /api/health, chequea la conexión a MySQL).
+└── solicitudes/ ← Reglas del ciclo de vida de una solicitud (validarTransicion,
+                   transicionesDisponibles, aplicarTransicion) y de su revisión
+                   (validarRevision, motivos y checklist). Funciones puras, con tests.
+```
+
+### Ciclo de vida de una solicitud
+
+Los retiros los ejecuta una empresa externa: el municipio **revisa y deriva**, no asigna
+operadores. Estados (`EstadoSolicitudRetiro`): `en_revision` · `requiere_modificacion` ·
+`aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`. El pago
+(maqueta) va aparte, en `EstadoPagoSolicitud`: `no_aplica` · `pendiente` · `pagado`. Roles
+municipales (`RolAdministrador`): `admin` y `funcionario`.
+
+**Ningún backend asigna `estado` directamente**: se llama a `aplicarTransicion`, que valida
+quién puede hacer el cambio y aplica sus efectos (congelar el monto al aprobar, fecha de
+revisión, fecha de cierre). Si la transición no es válida lanza `TransicionInvalidaError`, cuyo
+`motivo` indica cómo responder: `actor` → `403`; `estado` o `pago` → `400`.
+
+La tabla completa de transiciones está en `docs/specs/SPEC-ciclo-solicitud.md` §2.1. Lo que el
+núcleo no puede saber —si el vecino es dueño de la solicitud, si viene un motivo— lo valida el
+endpoint que llama.
+
+Las **decisiones de revisión** (aprobar, pedir modificación, rechazar) además pasan por
+`validarRevision` (`src/core/solicitudes/revision-solicitud.ts`): motivo de `MotivoRevision`
+según la decisión, comentario obligatorio al pedir modificación o con motivo `otro`, y lista de
+verificación completa (`ITEMS_CHECKLIST_APROBACION`) para aprobar. El historial queda en
+`RevisionSolicitud` y las notas internas en `NotaSolicitud`. Ver
+`docs/specs/SPEC-revision-solicitudes.md`.
+
+Los lotes entregados a la empresa operadora quedan en `LoteDerivacion`, y cada solicitud guarda el
+último lote en que salió (`loteDerivacionId`). Ver `docs/specs/SPEC-derivacion-excel.md`.
+
+### Decisión de arquitectura: `PERFIL_ACCESO_RESOLVER`
+
+`AuthService` necesita resolver el perfil de acceso de un ciudadano (¿es administrador?, ¿qué
+rol tiene?), pero no puede importar `UsersService` directo: antes porque vivía en un paquete
+compartido aparte, y ahora porque `src/core` se mantiene sin depender de módulos concretos de la
+app (evita ciclos de importación y mantiene el núcleo reutilizable si el día de mañana vuelve a
+compartirse).
+
+Se resuelve con un token de inyección: `AuthService` pide `PERFIL_ACCESO_RESOLVER`
+(`src/core/auth/interfaces/perfil-acceso-resolver.interface.ts`), y `AppModule` provee ese token
+en un módulo `@Global()` propio: `src/users/users.module.ts` — `useExisting: UsersService`. Es
+la única implementación desde `backend-unificado`: el panel (`src/admin/`) reutiliza este mismo
+binding, ya no tiene el suyo propio.
+
+Si `AuthModule` deja de arrancar con un error de dependencias no resueltas, es casi seguro que
+falta este binding en la app que lo está importando.
 
 ## Migraciones
 

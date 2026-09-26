@@ -16,7 +16,7 @@ import {
   type OrigenPeticion,
   SolicitudRetiro,
   TipoActorAuditoria,
-} from '@arca/core';
+} from '../../core';
 import {
   actorDe,
   comoHttp,

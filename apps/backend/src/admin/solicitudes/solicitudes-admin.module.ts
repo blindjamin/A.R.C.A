@@ -8,7 +8,7 @@ import {
   RevisionSolicitud,
   SolicitudRetiro,
   UsuarioAdministrador,
-} from '@arca/core';
+} from '../../core';
 import { RevisionAdminController } from './revision-admin.controller';
 import { RevisionAdminService } from './revision-admin.service';
 import { SolicitudesAdminController } from './solicitudes-admin.controller';

@@ -17,7 +17,7 @@ import {
   TipoActorAuditoria,
   transicionesDisponibles,
   UsuarioAdministrador,
-} from '@arca/core';
+} from '../../core';
 import {
   actorDe,
   comoHttp,
@@ -53,7 +53,7 @@ export type SolicitudDetalle = Omit<
  * por usuarioCiudadanoId salvo acceso municipal). Servicio propio y simple,
  * como pide la Fase 3 del plan — no comparte código con el ciudadano.
  *
- * Los cambios de estado pasan por las reglas de `@arca/core`
+ * Los cambios de estado pasan por las reglas de `src/core`
  * (spec `ciclo-solicitud`): este service no decide qué transición es válida.
  */
 @Injectable()

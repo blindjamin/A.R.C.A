@@ -6,7 +6,7 @@ import {
   Auditoria,
   RolAdministrador,
   TipoActorAuditoria,
-} from '@arca/core';
+} from '../../core';
 
 /**
  * Fila de auditoría como la consume el panel municipal.

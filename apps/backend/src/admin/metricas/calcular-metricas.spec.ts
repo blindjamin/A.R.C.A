@@ -1,4 +1,4 @@
-import { EstadoPagoSolicitud, EstadoSolicitudRetiro } from '@arca/core';
+import { EstadoPagoSolicitud, EstadoSolicitudRetiro } from '../../core';
 import {
   calcularMetricas,
   type FilaSolicitudMetrica,
