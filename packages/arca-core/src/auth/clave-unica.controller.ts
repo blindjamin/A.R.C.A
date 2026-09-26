@@ -14,30 +14,7 @@ import { Public } from './decorators/public.decorator';
 import { LimiteLogin } from '../seguridad/limites';
 import { ClaveUnicaService } from './clave-unica.service';
 import { OAUTH_STATE_COOKIE } from './clave-unica.constants';
-
-/**
- * Lee una cookie de la cabecera cruda.
- *
- * Se hace a mano en vez de sumar `cookie-parser` para no agregar una dependencia
- * por un único uso. El listado de librerías comprometido con el municipio declara
- * los paquetes de producción del backend (13 desde que se sumó @nestjs/throttler
- * para el rate limiting), y conviene que siga siendo cierto.
- */
-function leerCookie(req: Request, nombre: string): string | undefined {
-  const cabecera = req.headers.cookie;
-  if (!cabecera) return undefined;
-
-  for (const parte of cabecera.split(';')) {
-    const separador = parte.indexOf('=');
-    if (separador === -1) continue;
-
-    if (parte.slice(0, separador).trim() === nombre) {
-      return decodeURIComponent(parte.slice(separador + 1).trim());
-    }
-  }
-
-  return undefined;
-}
+import { leerCookie } from './cookies';
 
 /**
  * Punto de entrada del inicio de sesión con ClaveÚnica (HU-12).
