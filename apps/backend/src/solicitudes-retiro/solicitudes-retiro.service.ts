@@ -19,7 +19,7 @@ import {
   TipoActorAuditoria,
   TransicionInvalidaError,
   UsuarioCiudadano,
-} from '@arca/core';
+} from '../core';
 import { ResiduosService } from '../residuos/residuos.service';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';

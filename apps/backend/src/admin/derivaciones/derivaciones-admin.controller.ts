@@ -17,7 +17,7 @@ import {
   RolAdministrador,
   Roles,
   RolesGuard,
-} from '@arca/core';
+} from '../../core';
 import { DerivacionesAdminService } from './derivaciones-admin.service';
 
 const origenDe = (req: Request): OrigenPeticion => ({

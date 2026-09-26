@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LoteDerivacion, RevisionSolicitud, SolicitudRetiro } from '@arca/core';
+import { LoteDerivacion, RevisionSolicitud, SolicitudRetiro } from '../../core';
 import {
   calcularMetricas,
   type Metricas,

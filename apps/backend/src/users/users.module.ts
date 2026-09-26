@@ -6,7 +6,7 @@ import {
   SesionCiudadano,
   UsuarioAdministrador,
   UsuarioCiudadano,
-} from '@arca/core';
+} from '../core';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 

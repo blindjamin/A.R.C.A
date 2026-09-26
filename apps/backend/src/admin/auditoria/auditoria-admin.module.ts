@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Auditoria, AuditoriaModule } from '@arca/core';
+import { Auditoria, AuditoriaModule } from '../../core';
 import { AuditoriaAdminController } from './auditoria-admin.controller';
 import { AuditoriaAdminService } from './auditoria-admin.service';
 

@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { RolAdministrador, Roles, RolesGuard } from '@arca/core';
+import { RolAdministrador, Roles, RolesGuard } from '../../core';
 import { MetricasQueryDto } from './dto/metricas-query.dto';
 import { MetricasAdminService } from './metricas-admin.service';
 

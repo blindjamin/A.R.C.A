@@ -3,7 +3,7 @@ import {
   EstadoPagoSolicitud,
   type LoteDerivacion,
   type SolicitudRetiro,
-} from '@arca/core';
+} from '../../core';
 import { aproximarCoordenadas } from './coordenadas-aproximadas';
 
 const ETIQUETA_PAGO: Record<EstadoPagoSolicitud, string> = {

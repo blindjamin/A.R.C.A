@@ -8,7 +8,7 @@ import {
   ENTIDADES,
   HealthModule,
   SeguridadModule,
-} from '@arca/core';
+} from './core';
 import { ResiduosModule } from './residuos/residuos.module';
 import { SolicitudesRetiroModule } from './solicitudes-retiro/solicitudes-retiro.module';
 import { UsersModule } from './users/users.module';

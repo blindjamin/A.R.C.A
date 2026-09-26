@@ -1,4 +1,4 @@
-import { EstadoPagoSolicitud, EstadoSolicitudRetiro } from '@arca/core';
+import { EstadoPagoSolicitud, EstadoSolicitudRetiro } from '../../core';
 
 // Cálculo de indicadores del panel (docs/specs/SPEC-dashboard-metricas.md).
 // Función pura: recibe filas con columnas mínimas y devuelve solo agregados.

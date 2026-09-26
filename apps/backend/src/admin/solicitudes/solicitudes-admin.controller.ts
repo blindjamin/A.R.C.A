@@ -17,7 +17,7 @@ import {
   Roles,
   RolesGuard,
   RolAdministrador,
-} from '@arca/core';
+} from '../../core';
 
 /** Datos de la petición para las acciones auditadas (HU-14). */
 const origenDe = (req: Request): OrigenPeticion => ({

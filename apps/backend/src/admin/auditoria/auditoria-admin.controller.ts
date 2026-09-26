@@ -17,7 +17,7 @@ import {
   Roles,
   RolesGuard,
   TipoActorAuditoria,
-} from '@arca/core';
+} from '../../core';
 import {
   AuditoriaAdminService,
   type AuditoriaLog,

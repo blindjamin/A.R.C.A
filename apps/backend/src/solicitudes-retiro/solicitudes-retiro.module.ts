@@ -6,7 +6,7 @@ import {
   AuthModule,
   SolicitudRetiro,
   UsuarioCiudadano,
-} from '@arca/core';
+} from '../core';
 import { SolicitudesRetiroController } from './solicitudes-retiro.controller';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 

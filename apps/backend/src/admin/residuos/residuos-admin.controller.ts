@@ -6,7 +6,7 @@ import {
   RolAdministrador,
   Roles,
   RolesGuard,
-} from '@arca/core';
+} from '../../core';
 
 /** Catálogo de residuos, de solo lectura, para corregir la categoría al revisar. */
 @Controller('admin/residuos')

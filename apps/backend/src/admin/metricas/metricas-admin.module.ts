@@ -5,7 +5,7 @@ import {
   LoteDerivacion,
   RevisionSolicitud,
   SolicitudRetiro,
-} from '@arca/core';
+} from '../../core';
 import { MetricasAdminController } from './metricas-admin.controller';
 import { MetricasAdminService } from './metricas-admin.service';
 

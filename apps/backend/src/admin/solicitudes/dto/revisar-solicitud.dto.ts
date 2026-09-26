@@ -10,7 +10,7 @@ import {
   DECISIONES_REVISION,
   type DecisionRevision,
   MotivoRevision,
-} from '@arca/core';
+} from '../../../core';
 
 /**
  * Qué combinación de motivo, comentario y checklist exige cada decisión lo

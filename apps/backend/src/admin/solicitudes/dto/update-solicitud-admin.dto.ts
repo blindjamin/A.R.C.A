@@ -1,5 +1,5 @@
 import { IsEnum } from 'class-validator';
-import { EstadoSolicitudRetiro } from '@arca/core';
+import { EstadoSolicitudRetiro } from '../../../core';
 
 /**
  * Solo el estado destino: los efectos (monto, pago, revisor, fecha de cierre)

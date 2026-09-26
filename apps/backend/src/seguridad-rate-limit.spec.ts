@@ -19,7 +19,7 @@ import {
   LimiteLogin,
   SeguridadModule,
   configurarProxyConfiable,
-} from '@arca/core';
+} from './core';
 
 // Integración del rate limiting con la autenticación, armada igual que
 // AppModule: SeguridadModule registrado ANTES que el guard de sesión.

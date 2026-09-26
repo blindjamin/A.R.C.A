@@ -5,7 +5,7 @@ import {
   AuthModule,
   LoteDerivacion,
   SolicitudRetiro,
-} from '@arca/core';
+} from '../../core';
 import { DerivacionesAdminController } from './derivaciones-admin.controller';
 import { DerivacionesAdminService } from './derivaciones-admin.service';
 
