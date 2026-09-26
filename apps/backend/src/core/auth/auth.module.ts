@@ -11,7 +11,7 @@ import { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
 
 // AuthService depende de PERFIL_ACCESO_RESOLVER (ver
 // interfaces/perfil-acceso-resolver.interface.ts), no de un servicio concreto:
-// AuthModule vive en @arca/core y no puede importar el UsersModule de una app
+// AuthModule vive en src/core y no puede importar el UsersModule de una app
 // específica. Quien importe AuthModule (hoy, apps/backend) debe proveer ese
 // token en algún módulo global de su propio árbol — ver users.module.ts.
 @Module({

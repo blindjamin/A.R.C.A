@@ -14,7 +14,7 @@ import {
 
 /**
  * Qué combinación de motivo, comentario y checklist exige cada decisión lo
- * valida `validarRevision` en `@arca/core`; acá solo se chequean los tipos.
+ * valida `validarRevision` en `src/core`; acá solo se chequean los tipos.
  */
 export class RevisarSolicitudDto {
   @IsIn(DECISIONES_REVISION)

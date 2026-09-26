@@ -11,9 +11,9 @@ import { AccionAuditable } from './auditoria.types';
  * Responde a la observación 6 de la Municipalidad (24-06-2026): "debe dejar
  * registro de quién realizó cada cambio".
  *
- * Vive en @arca/core porque las acciones auditables ocurren en los dos
- * backends: crear y cancelar en la API ciudadana, cambiar estado y asignar en
- * la municipal.
+ * Vive en src/core porque las acciones auditables ocurren tanto en la API
+ * ciudadana (crear y cancelar) como en el panel municipal (cambiar estado y
+ * asignar), que hoy corren en el mismo backend.
  */
 @Injectable()
 export class AuditoriaService {

@@ -4,7 +4,7 @@ import { Auditoria, AuditoriaModule } from '../../core';
 import { AuditoriaAdminController } from './auditoria-admin.controller';
 import { AuditoriaAdminService } from './auditoria-admin.service';
 
-// AuditoriaModule (de @arca/core) aporta el servicio de escritura, que este
+// AuditoriaModule (de src/core) aporta el servicio de escritura, que este
 // controlador usa para dejar registro de quién consultó la auditoría.
 // AuditoriaAdminService es la lectura, y vive acá porque es del panel: la API
 // ciudadana escribe auditoría pero no debe poder leerla.
