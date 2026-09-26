@@ -71,15 +71,14 @@ describe('SesionService', () => {
   beforeEach(() => {
     fila = null;
     repoSesiones = {
-      findOne: jest.fn(
-        ({ where }: { where: Partial<SesionCiudadano> }) =>
-          Promise.resolve(
-            fila &&
-              fila.sessionId === where.sessionId &&
-              (where.activa === undefined || fila.activa === where.activa)
-              ? fila
-              : null,
-          ),
+      findOne: jest.fn(({ where }: { where: Partial<SesionCiudadano> }) =>
+        Promise.resolve(
+          fila &&
+            fila.sessionId === where.sessionId &&
+            (where.activa === undefined || fila.activa === where.activa)
+            ? fila
+            : null,
+        ),
       ),
       create: jest.fn((datos: Partial<SesionCiudadano>) => ({ ...datos })),
       save: jest.fn((entidad: SesionCiudadano) => Promise.resolve(entidad)),
