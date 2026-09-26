@@ -191,6 +191,60 @@ Campos opcionales: `direccionAnonimizada`, `latitudCapturada`, `longitudCapturad
 
 ---
 
+## Rate limiting y ubicación del Marketplace
+
+Decisiones de Miguel Segovia (encargado de seguridad), 2026-09-25.
+
+### Límite de consultas (ambos backends)
+
+`SeguridadModule` (`packages/arca-core/src/seguridad/`) usa `@nestjs/throttler` y cuenta
+peticiones **por IP en ventanas de un minuto**. Se importa en cada `AppModule` **antes que
+`AuthModule`**, para que el límite corte también las peticiones sin sesión (probado en
+`apps/backend/src/seguridad-rate-limit.spec.ts`).
+
+| Límite | Peticiones / min | Dónde |
+|---|---|---|
+| General | 120 | Todas las rutas de `apps/backend` y `apps/backend-admin` |
+| Login ClaveÚnica | 10 | `@LimiteLogin()` en `ClaveUnicaController` |
+| Consultas de ubicación | 30 | `@LimiteUbicacion()` — a usar en los endpoints del Marketplace |
+
+Al superarlo se responde **429** con el mensaje *"Demasiadas solicitudes. Espera un momento e
+inténtalo de nuevo."*
+
+- **IP real tras el proxy de cPanel:** `configurarProxyConfiable(app)` en `main.ts` aplica
+  `trust proxy` según `TRUST_PROXY` (por defecto `loopback`). Sin esto todos los vecinos
+  compartirían el contador de `127.0.0.1`; con `true`, cualquiera podría inventar su IP.
+- **Memoria del proceso:** con una instancia por backend basta. Con varias, habría que pasar
+  el almacenamiento a Redis.
+- **Dependencia nueva:** `@nestjs/throttler` (exige Node ≥ 20.19). Suma un paquete al listado
+  de librerías comprometido con el municipio.
+
+### Ubicación en el Marketplace (`apps/backend/src/marketplace/ubicacion/`)
+
+La distancia entre vecinos se muestra solo en bandas (menos de 1 km, 1 a 5, 5 a 10, más de
+10) y **la API nunca devuelve la coordenada del artículo**. Como el punto de quien consulta
+lo manda el cliente, alguien podría consultar desde muchos puntos falsos y triangular. Las
+defensas:
+
+1. **Grilla de 250 m** (`GRILLA_MARKETPLACE_M`). El artículo se guarda ya aproximado
+   (`aproximarParaGuardar`) y el origen se re-aproxima en el servidor. Dos casas de la misma
+   celda dan siempre la misma banda: por muchas consultas que se hagan, lo máximo que se
+   recupera es el sector, no la vivienda. Es la garantía de fondo.
+2. **Límite de orígenes distintos por vecino** (`LimiteOrigenesService`): hasta 10 celdas
+   distintas por hora. Pasado el límite la consulta sigue funcionando pero sin banda (`null`),
+   sin error que indique cómo esquivarlo.
+3. **Límite de consultas** de 30 por minuto (`@LimiteUbicacion()`).
+
+**Descartado:** desplazar los bordes de las bandas con un valor fijo por artículo. El borde
+sigue siendo un círculo centrado en el artículo, y tres puntos bastan para hallar su centro.
+
+**Para el módulo del Marketplace:** importar `UbicacionMarketplaceModule`, calcular cada
+banda con `LimiteOrigenesService.bandaPara(ciudadanoId, origen, articulo)` (nunca con
+`calcularBanda` directo), guardar la coordenada con `aproximarParaGuardar` y decorar las
+rutas de listado y detalle con `@LimiteUbicacion()`.
+
+---
+
 ## Usuario de desarrollo (temporal)
 
 Hasta que Benjamín integre auth (JWT / ClaveÚnica), existe un ciudadano de prueba insertado por migración:

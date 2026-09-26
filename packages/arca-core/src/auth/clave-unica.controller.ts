@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Public } from './decorators/public.decorator';
+import { LimiteLogin } from '../seguridad/limites';
 import { ClaveUnicaService } from './clave-unica.service';
 import { OAUTH_STATE_COOKIE } from './clave-unica.constants';
 
@@ -19,7 +20,8 @@ import { OAUTH_STATE_COOKIE } from './clave-unica.constants';
  *
  * Se hace a mano en vez de sumar `cookie-parser` para no agregar una dependencia
  * por un único uso. El listado de librerías comprometido con el municipio declara
- * 12 paquetes de producción en el backend, y conviene que siga siendo cierto.
+ * los paquetes de producción del backend (13 desde que se sumó @nestjs/throttler
+ * para el rate limiting), y conviene que siga siendo cierto.
  */
 function leerCookie(req: Request, nombre: string): string | undefined {
   const cabecera = req.headers.cookie;
@@ -41,8 +43,12 @@ function leerCookie(req: Request, nombre: string): string | undefined {
  * Punto de entrada del inicio de sesión con ClaveÚnica (HU-12).
  *
  * Con el prefijo global `/api`, la ruta expuesta es `/api/auth/clave-unica/login`.
+ *
+ * Es pública (no exige sesión), así que lleva un límite de consultas propio,
+ * más estricto que el general: ver `LIMITE_LOGIN`.
  */
 @Public()
+@LimiteLogin()
 @Controller('auth/clave-unica')
 export class ClaveUnicaController {
   private readonly logger = new Logger(ClaveUnicaController.name);
