@@ -8,9 +8,9 @@ export default defineConfig({
     port: 5174,
     allowedHosts: true,
     proxy: {
-      // El panel habla con SU backend, no con el del ciudadano.
+      // Desde la reunificación (backend-unificado) hay un solo backend.
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3000',
         changeOrigin: true,
       },
     },
