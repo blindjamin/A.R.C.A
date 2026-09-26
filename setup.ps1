@@ -52,15 +52,14 @@ do {
 } while ($health -ne "healthy")
 Write-Host "OK: arca-mysql healthy" -ForegroundColor Green
 
-Write-Host "`n== 3. Nucleo compartido + backends (npm workspaces) ==" -ForegroundColor Cyan
+Write-Host "`n== 3. Backend (npm workspaces) ==" -ForegroundColor Cyan
 Push-Location $RepoRoot
 
-# Un solo "npm install" en la raiz resuelve packages/arca-core y apps/backend
-# de una (estan en el arreglo "workspaces" del package.json raiz). No correr
-# npm install DENTRO de apps/backend: eso rompe el hoisting de dependencias
-# (ver docs/SETUP_LOCAL.md).
+# Un solo "npm install" en la raiz resuelve apps/backend (esta en el arreglo
+# "workspaces" del package.json raiz; el nucleo vive en apps/backend/src/core).
+# No correr npm install DENTRO de apps/backend: eso rompe el hoisting de
+# dependencias (ver docs/SETUP_LOCAL.md).
 npm install
-npm run build:core
 
 function New-BackendEnvLocal($appPath, $port) {
     Push-Location $appPath
