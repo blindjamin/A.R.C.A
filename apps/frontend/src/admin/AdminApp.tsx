@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminShell from './components/AdminShell';
 import Solicitudes from './pages/Solicitudes';
 import Auditoria from './pages/Auditoria';
@@ -6,32 +6,32 @@ import MapaCalor from './pages/MapaCalor';
 import Derivacion from './pages/Derivacion';
 import Metricas from './pages/Metricas';
 import { perfilDevActual } from './api/admin';
+import './admin.css';
 
-// TODO(deuda declarada en la migración admin): esta app todavía no tiene su
-// propio login de ClaveÚnica ni un guard de sesión — cualquiera con la URL
-// entra directo. Es la tarea siguiente, reportada al equipo por regla A.4.
-export default function App() {
+// El panel vive en /admin/* (rutas relativas: el BrowserRouter lo pone
+// App.tsx). Sigue usando sus identidades de desarrollo internas para separar
+// admin de funcionario (deuda declarada en api/admin.ts): la sesión real llega
+// en FU2.
+export default function AdminApp() {
   return (
-    <BrowserRouter>
-      <AdminShell>
-        <Routes>
-          <Route path="/" element={<Solicitudes />} />
-          <Route path="/metricas" element={<Metricas />} />
-          <Route path="/derivacion" element={<Derivacion />} />
-          <Route path="/mapa-calor" element={<MapaCalor />} />
-          <Route
-            path="/auditoria"
-            element={
-              perfilDevActual() === 'admin' ? (
-                <Auditoria />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AdminShell>
-    </BrowserRouter>
+    <AdminShell>
+      <Routes>
+        <Route index element={<Solicitudes />} />
+        <Route path="metricas" element={<Metricas />} />
+        <Route path="derivacion" element={<Derivacion />} />
+        <Route path="mapa-calor" element={<MapaCalor />} />
+        <Route
+          path="auditoria"
+          element={
+            perfilDevActual() === 'admin' ? (
+              <Auditoria />
+            ) : (
+              <Navigate to="/admin" replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes>
+    </AdminShell>
   );
 }

@@ -16,6 +16,17 @@ export function RequireSession({ children }: { children: ReactElement }) {
   return usuarioCiudadanoId ? children : <Navigate to="/login" replace />;
 }
 
+// Guarda de interfaz para /admin/*: sin sesión manda a /login, con sesión de
+// vecino manda a /inicio. No decide permisos de verdad — eso lo hace el
+// RolesGuard del backend (SPEC-frontend-unificado §2.2); con sesión por cookie
+// (FU2) se reemplaza por el rol real.
+export function RequireAdmin({ children }: { children: ReactElement }) {
+  const { usuarioCiudadanoId, esAdministrador, cargando } = useSession();
+  if (cargando) return <Cargando />;
+  if (!usuarioCiudadanoId) return <Navigate to="/login" replace />;
+  return esAdministrador ? children : <Navigate to="/inicio" replace />;
+}
+
 type Tab = { to: string; label: string; icon: string };
 const TABS: Tab[] = [
   { to: '/inicio', label: 'Inicio', icon: '🏠' },

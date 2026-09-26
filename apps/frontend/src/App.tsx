@@ -1,6 +1,7 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionProvider, useSession } from './auth/SessionContext';
-import { Cargando, Protected } from './components/AppShell';
+import { Cargando, Protected, RequireAdmin } from './components/AppShell';
 import { SolicitudFlowProvider } from './features/solicitud-retiro/SolicitudFlowContext';
 import solicitudRetiroRoutes from './features/solicitud-retiro/routes';
 import marketplaceRoutes from './features/marketplace/routes';
@@ -9,6 +10,10 @@ import SeleccionInicio from './pages/SeleccionInicio';
 import Inicio from './pages/Inicio';
 import MisSolicitudes from './pages/MisSolicitudes';
 import Proximamente from './pages/Proximamente';
+
+// Chunk aparte: el panel (páginas, api/admin.ts, leaflet) no debe pesar en la
+// PWA del vecino (SPEC-frontend-unificado §2.2, criterio 3).
+const AdminApp = lazy(() => import('./admin/AdminApp'));
 
 // Login diferido: tras autenticar, decide a dónde va la persona.
 //  - sin sesión        → /login
@@ -59,6 +64,18 @@ export default function App() {
             {/* Marketplace P2P: listado, detalle y publicar
                 (definido en features/marketplace/routes.tsx) */}
             {marketplaceRoutes}
+
+            {/* Panel municipal, cargado aparte (SPEC-frontend-unificado §2.2) */}
+            <Route
+              path="/admin/*"
+              element={
+                <RequireAdmin>
+                  <Suspense fallback={<Cargando />}>
+                    <AdminApp />
+                  </Suspense>
+                </RequireAdmin>
+              }
+            />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

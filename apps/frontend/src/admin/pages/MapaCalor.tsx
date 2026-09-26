@@ -203,7 +203,7 @@ export default function MapaCalor() {
             </div>
           </div>
 
-          <button onClick={() => navigate('/')} className="btn-primary w-full">
+          <button onClick={() => navigate('/admin')} className="btn-primary w-full">
             Gestionar solicitudes
           </button>
         </div>
