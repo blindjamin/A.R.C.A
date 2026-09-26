@@ -3,10 +3,16 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule, HealthModule, SeguridadModule } from '@arca/core';
+import { AuthModule, ENTIDADES, HealthModule, SeguridadModule } from '@arca/core';
 import { ResiduosModule } from './residuos/residuos.module';
 import { SolicitudesRetiroModule } from './solicitudes-retiro/solicitudes-retiro.module';
 import { UsersModule } from './users/users.module';
+import { SolicitudesAdminModule } from './admin/solicitudes/solicitudes-admin.module';
+import { MapaCalorModule } from './admin/mapa-calor/mapa-calor.module';
+import { AuditoriaAdminModule } from './admin/auditoria/auditoria-admin.module';
+import { ResiduosAdminModule } from './admin/residuos/residuos-admin.module';
+import { DerivacionesAdminModule } from './admin/derivaciones/derivaciones-admin.module';
+import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
 
 @Module({
   imports: [
@@ -21,7 +27,12 @@ import { UsersModule } from './users/users.module';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
-      autoLoadEntities: true,
+      // Entidades explícitas, no autoLoadEntities: con autoLoadEntities, TypeORM
+      // solo conoce las entidades que algún módulo registra vía forFeature(), y
+      // acá no todas se registran (el panel no toca sesiones). Sin la entidad
+      // relacionada completa, construir los metadatos de las relaciones
+      // (p. ej. UsuarioCiudadano.sesiones) revienta al arrancar.
+      entities: ENTIDADES,
       synchronize: false,
     }),
     // Antes que AuthModule: el rate limiting corta el abuso antes de resolver
@@ -32,6 +43,12 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,
+    SolicitudesAdminModule,
+    MapaCalorModule,
+    AuditoriaAdminModule,
+    ResiduosAdminModule,
+    DerivacionesAdminModule,
+    MetricasAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
