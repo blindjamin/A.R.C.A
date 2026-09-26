@@ -195,9 +195,28 @@ export class SesionService {
     return sesion;
   }
 
-  private duracionMaxima(usuario: AuthUser): number {
+  /**
+   * Duración de la cookie según el rol actual (SPEC-sesion-unica §2.3): la
+   * usan tanto `crear`/`validar` como el controlador, para que el `maxAge` de
+   * la cookie sea siempre el mismo número que decide cuándo expira la fila.
+   */
+  duracionMaxima(usuario: AuthUser): number {
     return usuario.esAdministrador
       ? DURACION_SESION_MUNICIPAL_MS
       : DURACION_SESION_VECINO_MS;
+  }
+
+  /**
+   * `nombre_sesion` de la sesión activa más reciente del ciudadano, o `null`
+   * si no tiene ninguna (o quedó vacío, como en el login de desarrollo). Lo
+   * usa `GET /sesion` para vecinos y funcionarios sin ficha en
+   * `usuarios_administradores` (SPEC-sesion-unica §2.4).
+   */
+  async nombreSesionActiva(usuarioCiudadanoId: string): Promise<string | null> {
+    const sesion = await this.sesiones.findOne({
+      where: { usuarioCiudadanoId, activa: true },
+      order: { fechaInicio: 'DESC' },
+    });
+    return sesion?.nombreSesion ?? null;
   }
 }

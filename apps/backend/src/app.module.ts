@@ -27,6 +27,14 @@ import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
+      // Sin esto, mysql2 convierte los `Date` de JS a la hora LOCAL del proceso
+      // (por default del sistema, no UTC) antes de mandarlos como texto: el
+      // servidor los guarda tal cual, como si ya fueran UTC. Detectado en
+      // SU-2 comparando `fecha_inicio` de una sesión recién creada contra
+      // NOW() de MySQL: quedaban 3 horas atrás (offset de Chile). 'Z' fuerza
+      // UTC en los dos sentidos, que es lo que ya asume el resto del código
+      // (`SesionService.ahora()` usa `new Date()`).
+      timezone: 'Z',
       // Entidades explícitas, no autoLoadEntities: con autoLoadEntities, TypeORM
       // solo conoce las entidades que algún módulo registra vía forFeature(), y
       // acá no todas se registran (el panel no toca sesiones). Sin la entidad

@@ -9,11 +9,14 @@ import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { AuthService } from '../auth.service';
+import { COOKIE_SESION, leerCookie } from '../cookies';
+import { loginDevHabilitado } from '../login-dev';
+import { SesionService } from '../sesion.service';
 import { AuthUser } from '../interfaces/auth-user.interface';
 import { RolAdministrador } from '../../entities/rol-administrador.enum';
 
 type AuthenticatedRequest = {
-  headers: { authorization?: string };
+  headers: { authorization?: string; cookie?: string };
   user?: AuthUser;
 };
 
@@ -22,8 +25,15 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly authService: AuthService,
+    private readonly sesionService: SesionService,
   ) {}
 
+  /**
+   * Fuente de identidad (SPEC-sesion-unica §2.3): primero la cookie
+   * `arca_sesion`; el `Bearer <uuid>` es transitorio y solo se acepta con
+   * `ALLOW_DEV_LOGIN=true` (se borra en SU-4). Sin ninguna de las dos, 401
+   * genérico: no dice cuál de las dos faltó o estaba mal.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -35,11 +45,23 @@ export class AuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    request.user = await this.authService.resolveFromAuthorizationHeader(
-      request.headers.authorization,
-    );
 
-    return true;
+    const usuario = await this.sesionService.validar(
+      leerCookie(request, COOKIE_SESION),
+    );
+    if (usuario) {
+      request.user = usuario;
+      return true;
+    }
+
+    if (loginDevHabilitado(process.env) && request.headers.authorization) {
+      request.user = await this.authService.resolveFromAuthorizationHeader(
+        request.headers.authorization,
+      );
+      return true;
+    }
+
+    throw new UnauthorizedException('No autenticado.');
   }
 }
 

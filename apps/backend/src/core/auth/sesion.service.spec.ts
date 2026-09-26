@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 import type { Repository } from 'typeorm';
 import { AuthService } from './auth.service';
 import { SesionService } from './sesion.service';
-import type { PerfilAccesoResolver } from './interfaces/perfil-acceso-resolver.interface';
 import { RolAdministrador } from '../entities/rol-administrador.enum';
 import type { SesionCiudadano } from '../entities/sesion-ciudadano.entity';
 import type { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
@@ -98,7 +97,7 @@ describe('SesionService', () => {
     servicio = new SesionService(
       repoSesiones as unknown as Repository<SesionCiudadano>,
       repoUsuarios as unknown as Repository<UsuarioCiudadano>,
-      new AuthService(resolver as PerfilAccesoResolver),
+      new AuthService(resolver),
     );
     servicio.ahora = () => AHORA;
   });
@@ -305,6 +304,20 @@ describe('SesionService', () => {
       await expect(servicio.revocar(COOKIE)).resolves.toBeUndefined();
       await expect(servicio.revocar('basura')).resolves.toBeUndefined();
       await expect(servicio.revocar(undefined)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('nombreSesionActiva', () => {
+    it('devuelve el nombre_sesion de la sesión activa más reciente, o null si no hay ninguna', async () => {
+      repoSesiones.findOne.mockResolvedValueOnce({ nombreSesion: 'Ana' });
+      await expect(servicio.nombreSesionActiva(CIUDADANO_ID)).resolves.toBe(
+        'Ana',
+      );
+
+      repoSesiones.findOne.mockResolvedValueOnce(null);
+      await expect(
+        servicio.nombreSesionActiva(CIUDADANO_ID),
+      ).resolves.toBeNull();
     });
   });
 });

@@ -1,5 +1,6 @@
 export { AuthModule } from './auth.module';
 export { AuthService } from './auth.service';
+export { SesionController } from './sesion.controller';
 export { SesionService, type DatosNuevaSesion } from './sesion.service';
 export { COOKIE_SESION, leerCookie, opcionesCookieSesion } from './cookies';
 export { loginDevHabilitado, verificarLoginDev } from './login-dev';

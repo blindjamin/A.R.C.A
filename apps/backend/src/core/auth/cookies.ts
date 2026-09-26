@@ -1,7 +1,12 @@
-import type { CookieOptions, Request } from 'express';
+import type { CookieOptions } from 'express';
 
 /** Cookie con la sesión de ARCA: `<session_id>.<secreto>` (ver SesionService). */
 export const COOKIE_SESION = 'arca_sesion';
+
+/** Forma mínima que necesita `leerCookie`: cualquier `Request` de Express la cumple. */
+interface PeticionConCookies {
+  headers: { cookie?: string };
+}
 
 /**
  * Lee una cookie de la cabecera cruda.
@@ -11,7 +16,10 @@ export const COOKIE_SESION = 'arca_sesion';
  * los paquetes de producción del backend (13 desde que se sumó @nestjs/throttler
  * para el rate limiting), y conviene que siga siendo cierto.
  */
-export function leerCookie(req: Request, nombre: string): string | undefined {
+export function leerCookie(
+  req: PeticionConCookies,
+  nombre: string,
+): string | undefined {
   const cabecera = req.headers.cookie;
   if (!cabecera) return undefined;
 
@@ -20,7 +28,13 @@ export function leerCookie(req: Request, nombre: string): string | undefined {
     if (separador === -1) continue;
 
     if (parte.slice(0, separador).trim() === nombre) {
-      return decodeURIComponent(parte.slice(separador + 1).trim());
+      try {
+        return decodeURIComponent(parte.slice(separador + 1).trim());
+      } catch {
+        // `%` mal formado (nunca lo emitimos nosotros): se trata como si la
+        // cookie no hubiera llegado, nunca como un 500.
+        return undefined;
+      }
     }
   }
 
@@ -42,12 +56,17 @@ export function leerCookie(req: Request, nombre: string): string | undefined {
  *   desde ClaveÚnica es una navegación entre sitios y perdería la sesión.
  * - `path: '/api'`: el navegador no la manda al pedir los archivos del frontend.
  * - `secure` solo en producción, porque en desarrollo se trabaja sobre http.
+ *
+ * `maxAgeMs` se omite al borrar la cookie (`res.clearCookie`): Express lo
+ * ignora igual, pero pasar los mismos atributos de siempre evita que alguien
+ * lo agregue algún día y rompa el borrado por no calzar con la cookie puesta.
  */
-export function opcionesCookieSesion(): CookieOptions {
+export function opcionesCookieSesion(maxAgeMs?: number): CookieOptions {
   return {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/api',
+    ...(maxAgeMs === undefined ? {} : { maxAge: maxAgeMs }),
   };
 }

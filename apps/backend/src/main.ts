@@ -1,10 +1,14 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { configurarProxyConfiable } from './core';
+import { configurarProxyConfiable, verificarLoginDev } from './core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Antes que nada: un ALLOW_DEV_LOGIN=true copiado de un .env de desarrollo
+  // no debe pasar inadvertido en producción (SPEC-sesion-unica §2.5).
+  verificarLoginDev(process.env);
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // IP real del cliente tras el proxy de cPanel, para el rate limiting.
   configurarProxyConfiable(app);
