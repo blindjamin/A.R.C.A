@@ -2,11 +2,9 @@
   "name": "arca",
   "private": true,
   "workspaces": [
-    "packages/arca-core",
     "apps/backend"
   ],
   "scripts": {
-    "build:core": "npm run build -w @arca/core",
     "dev:backend": "npm run start:dev -w backend"
   },
   "devDependencies": {
