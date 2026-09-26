@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { ClaveUnicaController } from './clave-unica.controller';
 import { ClaveUnicaService } from './clave-unica.service';
 import { AuthGuard, RolesGuard } from './guards/auth.guard';
+import { SesionController } from './sesion.controller';
 import { SesionService } from './sesion.service';
 import { SesionCiudadano } from '../entities/sesion-ciudadano.entity';
 import { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
@@ -16,7 +17,7 @@ import { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
 // token en algún módulo global de su propio árbol — ver users.module.ts.
 @Module({
   imports: [TypeOrmModule.forFeature([SesionCiudadano, UsuarioCiudadano])],
-  controllers: [ClaveUnicaController],
+  controllers: [ClaveUnicaController, SesionController],
   providers: [
     ClaveUnicaService,
     AuthService,
