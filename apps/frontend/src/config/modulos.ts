@@ -36,7 +36,8 @@ export const MODULOS: Modulo[] = [
     titulo: 'Marketplace',
     descripcion: 'Reutiliza: publica e intercambia artículos con tus vecinos.',
     icono: '♻️',
-    activo: false,
+    ruta: '/marketplace',
+    activo: true,
     epica: 'EP-02',
   },
   {

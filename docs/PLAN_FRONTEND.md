@@ -55,7 +55,15 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 | Solicitud creada | `/solicitud/creada` | ✅ esqueleto | SuccessRing + 2 CTAs (retiro / marketplace) |
 | Mis solicitudes | `/mis-solicitudes` | ✅ **backend** | Lista → detalle (descripción) + cancelar; oculta local |
 | Retiro municipal | `/retiro-municipal` | ✅ placeholder | "Próximamente" (EP-03) |
-| Subir a Marketplace | `/marketplace/subir` | ✅ placeholder | "Próximamente" (EP-02) |
+| Marketplace — listado | `/marketplace` | ✅ datos de ejemplo | Tarjetas con banda de distancia y reputación; filtros tipo/categoría + búsqueda |
+| Marketplace — detalle | `/marketplace/:id` | ✅ datos de ejemplo | Créditos, publicador; "Me interesa" desactivado hasta el chat; retirar si es propio |
+| Marketplace — publicar | `/marketplace/subir` | ✅ datos de ejemplo | Tipo, título, residuo del catálogo (real), descripción, foto con vista previa local |
+| Mis publicaciones | `/marketplace/mis-publicaciones` | ✅ datos de ejemplo | Artículos propios en todos sus estados |
+
+> **Marketplace sin backend todavía.** `api/marketplace.ts` es el contrato con los endpoints de
+> Javier y responde con datos de ejemplo detrás del interruptor `USAR_DATOS_DE_EJEMPLO`. La
+> distancia se muestra solo en bandas que calcula el backend; la API nunca entrega la coordenada
+> del artículo ni el id de quien publica (ver comentario de cabecera del archivo).
 
 > **Precio: ya es real.** Viene de la columna `precio` de `residuos_catalogo`
 > (migración `1782163600000-replace-catalogo-precios-reales`), no del front.
@@ -88,14 +96,18 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [ ] Clasificación local con TensorFlow.js → reemplaza la detección mock.
 - [ ] Confirmación con foto, GPS aproximado y nota (campos ya soportados por el DTO).
 - [ ] "+5 créditos" real al crear (depende de EP-04).
-- [ ] Pantallas reales de "Retiro municipal" y "Subir al Marketplace" (hoy placeholders).
+- [ ] Pantalla real de "Retiro municipal" (hoy placeholder). "Subir al Marketplace" ya es real.
 
-### Fase 3 — Marketplace P2P (EP-02)
-- [ ] Listado: vista Grid 2 col + vista Lista, con `SearchBar` y chips Regalo/Intercambio/Categorías.
-- [ ] `ArticleCard` + `StatePill` + `HeartBtn` + distancia.
-- [ ] Detalle de artículo: galería, `ModalidadBadge`, vecino con `RatingBadge`/`ShieldVerified`.
-- [ ] Publicar: foto + título + chips categoría + modalidad.
-- [ ] CTA Gold “¿Aún sirve? Regálalo”.
+### Fase 3 — Marketplace P2P (EP-02) — Sprint 3, PR #48
+- [x] Listado en grid (2 col móvil / 4 escritorio) con búsqueda y chips Regalo/Intercambio/Categorías.
+- [x] `ArticuloCard` + `Estrellas` (reputación de quien publica) + banda de distancia.
+- [x] Detalle de artículo con créditos y bloque del vecino.
+- [x] Publicar: foto (vista previa local) + título + residuo del catálogo + modalidad.
+- [x] Mis publicaciones + retirar publicación.
+- [ ] Conectar a los endpoints reales (cambiar `USAR_DATOS_DE_EJEMPLO` en `api/marketplace.ts`).
+- [ ] Pestaña Marketplace en la barra inferior (`AppShell.tsx`, Maxi).
+- [ ] "Me interesa" → negociación, chat y calificación (Ana).
+- [ ] Vista Lista, favoritos (`HeartBtn`), galería de varias fotos.
 
 ### Fase 4 — Chat entre vecinos (EP-02)
 - [ ] `ChatInput` + burbujas (propias verde / ajenas blanco) + `ReservaBanner` gold.

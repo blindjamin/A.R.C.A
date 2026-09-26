@@ -96,6 +96,11 @@ apps/frontend/
     │       ├── SolicitudFlowContext.tsx
     │       ├── CapturaResiduo.tsx, AnalizandoIA.tsx, SugerenciasIA.tsx,
     │       └── Catalogo.tsx, NuevaSolicitud.tsx, SolicitudCreada.tsx
+    │   └── marketplace/
+    │       ├── routes.tsx              # mismo patrón que solicitud-retiro
+    │       ├── Listado.tsx, DetalleArticulo.tsx, PublicarArticulo.tsx, MisPublicaciones.tsx
+    │       ├── distancia.ts            # bandas, redondeo a 20 m y useOrigenAproximado()
+    │       └── formato.ts              # etiquetas de estado/tipo y fecha relativa
     └── pages/
         ├── Login.tsx              # hero verde + CTA dorado ClaveÚnica (responsive layout)
         ├── SeleccionInicio.tsx    # login diferido: elegir modo vecino/funcionario
@@ -103,7 +108,7 @@ apps/frontend/
         ├── MisSolicitudes.tsx     # listado y detalle de solicitudes ciudadanas
         ├── AdminSolicitudes.tsx   # panel municipal: listar/filtrar/estados + modal HU-08
         ├── AdminAuditoria.tsx     # panel municipal: logs de trazabilidad y KPIs
-        └── Proximamente.tsx       # placeholder reutilizable (retiro municipal, marketplace)
+        └── Proximamente.tsx       # placeholder reutilizable (hoy: retiro municipal)
 ```
 
 > **Por qué `features/` separado de `pages/`:** el flujo de solicitud (6 pantallas + su
@@ -129,6 +134,12 @@ Expone funciones tipadas e interfaces del dominio (`ResiduoCatalogo`, `Solicitud
 | `fetchPerfilAcceso(uuid)` | `GET /api/usuarios/{uuid}/perfil-acceso` | Roles y contexto (vecino/funcionario) |
 | `fetchAuditoriaLogs()` | Mock / Endpoint trazabilidad | Lista de logs de auditoría (HU-13) |
 | `fetchAuditoriaStats()` | Mock / Endpoint trazabilidad | Resumen y KPIs de auditoría |
+
+El Marketplace tiene su propia capa, `src/api/marketplace.ts`, que reutiliza `apiFetch` y
+`handle` de `arca.ts`. Define el contrato con el backend (`listarArticulos`, `obtenerArticulo`,
+`publicarArticulo`, `listarMisPublicaciones`, `retirarArticulo`) y, hasta que existan los
+endpoints, responde con datos de ejemplo detrás de `USAR_DATOS_DE_EJEMPLO`. Los endpoints
+esperados y las reglas de privacidad están en el comentario de cabecera del archivo.
 
 `API_URL` es `/api` (ruta relativa) — Vite la proxea a `localhost:3000`. Todas las llamadas
 mandan el header `ngrok-skip-browser-warning` (inofensivo fuera de ngrok, necesario cuando
@@ -182,7 +193,11 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `MisSolicitudes` | `pages/` | `/mis-solicitudes` | `GET /api/solicitudes-retiro?usuarioCiudadanoId=` | **backend** |
 | `AdminSolicitudes` | `pages/` | `/admin` | `GET/PATCH /api/solicitudes-retiro` | **backend** + HU-08 |
 | `AdminAuditoria` | `pages/` | `/admin/auditoria` | Logs y estadísticas de auditoría | **admin** (HU-13) |
-| `Proximamente` | `pages/` | `/retiro-municipal`, `/marketplace/subir` | — | placeholder |
+| `Listado` | `features/marketplace/` | `/marketplace` | `listarArticulos` | datos de ejemplo |
+| `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo` | datos de ejemplo |
+| `PublicarArticulo` | `features/marketplace/` | `/marketplace/subir` | `publicarArticulo` + `GET /api/residuos/catalogo` | datos de ejemplo |
+| `MisPublicaciones` | `features/marketplace/` | `/marketplace/mis-publicaciones` | `listarMisPublicaciones` | datos de ejemplo |
+| `Proximamente` | `pages/` | `/retiro-municipal` | — | placeholder |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
 - ~~Las rutas `/admin` y `/admin/auditoria` están protegidas por `RequireAdmin`~~ — en realidad
@@ -204,7 +219,7 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
                                                                     ↓ POST (backend)
                                                           /solicitud/creada
                                                               ├─ Retiro municipal (placeholder)
-                                                              ├─ Subir a Marketplace (placeholder)
+                                                              ├─ Subir a Marketplace (/marketplace/subir)
                                                               └─ Ver mis solicitudes
 ```
 
@@ -217,9 +232,10 @@ La pantalla `Inicio` es el menú central de la app y se construye sola a partir 
 arreglo `MODULOS`. Cada módulo declara: `id`, `titulo`, `descripcion`, `icono`, `ruta?`,
 `activo` y `epica`.
 
-- Tarjetas **activas** (hoy: Solicitar retiro, Mis solicitudes — EP-01) son clickeables.
+- Tarjetas **activas** (hoy: Solicitar retiro, Mis solicitudes — EP-01; Marketplace — EP-02)
+  son clickeables.
 - Tarjetas **`activo: false`** se muestran atenuadas con badge "Próximamente"
-  (Marketplace EP-02, Mis créditos EP-04, Panel municipal EP-03).
+  (Mis créditos EP-04, Panel municipal EP-03).
 - El orden (activos primero) se resuelve en el render, no en el config.
 
 **Cómo agregar un módulo nuevo:** añadir un objeto a `MODULOS`. Cuando su endpoint exista,
