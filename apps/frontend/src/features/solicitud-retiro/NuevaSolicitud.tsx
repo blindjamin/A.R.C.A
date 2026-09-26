@@ -12,7 +12,8 @@ import { useSession } from '../../auth/SessionContext';
 
 export default function NuevaSolicitud() {
   const navigate = useNavigate();
-  const { usuarioCiudadanoId } = useSession();
+  const { sesion } = useSession();
+  const usuarioCiudadanoId = sesion?.ciudadanoId ?? null;
   const [searchParams] = useSearchParams();
 
   const [catalogo, setCatalogo] = useState<ResiduoCatalogo[]>([]);

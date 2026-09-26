@@ -2,7 +2,7 @@ import type { EstadoSolicitud } from '../../api/arca';
 
 // Única fuente de verdad para el label/color de cada estado de una solicitud.
 // Las etiquetas son las de la app del vecino (docs/specs/SPEC-ciclo-solicitud.md §3);
-// los colores son los mismos del panel (apps/admin-web/src/components/ui/estadoMeta.ts).
+// los colores son los mismos del panel (apps/frontend/src/admin/components/ui/estadoMeta.ts).
 export const ESTADO_META: Record<EstadoSolicitud, { label: string; cls: string }> = {
   en_revision: { label: 'En revisión', cls: 'bg-gold-100 text-gold-600' },
   requiere_modificacion: { label: 'Requiere cambios', cls: 'bg-sky-100 text-sky-600' },

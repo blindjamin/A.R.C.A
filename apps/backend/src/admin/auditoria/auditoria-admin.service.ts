@@ -11,7 +11,7 @@ import {
 /**
  * Fila de auditoría como la consume el panel municipal.
  *
- * El shape lo definió la pantalla (apps/admin-web/src/pages/Auditoria.tsx): el
+ * El shape lo definió la pantalla (apps/frontend/src/admin/pages/Auditoria.tsx): el
  * backend se adapta a ella y no al revés, porque la pantalla ya estaba hecha
  * cuando se implementó HU-14.
  */

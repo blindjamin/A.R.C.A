@@ -1,6 +1,6 @@
 import { Navigate, NavLink } from 'react-router-dom';
 import type { ReactElement } from 'react';
-import { useSession } from '../auth/SessionContext';
+import { useSession, type Rol } from '../auth/SessionContext';
 
 export function Cargando() {
   return (
@@ -11,20 +11,26 @@ export function Cargando() {
 }
 
 export function RequireSession({ children }: { children: ReactElement }) {
-  const { usuarioCiudadanoId, cargando } = useSession();
+  const { sesion, cargando } = useSession();
   if (cargando) return <Cargando />;
-  return usuarioCiudadanoId ? children : <Navigate to="/login" replace />;
+  return sesion ? children : <Navigate to="/login" replace />;
 }
 
-// Guarda de interfaz para /admin/*: sin sesión manda a /login, con sesión de
-// vecino manda a /inicio. No decide permisos de verdad — eso lo hace el
-// RolesGuard del backend (SPEC-frontend-unificado §2.2); con sesión por cookie
-// (FU2) se reemplaza por el rol real.
-export function RequireAdmin({ children }: { children: ReactElement }) {
-  const { usuarioCiudadanoId, esAdministrador, cargando } = useSession();
+// Guarda de interfaz por rol: sin sesión manda a /login, con un rol que no
+// corresponde manda a /inicio. Es comodidad de interfaz, no una barrera — la
+// barrera real es el RolesGuard del backend (SPEC-frontend-unificado §2.2),
+// que rechaza con 401/403 sin importar lo que decida esto.
+export function RequireRol({
+  roles,
+  children,
+}: {
+  roles: Rol[];
+  children: ReactElement;
+}) {
+  const { sesion, cargando } = useSession();
   if (cargando) return <Cargando />;
-  if (!usuarioCiudadanoId) return <Navigate to="/login" replace />;
-  return esAdministrador ? children : <Navigate to="/inicio" replace />;
+  if (!sesion) return <Navigate to="/login" replace />;
+  return roles.includes(sesion.rol) ? children : <Navigate to="/inicio" replace />;
 }
 
 type Tab = { to: string; label: string; icon: string };
@@ -59,7 +65,7 @@ function TabBar() {
 }
 
 function Shell({ children }: { children: ReactElement }) {
-  const { logout } = useSession();
+  const { salir } = useSession();
   return (
     <div className="flex min-h-screen w-full flex-col bg-canvas">
       <header className="sticky top-0 z-10 border-b border-line bg-canvas/80 px-5 py-3 backdrop-blur w-full">
@@ -67,7 +73,7 @@ function Shell({ children }: { children: ReactElement }) {
           <span className="font-display text-lg font-extrabold tracking-tight text-green-700">
             A.R.C.A.
           </span>
-          <button onClick={logout} className="text-xs text-slate-2 hover:text-ink">
+          <button onClick={() => void salir()} className="text-xs text-slate-2 hover:text-ink">
             Salir
           </button>
         </div>

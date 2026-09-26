@@ -7,101 +7,94 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import {
-  fetchPerfilAcceso,
-  STORAGE_KEY_SESION,
-  type PerfilAcceso,
-} from '../api/arca';
+import { apiFetch, onUnauthorized } from '../api/apiFetch';
 
-// UUIDs sembrados por migración en el backend (auth mock).
-// TEMPORAL: cuando Benjamín integre JWT/ClaveÚnica, la identidad saldrá del token
-// y solo cambiará el interior de `login()`. Las pantallas no cambian.
-// eslint-disable-next-line react-refresh/only-export-components
-export const DEV_USERS = {
-  vecino: '00000000-0000-4000-8000-000000000001', // solo ciudadano
-  funcionario: '00000000-0000-4000-8000-000000000002', // doble rol (ciudadano + funcionario)
-} as const;
+export type Rol = 'vecino' | 'funcionario' | 'admin';
 
-const STORAGE_KEY = STORAGE_KEY_SESION;
+export interface Sesion {
+  ciudadanoId: string;
+  nombre: string | null;
+  rol: Rol;
+  devLogin: boolean;
+}
 
 interface SessionContextValue {
-  usuarioCiudadanoId: string | null;
-  esAdministrador: boolean;
-  perfil: PerfilAcceso | null;
+  sesion: Sesion | null;
   cargando: boolean;
-  login: (usuarioCiudadanoId: string) => void;
-  logout: () => void;
+  entrarDev: (ciudadanoId: string) => Promise<void>;
+  salir: () => Promise<void>;
+  recargar: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(undefined);
 
+async function obtenerSesion(): Promise<Sesion | null> {
+  const res = await apiFetch('/api/sesion');
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`Error ${res.status} al obtener la sesión`);
+  return res.json() as Promise<Sesion>;
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [usuarioCiudadanoId, setUsuarioCiudadanoId] = useState<string | null>(
-    () => localStorage.getItem(STORAGE_KEY),
-  );
-  const [perfil, setPerfil] = useState<PerfilAcceso | null>(null);
-  // Arranca cargando si hay sesión persistida (hay que resolver el perfil).
-  const [cargando, setCargando] = useState<boolean>(
-    () => !!localStorage.getItem(STORAGE_KEY),
-  );
+  const [sesion, setSesion] = useState<Sesion | null>(null);
+  const [cargando, setCargando] = useState(true);
 
-  // Resuelve el perfil de acceso (login diferido) cada vez que cambia la identidad.
-  useEffect(() => {
-    if (!usuarioCiudadanoId) {
-      let cancelado = false;
-      Promise.resolve().then(() => {
-        if (!cancelado) {
-          setPerfil(null);
-          setCargando(false);
-        }
-      });
-      localStorage.removeItem(STORAGE_KEY);
-      return () => {
-        cancelado = true;
-      };
+  const recargar = useCallback(async () => {
+    try {
+      setSesion(await obtenerSesion());
+    } catch {
+      // Backend caído o error de red: se trata igual que sin sesión.
+      setSesion(null);
+    } finally {
+      setCargando(false);
     }
+  }, []);
 
-    localStorage.setItem(STORAGE_KEY, usuarioCiudadanoId);
-    let cancelado = false;
-    Promise.resolve().then(() => {
-      if (!cancelado) setCargando(true);
-    });
+  // GET /api/sesion al montar (criterio 5: la identidad sale solo de acá). El
+  // `.then()` difiere la llamada a un microtask en vez de invocar `recargar`
+  // (que hace setState) de forma directa en el cuerpo del efecto
+  // (react-hooks/set-state-in-effect).
+  useEffect(() => {
+    Promise.resolve().then(() => recargar());
+  }, [recargar]);
 
-    fetchPerfilAcceso(usuarioCiudadanoId)
-      .then((p) => {
-        if (!cancelado) setPerfil(p);
-      })
-      .catch(() => {
-        // Si el backend no responde o el id no existe, tratamos como solo-ciudadano.
-        if (!cancelado)
-          setPerfil({
-            usuarioCiudadanoId,
-            esAdministrador: false,
-            administrador: null,
-          });
-      })
-      .finally(() => {
-        if (!cancelado) setCargando(false);
+  // apiFetch avisa acá ante cualquier 401 de cualquier llamada (arca.ts o
+  // admin/api/admin.ts): cerramos la sesión en el front y los guards mandan a
+  // /login.
+  useEffect(() => {
+    onUnauthorized(() => setSesion(null));
+    return () => onUnauthorized(null);
+  }, []);
+
+  const entrarDev = useCallback(
+    async (ciudadanoId: string) => {
+      const res = await apiFetch('/api/auth/dev/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ciudadanoId }),
       });
+      if (!res.ok) {
+        throw new Error(`Error ${res.status} en el login de desarrollo`);
+      }
+      await recargar();
+    },
+    [recargar],
+  );
 
-    return () => {
-      cancelado = true;
-    };
-  }, [usuarioCiudadanoId]);
-
-  const login = useCallback((id: string) => setUsuarioCiudadanoId(id), []);
-  const logout = useCallback(() => setUsuarioCiudadanoId(null), []);
+  const salir = useCallback(async () => {
+    // Criterio 7: devLogin cierra con el endpoint mock; ClaveÚnica necesita una
+    // navegación completa (cierra también la sesión en ClaveÚnica).
+    if (sesion?.devLogin) {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+      setSesion(null);
+    } else {
+      window.location.assign('/api/auth/clave-unica/logout');
+    }
+  }, [sesion]);
 
   const value = useMemo<SessionContextValue>(
-    () => ({
-      usuarioCiudadanoId,
-      esAdministrador: perfil?.esAdministrador ?? false,
-      perfil,
-      cargando,
-      login,
-      logout,
-    }),
-    [usuarioCiudadanoId, perfil, cargando, login, logout],
+    () => ({ sesion, cargando, entrarDev, salir, recargar }),
+    [sesion, cargando, entrarDev, salir, recargar],
   );
 
   return (

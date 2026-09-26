@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
-import SelectorPerfilDev from './SelectorPerfilDev';
-
-import { perfilDevActual } from '../api/admin';
+import { useSession } from '../../auth/SessionContext';
 
 const NAV = [
   { to: '/admin', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
@@ -17,8 +15,9 @@ const NAV = [
 // ciudadano (no tiene sentido la tab bar móvil de AppShell.tsx en un panel
 // municipal de escritorio).
 export default function AdminShell({ children }: { children: ReactNode }) {
-  const isAdmin = perfilDevActual() === 'admin';
-  const visibleNav = NAV.filter(item => !item.reqAdmin || isAdmin);
+  const { sesion, salir } = useSession();
+  const isAdmin = sesion?.rol === 'admin';
+  const visibleNav = NAV.filter((item) => !item.reqAdmin || isAdmin);
 
   return (
     <div className="flex min-h-screen w-full bg-canvas">
@@ -45,8 +44,17 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto">
-          <SelectorPerfilDev />
+        <div className="mt-auto border-t border-line px-3 py-3">
+          <p className="truncate px-2 text-sm font-semibold text-ink">
+            {sesion?.nombre ?? 'Sesión municipal'}
+          </p>
+          <p className="px-2 text-xs capitalize text-slate-2">{sesion?.rol}</p>
+          <button
+            onClick={() => void salir()}
+            className="mt-2 w-full rounded-md px-2 py-1.5 text-left text-xs text-slate-2 hover:bg-line hover:text-ink"
+          >
+            Salir
+          </button>
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-6 py-6">{children}</main>

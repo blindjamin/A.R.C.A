@@ -84,10 +84,9 @@ src/
 └── App.tsx                      # Router: arma las rutas y monta solicitudRetiroRoutes
 ```
 
-> Las pantallas de panel admin (`AdminSolicitudes`, `AdminAuditoria`) se movieron a
-> `apps/admin-web` en la migración de separación del panel admin (2026-09-01). El botón
-> "Modo funcionario" de `SeleccionInicio.tsx` navega a `VITE_ADMIN_URL` con
-> `window.location.href` — es otro origen, no una ruta de este router.
+> El panel municipal vive en `src/admin/` y se sirve en `/admin/*` de este mismo sitio
+> (SPEC-frontend-unificado): no es otro origen ni necesita una variable de entorno propia.
+> El botón "Modo funcionario" de `SeleccionInicio.tsx` navega a `/admin` con el router de React.
 
 ### Criterio de organización
 

@@ -13,7 +13,7 @@ async function bootstrap() {
   // IP real del cliente tras el proxy de cPanel, para el rate limiting.
   configurarProxyConfiable(app);
   const allowedOrigins = (
-    process.env.FRONTEND_URL ?? 'http://localhost:5173,http://localhost:5174'
+    process.env.FRONTEND_URL ?? 'http://localhost:5173'
   )
     .split(',')
     .map((origin) => origin.trim());
