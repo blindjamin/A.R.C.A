@@ -4,6 +4,8 @@
 // las rutas de apps/backend; pasan a /api/admin/... recién en la Fase 3 de la
 // migración, cuando exista apps/backend-admin.
 
+import { apiFetch } from '../../api/apiFetch';
+
 const API_URL = import.meta.env.VITE_API_URL as string;
 
 export interface ResiduoCatalogo {
@@ -98,63 +100,6 @@ export const formatearPrecio = (clp: number): string =>
     maximumFractionDigits: 0,
   });
 
-// Header requerido cuando se accede vía tunel ngrok (free tier): sin el, ngrok
-// intercepta el request y devuelve una pagina HTML de advertencia en vez de
-// dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
-// DEUDA DECLARADA — identidades de desarrollo del panel municipal.
-// apps/admin-web todavía no tiene login propio: la pantalla de acceso con
-// ClaveÚnica vive en apps/frontend. Como el AuthGuard de @arca/core es global
-// (HU-13), sin este header toda llamada del panel responde 401.
-//
-// Todo este bloque —las identidades, el selector y su almacenamiento— se borra
-// cuando HU-12 cierre el callback y el panel tenga su propia sesión.
-//
-// Van los UUID de `usuarios_ciudadanos`, no los de `usuarios_administradores`:
-// AuthService resuelve el perfil a partir de la identidad ciudadana y de ahí
-// deduce el rol municipal.
-//
-// Hay dos porque el panel expone áreas con permisos distintos: las solicitudes
-// las opera cualquier funcionario, pero el registro de auditoría es solo para
-// rol `admin` (HU-14). Poder alternar deja ver esa diferencia desde la
-// interfaz, que es justamente lo que HU-13 tiene que demostrar.
-export const IDENTIDADES_DEV = {
-  admin: {
-    id: '00000000-0000-4000-8000-000000000003',
-    nombre: 'Carlos Álvarez',
-    rol: 'Administrador',
-  },
-  funcionario: {
-    id: '00000000-0000-4000-8000-000000000002',
-    nombre: 'Camila Operadora',
-    rol: 'Funcionario',
-  },
-} as const;
-
-export type PerfilDev = keyof typeof IDENTIDADES_DEV;
-
-const STORAGE_KEY_PERFIL = 'arca.panel.perfilDev';
-
-export function perfilDevActual(): PerfilDev {
-  return localStorage.getItem(STORAGE_KEY_PERFIL) === 'funcionario'
-    ? 'funcionario'
-    : 'admin';
-}
-
-export function cambiarPerfilDev(perfil: PerfilDev): void {
-  localStorage.setItem(STORAGE_KEY_PERFIL, perfil);
-}
-
-function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(path, {
-    ...init,
-    headers: {
-      ...init?.headers,
-      'ngrok-skip-browser-warning': 'true',
-      Authorization: `Bearer ${IDENTIDADES_DEV[perfilDevActual()].id}`,
-    },
-  });
-}
-
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
@@ -177,10 +122,9 @@ async function handle<T>(res: Response): Promise<T> {
 // --- Admin municipal --------------------------------------------------------
 
 // Rutas propias de backend-admin (Fase 3 de la migración admin) — no
-// /solicitudes-retiro, que es del backend ciudadano. Requieren un
-// Authorization: Bearer válido; admin-web todavía no tiene login propio
-// (deuda declarada, ver App.tsx), así que hasta que exista, estas llamadas
-// devuelven 401.
+// /solicitudes-retiro, que es del backend ciudadano. La identidad viaja en la
+// cookie de sesión (SPEC-frontend-unificado §2.3); sin sesión válida, o con un
+// rol que no corresponde, el backend responde 401/403.
 export function fetchSolicitudesAdmin(
   estado?: EstadoSolicitud,
 ): Promise<SolicitudRetiro[]> {
@@ -224,9 +168,10 @@ export type MotivoRevision =
   | 'contenido_inapropiado'
   | 'otro';
 
-// Copia de MOTIVOS_POR_DECISION e ITEMS_CHECKLIST_APROBACION de @arca/core
-// (admin-web no puede importar el paquete). El backend valida igual: si estas
-// listas se desincronizan, la decisión responde 400, no queda mal guardada.
+// Copia de MOTIVOS_POR_DECISION e ITEMS_CHECKLIST_APROBACION de @arca/core (el
+// panel, en apps/frontend, no puede importar el paquete: no es un workspace).
+// El backend valida igual: si estas listas se desincronizan, la decisión
+// responde 400, no queda mal guardada.
 export const MOTIVOS_POR_DECISION: Record<
   Exclude<DecisionRevision, 'aprobada'>,
   MotivoRevision[]

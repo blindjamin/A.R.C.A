@@ -26,10 +26,10 @@
 //   orígenes por vecino, contra la triangulación) y NUNCA devuelve la
 //   coordenada del artículo. Sin `lat`/`lon`, o si el vecino superó el límite
 //   de orígenes, `banda` viene en null.
-// - La respuesta NO incluye el id de quien publica. Mientras no exista el JWT
-//   (HU-12) ese UUID es la credencial que viaja en Authorization: exponerlo
-//   permitiría hacerse pasar por esa persona. Para saber si un artículo es
-//   propio, el backend compara con la sesión y devuelve `esPropio`.
+// - La respuesta NO incluye el id de quien publica: exponerlo permitiría
+//   hacerse pasar por esa persona ante el backend (la identidad viaja en la
+//   cookie de sesión, no en el body). Para saber si un artículo es propio, el
+//   backend compara con la sesión y devuelve `esPropio`.
 
 import { apiFetch, fetchCatalogo, handle } from './arca';
 import {
