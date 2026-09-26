@@ -55,10 +55,9 @@ Write-Host "OK: arca-mysql healthy" -ForegroundColor Green
 Write-Host "`n== 3. Nucleo compartido + backends (npm workspaces) ==" -ForegroundColor Cyan
 Push-Location $RepoRoot
 
-# Un solo "npm install" en la raiz resuelve packages/arca-core, apps/backend
-# y apps/backend-admin de una (estan en el arreglo "workspaces" del
-# package.json raiz). No correr npm install DENTRO de apps/backend o
-# apps/backend-admin: eso rompe el hoisting de dependencias entre workspaces
+# Un solo "npm install" en la raiz resuelve packages/arca-core y apps/backend
+# de una (estan en el arreglo "workspaces" del package.json raiz). No correr
+# npm install DENTRO de apps/backend: eso rompe el hoisting de dependencias
 # (ver docs/SETUP_LOCAL.md).
 npm install
 npm run build:core
@@ -80,9 +79,8 @@ function New-BackendEnvLocal($appPath, $port) {
 }
 
 New-BackendEnvLocal "$RepoRoot\apps\backend" 3000
-New-BackendEnvLocal "$RepoRoot\apps\backend-admin" 3001
 
-Write-Host "Ejecutando migraciones (solo apps/backend; backend-admin no corre migraciones)..." -ForegroundColor Cyan
+Write-Host "Ejecutando migraciones..." -ForegroundColor Cyan
 Push-Location "$RepoRoot\apps\backend"
 npm run migration:run
 Pop-Location
@@ -119,28 +117,23 @@ function Stop-PortOwner($port) {
 }
 
 Stop-PortOwner 3000
-Stop-PortOwner 3001
 Stop-PortOwner 5173
 Stop-PortOwner 5174
 
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$RepoRoot\apps\backend'; npm run start:dev"
-Start-Sleep -Seconds 3
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$RepoRoot\apps\backend-admin'; npm run start:dev"
 Start-Sleep -Seconds 3
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$RepoRoot\apps\frontend'; npm run dev"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$RepoRoot\apps\admin-web'; npm run dev"
 
 Write-Host "`n== Listo ==" -ForegroundColor Green
 Write-Host "Backend        -> http://localhost:3000  (ventana nueva)"
-Write-Host "Backend admin  -> http://localhost:3001  (ventana nueva)"
 Write-Host "Frontend       -> http://localhost:5173  (ventana nueva)"
 Write-Host "Panel admin    -> http://localhost:5174  (ventana nueva)"
 Write-Host "Cerra esas ventanas para detener los servidores."
 Write-Host "`nEsperando unos segundos antes de verificar los backends..."
 Start-Sleep -Seconds 5
 foreach ($check in @(
-    @{ Name = "Backend"; Url = "http://localhost:3000/api/health" },
-    @{ Name = "Backend admin"; Url = "http://localhost:3001/api/health" }
+    @{ Name = "Backend"; Url = "http://localhost:3000/api/health" }
 )) {
     try {
         $r = Invoke-WebRequest $check.Url -UseBasicParsing -TimeoutSec 5
