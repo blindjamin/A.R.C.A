@@ -133,16 +133,24 @@ git checkout -b <fecha>-<persona>-<descripción>   # ej: 2026-08-20-javier-endpo
    ```
 2. (Opcional) Pushear la rama temporal para respaldo: `git push -u origin <rama-temporal>`
 
-### 3. Integrar a develop y borrar la rama temporal
+### 3. Abrir el PR a develop, esperar la aprobación y borrar la rama temporal
+```bash
+git push -u origin <rama-temporal>
+```
+
+Con Claude Code, pedir **"abre el PR"**: la skill `abrir-pr` pregunta la HU, el origen del código
+y el revisor, y crea el PR con esa persona solicitada. Desde la web, la plantilla de PR trae las
+tres líneas para completar.
+
+`develop` no acepta push directo ni merge sin revisión (**regla A.14** de
+[`AGENTS.md`](AGENTS.md)): el PR se integra cuando lo aprueba el revisor declarado, que no puede
+ser quien lo abrió. Una vez integrado, borrar la rama temporal:
+
 ```bash
 git checkout develop
 git pull origin develop
-git merge <rama-temporal>        # o PR a develop si prefieren revisión
-git push origin develop
-
-# borrar la rama temporal (local y remota si se pusheó)
 git branch -d <rama-temporal>
-git push origin --delete <rama-temporal>   # solo si la pusheaste
+git push origin --delete <rama-temporal>
 ```
 
 ### 4. Publicar una versión completa (release)
@@ -152,8 +160,9 @@ Cuando `develop` tiene un hito estable, se sube a `master` (o `main`) **solo en 
 
 ## 🔄 Integración Continua
 
-> **Estado: planificado.** Todavía **no hay workflows** en el repo (`.github/workflows/`).
-> Por ahora lint, tests y build se corren localmente antes de integrar a `develop`.
+> **Estado: parcial.** El único workflow es `.github/workflows/regla-a14-revisor.yml`, que
+> bloquea el merge a `develop` sin la aprobación del revisor declarado (regla A.14). Lint, tests
+> y build todavía se corren localmente antes de integrar.
 
 Cuando se configure, **GitHub Actions** debería ejecutar:
   - Linting (ESLint, Prettier)
