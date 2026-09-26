@@ -19,7 +19,7 @@ import {
 // eslint-disable-next-line react-refresh/only-export-components
 export const DEV_USERS = {
   vecino: '00000000-0000-4000-8000-000000000001', // solo ciudadano
-  funcionario: '00000000-0000-4000-8000-000000000002', // doble rol (ciudadano + operador)
+  funcionario: '00000000-0000-4000-8000-000000000002', // doble rol (ciudadano + funcionario)
 } as const;
 
 const STORAGE_KEY = STORAGE_KEY_SESION;

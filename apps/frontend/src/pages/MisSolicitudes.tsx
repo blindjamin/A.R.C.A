@@ -10,15 +10,16 @@ import {
 import {
   BackButton,
   EmptyState,
-  ESTADO_META,
   EstadoPill,
   ListItemCard,
+  metaDeEstado,
   ScreenHeader,
 } from '../components/ui';
 import { useSession } from '../auth/SessionContext';
 
-// El ciudadano solo puede cancelar si NO está en tránsito ni completada.
-const CANCELABLES: EstadoSolicitud[] = ['pendiente', 'asignada'];
+// Misma regla que ESTADOS_CANCELABLES_POR_VECINO en @arca/core: el vecino cancela
+// antes de la derivación y solo si no pagó. El backend la valida igual.
+const CANCELABLES: EstadoSolicitud[] = ['en_revision', 'requiere_modificacion', 'aprobada'];
 
 const fechaLarga = (iso: string) =>
   new Date(iso).toLocaleDateString('es-CL', {
@@ -104,7 +105,8 @@ export default function MisSolicitudes() {
   // --- Detalle de una solicitud ---------------------------------------------
   if (seleccion) {
     const categoria = seleccion.residuoCatalogo?.categoria;
-    const puedeCancelar = CANCELABLES.includes(seleccion.estado);
+    const pagada = seleccion.estadoPago === 'pagado';
+    const puedeCancelar = CANCELABLES.includes(seleccion.estado) && !pagada;
     return (
       <div className="mx-auto w-full max-w-2xl space-y-4">
         <BackButton onClick={() => setSeleccion(null)} />
@@ -154,8 +156,9 @@ export default function MisSolicitudes() {
           </button>
         ) : (
           <p className="text-center text-xs text-slate-2">
-            Esta solicitud ya está {ESTADO_META[seleccion.estado].label.toLowerCase()} y no
-            se puede cancelar.
+            {pagada
+              ? 'Esta solicitud ya fue pagada y no se puede cancelar.'
+              : `Esta solicitud está en estado «${metaDeEstado(seleccion.estado).label}» y no se puede cancelar.`}
           </p>
         )}
       </div>
