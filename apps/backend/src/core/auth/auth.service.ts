@@ -63,4 +63,16 @@ export class AuthService {
       rol: (perfil.administrador?.rol as RolAdministrador | undefined) ?? null,
     };
   }
+
+  /**
+   * Nombre de pila en `usuarios_administradores`, o `null` si el ciudadano no
+   * tiene ficha de funcionario/admin. Lo usa `GET /sesion` (SPEC-sesion-unica
+   * §2.4); no se suma a `AuthUser` porque ese shape no cambia (criterio 8).
+   */
+  async resolverNombreAdministrador(
+    ciudadanoId: string,
+  ): Promise<string | null> {
+    const perfil = await this.perfilAccesoResolver.getPerfilAcceso(ciudadanoId);
+    return perfil.administrador?.nombre ?? null;
+  }
 }

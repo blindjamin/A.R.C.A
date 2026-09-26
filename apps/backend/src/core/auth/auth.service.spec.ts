@@ -59,4 +59,39 @@ describe('AuthService', () => {
       authService.resolveFromAuthorizationHeader('Bearer token-jwt-falso'),
     ).rejects.toThrow(UnauthorizedException);
   });
+
+  describe('resolverNombreAdministrador', () => {
+    it('devuelve el nombre de usuarios_administradores si tiene ficha', async () => {
+      usersServiceMock.getPerfilAcceso.mockResolvedValue({
+        usuarioCiudadanoId: '00000000-0000-4000-8000-000000000002',
+        esAdministrador: true,
+        administrador: {
+          id: '00000000-0000-4000-8000-0000000000A2',
+          nombre: 'Camila',
+          apellido: 'Operadora',
+          rol: RolAdministrador.FUNCIONARIO,
+        },
+      });
+
+      await expect(
+        authService.resolverNombreAdministrador(
+          '00000000-0000-4000-8000-000000000002',
+        ),
+      ).resolves.toBe('Camila');
+    });
+
+    it('devuelve null si el ciudadano no tiene ficha de administrador', async () => {
+      usersServiceMock.getPerfilAcceso.mockResolvedValue({
+        usuarioCiudadanoId: '00000000-0000-4000-8000-000000000001',
+        esAdministrador: false,
+        administrador: null,
+      });
+
+      await expect(
+        authService.resolverNombreAdministrador(
+          '00000000-0000-4000-8000-000000000001',
+        ),
+      ).resolves.toBeNull();
+    });
+  });
 });
