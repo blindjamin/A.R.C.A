@@ -142,6 +142,6 @@ export function cancelarSolicitud(
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
-// Los fetchers de admin (solicitudes globales, auditoría) viven ahora en
-// apps/admin-web/src/api/admin.ts — se movieron con la migración del panel.
+// Los fetchers de admin (solicitudes globales, auditoría) viven en
+// admin/api/admin.ts — se movieron con la migración del panel.
 

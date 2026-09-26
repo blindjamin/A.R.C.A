@@ -364,8 +364,9 @@ export function crearLoteDerivacion(): Promise<{ id: number; cantidad: number }>
 }
 
 /**
- * Descarga el Excel del lote. Va por `fetch` y no por un enlace porque la
- * petición necesita el header Authorization; cada descarga queda auditada.
+ * Descarga el Excel del lote. Va por `fetch` y no por un enlace porque hay que
+ * leer el nombre de archivo del header `content-disposition` antes de
+ * disparar la descarga; cada descarga queda auditada.
  */
 export async function descargarExcelLote(id: number): Promise<void> {
   const res = await apiFetch(`${API_URL}/admin/derivaciones/${id}/excel`);
