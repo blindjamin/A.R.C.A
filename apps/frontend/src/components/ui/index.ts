@@ -1,6 +1,6 @@
 export { default as IconBadge } from './IconBadge';
 export { default as EstadoPill } from './EstadoPill';
-export { ESTADO_META } from './estadoMeta';
+export { ESTADO_META, metaDeEstado } from './estadoMeta';
 export { default as ListItemCard } from './ListItemCard';
 export { default as ScreenHeader } from './ScreenHeader';
 export { default as EmptyState } from './EmptyState';

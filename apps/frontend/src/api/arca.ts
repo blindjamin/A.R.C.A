@@ -24,26 +24,34 @@ export interface ResiduoCatalogo {
   updatedAt: string;
 }
 
+// Ciclo de la solicitud: packages/arca-core/src/entities/estado-solicitud-retiro.enum.ts
+// (docs/specs/SPEC-ciclo-solicitud.md).
 export type EstadoSolicitud =
-  | 'pendiente'
-  | 'asignada'
-  | 'en_proceso'
-  | 'completada'
+  | 'en_revision'
+  | 'requiere_modificacion'
+  | 'aprobada'
+  | 'rechazada'
+  | 'derivada'
+  | 'retirada'
+  | 'no_realizada'
   | 'cancelada';
+
+export type EstadoPago = 'no_aplica' | 'pendiente' | 'pagado';
 
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
   residuoCatalogoId: number;
   estado: EstadoSolicitud;
+  estadoPago: EstadoPago;
+  monto: number | null;
   descripcion: string | null;
   direccionAnonimizada?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
   fechaSolicitud: string;
-  fechaProgramada?: string | null;
-  fechaCompletada?: string | null;
-  operadorAsignadoId?: string | null;
+  fechaRevision?: string | null;
+  fechaCierre?: string | null;
   razonRechazo?: string | null;
   createdAt: string;
   updatedAt: string;

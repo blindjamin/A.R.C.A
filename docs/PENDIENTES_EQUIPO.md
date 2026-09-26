@@ -27,7 +27,7 @@ las aprobadas se entregan a la empresa en un Excel. El rol `operador` pasa a lla
 | `apps/backend-admin`: ciclo, revisión, derivación con Excel y métricas | ✅ Hecho, con 32 tests |
 | `apps/admin-web`: Solicitudes con revisión, Derivación y Métricas | ✅ Hecho, probado en navegador |
 | `apps/backend` (backend ciudadano) | ✅ §2 hecha (2026-09-21, Javier): crea en `en_revision`, cancela con `aplicarTransicion`, sin `operadores/` |
-| `apps/frontend` (PWA) | ⚠️ Compila, pero muestra los estados viejos. Ver §5 |
+| `apps/frontend` (PWA) | ✅ Estados del ciclo nuevo (2026-09-26, Miguel). Quedan las pantallas nuevas de §5 |
 
 > **§2 del backend ciudadano ya está en la rama del PR.** Queda la revisión §1, el merge acordado
 > y el PR aparte de la PWA (§5). Después del merge: §3 (zona horaria, reenvío, fotos, datos-retiro).
@@ -201,13 +201,17 @@ Los dos necesitan su propio spec antes de implementarse.
 No son parte de la revisión de este PR, pero sin esto la app del vecino muestra estados que ya no
 existen. Miguel, como PO, coordina el traspaso.
 
-- [ ] `apps/frontend/src/api/arca.ts`: los 8 estados nuevos, `estadoPago` y `monto`, sin
+> **2026-09-26:** los cuatro primeros puntos quedaron hechos. Sin ellos, «Mis solicitudes» quedaba
+> **en blanco**: `EstadoPill` fallaba con cualquier estado nuevo. Ahora un estado desconocido se
+> muestra como texto en vez de romper la pantalla.
+
+- [x] `apps/frontend/src/api/arca.ts`: los 8 estados nuevos, `estadoPago` y `monto`, sin
   `operadorAsignadoId`.
-- [ ] `components/ui/estadoMeta.ts`: etiquetas **para el vecino** (tabla de
+- [x] `components/ui/estadoMeta.ts`: etiquetas **para el vecino** (tabla de
   `SPEC-ciclo-solicitud.md` §3; por ejemplo, `derivada` → «Retiro en coordinación»).
-- [ ] `pages/MisSolicitudes.tsx`: mostrar Cancelar solo en `en_revision`, `requiere_modificacion` o
+- [x] `pages/MisSolicitudes.tsx`: mostrar Cancelar solo en `en_revision`, `requiere_modificacion` o
   `aprobada`, y nunca con `estadoPago === 'pagado'`.
-- [ ] `auth/SessionContext.tsx`: el comentario «operador» pasa a «funcionario».
+- [x] `auth/SessionContext.tsx`: el comentario «operador» pasa a «funcionario».
 - [ ] Después de §3.2: pantalla **«tu solicitud requiere cambios»** con motivo, comentario y reenvío.
 - [ ] Después: subida de fotos, datos de contacto y **pantalla de pago maqueteado**.
 
