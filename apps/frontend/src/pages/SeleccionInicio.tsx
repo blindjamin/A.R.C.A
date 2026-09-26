@@ -3,8 +3,8 @@ import { useSession } from '../auth/SessionContext';
 
 export default function SeleccionInicio() {
   const navigate = useNavigate();
-  const { perfil, logout } = useSession();
-  const nombre = perfil?.administrador?.nombre;
+  const { sesion, salir } = useSession();
+  const nombre = sesion?.nombre;
 
   return (
     <div
@@ -60,7 +60,7 @@ export default function SeleccionInicio() {
           </button>
 
           <button
-            onClick={logout}
+            onClick={() => void salir()}
             className="w-full pt-2 text-center text-xs text-green-100/70 hover:text-white"
           >
             Cerrar sesión

@@ -1,15 +1,24 @@
 import { useNavigate } from 'react-router-dom';
-import { DEV_USERS, useSession } from '../auth/SessionContext';
+import { useSession } from '../auth/SessionContext';
 import { BotonClaveUnica } from '../components/ui';
 
+// UUIDs sembrados por la migración de seed del backend, solo para los accesos
+// de desarrollo (criterio 6: ocultos fuera de import.meta.env.DEV).
+const IDENTIDADES_DEV = {
+  vecino: '00000000-0000-4000-8000-000000000001',
+  funcionario: '00000000-0000-4000-8000-000000000002',
+  admin: '00000000-0000-4000-8000-000000000003',
+} as const;
+
 export default function Login() {
-  const { login } = useSession();
+  const { entrarDev } = useSession();
   const navigate = useNavigate();
 
-  const entrar = (usuarioCiudadanoId: string) => {
-    login(usuarioCiudadanoId);
-    // El gate de "/" decide a dónde ir según el perfil (admin o solo ciudadano).
-    navigate('/');
+  const entrar = (ciudadanoId: string) => {
+    entrarDev(ciudadanoId)
+      // El gate de "/" decide a dónde ir según el rol de la sesión.
+      .then(() => navigate('/'))
+      .catch((e: Error) => window.alert(e.message));
   };
 
   return (
@@ -42,29 +51,40 @@ export default function Login() {
             <BotonClaveUnica tamano="l" />
           </div>
 
-          {/* Accesos de desarrollo: simulan distintas identidades de ClaveÚnica
-              para probar el login diferido (solo ciudadano vs. doble rol). */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => entrar(DEV_USERS.vecino)}
-              className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-            >
-              Vecino (dev)
-            </button>
-            <button
-              onClick={() => entrar(DEV_USERS.funcionario)}
-              className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-            >
-              Funcionario (dev)
-            </button>
-          </div>
+          {/* Accesos de desarrollo: solo en `npm run dev` (criterio 6). Simulan
+              las tres identidades de ClaveÚnica para probar el control de
+              acceso por rol sin depender del municipio. */}
+          {import.meta.env.DEV && (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => entrar(IDENTIDADES_DEV.vecino)}
+                  className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  Vecino (dev)
+                </button>
+                <button
+                  onClick={() => entrar(IDENTIDADES_DEV.funcionario)}
+                  className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  Funcionario (dev)
+                </button>
+                <button
+                  onClick={() => entrar(IDENTIDADES_DEV.admin)}
+                  className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  Admin (dev)
+                </button>
+              </div>
 
-          <p className="pt-2 text-center text-xs text-green-100/70">
-            El botón de ClaveÚnica queda a la espera de las credenciales del
-            municipio; hasta entonces se entra por los accesos de desarrollo. Tras
-            autenticar, si la persona es funcionaria podrá elegir App ciudadana o
-            Panel municipal.
-          </p>
+              <p className="pt-2 text-center text-xs text-green-100/70">
+                El botón de ClaveÚnica queda a la espera de las credenciales del
+                municipio; hasta entonces se entra por los accesos de
+                desarrollo. Tras autenticar, si la persona es funcionaria o
+                admin podrá elegir App ciudadana o Panel municipal.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>
