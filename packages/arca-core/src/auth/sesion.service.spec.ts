@@ -51,7 +51,7 @@ describe('SesionService', () => {
         id: '00000000-0000-4000-8000-0000000000a2',
         nombre: 'Camila',
         apellido: 'Operadora',
-        rol: RolAdministrador.OPERADOR,
+        rol: RolAdministrador.FUNCIONARIO,
       },
     });
 
@@ -175,7 +175,7 @@ describe('SesionService', () => {
         ciudadanoId: CIUDADANO_ID,
         esAdministrador: true,
         administradorId: '00000000-0000-4000-8000-0000000000a2',
-        rol: RolAdministrador.OPERADOR,
+        rol: RolAdministrador.FUNCIONARIO,
       });
     });
 
