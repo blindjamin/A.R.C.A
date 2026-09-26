@@ -1,8 +1,9 @@
 # @arca/core
 
-Paquete compartido entre `apps/backend` y `apps/backend-admin`: entidades TypeORM y el
-`AuthModule` que ambos importan. Nació de la migración de separación del panel admin
-(2026-09-01) — antes vivía dentro de `apps/backend/src`.
+Paquete compartido: entidades TypeORM y el `AuthModule` que consume `apps/backend`. Nació de
+la migración de separación del panel admin (2026-09-01) — antes vivía dentro de
+`apps/backend/src`. Desde la unificación de los dos backends (`backend-unificado`), es
+`apps/backend` el único consumidor; el panel vive en `apps/backend/src/admin/`.
 
 ## Qué contiene
 
@@ -61,9 +62,8 @@ npm run build:core          # una vez, desde la raíz del repo
 npm run build:watch -w @arca/core   # en otra terminal, mientras se itera
 ```
 
-Los scripts `prebuild`/`prestart:dev` de `apps/backend` y `apps/backend-admin` ya llaman a
-`build:core` solos — no hace falta acordarse de correrlo a mano salvo que algo quede
-desincronizado.
+Los scripts `prebuild`/`prestart:dev` de `apps/backend` ya llaman a `build:core` solos — no
+hace falta acordarse de correrlo a mano salvo que algo quede desincronizado.
 
 ## Tests
 
@@ -83,19 +83,10 @@ y un paquete compartido no puede depender de una app específica sin invertir la
 (y sin que eso rompa la compilación).
 
 Se resuelve con un token de inyección: `AuthService` pide `PERFIL_ACCESO_RESOLVER`
-(`src/auth/interfaces/perfil-acceso-resolver.interface.ts`), y cada app que importa
-`AuthModule` provee ese token en algún módulo `@Global()` propio:
-
-- `apps/backend/src/users/users.module.ts` — `useExisting: UsersService`.
-- `apps/backend-admin/src/identity/identity.module.ts` — su propio `IdentityService`,
-  duplicado de la misma lógica (ver deuda declarada en `apps/backend-admin/README.md`).
+(`src/auth/interfaces/perfil-acceso-resolver.interface.ts`), y la app que importa `AuthModule`
+provee ese token en un módulo `@Global()` propio: `apps/backend/src/users/users.module.ts` —
+`useExisting: UsersService`. Es la única implementación desde `backend-unificado`: el panel
+(`apps/backend/src/admin/`) reutiliza este mismo binding, ya no tiene el suyo propio.
 
 Si `AuthModule` deja de arrancar con un error de dependencias no resueltas, es casi seguro que
 falta este binding en la app que lo está importando.
-
-## Deuda declarada
-
-- **Duplicación de `getPerfilAcceso`:** la lógica vive una vez en
-  `apps/backend/src/users/users.service.ts` (fuente de verdad) y otra vez en
-  `apps/backend-admin/src/identity/identity.service.ts`. Si cambia el criterio de qué hace
-  administrador a alguien, hay que cambiarlo en los dos lugares.

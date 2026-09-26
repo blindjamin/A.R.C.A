@@ -247,7 +247,7 @@ const TRANSICIONES: ReadonlyArray<{
 | Nivel | Qué | Dónde |
 |---|---|---|
 | Unitario (obligatorio) | **Cada fila** de la tabla §2.1 permitida; un caso inválido por estado; vecino intentando acción de funcionario (403); funcionario intentando reabrir (403); derivar con pago `pendiente` (400) | `packages/arca-core/src/solicitudes/ciclo-solicitud.spec.ts` |
-| Unitario | `PATCH /admin/solicitudes/:id` rechaza una transición inválida y registra auditoría en una válida | `apps/backend-admin/src/solicitudes/solicitudes-admin.service.spec.ts` (nuevo: hoy no hay tests) |
+| Unitario | `PATCH /admin/solicitudes/:id` rechaza una transición inválida y registra auditoría en una válida | `apps/backend/src/admin/solicitudes/solicitudes-admin.service.spec.ts` (nuevo: hoy no hay tests) |
 | Unitario | Crear nace en `en_revision`; cancelar en `derivada` falla | `apps/backend` (spec del service) |
 | Migración (manual) | Con datos de demo: `migration:run` convierte todos los estados y roles; `migration:revert` vuelve sin errores; conteo de filas igual antes y después | MySQL local (Docker) |
 | Manual | Panel y PWA muestran las etiquetas nuevas; el panel no ofrece botones de transiciones inválidas | Navegador |
