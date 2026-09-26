@@ -159,7 +159,7 @@ notas, los lotes y la auditoría.
 
 - [ ] Acordar la corrección (por ejemplo, `timezone: 'Z'` en la conexión de `apps/backend` y
   `apps/backend-admin`) **y** una migración que ajuste las fechas ya guardadas por la aplicación.
-- [ ] Después, en `apps/backend-admin/src/metricas/calcular-metricas.ts`, volver a poner el tope
+- [ ] Después, en `apps/backend/src/admin/metricas/calcular-metricas.ts`, volver a poner el tope
   superior del rango (hoy se quitó por este desfase; hay un comentario).
 
 ### 3.2 Reenvío de la solicitud corregida (spec `revision-solicitudes` §3)

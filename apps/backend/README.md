@@ -76,6 +76,8 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 
 Todos cuelgan del prefijo `/api`.
 
+### Endpoints del ciudadano
+
 | Método | Ruta | Descripción |
 |---|---|---|
 | `GET` | `/api/health` | Health check |
@@ -86,13 +88,44 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
 
+### Endpoints del panel (`/api/admin/...`)
+
+Antes vivían en `apps/backend-admin` (puerto 3001, backend aparte); desde `backend-unificado`
+corren en este mismo proceso, puerto 3000, código en `src/admin/`.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/admin/solicitudes` | Listado global de solicitudes de retiro, filtro opcional por `estado` — **sin** filtro por dueño (a diferencia del equivalente del ciudadano). Con `estado=en_revision` ordena de la más antigua a la más nueva |
+| `GET` | `/api/admin/solicitudes/:id` | Detalle, con `revisadoPor`, `tomadaPor` y `transicionesDisponibles` (estados a los que la sesión puede mover la solicitud con `PATCH`; no incluye las decisiones de revisión) |
+| `PATCH` | `/api/admin/solicitudes/:id` | Cambiar estado. Body: solo `{ estado }`; lo valida `aplicarTransicion` de `@arca/core` (`403` si el rol no puede, `400` si la transición no existe o falta el pago). Cualquier otro campo responde `400`. Desde `en_revision`, aprobar, pedir modificación o rechazar responde `400`: van por `POST /revision` |
+| `POST` / `DELETE` | `/api/admin/solicitudes/:id/toma` | Toma la solicitud por 15 minutos para revisarla (`409` si la tiene otro funcionario) o la libera |
+| `POST` | `/api/admin/solicitudes/:id/revision` | Decisión de revisión: `{ decision, motivo?, comentario?, checklist? }`, validada con `validarRevision` y `aplicarTransicion`. Guarda la fila de historial en la misma transacción |
+| `GET` | `/api/admin/solicitudes/:id/revisiones` | Historial de revisiones, de la más nueva a la más antigua |
+| `PATCH` | `/api/admin/solicitudes/:id/categoria` | Corrige el residuo del catálogo (`{ residuoCatalogoId }`), solo en revisión |
+| `GET` / `POST` | `/api/admin/solicitudes/:id/notas` | Notas internas del equipo municipal (`{ texto }`). La auditoría registra que existe la nota, nunca su texto |
+| `GET` | `/api/admin/derivaciones/resumen` | `{ listas, bloqueadasPorPago }`: aprobadas que entran en el próximo lote y las que esperan pago |
+| `GET` / `POST` | `/api/admin/derivaciones` | Historial de lotes / crea un lote: deriva en una transacción todas las aprobadas con el pago resuelto (`400` si no hay ninguna) |
+| `GET` | `/api/admin/derivaciones/:id/excel` | Descarga el `.xlsx` del lote (sin fotos ni id del vecino), armado en memoria. Cada descarga se audita como `ACCESO` |
+| `GET` | `/api/admin/metricas?dias=7\|30\|90` | Indicadores agregados (recibidas por día, cola, espera de revisión, decisiones y motivos, categorías, derivación, recaudación de la maqueta). Sin filas individuales |
+| `GET` | `/api/admin/residuos` | Catálogo de residuos de solo lectura (`id`, `nombre`, `categoria`, `precio`) para corregir la categoría |
+| `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos |
+
+Protegidos con `RolesGuard` de `@arca/core`: `ADMIN` y `FUNCIONARIO`, salvo la auditoría, que es solo
+`ADMIN`. Reabrir una solicitud `rechazada` o `retirada` también es solo de admin (lo decide el core).
+
+> ✅ **Replanteo del 2026-09-17.** Ningún service asigna `estado` directamente: todo pasa por
+> `aplicarTransicion` y `validarRevision` de `@arca/core`. La auditoría registra solo campos
+> cambiados y códigos, nunca comentarios, notas ni el contenido del Excel.
+> Detalle: [specs del panel](../../docs/specs/MAPA_PANEL_MUNICIPAL.md) ·
+> [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md)
+
 Estados de una solicitud (`EstadoSolicitudRetiro`):
 `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`
 
 El retiro lo ejecuta una empresa **externa**: este backend no asigna operadores. El vecino crea la
 solicitud en `en_revision` y puede cancelarla (vía `aplicarTransicion` del núcleo) mientras esté en
 `en_revision`, `requiere_modificacion` o `aprobada` sin pago `pagado`. La revisión, derivación y
-cambio de estado municipal viven en `apps/backend-admin`.
+cambio de estado municipal viven en `src/admin/` (ver [Endpoints del panel](#endpoints-del-panel-apiadmin)).
 
 Detalle: [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md) ·
 [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
@@ -124,8 +157,8 @@ ciudadana y el perfil municipal es una extensión sobre ella.
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
 
-> **El cambio de estado municipal** (`admin`/`funcionario`) vive en
-> `apps/backend-admin` (`PATCH /api/admin/solicitudes/:id` y `POST …/revision`, puerto 3001).
+> **El cambio de estado municipal** (`admin`/`funcionario`) vive en `src/admin/`
+> (`PATCH /api/admin/solicitudes/:id` y `POST …/revision`, mismo puerto 3000).
 > `GET /api/operadores` se eliminó: ya no hay asignación de operadores en A.R.C.A.
 
 En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
@@ -146,14 +179,21 @@ src/
 │   └── migrations/              # Migraciones versionadas, en orden de timestamp — único dueño del esquema
 ├── residuos/                    # Catálogo de residuos (entidad en @arca/core)
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en @arca/core)
-└── users/                       # UsersService/Controller/Module — entidades en @arca/core;
-                                    provee PERFIL_ACCESO_RESOLVER para AuthModule
+├── users/                       # UsersService/Controller/Module — entidades en @arca/core;
+│                                   provee PERFIL_ACCESO_RESOLVER para AuthModule
+└── admin/                       # Panel municipal (ex apps/backend-admin, movido en backend-unificado)
+    ├── auditoria/
+    ├── derivaciones/
+    ├── mapa-calor/
+    ├── metricas/
+    ├── residuos/
+    └── solicitudes/
 ```
 
 > **`auth/`, `health/` y las entidades TypeORM viven en `packages/arca-core`** desde la
-> migración de separación del panel admin (2026-09-01) — las comparte con
-> `apps/backend-admin`. `health/` se sumó después: era un `HealthController` sin ninguna
-> lógica propia de este backend, así que compartirlo era mejor que duplicarlo. Detalle en
+> migración de separación del panel admin (2026-09-01). `health/` se sumó después: era un
+> `HealthController` sin ninguna lógica propia de este backend, así que compartirlo era mejor
+> que duplicarlo. Detalle en
 > [`../../packages/arca-core/README.md`](../../packages/arca-core/README.md).
 
 ## Migraciones
