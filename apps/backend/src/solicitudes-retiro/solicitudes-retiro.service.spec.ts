@@ -1,11 +1,17 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   AccionAuditoria,
   type AuditoriaService,
   type AuthUser,
   EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
+  MotivoRevision,
   type ResiduoCatalogo,
+  type RevisionSolicitud,
   type SolicitudRetiro,
   type UsuarioCiudadano,
 } from '../core';
@@ -68,9 +74,15 @@ function montar(fila?: SolicitudRetiro) {
     ),
   };
 
+  const revisionRepo = {
+    findOne: jest.fn((): Promise<Partial<RevisionSolicitud> | null> =>
+      Promise.resolve(null),
+    ),
+  };
+
   const residuos = {
-    findCatalogoById: jest.fn(() =>
-      Promise.resolve({ id: 1, precio: 15000 } as ResiduoCatalogo),
+    findCatalogoById: jest.fn((id: number): Promise<ResiduoCatalogo | null> =>
+      Promise.resolve({ id, precio: 15000 } as ResiduoCatalogo),
     ),
   };
 
@@ -79,11 +91,19 @@ function montar(fila?: SolicitudRetiro) {
   const service = new SolicitudesRetiroService(
     solicitudRepo as unknown as Repository<SolicitudRetiro>,
     ciudadanoRepo as unknown as Repository<UsuarioCiudadano>,
+    revisionRepo as unknown as Repository<RevisionSolicitud>,
     residuos as unknown as ResiduosService,
     auditoria as unknown as AuditoriaService,
   );
 
-  return { service, solicitudRepo, auditoria, guardada: () => guardada };
+  return {
+    service,
+    solicitudRepo,
+    revisionRepo,
+    residuos,
+    auditoria,
+    guardada: () => guardada,
+  };
 }
 
 describe('SolicitudesRetiroService.create', () => {
@@ -177,5 +197,171 @@ describe('SolicitudesRetiroService.cancelarPorCiudadano', () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(solicitudRepo.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('SolicitudesRetiroService.findOneConUltimaRevision', () => {
+  it('agrega la última revisión solo con decisión, motivo, comentario y fecha', async () => {
+    const { service, revisionRepo } = montar(
+      filaBase({ estado: EstadoSolicitudRetiro.REQUIERE_MODIFICACION }),
+    );
+    const fecha = new Date('2026-09-18T10:00:00.000Z');
+    revisionRepo.findOne.mockResolvedValueOnce({
+      decision: EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+      motivo: MotivoRevision.DESCRIPCION_INCOMPLETA,
+      comentario: 'Indica el tamaño del mueble',
+      createdAt: fecha,
+    });
+
+    const detalle = await service.findOneConUltimaRevision(7, VECINO);
+
+    expect(detalle.ultimaRevision).toEqual({
+      decision: EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+      motivo: MotivoRevision.DESCRIPCION_INCOMPLETA,
+      comentario: 'Indica el tamaño del mueble',
+      fecha,
+    });
+    const [consulta] = revisionRepo.findOne.mock.calls[0] as unknown as [
+      { where: unknown; select: Record<string, boolean> },
+    ];
+    expect(consulta.where).toEqual({ solicitudRetiroId: 7 });
+    expect(Object.keys(consulta.select)).toEqual([
+      'decision',
+      'motivo',
+      'comentario',
+      'createdAt',
+    ]);
+  });
+
+  it('sin revisiones, ultimaRevision es null', async () => {
+    const { service } = montar(filaBase());
+
+    const detalle = await service.findOneConUltimaRevision(7, VECINO);
+
+    expect(detalle.ultimaRevision).toBeNull();
+  });
+
+  it('otro vecino no puede verla (403)', async () => {
+    const { service } = montar(
+      filaBase({ usuarioCiudadanoId: OTRO_CIUDADANO_ID }),
+    );
+
+    await expect(
+      service.findOneConUltimaRevision(7, VECINO),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
+  const requiereModificacion = (cambios: Partial<SolicitudRetiro> = {}) =>
+    filaBase({
+      estado: EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+      descripcion: 'Sillón',
+      ...cambios,
+    });
+
+  it('vuelve a en_revision con las correcciones y audita estado y categoría, no la descripción', async () => {
+    const { service, auditoria, guardada } = montar(requiereModificacion());
+
+    await service.reenviarPorCiudadano(
+      7,
+      { descripcion: 'Sillón de tres cuerpos', residuoCatalogoId: 4 },
+      VECINO,
+    );
+
+    expect(guardada()).toMatchObject({
+      estado: EstadoSolicitudRetiro.EN_REVISION,
+      descripcion: 'Sillón de tres cuerpos',
+      residuoCatalogoId: 4,
+    });
+    expect(auditoria.registrar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accion: AccionAuditoria.UPDATE,
+        datosAnteriores: {
+          estado: EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+          residuoCatalogoId: 1,
+        },
+        datosNuevos: {
+          estado: EstadoSolicitudRetiro.EN_REVISION,
+          residuoCatalogoId: 4,
+        },
+      }),
+    );
+    expect(JSON.stringify(auditoria.registrar.mock.calls)).not.toContain(
+      'Sillón',
+    );
+  });
+
+  it('sin correcciones también se puede reenviar, y la auditoría lleva solo el estado', async () => {
+    const { service, auditoria, guardada } = montar(requiereModificacion());
+
+    await service.reenviarPorCiudadano(7, {}, VECINO);
+
+    expect(guardada()).toMatchObject({
+      estado: EstadoSolicitudRetiro.EN_REVISION,
+      descripcion: 'Sillón',
+      residuoCatalogoId: 1,
+    });
+    expect(auditoria.registrar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        datosAnteriores: {
+          estado: EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+        },
+        datosNuevos: { estado: EstadoSolicitudRetiro.EN_REVISION },
+      }),
+    );
+  });
+
+  it.each([
+    EstadoSolicitudRetiro.EN_REVISION,
+    EstadoSolicitudRetiro.APROBADA,
+    EstadoSolicitudRetiro.CANCELADA,
+  ])('desde %s responde 400 y no guarda', async (estado) => {
+    const { service, solicitudRepo } = montar(filaBase({ estado }));
+
+    await expect(
+      service.reenviarPorCiudadano(7, {}, VECINO),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(solicitudRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('una rechazada responde 403: solo un admin la reabre', async () => {
+    const { service, solicitudRepo } = montar(
+      filaBase({ estado: EstadoSolicitudRetiro.RECHAZADA }),
+    );
+
+    await expect(
+      service.reenviarPorCiudadano(7, {}, VECINO),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(solicitudRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('la solicitud de otro vecino responde 403', async () => {
+    const { service, solicitudRepo } = montar(
+      requiereModificacion({ usuarioCiudadanoId: OTRO_CIUDADANO_ID }),
+    );
+
+    await expect(
+      service.reenviarPorCiudadano(7, {}, VECINO),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(solicitudRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('una categoría inexistente responde 404 y no guarda', async () => {
+    const { service, solicitudRepo, residuos } = montar(requiereModificacion());
+    residuos.findCatalogoById.mockResolvedValueOnce(null);
+
+    await expect(
+      service.reenviarPorCiudadano(7, { residuoCatalogoId: 999 }, VECINO),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(solicitudRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('una solicitud inexistente responde 404', async () => {
+    const { service } = montar();
+
+    await expect(
+      service.reenviarPorCiudadano(7, {}, VECINO),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

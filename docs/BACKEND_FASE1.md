@@ -107,7 +107,8 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
 | `GET` | `/api/solicitudes-retiro` | Listar solicitudes (con acceso municipal, sin filtro por dueño) |
 | `GET` | `/api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
-| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo) |
+| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + `ultimaRevision` visible para el vecino) |
+| `PATCH` | `/api/solicitudes-retiro/{id}/reenviar` | **Ciudadano:** reenviar corregida su solicitud en `requiere_modificacion` (vía `aplicarTransicion`) |
 | `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud (vía `aplicarTransicion`) |
 | `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
 

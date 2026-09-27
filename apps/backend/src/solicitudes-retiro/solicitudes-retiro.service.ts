@@ -13,7 +13,9 @@ import {
   type AuthUser,
   EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
+  type MotivoRevision,
   type OrigenPeticion,
+  RevisionSolicitud,
   RolAdministrador,
   SolicitudRetiro,
   TipoActorAuditoria,
@@ -24,6 +26,23 @@ import { ResiduosService } from '../residuos/residuos.service';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
+import { ReenviarSolicitudRetiroDto } from './dto/reenviar-solicitud-retiro.dto';
+
+/**
+ * Lo que la API ciudadana muestra de una revisión (spec
+ * `revision-solicitudes` §3): nunca el revisor, el checklist ni las notas
+ * internas.
+ */
+export interface RevisionVisible {
+  decision: EstadoSolicitudRetiro;
+  motivo: MotivoRevision | null;
+  comentario: string | null;
+  fecha: Date;
+}
+
+export type SolicitudConRevision = SolicitudRetiro & {
+  ultimaRevision: RevisionVisible | null;
+};
 
 @Injectable()
 export class SolicitudesRetiroService {
@@ -32,6 +51,8 @@ export class SolicitudesRetiroService {
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
     @InjectRepository(UsuarioCiudadano)
     private readonly usuarioCiudadanoRepository: Repository<UsuarioCiudadano>,
+    @InjectRepository(RevisionSolicitud)
+    private readonly revisionRepository: Repository<RevisionSolicitud>,
     private readonly residuosService: ResiduosService,
     private readonly auditoriaService: AuditoriaService,
   ) {}
@@ -145,6 +166,94 @@ export class SolicitudesRetiroService {
     return solicitud;
   }
 
+  /** Detalle con la última decisión de revisión, para que el vecino sepa qué corregir. */
+  async findOneConUltimaRevision(
+    id: number,
+    user: AuthUser,
+  ): Promise<SolicitudConRevision> {
+    const solicitud = await this.findOne(id, user);
+    return { ...solicitud, ultimaRevision: await this.ultimaRevision(id) };
+  }
+
+  /**
+   * El vecino corrige y reenvía una solicitud en `requiere_modificacion`: vuelve
+   * a `en_revision` por el ciclo del núcleo, con actor `vecino`.
+   */
+  async reenviarPorCiudadano(
+    id: number,
+    dto: ReenviarSolicitudRetiroDto,
+    user: AuthUser,
+    origen?: OrigenPeticion,
+  ): Promise<SolicitudConRevision> {
+    // Sin relaciones: con `residuoCatalogo` cargado, `save` volvería a escribir
+    // el residuo anterior en la columna.
+    const solicitud = await this.solicitudRetiroRepository.findOne({
+      where: { id },
+    });
+
+    if (!solicitud) {
+      throw new NotFoundException(`Solicitud de retiro ${id} no encontrada`);
+    }
+
+    if (solicitud.usuarioCiudadanoId !== user.ciudadanoId) {
+      throw new ForbiddenException(
+        'No puedes reenviar una solicitud que no es tuya',
+      );
+    }
+
+    const estadoAnterior = solicitud.estado;
+    const residuoAnterior = solicitud.residuoCatalogoId;
+
+    try {
+      aplicarTransicion(solicitud, EstadoSolicitudRetiro.EN_REVISION, {
+        actor: 'vecino',
+        ahora: new Date(),
+      });
+    } catch (error) {
+      throw this.comoHttp(error);
+    }
+
+    if (dto.residuoCatalogoId !== undefined) {
+      const residuo = await this.residuosService.findCatalogoById(
+        dto.residuoCatalogoId,
+      );
+      if (!residuo) {
+        throw new NotFoundException(
+          `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
+        );
+      }
+      solicitud.residuoCatalogoId = dto.residuoCatalogoId;
+    }
+
+    if (dto.descripcion !== undefined) {
+      solicitud.descripcion = dto.descripcion;
+    }
+
+    await this.solicitudRetiroRepository.save(solicitud);
+
+    // La descripción no se audita: es texto libre del vecino y puede llevar
+    // datos personales. La categoría sí, igual que cuando la corrige el panel.
+    const datosAnteriores: Record<string, unknown> = { estado: estadoAnterior };
+    const datosNuevos: Record<string, unknown> = { estado: solicitud.estado };
+    if (solicitud.residuoCatalogoId !== residuoAnterior) {
+      datosAnteriores.residuoCatalogoId = residuoAnterior;
+      datosNuevos.residuoCatalogoId = solicitud.residuoCatalogoId;
+    }
+
+    await this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: user,
+      entidad: 'solicitudes_retiro',
+      entidadId: id,
+      accion: AccionAuditoria.UPDATE,
+      datosAnteriores,
+      datosNuevos,
+      origen,
+    });
+
+    return this.findOneConUltimaRevision(id, user);
+  }
+
   async cancelarPorCiudadano(
     id: number,
     dto: CancelarSolicitudRetiroDto,
@@ -207,6 +316,30 @@ export class SolicitudesRetiroService {
     usuarioCiudadanoId: string,
   ): Promise<SolicitudRetiro[]> {
     return this.findAll({ usuarioCiudadanoId });
+  }
+
+  private async ultimaRevision(
+    solicitudRetiroId: number,
+  ): Promise<RevisionVisible | null> {
+    const revision = await this.revisionRepository.findOne({
+      where: { solicitudRetiroId },
+      select: {
+        decision: true,
+        motivo: true,
+        comentario: true,
+        createdAt: true,
+      },
+      order: { createdAt: 'DESC', id: 'DESC' },
+    });
+
+    if (!revision) return null;
+
+    return {
+      decision: revision.decision,
+      motivo: revision.motivo,
+      comentario: revision.comentario,
+      fecha: revision.createdAt,
+    };
   }
 
   /** Traduce errores del ciclo del núcleo a respuestas HTTP. */
