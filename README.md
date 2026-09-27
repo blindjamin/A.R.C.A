@@ -129,7 +129,6 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 
 | Tecnología | Uso previsto |
 |---|---|
-| `@nestjs/jwt` + ClaveÚnica OAuth2 | Autenticación — **no habrá contraseñas locales** |
 | Socket.io (Gateways de NestJS) | Chat y notificaciones en tiempo real |
 | Winston | Logs estructurados |
 
@@ -144,7 +143,7 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 
 > **Almacenamiento de imágenes:** las fotos se guardan como **archivos en un directorio protegido** del servidor (fuera del directorio público) y se sirven a través de la API con autenticación; en la base de datos solo se almacena la ruta. Esto resguarda los datos personales y de ubicación de los usuarios.
 
-> **Principio de estructura:** arquitectura modular de NestJS — controladores delgados que delegan la lógica de negocio a *services* independientes. Cuando entren la autenticación y el tiempo real se sumarán *Guards* para el control de acceso por roles y *Gateways* para WebSocket, sin reestructurar lo existente. Facilita el mantenimiento y los tests.
+> **Principio de estructura:** arquitectura modular de NestJS — controladores delgados que delegan la lógica de negocio a *services* independientes. El control de acceso por roles ya corre con *Guards*; cuando entre el tiempo real se sumarán *Gateways* para WebSocket, sin reestructurar lo existente. Facilita el mantenimiento y los tests.
 
 ### DevOps
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=github-actions&logoColor=white)
@@ -158,7 +157,7 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 | GitHub Actions | CI (lint / test / build) y despliegue vía SSH — **planificado**, aún sin workflows en el repo |
 | Git | Control de versiones |
 
-> **Mejoras futuras de escalado:** Redis (caché y adaptador de Socket.io para múltiples procesos) y monitoreo con Sentry quedan planteados como mejora futura. El MVP corre en **un solo proceso** de Node (150–300 MB de RAM), con autenticación *stateless* vía JWT.
+> **Mejoras futuras de escalado:** Redis (caché y adaptador de Socket.io para múltiples procesos) y monitoreo con Sentry quedan planteados como mejora futura. El MVP corre en **un solo proceso** de Node (150–300 MB de RAM), con sesión guardada en la base de datos (cookie `arca_sesion`), sin estado en memoria.
 
 ---
 
@@ -173,20 +172,20 @@ git checkout develop
 .\setup.ps1
 ```
 
-`setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias (workspaces
-para el núcleo compartido y los dos backends; `npm install` propio para cada frontend), crea los
-`.env.local`, corre las migraciones y abre los cuatro proyectos en ventanas separadas.
+`setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias (`npm install`
+en la raíz para el backend y otro propio para el frontend), crea los `.env.local`, corre las
+migraciones y abre el backend y el frontend en ventanas separadas.
 
 | Servicio | URL |
 |---|---|
-| Frontend (Vite) | http://localhost:5173 |
-| Panel admin (Vite) | http://localhost:5174 |
-| Backend ciudadano (NestJS) | http://localhost:3000/api |
-| Backend admin (NestJS) | http://localhost:3001/api |
+| Frontend — PWA ciudadana (Vite) | http://localhost:5173 |
+| Panel municipal (mismo frontend) | http://localhost:5173/admin |
+| Backend — API ciudadana y del panel (NestJS) | http://localhost:3000/api |
 | MySQL (Docker) | `localhost:3306` · base `arca_dev` |
 
-El panel admin se usa **en local**: no hay túnel público para él. Lo que se demuestra a la
-municipalidad es la PWA ciudadana.
+Para entrar en local sin ClaveÚnica, el backend necesita `ALLOW_DEV_LOGIN=true` en
+`apps/backend/.env.local` (habilita los accesos de desarrollo; nunca en el servidor).
+`setup.ps1` todavía no lo agrega solo.
 
 > Setup manual paso a paso, otros sistemas operativos y problemas frecuentes:
 > [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
@@ -197,14 +196,10 @@ municipalidad es la PWA ciudadana.
 
 ```
 A.R.C.A/
-├── package.json                 # npm workspaces: packages/arca-core + apps/backend(-admin)
-├── packages/
-│   └── arca-core/                # Entidades TypeORM + AuthModule compartidos (@arca/core)
+├── package.json                 # npm workspaces: apps/backend
 ├── apps/
-│   ├── backend/                  # API ciudadana — NestJS + TypeORM + MySQL
-│   ├── backend-admin/             # API del panel municipal — misma base de datos
-│   ├── frontend/                 # PWA ciudadana — React 19 + Vite 8 + Tailwind
-│   └── admin-web/                 # Panel municipal — React 19 + Vite 8 + Tailwind
+│   ├── backend/                  # NestJS + TypeORM + MySQL — API ciudadana, panel (src/admin) y núcleo (src/core)
+│   └── frontend/                 # React 19 + Vite 8 + Tailwind — PWA ciudadana y panel municipal (src/admin, /admin)
 ├── docs/                        # Documentación técnica del proyecto
 ├── ARCA_database_schema.dbml    # Schema de la base de datos (fuente de verdad)
 ├── docker-compose.yml           # MySQL 8 para desarrollo local
@@ -226,10 +221,10 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 | **Solicitud de retiro** | ✅ Crear, listar, ver detalle y cancelar — conectado al backend |
 | **Panel municipal (EP-04)** | ✅ Revisión con checklist, motivos, toma y notas internas · derivación a la empresa en Excel · métricas · mapa de calor · auditoría ([mapa](docs/specs/MAPA_PANEL_MUNICIPAL.md)) |
 | **Ciclo de solicitud nuevo** | 🟡 Núcleo, BD, panel, backend ciudadano y estados de la PWA listos · faltan pantallas nuevas de la PWA ([pendientes](docs/PENDIENTES_EQUIPO.md) §5) |
-| **Login diferido** | ✅ Gate por `perfil-acceso`: funcionario elige contexto, ciudadano va directo a la PWA |
+| **Login diferido** | ✅ Según el rol de la sesión (`GET /api/sesion`): funcionario o admin elige contexto, vecino va directo a la PWA |
 | **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |
-| **Autenticación ClaveÚnica** | ⛔ Pendiente — hoy `SessionContext` es una identidad temporal |
+| **Autenticación ClaveÚnica** | 🟡 Flujo OAuth2 y sesión con cookie implementados · falta probarlo con las credenciales del municipio; mientras tanto, accesos de desarrollo (`ALLOW_DEV_LOGIN`) |
 | **Marketplace P2P (EP-03)** | ⛔ Pendiente — placeholders "Próximamente" |
 | **Circular Credits (HU-10, HU-11 en EP-03)** | ⛔ Pendiente — la tarjeta de impacto del Inicio es estática |
 | **Confianza y Comunidad (EP-06)** | ⛔ Pendiente — ratings, denuncias y moderación no iniciados |
@@ -254,11 +249,9 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 | [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md) | Roadmap del frontend por fases y deuda técnica |
 | [`docs/specs/MAPA_PANEL_MUNICIPAL.md`](docs/specs/MAPA_PANEL_MUNICIPAL.md) | Replanteo del panel municipal: módulos, decisiones y specs de cada uno |
 | [`docs/PENDIENTES_EQUIPO.md`](docs/PENDIENTES_EQUIPO.md) | Qué falta revisar, arreglar e implementar del replanteo, por área |
-| [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API ciudadana: scripts, entorno, endpoints, migraciones |
-| [`apps/backend-admin/README.md`](apps/backend-admin/README.md) | Guía de la API del panel: scripts, entorno, endpoints |
-| [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA: scripts, estructura de `src/`, convenciones |
-| [`apps/admin-web/README.md`](apps/admin-web/README.md) | Guía del panel: scripts, estructura de `src/`, deuda declarada |
-| [`packages/arca-core/README.md`](packages/arca-core/README.md) | Qué vive en el núcleo compartido y la regla de PR revisado para tocarlo |
+| [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API (ciudadana y del panel): scripts, entorno, autenticación, endpoints, migraciones |
+| [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA y del panel: scripts, estructura de `src/`, convenciones |
+| [`docs/SEGURIDAD_ARQUITECTURA.md`](docs/SEGURIDAD_ARQUITECTURA.md) | Arquitectura de seguridad del sitio único: sesión, control de acceso, auditoría |
 
 ---
 

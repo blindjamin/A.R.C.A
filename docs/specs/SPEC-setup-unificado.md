@@ -55,5 +55,5 @@ grep -rn "backend-admin\|admin-web\|5174\|3001" --include=*.md --include=*.ps1 -
 ## 5. Tareas
 
 - [ ] **SE1 — `setup.ps1` y `package.json` raíz.** Verify: criterio 1 en un clon limpio.
-- [ ] **SE2 — Documentación del repo** (`CLAUDE.md`, `README.md`, `AGENTS.md`, `SETUP_LOCAL.md`, `PENDIENTES_EQUIPO.md`, README del core). Verify: grep del criterio 5.
+- [x] **SE2 — Documentación del repo** (`CLAUDE.md`, `README.md`, `AGENTS.md`, `SETUP_LOCAL.md`, `PENDIENTES_EQUIPO.md`, README del core). Verify: grep del criterio 5. *(2026-09-27: grep limpio salvo `DEPLOY_CPANEL.md`, que es SE3, y menciones históricas marcadas. El README del core ya no existe.)*
 - [ ] **SE3 — `DEPLOY_CPANEL.md`.** Verify: criterios 2 a 4; lo revisa Miguel (autor de la guía).

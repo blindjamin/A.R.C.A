@@ -16,16 +16,22 @@ del núcleo y del panel ya están hechas.
 operadores: el funcionario revisa cada solicitud y la aprueba, pide una modificación o la rechaza;
 las aprobadas se entregan a la empresa en un Excel. El rol `operador` pasa a llamarse `funcionario`.
 
+> **Sitio único (2026-09-26).** Este documento se escribió con cuatro proyectos. Con la
+> [unificación](specs/MAPA_UNIFICACION.md), `packages/arca-core` pasó a `apps/backend/src/core/`,
+> `apps/backend-admin` a `apps/backend/src/admin/` y `apps/admin-web` a `apps/frontend/src/admin/`.
+> Ya no existen `npm run build:core` ni el puerto 3001 o 5174. Las rutas de abajo están al día;
+> las marcadas «entonces» son históricas.
+
 ---
 
 ## 0. Estado actual
 
 | Parte | Estado |
 |---|---|
-| `@arca/core`: estados, pago, rol `funcionario`, reglas de transición, revisión y lotes | ✅ Hecho, con 124 tests |
+| Núcleo (`apps/backend/src/core/`, entonces `@arca/core`): estados, pago, rol `funcionario`, reglas de transición, revisión y lotes | ✅ Hecho, con 124 tests |
 | Migraciones `1782164100000`, `1782164200000` y `1782164300000` + DBML | ✅ Hechas, probadas con `run` → `revert` → `run` |
-| `apps/backend-admin`: ciclo, revisión, derivación con Excel y métricas | ✅ Hecho, con 32 tests |
-| `apps/admin-web`: Solicitudes con revisión, Derivación y Métricas | ✅ Hecho, probado en navegador |
+| API del panel (`apps/backend/src/admin/`, entonces `apps/backend-admin`): ciclo, revisión, derivación con Excel y métricas | ✅ Hecho, con 32 tests |
+| Panel (`apps/frontend/src/admin/`, entonces `apps/admin-web`): Solicitudes con revisión, Derivación y Métricas | ✅ Hecho, probado en navegador |
 | `apps/backend` (backend ciudadano) | ✅ §2 hecha (2026-09-21, Javier): crea en `en_revision`, cancela con `aplicarTransicion`, sin `operadores/` |
 | `apps/frontend` (PWA) | ✅ Estados del ciclo nuevo (2026-09-26, Miguel). Quedan las pantallas nuevas de §5 |
 
@@ -36,9 +42,10 @@ las aprobadas se entregan a la empresa en un Excel. El rol `operador` pasa a lla
 
 ## 1. Revisar (Miguel y Javier)
 
-`packages/arca-core` y las migraciones cambian solo con revisión de backend ciudadano (regla A.7).
+El núcleo (`apps/backend/src/core/`) y las migraciones cambian solo con revisión de backend
+ciudadano (regla A.7).
 
-### 1.1 Núcleo (`packages/arca-core`)
+### 1.1 Núcleo (`apps/backend/src/core/`)
 
 - [ ] `src/solicitudes/ciclo-solicitud.ts`: la tabla `TRANSICIONES` coincide con
   [`SPEC-ciclo-solicitud.md` §2.1](specs/SPEC-ciclo-solicitud.md). En especial:
@@ -52,7 +59,7 @@ las aprobadas se entregan a la empresa en un Excel. El rol `operador` pasa a lla
 - [ ] Entidades nuevas: `RevisionSolicitud`, `NotaSolicitud` y `LoteDerivacion`. Columnas nuevas de
   `SolicitudRetiro`: `estadoPago`, `monto`, `fechaRevision`, `revisadoPorId`, `fechaCierre`,
   `tomadaPorId`, `tomadaHasta` y `loteDerivacionId`.
-- [ ] `cd packages/arca-core && npm run test` en verde.
+- [ ] `cd apps/backend && npm run test` en verde (incluye los tests del núcleo).
 
 ### 1.2 Migraciones (`apps/backend/src/database/migrations`)
 
@@ -66,7 +73,7 @@ las aprobadas se entregan a la empresa en un Excel. El rol `operador` pasa a lla
   nuevo, sin errores.
 - [ ] `ARCA_database_schema.dbml` refleja las tablas y columnas nuevas.
 
-### 1.3 Backend del panel (`apps/backend-admin`)
+### 1.3 Backend del panel (`apps/backend/src/admin/`)
 
 No es su área, pero es backend y conviene una segunda mirada:
 
@@ -76,7 +83,7 @@ No es su área, pero es backend y conviene una segunda mirada:
 - [ ] `derivaciones/derivaciones-admin.service.ts`: el lote se crea en una transacción con bloqueo
   de filas (`pessimistic_write`).
 - [ ] Dependencia nueva: `exceljs` (autorizada en la decisión 3 del mapa).
-- [ ] `cd apps/backend-admin && npm run lint && npm run test && npm run build` en verde.
+- [ ] `cd apps/backend && npm run lint && npm run test && npm run build` en verde.
 
 ### 1.4 Decisiones tomadas al implementar (confirmar o discutir)
 
@@ -104,7 +111,8 @@ En `src/solicitudes-retiro/solicitudes-retiro.service.ts`:
   y traduce `TransicionInvalidaError`: `motivo === 'actor'` → 403 y el resto → 400. Solo se cancela en
   `en_revision`, `requiere_modificacion` o `aprobada`, y nunca con `estadoPago === 'pagado'`.
 - [x] Borrar `update()`, `aplicarCambioEstado`, `validarOperador` y `dto/update-solicitud-retiro.dto.ts`:
-  no tienen uso, porque el cambio de estado del funcionario vive en `apps/backend-admin`.
+  no tienen uso, porque el cambio de estado del funcionario vive en el panel (entonces
+  `apps/backend-admin`, hoy `apps/backend/src/admin/`).
 - [x] `tieneAccesoLecturaMunicipal` usa `RolAdministrador.FUNCIONARIO`.
 - [x] Quitar `operadorAsignado` de las relaciones del `findOne`.
 - [x] La auditoría de crear y cancelar sigue registrando solo el `estado`.
@@ -131,7 +139,7 @@ solicitud de otro vecino responde 403.
 ### 2.4 Verificación
 
 ```bash
-npm install && npm run build:core
+npm install
 cd apps/backend && npm run lint && npm run test && npm run build
 npm run migration:run
 ```
@@ -140,7 +148,8 @@ npm run migration:run
 
 Criterio final del spec (sin `node_modules`, `dist` ni migraciones antiguas): en `apps/backend` y
 `packages` no quedan `operadorAsignado` / `RolAdministrador.OPERADOR`. Siguen menciones en
-`apps/frontend` (§5, PR aparte) y un comentario en `backend-admin/src/main.ts`.
+`apps/frontend` (§5, PR aparte) y un comentario en el `main.ts` del panel (entonces
+`apps/backend-admin`, hoy eliminado).
 
 ```bash
 grep -rn "operador_asignado\|operadorAsignado\|fechaProgramada\|OPERADORES_DEMO\|RolAdministrador.OPERADOR" apps packages
@@ -242,10 +251,10 @@ existen. Miguel, como PO, coordina el traspaso.
 
 ```bash
 git pull origin develop
-npm install && npm run build:core
+npm install
 cd apps/backend && npm run migration:run
 ```
 
-Sin la migración, los dos backends fallan con columnas inexistentes.
+Sin la migración, el backend falla con columnas inexistentes.
 
 5. Ana o Maxi abren el PR de §5 lo antes posible después del merge.

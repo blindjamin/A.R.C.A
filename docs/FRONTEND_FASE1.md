@@ -12,8 +12,13 @@ pantallas y épicas, extender las secciones correspondientes.
 > administrativo que describe este documento (`AdminSolicitudes`, `AdminAuditoria`,
 > `AsignarRetiroModal`) **ya no viven en `apps/frontend`** — se movieron a `apps/admin-web`,
 > una app independiente (puerto 5174). El contenido de abajo describe el trabajo tal como se
-> hizo (sigue siendo válido como historia), pero las rutas de archivo ya no aplican; ver
-> [`../apps/admin-web/README.md`](../apps/admin-web/README.md) por la ubicación actual.
+> hizo (sigue siendo válido como historia), pero las rutas de archivo ya no aplican.
+>
+> **Sitio único (2026-09-26):** `apps/admin-web` también dejó de existir. El panel volvió a
+> `apps/frontend`, en `src/admin/` bajo `/admin/*`, protegido por rol; ya no hay puerto 5174 ni
+> `VITE_ADMIN_URL`, y la identidad sale de `GET /api/sesion` (ClaveÚnica + sesión con cookie, no
+> JWT). Todas las menciones a `apps/admin-web` y al login temporal de abajo son históricas; ver
+> [`../apps/frontend/README.md`](../apps/frontend/README.md) por la ubicación actual.
 
 ---
 

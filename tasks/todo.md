@@ -29,7 +29,8 @@
 | **SU-3** | ✅ Hecho (2026-09-26, Javier, rama `2026-09-26-javier-sesion-clave-unica`). Callback: upsert por `clave_unica_id` (desactivado → 401), sesión, cookie, `LOGIN` auditado, `302 /`; logout de ClaveÚnica revoca la sesión. El login de desarrollo también audita `LOGIN` (origen `dev`, criterio 7) | Backend 255 tests ✓. Falta probar el callback contra ClaveÚnica real: requiere credenciales de sandbox y el Redirect URI registrado |
 | **SU-4** | ✅ Hecho (2026-09-27, Javier, rama `2026-09-27-javier-sesion-su4`, junto con la sesión 2b). Sin `resolveFromAuthorizationHeader` ni rama Bearer en el guard: `Authorization` da 401 también con `ALLOW_DEV_LOGIN=true`. Sesión 2b (observaciones 1 a 4 de Miguel en #66): `validar()` exige ciudadano activo (si no, revoca) y respeta `fecha_expiracion`; al volver a entrar se revoca la `arca_sesion` anterior; el primer ingreso simultáneo reusa la fila en vez de dar 500 | Backend 260 tests ✓, lint 0, build ✓, curl ✓. Cierra D1 del documento de seguridad. La observación 5 (logout por GET) queda para `control-acceso` |
 | **Recorrido §3** | Probar en navegador los 5 pasos de SPEC-frontend-unificado §3 (vecino, funcionario, admin, salir, DevTools) | Con `ALLOW_DEV_LOGIN=true` en `apps/backend/.env.local` |
-| **SE-1/SE-2** | CLAUDE.md, AGENTS.md (tabla A.7), README raíz, `docs/SETUP_LOCAL.md`: quitar `packages/arca-core`, `build:core`, `apps/backend-admin`, `apps/admin-web`, puerto 5174 | `setup.ps1` ya está al día |
+| **SE-2** | ✅ Hecho (2026-09-27, Javier, rama `2026-09-27-javier-docs-sitio-unico`, #70). CLAUDE.md, AGENTS.md (tabla A.7, solo rutas), README raíz, `CLAUDE_proyecto.md`, `docs/SETUP_LOCAL.md` y `PENDIENTES_EQUIPO.md` describen 2 proyectos, sesión con cookie y Node 22.12.0 como mínimo | Grep del criterio 5 limpio salvo `DEPLOY_CPANEL.md` (SE-3) y menciones históricas marcadas |
+| **SE-1 (resto)** | `setup.ps1`: agregar `ALLOW_DEV_LOGIN=true` al `.env.local` del backend y subir el chequeo de Node de 18 a 22.12.0; probar en un clon limpio (criterio 1) | Área DevOps. Sin `ALLOW_DEV_LOGIN`, un clon nuevo no puede entrar en local |
 | **SE-3** | Reescribir `docs/DEPLOY_CPANEL.md`: 2 piezas (backend + estáticos) en un dominio, cookie, `ALLOW_DEV_LOGIN` nunca en producción, un solo Redirect/Logout URI | La sección de empaquetado de `@arca/core` quedó obsoleta |
 | Lint del núcleo | ✅ Hecho (2026-09-26 en #67; los 4 últimos errores de `sesion.service.spec.ts`, 2026-09-27 con SU-4): `npm run lint` en 0 | `npm run lint` ya no usa `--fix` (queda `lint:fix`) y excluye las migraciones |
 | `data-source.ts` | ✅ Hecho (2026-09-26, Javier): `timezone: 'Z'` también en la config del CLI de migraciones | `migration:show` verificado |
@@ -228,7 +229,7 @@
 
 ### SE-2: Documentación del repositorio
 **Rama:** `…-docs-sitio-unico` · **Área:** Docs · **Revisor:** Miguel · **Spec:** SPEC-setup-unificado SE2
-**Aceptación:** [ ] `CLAUDE.md`, `README.md`, `AGENTS.md` (tabla A.7), `SETUP_LOCAL.md`, `PENDIENTES_EQUIPO.md` y el README del core describen 2 proyectos; [ ] el grep del criterio 5 está limpio.
+**Aceptación:** [x] `CLAUDE.md`, `README.md`, `AGENTS.md` (tabla A.7), `SETUP_LOCAL.md`, `PENDIENTES_EQUIPO.md` y el README del core describen 2 proyectos (el README del core ya no existe: CORE-1 lo eliminó); [x] el grep del criterio 5 está limpio salvo `DEPLOY_CPANEL.md` (SE-3) y menciones históricas marcadas (2026-09-27, Javier, rama `2026-09-27-javier-docs-sitio-unico`; también `CLAUDE_proyecto.md`, `BACKEND_FASE1.md`, `FRONTEND_FASE1.md` y `PLAN_FRONTEND.md`).
 **Dependencias:** Checkpoint 3 · **Tamaño:** M (6 archivos, solo texto)
 
 ### SE-3: `DEPLOY_CPANEL.md` para un solo dominio

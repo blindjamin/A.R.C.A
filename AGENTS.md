@@ -79,12 +79,12 @@ sin modismos regionales, salvo que un integrante del equipo indique lo contrario
 
 | Área | Alcance |
 |---|---|
-| **Backend ciudadano** | `apps/backend/` — API, servicios, entidades propias, DTOs (Miguel + Javier) |
-| **Frontend ciudadano** | `apps/frontend/` — PWA, pantallas, UI Kit, capa de API del cliente (Ana + Maxi) |
-| **Backend admin** | `apps/backend-admin/` — API del panel municipal (Benjamín) |
-| **Frontend admin** | `apps/admin-web/` — panel municipal (Benjamín) |
-| **Núcleo compartido** | `packages/arca-core/` — entidades TypeORM y `AuthModule` que ambos backends importan. Cambia solo por **PR revisado por alguien de backend ciudadano** (regla A.7 abajo) |
-| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`, ningún otro proyecto corre migraciones) |
+| **Backend ciudadano** | `apps/backend/` salvo `src/admin/` y `src/core/` — API del vecino, servicios, DTOs (Miguel + Javier) |
+| **Frontend ciudadano** | `apps/frontend/` salvo `src/admin/` — PWA, pantallas, UI Kit, capa de API del cliente (Ana + Maxi) |
+| **Backend admin** | `apps/backend/src/admin/` — API del panel municipal, `/api/admin/*` (Benjamín) |
+| **Frontend admin** | `apps/frontend/src/admin/` — panel municipal en `/admin/*`, cargado aparte según el rol (Benjamín) |
+| **Núcleo** | `apps/backend/src/core/` — entidades TypeORM, `AuthModule` (ClaveÚnica, sesión, guards), auditoría y ciclo de la solicitud, que usan la API del vecino y la del panel. Cambia solo por **PR revisado por alguien de backend ciudadano** (regla A.7 abajo) |
+| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`) |
 | **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `package.json` raíz (workspaces), CI |
 | **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `CLAUDE_proyecto.md`, `AGENTS.md` |
 
@@ -141,24 +141,11 @@ hay que pedirlo antes de ejecutar `git checkout -b`. No inventar el nombre ni su
 - Antes de integrar a `develop`, correr localmente (todavía no hay CI configurado):
 
 ```bash
-npm run build:core
-cd packages/arca-core   && npm run test
-```
-
-```bash
 cd apps/backend         && npm run lint && npm run test && npm run build
 ```
 
 ```bash
-cd apps/backend-admin   && npm run lint && npm run build
-```
-
-```bash
 cd apps/frontend        && npm run lint && npm run build
-```
-
-```bash
-cd apps/admin-web       && npm run lint && npm run build
 ```
 
 ## A.9 CONFIRMAR ANTES DE COMMITEAR O INTEGRAR
@@ -177,10 +164,10 @@ los `.md` que hayan quedado desfasados por lo que se hizo:
 | Si se tocó… | Revisar |
 |---|---|
 | Endpoints, entidades o migraciones del ciudadano | `apps/backend/README.md`, `docs/BACKEND_FASE1.md` |
-| Endpoints del panel admin | `apps/backend-admin/README.md` |
-| Entidades o `AuthModule` compartidos | `packages/arca-core/README.md` |
+| Endpoints del panel admin | `apps/backend/README.md` (§ Endpoints del panel) |
+| Entidades, `AuthModule` o sesión (`src/core/`) | `apps/backend/README.md`, `docs/SEGURIDAD_ARQUITECTURA.md` |
 | Pantallas, UI Kit, estructura de `src/` ciudadano | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
-| Pantallas del panel admin | `apps/admin-web/README.md` |
+| Pantallas del panel admin | `apps/frontend/README.md` |
 | Setup, scripts, Docker | `docs/SETUP_LOCAL.md`, `README.md` |
 | Estructura del repo o del stack | `README.md`, `CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
 | Ramas, workflow o convenciones | `CLAUDE.md` |
@@ -385,4 +372,4 @@ sale más caro que consultar.
 
 ---
 
-**Última actualización:** 2026-09-25 · Equipo COM Tech
+**Última actualización:** 2026-09-27 · Equipo COM Tech

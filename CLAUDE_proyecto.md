@@ -81,8 +81,12 @@ Socket.io-client (tiempo real), Workbox (Service Worker / modo offline).
 | Jest + Supertest | 30 / 7 | Tests |
 | TypeScript · ESLint · Prettier | 5.7 · 9.18 · 3.4 | Tipado, linting y formato |
 
-**Previsto (segunda etapa), todavía no instalado:** `@nestjs/jwt` + ClaveÚnica OAuth2 (autenticación
-— **no hay contraseñas locales**), Socket.io vía Gateways de NestJS (tiempo real), Winston (logs).
+**Autenticación:** ClaveÚnica OAuth2 (**no hay contraseñas locales**) + sesión en servidor con cookie
+`HttpOnly`, sin dependencias nuevas (`node:crypto`). No se usa JWT (decisión 1 de
+[`MAPA_UNIFICACION`](docs/specs/MAPA_UNIFICACION.md)).
+
+**Previsto (segunda etapa), todavía no instalado:** Socket.io vía Gateways de NestJS (tiempo real),
+Winston (logs).
 
 **Runtime:** Node.js **24.18.0** (línea 24.x LTS), mínimo **22.12.0** — lo exige Vite 8. npm 11.x
 incluido. phpMyAdmin para administrar la BD, proporcionado por el municipio.
@@ -126,7 +130,7 @@ NestJS sobre Node.js 24.18 provee estructura modular nativa (módulos, controlle
 ### 5.4 Sin Docker en producción, sin Redis (MVP)
 - Docker no está disponible en entornos cPanel compartidos, por lo que **en producción** la app corre directamente sobre Node.js del servidor municipal.
 - **En desarrollo local sí se usa Docker** (`docker-compose.yml`) únicamente para levantar MySQL 8 de forma reproducible. No se despliega Docker al servidor.
-- Redis queda planteado como mejora futura de escalado; el MVP corre en un solo proceso con autenticación stateless vía JWT.
+- Redis queda planteado como mejora futura de escalado; el MVP corre en un solo proceso. La sesión vive en MySQL, no en memoria, así que no depende de Redis ni de cuántos procesos corran.
 
 ### 5.5 Sin AWS/GCP/DigitalOcean
 Todo el hosting es en servidores de la Municipalidad de Santo Domingo. Decisión impuesta por el patrocinador.
@@ -148,7 +152,7 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 ## 6. Principios de código
 
 - **Clean Architecture light**: controladores delgados que delegan lógica de negocio a *services* independientes. Los *Guards* manejan autorización por roles. Los *Gateways* manejan tiempo real.
-- **Stateless**: autenticación JWT sin sesiones en servidor — facilita el MVP en proceso único.
+- **Sesión en servidor**: cookie `HttpOnly` con la sesión guardada en MySQL (hash del secreto), revocable al instante. Reemplazó a JWT en la unificación del 2026-09-26 (detalle en `docs/SEGURIDAD_ARQUITECTURA.md`).
 - **IA como apoyo**: nunca tomar una decisión automática sin confirmación del usuario.
 - **Sin CAS Chile**: el sistema Power Builder + Sybase que usa el municipio está **fuera del alcance de ARCA**. No integrar.
 
@@ -282,45 +286,31 @@ de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF 
 ├── UI_KIT_ARCA.md               ← Sistema de diseño (colores, tipografía, componentes)
 │                                   ⚠️ Referenciado pero aún no presente en el repo (ver Drive)
 ├── docker-compose.yml           ← MySQL 8 local para desarrollo
-├── setup.ps1                    ← Automatiza setup local completo (deps, .env.local, Docker, migraciones, arranque de los 4 proyectos)
-├── package.json                 ← npm workspaces: packages/arca-core + apps/backend + apps/backend-admin
-│                                   (los frontends NO son workspaces, npm install independiente en cada uno)
-├── packages/
-│   └── arca-core/               ← @arca/core: entidades, AuthModule y HealthModule que ambos backends importan
-│       ├── README.md            ← Qué vive acá y la regla de PR revisado para tocarlo
-│       └── src/
-│           ├── entities/        ← usuarios, sesiones, catálogo, solicitudes-retiro (fuente única, ex apps/backend)
-│           ├── auth/            ← AuthGuard, RolesGuard, ClaveÚnica, decorators (ex apps/backend/src/auth)
-│           ├── solicitudes/     ← Reglas del ciclo de vida y de la revisión de solicitudes (funciones puras)
-│           └── health/          ← HealthModule — sin lógica propia de ningún backend, compartido
+├── setup.ps1                    ← Automatiza setup local completo (deps, .env.local, Docker, migraciones, arranque de backend y frontend)
+├── package.json                 ← npm workspaces: apps/backend
+│                                   (el frontend NO es workspace, npm install independiente)
 ├── docs/
-│   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, workspaces, backends, frontends, scripts)
+│   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, workspace, backend, frontend, scripts)
+│   ├── SEGURIDAD_ARQUITECTURA.md ← Sesión, control de acceso y auditoría del sitio único
 │   ├── BACKEND_FASE1.md         ← Resumen de implementación backend ciudadano Fase 1 (EP-02)
 │   ├── FRONTEND_FASE1.md        ← Resumen de implementación frontend ciudadano Fase 1 (EP-02)
 │   ├── PLAN_FRONTEND.md         ← Roadmap del frontend por fases + deuda técnica (documento vivo)
 │   ├── PENDIENTES_EQUIPO.md     ← Qué falta revisar, arreglar e implementar del replanteo del panel
 │   └── specs/                   ← Mapa del panel municipal y un spec por módulo
 └── apps/
-    ├── backend/                 ← API ciudadana — NestJS + TypeORM (residuos, solicitudes-retiro), rutas bajo /api
-    │   ├── README.md            ← Guía de la API: scripts, entorno, endpoints, migraciones
-    │   └── src/database/migrations/  ← único dueño del esquema; incluye precio real del catalogo (26 items)
-    ├── backend-admin/           ← API del panel municipal — NestJS, misma base de datos, sin migraciones propias
-    │   ├── README.md            ← Guía de la API del panel: scripts, entorno, endpoints
+    ├── backend/                 ← NestJS + TypeORM, rutas bajo /api — API ciudadana y del panel
+    │   ├── README.md            ← Guía de la API: scripts, entorno, autenticación, endpoints, migraciones
     │   └── src/
-    │       ├── identity/        ← resolución de identidad propia (duplicado declarado de UsersService)
-    │       └── solicitudes/     ← GET/PATCH /api/admin/solicitudes (listado sin filtro por dueño)
-    ├── frontend/                ← React 19 + Vite 8 + TS + Tailwind (PWA, flujo ciudadano EP-02)
-    │   ├── README.md            ← Guía de la PWA: scripts, estructura de src/, convenciones
-    │   └── src/
-    │       ├── components/ui/   ← primitivos reutilizables entre modulos (IconBadge, EstadoPill, etc.)
-    │       ├── features/solicitud-retiro/  ← modulo propio del flujo "Solicitar retiro"
-    │       └── pages/           ← pantallas que son islas independientes (Inicio, MisSolicitudes, ...)
-    └── admin-web/                ← Panel municipal — React 19 + Vite 8 + Tailwind, propio (:5174)
-        ├── README.md            ← Guía del panel: scripts, estructura de src/, deuda declarada
+    │       ├── core/            ← entidades, auth (ClaveÚnica, sesión, guards), auditoría, ciclo de solicitud (ex packages/arca-core)
+    │       ├── admin/           ← API del panel, /api/admin/* (ex apps/backend-admin)
+    │       └── database/migrations/  ← único dueño del esquema; incluye precio real del catalogo (26 items)
+    └── frontend/                ← React 19 + Vite 8 + TS + Tailwind — PWA ciudadana y panel municipal
+        ├── README.md            ← Guía de la PWA y del panel: scripts, estructura de src/, convenciones
         └── src/
-            ├── components/ui/   ← copia de los 6 átomos que usa (fuente de verdad: apps/frontend)
-            ├── components/AdminShell.tsx  ← layout de escritorio (sidebar), reemplaza el header por pantalla
-            └── pages/           ← Solicitudes.tsx, Auditoria.tsx
+            ├── components/ui/   ← primitivos reutilizables entre modulos (IconBadge, EstadoPill, etc.)
+            ├── features/solicitud-retiro/  ← modulo propio del flujo "Solicitar retiro"
+            ├── pages/           ← pantallas que son islas independientes (Inicio, MisSolicitudes, ...)
+            └── admin/           ← panel municipal en /admin/*, cargado aparte según el rol (ex apps/admin-web)
 ```
 
 ---
@@ -398,29 +388,30 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     26 ítems de `costo retiro Voluminosos.xlsx` (municipalidad), no valores referenciales.
     Detalle en `docs/BACKEND_FASE1.md`.
   - **Frontend (`apps/frontend`)** — React 19 + Vite 8 + TS + Tailwind + React Router.
-    Flujo ciudadano EP-02 (catálogo → nueva solicitud → mis solicitudes) con **login
-    temporal** (usuario dev) a la espera de auth real. El precio se muestra real (viene
+    Flujo ciudadano EP-02 (catálogo → nueva solicitud → mis solicitudes). La identidad sale
+    de la sesión (`GET /api/sesion`), no del navegador. El precio se muestra real (viene
     del backend), ya no se estima por categoría. UI componentizada en `components/ui/`
     (`IconBadge`, `EstadoPill`, `ListItemCard`, `ScreenHeader`, `EmptyState`, `BackButton`,
     `PriceTag` — reutilizados entre Catálogo, Mis solicitudes e Inicio) y el flujo
     "Solicitar retiro" modularizado en `features/solicitud-retiro/` (pantallas + estado
     compartido + sus propias rutas, separado de `App.tsx`). Detalle en
     `docs/FRONTEND_FASE1.md`.
-  - **Panel admin (`apps/admin-web` + `apps/backend-admin`)** — separado del frontend/backend
-    ciudadano en la migración de 2026-09-01. Copia de los mismos 6 átomos de UI, capa de API
-    propia, sin login/guard de sesión todavía (deuda declarada). Desde el replanteo del
-    2026-09-17: revisión de solicitudes (checklist, motivos, toma, notas), derivación a la
-    empresa en Excel, métricas, mapa de calor y auditoría. Detalle en los README de ambos
-    proyectos y en `docs/specs/`.
+  - **Panel municipal (`apps/backend/src/admin` + `apps/frontend/src/admin`)** — estuvo
+    separado en dos proyectos propios desde la migración de 2026-09-01 y volvió al mismo sitio
+    en la unificación del 2026-09-26 ([mapa](docs/specs/MAPA_UNIFICACION.md)): rutas
+    `/api/admin/*` y `/admin/*`, protegidas por rol. Desde el replanteo del 2026-09-17:
+    revisión de solicitudes (checklist, motivos, toma, notas), derivación a la empresa en
+    Excel, métricas, mapa de calor y auditoría. Detalle en los README de `apps/backend` y
+    `apps/frontend` y en `docs/specs/`.
   - **Infra local** — `docker-compose.yml` (MySQL 8) + `docs/SETUP_LOCAL.md`.
-  - **Automatización local** — `setup.ps1` instala todo (workspaces del núcleo compartido y
-    los dos backends, `npm install` propio en cada frontend) y levanta los cuatro proyectos.
-    El frontend ciudadano usa `VITE_API_URL=/api` (ruta relativa) y Vite proxea `/api` a su
-    backend; el panel admin hace lo mismo contra el suyo, en el puerto 3001. Detalle en
+  - **Automatización local** — `setup.ps1` instala todo (`npm install` en la raíz para el
+    backend y otro propio para el frontend) y levanta los dos proyectos. El frontend usa
+    `VITE_API_URL=/api` (ruta relativa) y Vite proxea `/api` al backend. Detalle en
     `docs/SETUP_LOCAL.md`.
-- **Autenticación:** diferida. Hoy se usa un usuario dev sembrado por migración
-  (`00000000-0000-4000-8000-000000000001`); el frontend lo maneja con un login temporal.
-  ClaveÚnica + JWT (EP-01, Benjamín) se integrará más adelante sin reestructurar.
+- **Autenticación:** ClaveÚnica (OAuth2) + sesión en servidor con cookie `arca_sesion`
+  (HU-12). Falta probarla con las credenciales del municipio; mientras tanto, en local se
+  entra con los accesos de desarrollo (`ALLOW_DEV_LOGIN=true`, vecino, funcionario y admin).
+  Detalle en `docs/SEGURIDAD_ARQUITECTURA.md`.
 - **Documentos producidos:**
   - `README.md` (consolidado, decisiones finales)
   - `ARCA_database_schema.dbml` (esquema BD vigente, 22 tablas)
@@ -431,7 +422,8 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     boilerplate de NestJS y Vite)
   - `AGENTS.md` (reglas de IA: comportamiento del agente + política de uso del equipo)
 - **Pendiente:** resto de migraciones del DBML (marketplace, credits, dashboard, etc.),
-  auth real, y confirmación de acceso SSH al servidor municipal para despliegue.
+  prueba de ClaveÚnica con las credenciales del municipio, y confirmación de acceso SSH al
+  servidor municipal para despliegue.
 - **Escalado futuro (post-MVP):** Redis (caché + adaptador Socket.io multi-proceso), modelo TensorFlow.js personalizado entrenado con datos reales de la municipalidad, Sentry para monitoreo.
 
 ---
@@ -445,4 +437,4 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
 
 ---
 
-*COM Tech · Feria de Software 2026 · Última actualización: Junio 2026*
+*COM Tech · Feria de Software 2026 · Última actualización: 2026-09-27*
