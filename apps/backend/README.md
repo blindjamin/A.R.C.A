@@ -88,7 +88,8 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/residuos/catalogo` | Catálogo de residuos (incluye `precio` real) |
 | `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
 | `GET` | `/api/solicitudes-retiro` | Listar solicitudes (filtrable por estado) |
-| `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud |
+| `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud, con `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`): nunca el revisor, el checklist ni las notas internas |
+| `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía una solicitud en `requiere_modificacion` (vuelve a `en_revision` vía `aplicarTransicion`). Body opcional `{ descripcion?, residuoCatalogoId? }` con las correcciones. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre), `404` si la categoría no existe. La auditoría registra estado y categoría, nunca la descripción |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
 
@@ -175,7 +176,7 @@ siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 | Ruta | Quién puede |
 |---|---|
 | `GET /health`, `GET /residuos/catalogo` | Público |
-| `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
+| `POST/GET solicitudes-retiro`, `PATCH …/reenviar`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
 
 > **El cambio de estado municipal** (`admin`/`funcionario`) vive en `src/admin/`
