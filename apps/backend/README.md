@@ -67,7 +67,11 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 | `npm run build` | Compila con `nest build` |
 | `npm run migration:run` | Aplica las migraciones pendientes |
 | `npm run migration:revert` | Revierte la última migración |
-| `npm run lint` | ESLint con `--fix` |
+| `npm run lint` | ESLint sin modificar archivos (es el chequeo antes de integrar) |
+| `npm run lint:fix` | ESLint con `--fix` |
+
+Las migraciones (`src/database/migrations`) están excluidas del lint: una migración aplicada no se
+edita (regla A.12 de `AGENTS.md`), y `--fix` la reescribiría.
 | `npm run test` / `test:e2e` / `test:cov` | Jest (unit / e2e / coverage) |
 
 ---
