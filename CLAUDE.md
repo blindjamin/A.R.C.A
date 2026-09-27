@@ -58,7 +58,7 @@ Así se puede saber de un vistazo quién abrió cada rama y cuándo, sin tener q
 
 ## 🚀 Setup Inicial
 
-> **Atajo (Windows):** si ya están instalados Git, Node.js 18+ y Docker Desktop corriendo, `.\setup.ps1`
+> **Atajo (Windows):** si ya están instalados Git, Node.js 24.18.0 (mínimo 22.12.0) y Docker Desktop corriendo, `.\setup.ps1`
 > en la raíz hace los pasos 3 a 5 por vos (MySQL, dependencias, `.env.local` y migraciones)
 > y deja los dos proyectos levantados: backend (`:3000`) y frontend (`:5173`, con el panel
 > municipal en `/admin` según el rol). Los pasos de abajo son el equivalente manual.

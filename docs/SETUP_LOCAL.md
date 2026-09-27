@@ -11,7 +11,7 @@ Instalar en tu máquina (WSL2 / Linux / Mac):
 
 | Herramienta | Versión mínima | Verificar |
 |---|---|---|
-| **Node.js** | 18+ | `node -v` |
+| **Node.js** | 24.18.0 (mínimo 22.12.0, lo exige Vite 8) | `node -v` |
 | **npm** | incluido con Node | `npm -v` |
 | **Git** | reciente | `git --version` |
 | **Docker Desktop** | con WSL integrado (si usas WSL) | `docker --version` |
@@ -376,7 +376,7 @@ Guía mínima si instalas todo en una máquina que nunca ha corrido el proyecto.
 | Herramienta | Versión | Verificar |
 |---|---|---|
 | Git | reciente | `git --version` |
-| Node.js | 18+ | `node -v` |
+| Node.js | 24.18.0 (mínimo 22.12.0) | `node -v` |
 | Docker | con WSL integrado (Windows) | `docker compose version` |
 
 No hace falta instalar MySQL ni Nest CLI global; MySQL va en Docker y NestJS vive en el repo.
@@ -426,7 +426,7 @@ Abrir `http://localhost:5173` (PWA) y `http://localhost:5173/admin` (panel).
 
 ### Checklist mínimo
 
-- [ ] Git, Node 18+, Docker instalados
+- [ ] Git, Node 22.12.0 o superior (recomendado 24.18.0), Docker instalados
 - [ ] Repo clonado y rama correcta
 - [ ] `docker compose up -d`
 - [ ] `npm install` en la **raíz** (workspace del backend)
