@@ -31,8 +31,8 @@
 | **Recorrido §3** | Probar en navegador los 5 pasos de SPEC-frontend-unificado §3 (vecino, funcionario, admin, salir, DevTools) | Con `ALLOW_DEV_LOGIN=true` en `apps/backend/.env.local` |
 | **SE-1/SE-2** | CLAUDE.md, AGENTS.md (tabla A.7), README raíz, `docs/SETUP_LOCAL.md`: quitar `packages/arca-core`, `build:core`, `apps/backend-admin`, `apps/admin-web`, puerto 5174 | `setup.ps1` ya está al día |
 | **SE-3** | Reescribir `docs/DEPLOY_CPANEL.md`: 2 piezas (backend + estáticos) en un dominio, cookie, `ALLOW_DEV_LOGIN` nunca en producción, un solo Redirect/Logout URI | La sección de empaquetado de `@arca/core` quedó obsoleta |
-| Lint del núcleo | 12 errores preexistentes en `apps/backend/src/core` (CRLF, imports sin usar, `any` en specs) | Nunca había pasado por eslint; ninguno es de seguridad |
-| `data-source.ts` | Agregar `timezone: 'Z'` también en la config del CLI de migraciones | Hoy solo está en `app.module.ts` |
+| Lint del núcleo | ✅ Casi hecho (2026-09-26, Javier, rama `2026-09-26-javier-lint-timezone`): de 13 errores y 1 advertencia quedan 4 errores, todos en `sesion.service.spec.ts` | Los 4 restantes van con la sesión 2b + SU-4, porque ese archivo también cambia en el PR de SU-3. `npm run lint` ya no usa `--fix` (queda `lint:fix`) y excluye las migraciones |
+| `data-source.ts` | ✅ Hecho (2026-09-26, Javier): `timezone: 'Z'` también en la config del CLI de migraciones | `migration:show` verificado |
 | Endpoint huérfano | `GET /usuarios/:id/perfil-acceso` ya no tiene consumidor en el front | Evaluar si se borra |
 | `control-acceso` | Módulo de seguridad adicional diferido (decisión 3 del mapa) | Revisar con Miguel |
 

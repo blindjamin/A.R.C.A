@@ -1,13 +1,9 @@
-import { RolAdministrador } from './rol-administrador.enum';
 import { SesionAdministrador } from './sesion-administrador.entity';
 import { SesionCiudadano } from './sesion-ciudadano.entity';
 import { UsuarioAdministrador } from './usuario-administrador.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
-import { EstadoSolicitudRetiro } from './estado-solicitud-retiro.enum';
 import { SolicitudRetiro } from './solicitud-retiro.entity';
-import { AccionAuditoria } from './accion-auditoria.enum';
-import { TipoActorAuditoria } from './tipo-actor-auditoria.enum';
 import { Auditoria } from './auditoria.entity';
 import { RevisionSolicitud } from './revision-solicitud.entity';
 import { NotaSolicitud } from './nota-solicitud.entity';

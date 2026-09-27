@@ -4,11 +4,8 @@ import { ENTIDADES } from '../core';
 
 config({ path: '.env.local' });
 
-// El glob __dirname + '/../**/*.entity' dejó de encontrar entidades cuando se
-// movieron a packages/arca-core (migración de separación del panel admin,
-// Fase 2): ya no viven bajo apps/backend/src. ENTIDADES es la lista explícita
-// que las reemplaza — cualquier entidad nueva se agrega en
-// packages/arca-core/src/entities/index.ts, no acá.
+// ENTIDADES es la lista explícita de entidades: cualquier entidad nueva se
+// agrega en src/core/entities/index.ts, no acá.
 export default new DataSource({
   type: 'mysql',
   host: process.env.DB_HOST,
@@ -16,6 +13,9 @@ export default new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
+  // Igual que en app.module.ts: sin esto, las fechas que escriba una migración
+  // quedarían en la hora local del proceso y no en UTC.
+  timezone: 'Z',
   entities: ENTIDADES,
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
 });

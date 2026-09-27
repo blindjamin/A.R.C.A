@@ -152,13 +152,17 @@ grep -rn "operador_asignado\|operadorAsignado\|fechaProgramada\|OPERADORES_DEMO\
 
 ### 3.1 Zona horaria de la conexión
 
-Ninguna configuración de TypeORM define `timezone`. Lo que escribe la aplicación se guarda en hora
-local, pero las columnas con `DEFAULT CURRENT_TIMESTAMP` guardan UTC y se leen como hora local. Por
-eso `created_at` aparece **unas 3 horas adelantado** en el panel: en el historial de revisiones, las
-notas, los lotes y la auditoría.
+Hasta la reunificación, ninguna configuración de TypeORM definía `timezone`. Lo que escribía la
+aplicación se guardaba en hora local, pero las columnas con `DEFAULT CURRENT_TIMESTAMP` guardan UTC
+y se leían como hora local. Por eso `created_at` aparecía **unas 3 horas adelantado** en el panel:
+en el historial de revisiones, las notas, los lotes y la auditoría. Las filas guardadas antes de la
+corrección siguen desfasadas hasta que exista la migración de abajo.
 
-- [ ] Acordar la corrección (por ejemplo, `timezone: 'Z'` en la conexión de `apps/backend` y
-  `apps/backend-admin`) **y** una migración que ajuste las fechas ya guardadas por la aplicación.
+- [x] Corrección de la conexión: `timezone: 'Z'` en `app.module.ts` (PR #53, reunificación) y en
+  `src/database/data-source.ts`, la config del CLI de migraciones (2026-09-26). Desde ahí, lo nuevo
+  se guarda en UTC.
+- [ ] Una migración que ajuste las fechas que la aplicación guardó **antes** de la corrección (en
+  hora local de Chile, unas 3 horas atrás).
 - [ ] Después, en `apps/backend/src/admin/metricas/calcular-metricas.ts`, volver a poner el tope
   superior del rango (hoy se quitó por este desfase; hay un comentario).
 

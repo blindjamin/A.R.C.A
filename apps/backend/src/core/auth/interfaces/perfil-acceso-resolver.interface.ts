@@ -1,5 +1,3 @@
-import { RolAdministrador } from '../../entities/rol-administrador.enum';
-
 /**
  * Forma mínima que necesita AuthService para armar un AuthUser. La implementa
  * UsersService (apps/backend/src/users/users.service.ts) — pero AuthService
