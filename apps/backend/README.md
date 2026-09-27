@@ -150,15 +150,17 @@ Detalle: [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md) ·
 Las rutas protegidas exigen la cookie `arca_sesion` (`HttpOnly`, `SameSite=Lax`, `Path=/api`),
 que emite el callback de ClaveÚnica. La base guarda solo el hash del secreto de la cookie. La
 sesión dura 7 días para un vecino y 8 horas para funcionario o admin, que además la pierden tras
-30 minutos sin actividad. Detalle: [spec `sesion-unica`](../../docs/specs/SPEC-sesion-unica.md).
+30 minutos sin actividad. Deja de valer también si el ciudadano se desactiva, y al volver a entrar
+desde el mismo navegador se revoca la anterior. El header `Authorization` se ignora.
+Detalle: [spec `sesion-unica`](../../docs/specs/SPEC-sesion-unica.md).
 
 Cada inicio de sesión queda en auditoría como `LOGIN`, con el origen (`clave_unica` o `dev`), la IP
 y el user-agent; nunca el RUN, el nombre ni la cookie.
 
 En desarrollo, con `ALLOW_DEV_LOGIN=true` en `.env.local`, se entra sin ClaveÚnica con
 `POST /api/auth/dev/login { ciudadanoId }` usando los UUID de demo (migraciones): ciudadano
-`…0001`, doble rol funcionario `…0002`, doble rol administrador `…0003`. Mientras exista esa
-variable también se acepta el transitorio `Authorization: Bearer <uuid>` (se elimina en SU-4).
+`…0001`, doble rol funcionario `…0002`, doble rol administrador `…0003`. Ese login también deja
+la cookie `arca_sesion`: con curl, guardarla con `-c` y enviarla con `-b`.
 La app **no arranca** si `ALLOW_DEV_LOGIN=true` y `NODE_ENV=production`.
 
 Van los ids de **`usuarios_ciudadanos`**, no los de `usuarios_administradores`: la identidad es

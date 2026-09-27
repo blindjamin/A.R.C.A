@@ -1,6 +1,7 @@
 # Spec: `sesion-unica` — Sesión de ARCA después de ClaveÚnica
 
-> **Estado:** BORRADOR · **Fecha:** 2026-09-26
+> **Estado:** IMPLEMENTADO (SU-1..SU-4, 2026-09-27) · **Fecha:** 2026-09-26
+> Falta solo probar el callback contra ClaveÚnica real (credenciales de sandbox y dominio público).
 > **Autor:** Benjamín Paicil (con asistencia de IA)
 > **Módulo del mapa:** [`sesion-unica`](MAPA_UNIFICACION.md#3-módulos) · **Depende de:** — · **HU:** HU-12, HU-13
 
@@ -25,6 +26,8 @@ Decisiones del mapa: sesión en servidor con cookie (decisión 1); vecino 7 día
    - está revocada;
    - el secreto no coincide;
    - se cumplió su duración: 7 días desde el inicio para el vecino y 8 horas para funcionario o admin;
+   - pasó su `fecha_expiracion` (sesión 2b);
+   - el ciudadano está desactivado; en ese caso además se revoca (sesión 2b);
    - si es de rol municipal, lleva más de 30 minutos sin actividad.
 5. `GET /api/auth/clave-unica/logout` revoca la sesión (`activa = false`), borra la cookie y
    redirige al logout de ClaveÚnica. `POST /api/auth/logout` hace lo mismo sin redirigir (204): es
@@ -34,8 +37,8 @@ Decisiones del mapa: sesión en servidor con cookie (decisión 1); vecino 7 día
 7. Cada inicio de sesión se audita como `LOGIN`: actor, origen (`clave_unica` o `dev`), IP y
    user-agent. Nunca el RUN, el nombre ni la cookie.
 8. `AuthUser` mantiene su forma: ningún controlador ni servicio existente cambia.
-9. **Transición:** el `Bearer <uuid>` sigue aceptándose **solo** con `ALLOW_DEV_LOGIN=true`, hasta que
-   `frontend-unificado` pase a la cookie. Se elimina en la tarea SU4 (§6).
+9. ~~**Transición:** el `Bearer <uuid>` sigue aceptándose **solo** con `ALLOW_DEV_LOGIN=true`, hasta que
+   `frontend-unificado` pase a la cookie.~~ Eliminado en SU4 (§6): el `Bearer` da 401 siempre.
 
 ## 2. Diseño
 
@@ -75,19 +78,24 @@ cookie válida.
 
 ```
 cookie arca_sesion ─► SesionService.validar() ─► AuthUser   (misma forma que hoy)
-        │
-        └─ (solo ALLOW_DEV_LOGIN=true y sin cookie) Bearer <uuid> ─► resolveCiudadanoId  [se borra en SU4]
 ```
+
+Desde SU4, el header `Authorization` se ignora aunque `ALLOW_DEV_LOGIN=true`.
 
 `SesionService.validar(valorCookie)`:
 1. Separa `session_id` y secreto. Si el formato es inválido → `null`.
 2. Busca la fila con `activa = true`. Si no existe → `null`.
 3. Compara el hash en tiempo constante. Si no coincide → `null`.
-4. Resuelve el perfil (`PERFIL_ACCESO_RESOLVER`). Límite: 8 horas si es municipal y 7 días si no,
+4. Si `ahora > fecha_expiracion` → `null` (sesión 2b).
+5. Si el ciudadano no existe o está desactivado → marca `activa = false` → `null` (sesión 2b).
+6. Resuelve el perfil (`PERFIL_ACCESO_RESOLVER`). Límite: 8 horas si es municipal y 7 días si no,
    contado desde `fecha_inicio`. Si se pasó del límite → `null`.
-5. Si es municipal y `ahora − updated_at > 30 min` → marca `activa = false` → `null`.
-6. Si `ahora − updated_at > 60 s` → actualiza `updated_at`.
-7. Devuelve `AuthUser`.
+7. Si es municipal y `ahora − updated_at > 30 min` → marca `activa = false` → `null`.
+8. Si `ahora − updated_at > 60 s` → actualiza `updated_at`.
+9. Devuelve `AuthUser`.
+
+Al iniciar sesión (callback de ClaveÚnica o login de desarrollo), la `arca_sesion` que ya traía el
+navegador se revoca antes de emitir la nueva (sesión 2b).
 
 `null` → `UnauthorizedException` con un mensaje único, que no dice por qué falló.
 
@@ -174,14 +182,14 @@ simulados:
 
 ## 6. Tareas
 
-- [ ] **SU1 — `SesionService` y cookie.** `sesion.service.ts`, `cookies.ts`, `login-dev.ts` con sus tests. Aún no se conecta al guard.
+- [x] **SU1 — `SesionService` y cookie.** `sesion.service.ts`, `cookies.ts`, `login-dev.ts` con sus tests. Aún no se conecta al guard.
   - Verify: `npm run test` en `packages/arca-core`.
-- [ ] **SU2 — Guard y endpoints de sesión.** `AuthGuard` lee la cookie (Bearer solo con dev); `sesion.controller.ts`; `verificarLoginDev` en `main.ts`; `ALLOW_DEV_LOGIN` en `.env.example`.
+- [x] **SU2 — Guard y endpoints de sesión.** `AuthGuard` lee la cookie (Bearer solo con dev); `sesion.controller.ts`; `verificarLoginDev` en `main.ts`; `ALLOW_DEV_LOGIN` en `.env.example`.
   - Verify: los curl de §3; los tests del backend siguen verdes.
-- [ ] **SU3 — Callback y logout de ClaveÚnica.** Upsert del ciudadano, sesión, cookie, auditoría `LOGIN`, `302 /`; el logout revoca la sesión.
+- [x] **SU3 — Callback y logout de ClaveÚnica.** (PR #66) Upsert del ciudadano, sesión, cookie, auditoría `LOGIN`, `302 /`; el logout revoca la sesión.
   - Verify: test del controlador con `ClaveUnicaService` simulado (callback → cookie + 302; logout → revoca).
-- [ ] **SU4 — Quitar el Bearer de desarrollo** (después de FU2 en `frontend-unificado`). Borrar `resolveFromAuthorizationHeader` y la rama Bearer del guard.
-  - Verify: `grep -rn "Bearer" packages apps/backend/src` sin resultados de autenticación; los curl con `Authorization` dan 401.
+- [x] **SU4 — Quitar el Bearer de desarrollo** (después de FU2 en `frontend-unificado`). Borrar `resolveFromAuthorizationHeader` y la rama Bearer del guard.
+  - Verify: `grep -rn "Bearer" apps/backend/src` solo deja la llamada saliente a ClaveÚnica (`clave-unica.service.ts`); los curl con `Authorization` dan 401, también con `ALLOW_DEV_LOGIN=true`.
 
 ## 7. Preguntas abiertas
 

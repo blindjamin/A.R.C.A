@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Repository } from 'typeorm';
+import { QueryFailedError, type Repository } from 'typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SesionService } from './sesion.service';
@@ -131,7 +131,7 @@ describe('SesionService', () => {
       );
       const [sessionId, secreto] = cookie.split('.');
 
-      const guardada = repoSesiones.save.mock.calls[0][0] as SesionCiudadano;
+      const [guardada] = repoSesiones.save.mock.calls[0] as [SesionCiudadano];
       expect(guardada).toMatchObject({
         sessionId,
         usuarioCiudadanoId: CIUDADANO_ID,
@@ -149,7 +149,7 @@ describe('SesionService', () => {
     it('dura 7 días para un vecino', async () => {
       await servicio.crear({ usuarioCiudadanoId: CIUDADANO_ID });
 
-      const guardada = repoSesiones.save.mock.calls[0][0] as SesionCiudadano;
+      const [guardada] = repoSesiones.save.mock.calls[0] as [SesionCiudadano];
       expect(guardada.fechaExpiracion).toEqual(antes(-7 * DIA));
     });
 
@@ -157,7 +157,7 @@ describe('SesionService', () => {
       comoFuncionario();
       await servicio.crear({ usuarioCiudadanoId: CIUDADANO_ID });
 
-      const guardada = repoSesiones.save.mock.calls[0][0] as SesionCiudadano;
+      const [guardada] = repoSesiones.save.mock.calls[0] as [SesionCiudadano];
       expect(guardada.fechaExpiracion).toEqual(antes(-8 * HORA));
     });
 
@@ -172,7 +172,7 @@ describe('SesionService', () => {
 
     it('la cookie que devuelve se valida', async () => {
       const cookie = await servicio.crear({ usuarioCiudadanoId: CIUDADANO_ID });
-      fila = repoSesiones.save.mock.calls[0][0] as SesionCiudadano;
+      [fila] = repoSesiones.save.mock.calls[0] as [SesionCiudadano];
 
       await expect(servicio.validar(cookie)).resolves.toMatchObject({
         ciudadanoId: CIUDADANO_ID,
@@ -232,6 +232,29 @@ describe('SesionService', () => {
 
       conFila({ fechaInicio: antes(7 * DIA + SEGUNDO) });
       await expect(servicio.validar(COOKIE)).resolves.toBeNull();
+    });
+
+    it('no vale pasada su fecha_expiracion, aunque el rol diera más plazo', async () => {
+      conFila({ fechaExpiracion: AHORA });
+      await expect(servicio.validar(COOKIE)).resolves.not.toBeNull();
+
+      conFila({ fechaExpiracion: antes(SEGUNDO) });
+      await expect(servicio.validar(COOKIE)).resolves.toBeNull();
+    });
+
+    it('ciudadano desactivado o inexistente: null y revoca la sesión', async () => {
+      repoUsuarios.findOne.mockResolvedValue(null);
+      conFila();
+
+      await expect(servicio.validar(COOKIE)).resolves.toBeNull();
+      expect(repoUsuarios.findOne).toHaveBeenCalledWith({
+        where: { id: CIUDADANO_ID, activo: true },
+      });
+      expect(repoSesiones.update).toHaveBeenCalledWith(
+        { sessionId: SESSION_ID },
+        { activa: false },
+      );
+      expect(resolver.getPerfilAcceso).not.toHaveBeenCalled();
     });
 
     it('funcionario: no vale a las 8 horas + 1 s', async () => {
@@ -431,6 +454,45 @@ describe('SesionService', () => {
       expect(auditoria.registrar).toHaveBeenCalledWith(
         expect.objectContaining({ datosNuevos: { origen: 'clave_unica' } }),
       );
+    });
+
+    it('primer ingreso simultáneo: si el insert choca con el índice único, reusa la fila del otro', async () => {
+      repoUsuarios.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: CIUDADANO_ID, activo: true });
+      repoUsuarios.save.mockRejectedValueOnce(
+        new QueryFailedError(
+          'INSERT',
+          [],
+          Object.assign(new Error('Duplicate entry'), {
+            code: 'ER_DUP_ENTRY',
+          }),
+        ),
+      );
+
+      await expect(
+        servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN),
+      ).resolves.toMatchObject({ maxAgeMs: 7 * DIA });
+      expect(repoUsuarios.update).toHaveBeenCalledWith(
+        { id: CIUDADANO_ID },
+        { fechaUltimaActividad: AHORA },
+      );
+      expect(repoSesiones.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('un error del insert que no es de clave duplicada se propaga', async () => {
+      repoUsuarios.findOne.mockResolvedValueOnce(null);
+      const falla = new QueryFailedError(
+        'INSERT',
+        [],
+        Object.assign(new Error('Sin conexión'), { code: 'ECONNRESET' }),
+      );
+      repoUsuarios.save.mockRejectedValueOnce(falla);
+
+      await expect(
+        servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN),
+      ).rejects.toBe(falla);
+      expect(repoSesiones.save).not.toHaveBeenCalled();
     });
 
     it('rechaza a un ciudadano desactivado sin crear sesión', async () => {

@@ -4,7 +4,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthService } from '../auth.service';
 import { SesionService } from '../sesion.service';
 import { AuthUser } from '../interfaces/auth-user.interface';
 import { AuthGuard, RolesGuard } from './auth.guard';
@@ -76,8 +75,6 @@ describe('AuthGuard', () => {
   };
 
   let reflector: Reflector;
-  let resolveFromAuthorizationHeader: jest.Mock;
-  let authService: AuthService;
   let validar: jest.Mock;
   let sesionService: SesionService;
   let guard: AuthGuard;
@@ -100,11 +97,9 @@ describe('AuthGuard', () => {
     delete process.env.ALLOW_DEV_LOGIN;
 
     reflector = new Reflector();
-    resolveFromAuthorizationHeader = jest.fn();
-    authService = { resolveFromAuthorizationHeader } as unknown as AuthService;
     validar = jest.fn().mockResolvedValue(null);
     sesionService = { validar } as unknown as SesionService;
-    guard = new AuthGuard(reflector, authService, sesionService);
+    guard = new AuthGuard(reflector, sesionService);
   });
 
   afterEach(() => {
@@ -116,17 +111,15 @@ describe('AuthGuard', () => {
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(validar).not.toHaveBeenCalled();
-    expect(resolveFromAuthorizationHeader).not.toHaveBeenCalled();
   });
 
-  it('con una cookie válida, autentica y no mira el Bearer', async () => {
+  it('con una cookie válida, autentica', async () => {
     validar.mockResolvedValue(USUARIO);
     const request = { headers: { cookie: 'arca_sesion=algo.valido' } };
 
     await expect(guard.canActivate(buildContext(request))).resolves.toBe(true);
     expect(validar).toHaveBeenCalledWith('algo.valido');
     expect(request.user).toEqual(USUARIO);
-    expect(resolveFromAuthorizationHeader).not.toHaveBeenCalled();
   });
 
   it('con la cookie con un % mal formado (URIError), la trata como ausente y da 401', async () => {
@@ -138,38 +131,29 @@ describe('AuthGuard', () => {
     expect(validar).toHaveBeenCalledWith(undefined);
   });
 
-  it('sin cookie válida y sin ALLOW_DEV_LOGIN, da 401 aunque llegue un Bearer', async () => {
-    const request = {
-      headers: { authorization: 'Bearer 00000000-0000-4000-8000-000000000001' },
-    };
+  it.each([
+    ['sin ALLOW_DEV_LOGIN', undefined],
+    ['con ALLOW_DEV_LOGIN=true', 'true'],
+  ])(
+    'sin cookie válida, da 401 aunque llegue un Bearer (%s)',
+    async (_caso, allowDevLogin) => {
+      if (allowDevLogin) process.env.ALLOW_DEV_LOGIN = allowDevLogin;
+      const request: Record<string, unknown> = {
+        headers: {
+          authorization: 'Bearer 00000000-0000-4000-8000-000000000001',
+        },
+      };
 
-    await expect(guard.canActivate(buildContext(request))).rejects.toThrow(
-      UnauthorizedException,
-    );
-    expect(resolveFromAuthorizationHeader).not.toHaveBeenCalled();
-  });
+      await expect(guard.canActivate(buildContext(request))).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(request.user).toBeUndefined();
+    },
+  );
 
-  it('sin cookie válida y con ALLOW_DEV_LOGIN=true, acepta el Bearer', async () => {
-    process.env.ALLOW_DEV_LOGIN = 'true';
-    resolveFromAuthorizationHeader.mockResolvedValue(USUARIO);
-    const request = {
-      headers: { authorization: 'Bearer 00000000-0000-4000-8000-000000000001' },
-    };
-
-    await expect(guard.canActivate(buildContext(request))).resolves.toBe(true);
-    expect(resolveFromAuthorizationHeader).toHaveBeenCalledWith(
-      'Bearer 00000000-0000-4000-8000-000000000001',
-    );
-    expect(request.user).toEqual(USUARIO);
-  });
-
-  it('sin cookie ni Bearer, da 401 genérico sin llamar al Bearer', async () => {
-    process.env.ALLOW_DEV_LOGIN = 'true';
-    const request = { headers: {} };
-
-    await expect(guard.canActivate(buildContext(request))).rejects.toThrow(
-      UnauthorizedException,
-    );
-    expect(resolveFromAuthorizationHeader).not.toHaveBeenCalled();
+  it('sin cookie, da 401 genérico', async () => {
+    await expect(
+      guard.canActivate(buildContext({ headers: {} })),
+    ).rejects.toThrow(UnauthorizedException);
   });
 });

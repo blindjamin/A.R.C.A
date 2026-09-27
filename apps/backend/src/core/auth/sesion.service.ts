@@ -6,7 +6,7 @@ import {
   randomUUID,
   timingSafeEqual,
 } from 'node:crypto';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { AuthService } from './auth.service';
 import { IdentidadCiudadano } from './clave-unica.types';
 import { AuthUser } from './interfaces/auth-user.interface';
@@ -53,6 +53,12 @@ export interface SesionIniciada {
 
 function sha256(valor: string): string {
   return createHash('sha256').update(valor).digest('hex');
+}
+
+function esClaveDuplicada(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) return false;
+  const { code } = error.driverError as { code?: string };
+  return code === 'ER_DUP_ENTRY';
 }
 
 /**
@@ -187,28 +193,42 @@ export class SesionService {
   ): Promise<UsuarioCiudadano> {
     const ahora = this.ahora();
     const existente = await this.usuarios.findOne({ where: { claveUnicaId } });
+    if (existente) return this.reingresar(existente, ahora);
 
-    if (existente) {
-      if (!existente.activo) {
-        throw new UnauthorizedException('No se pudo iniciar sesión.');
-      }
-      await this.usuarios.update(
-        { id: existente.id },
-        { fechaUltimaActividad: ahora },
+    try {
+      return await this.usuarios.save(
+        this.usuarios.create({
+          id: randomUUID(),
+          claveUnicaId,
+          fechaRegistro: ahora,
+          fechaUltimaActividad: ahora,
+          activo: true,
+          ipPrimeraLogin: ip ?? null,
+        }),
       );
-      return existente;
+    } catch (error) {
+      // Dos callbacks del mismo vecino nuevo en paralelo: el índice único de
+      // `clave_unica_id` frena al segundo insert, que entonces encuentra la
+      // fila del primero en vez de responder 500.
+      if (!esClaveDuplicada(error)) throw error;
+      const creado = await this.usuarios.findOne({ where: { claveUnicaId } });
+      if (!creado) throw error;
+      return this.reingresar(creado, ahora);
     }
+  }
 
-    return this.usuarios.save(
-      this.usuarios.create({
-        id: randomUUID(),
-        claveUnicaId,
-        fechaRegistro: ahora,
-        fechaUltimaActividad: ahora,
-        activo: true,
-        ipPrimeraLogin: ip ?? null,
-      }),
+  private async reingresar(
+    ciudadano: UsuarioCiudadano,
+    ahora: Date,
+  ): Promise<UsuarioCiudadano> {
+    if (!ciudadano.activo) {
+      throw new UnauthorizedException('No se pudo iniciar sesión.');
+    }
+    await this.usuarios.update(
+      { id: ciudadano.id },
+      { fechaUltimaActividad: ahora },
     );
+    return ciudadano;
   }
 
   /**
@@ -222,17 +242,32 @@ export class SesionService {
     const sesion = await this.buscarSesion(valorCookie);
     if (!sesion) return null;
 
-    // Paso 4: el límite sale del rol actual, no del que tenía al entrar. Si a
-    // un vecino lo hacen funcionario, su sesión pasa a durar 8 horas.
-    const usuario = await this.authService.resolveCiudadanoId(
-      sesion.usuarioCiudadanoId,
-    );
+    // Paso 4: la expiración fijada al emitirla. Un cambio de rol puede acortar
+    // la sesión (paso 6), pero nunca alargarla más allá de esta fecha.
     const ahora = this.ahora().getTime();
+    if (ahora > sesion.fechaExpiracion.getTime()) return null;
+
+    // Paso 5: un ciudadano dado de baja pierde también las sesiones que ya
+    // tenía abiertas. Se revoca para que no revivan si lo reactivan.
+    const ciudadano = await this.usuarios.findOne({
+      where: { id: sesion.usuarioCiudadanoId, activo: true },
+    });
+    if (!ciudadano) {
+      await this.sesiones.update(
+        { sessionId: sesion.sessionId },
+        { activa: false },
+      );
+      return null;
+    }
+
+    // Paso 6: el límite sale del rol actual, no del que tenía al entrar. Si a
+    // un vecino lo hacen funcionario, su sesión pasa a durar 8 horas.
+    const usuario = await this.authService.resolveCiudadanoId(ciudadano.id);
     if (ahora - sesion.fechaInicio.getTime() > this.duracionMaxima(usuario)) {
       return null;
     }
 
-    // Paso 5: inactividad, solo para el municipal. Se revoca en vez de solo
+    // Paso 7: inactividad, solo para el municipal. Se revoca en vez de solo
     // rechazar para que la sesión no reviva aunque cambie el rol.
     const inactividad = ahora - sesion.updatedAt.getTime();
     if (
@@ -246,7 +281,7 @@ export class SesionService {
       return null;
     }
 
-    // Paso 6: registrar actividad, como mucho una vez por minuto.
+    // Paso 8: registrar actividad, como mucho una vez por minuto.
     if (inactividad > INTERVALO_ACTIVIDAD_MS) {
       await this.sesiones.update(
         { sessionId: sesion.sessionId },
@@ -254,7 +289,7 @@ export class SesionService {
       );
     }
 
-    // Paso 7.
+    // Paso 9.
     return usuario;
   }
 

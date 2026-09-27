@@ -31,7 +31,7 @@ interface SesionRespuesta {
  * Endpoints de sesión de ARCA (SPEC-sesion-unica §2.4). El callback y el
  * logout de ClaveÚnica quedan en `ClaveUnicaController` (SU-3); acá va lo que
  * no depende de ella: consultar la sesión propia, cerrarla y el login de
- * desarrollo transitorio.
+ * desarrollo.
  */
 @Controller()
 export class SesionController {
@@ -65,9 +65,9 @@ export class SesionController {
   }
 
   /**
-   * Login de desarrollo transitorio (se borra en SU-4): reemplaza al
-   * `Bearer <uuid>` mientras el frontend no migra a la cookie. 404 en vez de
-   * 403 con `ALLOW_DEV_LOGIN` apagado, para no revelar que la ruta existe.
+   * Login de desarrollo: entra como cualquier ciudadano por su UUID, para
+   * probar en local sin ClaveÚnica. 404 en vez de 403 con `ALLOW_DEV_LOGIN`
+   * apagado, para no revelar que la ruta existe.
    */
   @Public()
   @LimiteLogin()
@@ -82,6 +82,7 @@ export class SesionController {
       throw new NotFoundException();
     }
 
+    await this.sesionService.revocar(leerCookie(req, COOKIE_SESION));
     const { valorCookie, maxAgeMs } = await this.sesionService.iniciar(
       {
         usuarioCiudadanoId: dto.ciudadanoId,
