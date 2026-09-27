@@ -1,4 +1,7 @@
-import { TRUST_PROXY_POR_DEFECTO, valorProxyConfiable } from './proxy-confiable';
+import {
+  TRUST_PROXY_POR_DEFECTO,
+  valorProxyConfiable,
+} from './proxy-confiable';
 
 describe('valorProxyConfiable', () => {
   it('sin configurar, confía solo en el proxy local', () => {

@@ -12,9 +12,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // IP real del cliente tras el proxy de cPanel, para el rate limiting.
   configurarProxyConfiable(app);
-  const allowedOrigins = (
-    process.env.FRONTEND_URL ?? 'http://localhost:5173'
-  )
+  const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
     .split(',')
     .map((origin) => origin.trim());
   app.enableCors({
@@ -33,4 +31,4 @@ async function bootstrap() {
   );
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();
