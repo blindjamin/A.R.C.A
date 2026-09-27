@@ -135,7 +135,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 ## 🔧 Deuda técnica / infraestructura
 - [ ] Estado global: migrar fetch manual → **Redux Toolkit + RTK Query** (roadmap B.3).
-- [ ] Auth real: ClaveÚnica (OAuth2) + JWT, reemplazar `SessionContext` mock.
+- [x] Auth real: ClaveÚnica (OAuth2) + sesión con cookie; `SessionContext` lee `GET /api/sesion` (unificación, 2026-09-26). Falta probar ClaveÚnica con las credenciales del municipio.
 - [ ] PWA: manifest + service worker (offline catálogo).
 - [ ] Tests de UI (Vitest + Testing Library) por componente.
 - [ ] `docs/UI_KIT.md`: documentar tokens y componentes con referencias al standalone.

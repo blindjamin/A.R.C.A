@@ -7,6 +7,13 @@
 
 Documento de hito que resume la primera implementación del backend y la infraestructura local compartida.
 
+> **Histórico en cuanto a estructura (sitio único, 2026-09-26).** Las menciones a
+> `packages/arca-core`, `apps/backend-admin`, el puerto 3001 y el Bearer UUID describen cómo era el
+> repo en su momento. Hoy el núcleo vive en `apps/backend/src/core/`, el panel en
+> `apps/backend/src/admin/` y la autenticación es ClaveÚnica + sesión con cookie. Para el estado
+> actual ver [`../apps/backend/README.md`](../apps/backend/README.md) y
+> [`SEGURIDAD_ARQUITECTURA.md`](./SEGURIDAD_ARQUITECTURA.md).
+
 ---
 
 ## Objetivo de esta fase

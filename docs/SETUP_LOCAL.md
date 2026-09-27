@@ -62,24 +62,24 @@ Credenciales locales (definidas en `docker-compose.yml`):
 
 ---
 
-## 3. Núcleo compartido + backends (npm workspaces)
+## 3. Backend (npm workspace)
 
-`packages/arca-core` (entidades TypeORM + `AuthModule`), `apps/backend` y `apps/backend-admin`
-son **npm workspaces** — un solo `package.json` en la raíz los administra. **Un solo
-`npm install` desde la raíz** resuelve los tres de una:
+`apps/backend` es un **npm workspace**: el `package.json` de la raíz lo administra. Sirve la
+API ciudadana, la del panel municipal (`src/admin/`, rutas `/api/admin/*`) y el núcleo
+(`src/core/`: entidades, ClaveÚnica, sesión, auditoría). **Un solo `npm install` desde la
+raíz**:
 
 ```bash
 npm install          # desde la raíz del repo — NO desde apps/backend
-npm run build:core
 ```
 
-> **No correr `npm install` dentro de `apps/backend` ni `apps/backend-admin`.** Rompe el
-> hoisting de dependencias entre workspaces: algunos paquetes (`ts-node`,
-> `@nestjs/platform-express`) quedan instalados en el lugar equivocado y el servidor no
-> arranca o `migration:run` falla con `Cannot find module`. Si eso pasa, borrar
-> `node_modules` de la raíz y de ambos backends y volver a correr `npm install` desde la raíz.
+> **No correr `npm install` dentro de `apps/backend`.** Rompe el hoisting de dependencias del
+> workspace: algunos paquetes (`ts-node`, `@nestjs/platform-express`) quedan instalados en el
+> lugar equivocado y el servidor no arranca o `migration:run` falla con `Cannot find module`.
+> Si eso pasa, borrar `node_modules` de la raíz y de `apps/backend` y volver a correr
+> `npm install` desde la raíz.
 
-### 3.1 Backend ciudadano (`apps/backend`, :3000)
+### 3.1 Backend (`apps/backend`, :3000)
 
 ```bash
 cd apps/backend
@@ -104,14 +104,25 @@ NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 ```
 
-Ejecutar migraciones (único proyecto que las corre) y arrancar:
+Para entrar en local sin ClaveÚnica (accesos de desarrollo vecino, funcionario y admin),
+agregar también:
+
+```env
+ALLOW_DEV_LOGIN=true
+```
+
+Habilita `POST /api/auth/dev/login`. **Solo en local:** el backend se niega a arrancar si
+está junto con `NODE_ENV=production`, y nunca va en el servidor. `setup.ps1` todavía no lo
+agrega solo.
+
+Ejecutar migraciones y arrancar:
 
 ```bash
 npm run migration:run
 npm run start:dev
 ```
 
-### Verificar backend ciudadano
+### Verificar backend
 
 ```bash
 curl http://localhost:3000/api/health
@@ -120,25 +131,8 @@ curl http://localhost:3000/api/residuos/catalogo
 
 Respuesta health esperada: `{"status":"ok","db":"connected"}`
 
-### 3.2 Backend admin (`apps/backend-admin`, :3001)
-
-Misma base de datos que el backend ciudadano, sin migraciones propias
-(`synchronize: false`, `apps/backend/src/database/migrations/` sigue siendo el único dueño
-del esquema).
-
-```bash
-cd apps/backend-admin
-cp .env.example .env.local
-# Mismas credenciales BD que apps/backend: DB_USERNAME=arca_user  DB_PASSWORD=arca_pass
-npm run start:dev
-```
-
-```bash
-curl http://localhost:3001/api/health
-```
-
-> **Nota:** ambos backends exponen sus rutas bajo el prefijo `/api` (`app.setGlobalPrefix('api')`
-> en `main.ts`).
+> **Nota:** todas las rutas van bajo el prefijo `/api` (`app.setGlobalPrefix('api')` en
+> `main.ts`); las del panel, bajo `/api/admin`.
 
 ---
 
@@ -247,7 +241,9 @@ Orden sugerido de pantallas:
    - `GET {VITE_API_URL}/solicitudes-retiro?usuarioCiudadanoId=00000000-0000-4000-8000-000000000001`  
    - Listar estado (`en_revision`, etc.) y residuo asociado
 
-> **Auth:** el UUID de arriba es **solo desarrollo**. Cuando Benjamín integre JWT, el frontend usará el token y dejará de enviar `usuarioCiudadanoId` en el body.
+> **Auth (actualizado):** hoy toda llamada requiere la cookie de sesión `arca_sesion` (ClaveÚnica
+> o, en local, los accesos de desarrollo). El body todavía lleva `usuarioCiudadanoId`, pero el
+> backend responde 403 si no coincide con el vecino de la sesión.
 
 ### 4.7 Ejemplo mínimo de servicio API (TypeScript)
 
@@ -286,26 +282,15 @@ export async function crearSolicitudRetiro(data: {
 
 ---
 
-## 4.9 Panel admin (`apps/admin-web`, :5174)
+## 4.9 Panel municipal (`apps/frontend/src/admin`, `/admin`)
 
-App Vite independiente (no es workspace, `npm install` propio), separada del frontend
-ciudadano. Habla con `apps/backend-admin` (:3001), no con `apps/backend`.
+El panel es parte del mismo frontend: no tiene `npm install` ni servidor propios. Con el backend
+y el frontend corriendo, abrir **http://localhost:5173/admin**.
 
-```bash
-cd apps/admin-web
-npm install
-# .env.local → VITE_API_URL=/api
-npm run dev
-```
-
-Abrir: **http://localhost:5174**
-
-> **Deuda declarada:** todavía no tiene login ni guard de sesión propios (ver
-> `apps/admin-web/README.md`). Mientras tanto, el selector «Sesión de prueba» de la barra lateral
-> alterna entre dos identidades de desarrollo: **Carlos Álvarez** (admin, ve la auditoría) y
-> **Camila Operadora** (funcionario). Si el panel responde con errores de columnas inexistentes,
-> falta correr `npm run migration:run` en `apps/backend`: la revisión, la derivación y las métricas
-> usan las migraciones del replanteo del 2026-09-17.
+Para entrar, usar en `/login` el acceso de desarrollo **Funcionario (dev)** o **Admin (dev)**
+(requiere `ALLOW_DEV_LOGIN=true` en el backend, ver §3.1) y elegir «Panel municipal». Las rutas
+`/admin/*` exigen rol funcionario o admin; la auditoría, solo admin. Si el panel responde con
+errores de columnas inexistentes, falta correr `npm run migration:run` en `apps/backend`.
 
 ---
 
@@ -313,10 +298,10 @@ Abrir: **http://localhost:5174**
 
 ### Benjamín (auth)
 
-- Base en `apps/backend/src/users/` (entidades identidad)
-- Rama temporal desde `develop` (ej: `auth-jwt`)
+- ClaveÚnica y sesión en `apps/backend/src/core/auth/` (ver [`SEGURIDAD_ARQUITECTURA.md`](./SEGURIDAD_ARQUITECTURA.md))
+- Rama temporal desde `develop`
 - Backend debe estar corriendo + migraciones aplicadas
-- ClaveÚnica real: pendiente aprobación municipal; puede empezar con JWT mock
+- ClaveÚnica real: pendiente de las credenciales del municipio; mientras tanto, `ALLOW_DEV_LOGIN=true`
 
 ### Ana (QA / UX)
 
@@ -333,23 +318,16 @@ docker compose up -d
 docker compose down
 docker compose logs mysql
 
-# Raíz — workspaces (núcleo compartido + los dos backends)
+# Raíz — workspace del backend
 npm install
-npm run build:core
-npm run build:watch -w @arca/core   # recompila el core en cada cambio, en otra terminal
 
-# Backend ciudadano
+# Backend
 cd apps/backend
 npm run start:dev
 npm run migration:run
 npm run migration:revert   # revertir última migración
 npm run build
 npm test
-
-# Backend admin — sin migraciones propias
-cd apps/backend-admin
-npm run start:dev
-npm run build
 
 # Ver tablas en MySQL
 docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLES;"
@@ -371,18 +349,18 @@ docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLE
 | `wsl --update` da `REGDB_E_CLASSNOTREG` | Reparar Windows Installer: `net stop msiserver`, `msiexec /unregister`, `msiexec /regserver`, `net start msiserver`. Si persiste, `sfc /scannow` + `DISM /Online /Cleanup-Image /RestoreHealth` y reintentar `wsl --install` |
 | Script `.ps1` tira `TerminatorExpectedAtEndOfString` en una línea que se ve bien | Encoding: PowerShell 5.1 sin BOM lee mal tildes/guiones especiales. Evitar caracteres no-ASCII en los `.ps1` |
 | `EADDRINUSE` al reiniciar backend/frontend | Puede haber procesos `node` colgados de corridas anteriores: `Get-Process node | Stop-Process -Force` y volver a arrancar |
-| `Cannot find module 'ts-node'` en `migration:run`, o `No driver (HTTP) has been selected` al arrancar un backend | `npm install` se corrió dentro de `apps/backend` o `apps/backend-admin` en vez de la raíz, y quedó mal el hoisting entre workspaces. Borrar `node_modules` de la raíz y de ambos backends, y `npm install` de nuevo **desde la raíz** |
-| `Entity metadata for X#relacion was not found` al arrancar un backend | Falta una entidad relacionada en el `entities:` (o `forFeature()`) de ese backend — TypeORM necesita conocer toda entidad que aparezca en una relación, aunque ese backend nunca la consulte directo. Ver `apps/backend-admin/src/app.module.ts` |
-| `npm run build:core` no se corrió y el backend usa tipos viejos de `@arca/core` | El core se compila a `packages/arca-core/dist/`; los backends lo importan compilado, no en vivo. Los scripts `prebuild`/`prestart:dev` ya lo hacen solos, pero si algo queda desincronizado, correr `npm run build:core` a mano |
+| `Cannot find module 'ts-node'` en `migration:run`, o `No driver (HTTP) has been selected` al arrancar el backend | `npm install` se corrió dentro de `apps/backend` en vez de la raíz, y quedó mal el hoisting del workspace. Borrar `node_modules` de la raíz y de `apps/backend`, y `npm install` de nuevo **desde la raíz** |
+| `Entity metadata for X#relacion was not found` al arrancar el backend | Falta una entidad relacionada en el `entities:` de TypeORM (o en el `forFeature()` del módulo) — TypeORM necesita conocer toda entidad que aparezca en una relación |
+| Los accesos de desarrollo de `/login` responden 404 | Falta `ALLOW_DEV_LOGIN=true` en `apps/backend/.env.local` (ver §3.1); reiniciar el backend |
 
 ---
 
 ## 8. Documentación relacionada
 
 - [`BACKEND_FASE1.md`](./BACKEND_FASE1.md) — Qué se implementó en el backend ciudadano Fase 1
-- [`../packages/arca-core/README.md`](../packages/arca-core/README.md) — Núcleo compartido, regla de PR revisado
-- [`../apps/backend-admin/README.md`](../apps/backend-admin/README.md) — API del panel
-- [`../apps/admin-web/README.md`](../apps/admin-web/README.md) — Panel municipal
+- [`../apps/backend/README.md`](../apps/backend/README.md) — API ciudadana y del panel, autenticación
+- [`../apps/frontend/README.md`](../apps/frontend/README.md) — PWA y panel municipal
+- [`SEGURIDAD_ARQUITECTURA.md`](./SEGURIDAD_ARQUITECTURA.md) — Sesión, control de acceso y auditoría
 - [`CLAUDE.md`](../CLAUDE.md) — Git Flow y convenciones del equipo
 - [`README.md`](../README.md) — Producto, stack y roadmap
 - [`ARCA_database_schema.dbml`](../ARCA_database_schema.dbml) — Schema completo (19 tablas)
@@ -414,14 +392,14 @@ git pull origin develop
 
 docker compose up -d
 
-# Workspaces: un solo npm install en la raíz resuelve el núcleo compartido y
-# los dos backends. NO correr npm install dentro de apps/backend(-admin).
+# Workspace: un solo npm install en la raíz resuelve el backend.
+# NO correr npm install dentro de apps/backend.
 npm install
-npm run build:core
 
 cd apps/backend
 cp .env.example .env.local
 # Completar en .env.local: DB_USERNAME=arca_user  DB_PASSWORD=arca_pass
+# y, solo en local, ALLOW_DEV_LOGIN=true
 npm run migration:run
 npm run start:dev
 ```
@@ -433,47 +411,29 @@ curl http://localhost:3000/api/health
 curl http://localhost:3000/api/residuos/catalogo
 ```
 
-### C. Backend admin
+### C. Frontend (con su propio `npm install`)
 
-Misma base de datos, sin migraciones propias:
-
-```bash
-cd apps/backend-admin
-cp .env.example .env.local
-# Mismas credenciales BD que apps/backend
-npm run start:dev
-```
-
-### D. Frontends (cada uno con su propio `npm install`)
-
-Con los backends corriendo:
+Con el backend corriendo:
 
 ```bash
 cd apps/frontend
-npm install
-# .env.local → VITE_API_URL=/api  y  VITE_ADMIN_URL=http://localhost:5174
-npm run dev
-```
-
-```bash
-cd apps/admin-web
 npm install
 # .env.local → VITE_API_URL=/api
 npm run dev
 ```
 
-Abrir `http://localhost:5173` (PWA) y `http://localhost:5174` (panel).
+Abrir `http://localhost:5173` (PWA) y `http://localhost:5173/admin` (panel).
 
 ### Checklist mínimo
 
 - [ ] Git, Node 18+, Docker instalados
 - [ ] Repo clonado y rama correcta
 - [ ] `docker compose up -d`
-- [ ] `npm install` en la **raíz** (workspaces) + `npm run build:core`
-- [ ] `.env.local` en `apps/backend` y `apps/backend-admin`
-- [ ] `npm run migration:run` (solo en `apps/backend`)
-- [ ] `npm run start:dev` en ambos backends → `/api/health` responde OK en :3000 y :3001
-- [ ] `npm install` + `.env.local` + `npm run dev` en `apps/frontend` y `apps/admin-web`
+- [ ] `npm install` en la **raíz** (workspace del backend)
+- [ ] `.env.local` en `apps/backend` (con `ALLOW_DEV_LOGIN=true` para entrar en local)
+- [ ] `npm run migration:run` en `apps/backend`
+- [ ] `npm run start:dev` en `apps/backend` → `/api/health` responde OK en :3000
+- [ ] `npm install` + `.env.local` + `npm run dev` en `apps/frontend`
 
 ---
 

@@ -228,7 +228,7 @@
 
 ### SE-2: Documentación del repositorio
 **Rama:** `…-docs-sitio-unico` · **Área:** Docs · **Revisor:** Miguel · **Spec:** SPEC-setup-unificado SE2
-**Aceptación:** [ ] `CLAUDE.md`, `README.md`, `AGENTS.md` (tabla A.7), `SETUP_LOCAL.md`, `PENDIENTES_EQUIPO.md` y el README del core describen 2 proyectos; [ ] el grep del criterio 5 está limpio.
+**Aceptación:** [x] `CLAUDE.md`, `README.md`, `AGENTS.md` (tabla A.7), `SETUP_LOCAL.md`, `PENDIENTES_EQUIPO.md` y el README del core describen 2 proyectos (el README del core ya no existe: CORE-1 lo eliminó); [x] el grep del criterio 5 está limpio salvo `DEPLOY_CPANEL.md` (SE-3) y menciones históricas marcadas (2026-09-27, Javier, rama `2026-09-27-javier-docs-sitio-unico`; también `CLAUDE_proyecto.md`, `BACKEND_FASE1.md`, `FRONTEND_FASE1.md` y `PLAN_FRONTEND.md`).
 **Dependencias:** Checkpoint 3 · **Tamaño:** M (6 archivos, solo texto)
 
 ### SE-3: `DEPLOY_CPANEL.md` para un solo dominio
