@@ -33,7 +33,7 @@ El orden de precedencia es:
 1. **Archivos en este repositorio** (ver sección 9 para mapa de archivos). Los `package.json` mandan sobre cualquier prosa: si un documento afirma que se usa una librería y no aparece como dependencia, el documento está equivocado.
 2. **Google Drive** — carpeta "Feria de Software" (`ID: 1hv_QMx2JeU7U8-Oa183bygpkUHbd_xOI`), subcarpeta "Hito 3" (`ID: 1TW-G_GZgn8NIJtg7Hdhb5DeOWjflh-QM`).
    > ⚠️ `ARQUITECTURA_ARCA_PWA.md` y `EPICAS_HISTORIAS_USUARIO_V2.md` (mayo 2026) están **desactualizados**: proponen PostgreSQL, Redis, Express y épicas EP-01 a EP-11. Nada de eso rige — ver secciones 4, 5 y 7.
-3. **GitHub público** — `https://github.com/blindjamin/A.R.C.A` (issues y Project). **Es la fuente de verdad de la numeración de épicas**: si la documentación y el tablero difieren, manda el tablero. Falta crear ahí la épica EP-06 y las 13 historias incorporadas en el refinamiento.
+3. **GitHub público** — `https://github.com/blindjamin/A.R.C.A` (issues y Project). **Es la fuente de verdad de la numeración de épicas**: si la documentación y el tablero difieren, manda el tablero. Desde el 2026-09-26 cada épica e historia de la sección 7 tiene su issue.
 
 > **Si algo no está en estas fuentes, decirlo claramente. Nunca inventar datos, métricas, costos ni decisiones técnicas.**
 
@@ -160,20 +160,21 @@ El equipo decidió mantener un dominio de pago (no subdomain gratuito). El costo
 
 ## 7. Backlog
 
-**27 historias de usuario en 5 épicas activas**, según el refinamiento de agosto de 2026. Se
-la numeración es la del **tablero de GitHub**, que es donde el equipo trabaja: EP-05 está cerrada y
-EP-06 todavía no existe como issue.
+**27 historias de usuario vigentes en 5 épicas activas**: las 27 del refinamiento de agosto de 2026,
+más HU-43 y HU-44 del replanteo del panel (2026-09-17), menos HU-31 y HU-32, que ese replanteo dejó
+fuera de alcance. La numeración es la del **tablero de GitHub**, que es donde el equipo trabaja:
+EP-05 está cerrada y cada épica e historia tiene su issue (columna «Issue» abajo).
 
 ### Épicas
 
-| Fase | ID | Épica | HUs |
-|---|---|---|---|
-| 1 — MVP | EP-01 | Fundación y Seguridad | HU-12, HU-13, HU-14, HU-01, HU-37, HU-38 |
-| 1 — MVP | EP-02 | Interfaz Ciudadana | HU-02, HU-03, HU-17, HU-23, HU-39 |
-| 2 — Core | EP-03 | Marketplace e Incentivos | HU-04, HU-05, HU-06, HU-10, HU-11, HU-19, HU-20 |
-| 2 — Core | EP-04 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09, HU-31, HU-32, HU-33 |
-| 3 — Polish | EP-06 | Confianza y Comunidad | HU-15, HU-16, HU-18 |
-| — | ~~EP-05~~ | ~~Seguridad, Autenticación y Trazabilidad~~ | **CERRADA** — HU-12, HU-13 y HU-14 pasaron a EP-01 |
+| Fase | ID | Issue | Épica | HUs |
+|---|---|---|---|---|
+| 1 — MVP | EP-01 | #1 | Fundación y Seguridad | HU-12, HU-13, HU-14, HU-01, HU-37, HU-38 |
+| 1 — MVP | EP-02 | #2 | Interfaz Ciudadana | HU-02, HU-03, HU-17, HU-23, HU-39 |
+| 2 — Core | EP-03 | #3 | Marketplace e Incentivos | HU-04, HU-05, HU-06, HU-10, HU-11, HU-19, HU-20 |
+| 2 — Core | EP-04 | #4 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09, HU-33, HU-43, HU-44 · ~~HU-31, HU-32~~ |
+| 3 — Polish | EP-06 | #44 | Confianza y Comunidad | HU-15, HU-16, HU-18 |
+| — | ~~EP-05~~ | #5 | ~~Seguridad, Autenticación y Trazabilidad~~ | **CERRADA** — HU-12, HU-13 y HU-14 pasaron a EP-01 |
 
 > ⚠️ **No confundir con la numeración vieja del README.** Hasta agosto de 2026 este archivo y el
 > `README.md` usaban otra correspondencia (EP-01 Interfaz Ciudadana, EP-03 Dashboard, EP-05
@@ -184,39 +185,42 @@ EP-06 todavía no existe como issue.
 > control de acceso y auditoría son la base sobre la que se levanta todo lo demás. Se conserva cerrada
 > para no romper la trazabilidad del historial y de los issues ya creados.
 >
-> **EP-06 todavía no existe en GitHub**: hay que crearla, junto con las 13 historias nuevas.
+> **HU-31 y HU-32 también se cierran, no se eliminan:** sus issues están cerrados como «no
+> planificados», con el motivo, para conservar la trazabilidad del replanteo.
 
 ### Resumen de Historias de Usuario
 
-| ID | Épica | Descripción resumida | Prioridad | Asignado |
-|---|---|---|---|---|
-| HU-01 | EP-01 | Registrar residuo con foto desde móvil | Highest | Front + Back |
-| HU-02 | EP-02 | Clasificación automática por IA (sugerencia) | High | Back |
-| HU-03 | EP-02 | Seguir estado de solicitud de retiro | High | Front |
-| HU-17 | EP-02 | Feedback post-retiro detallado | Medium | Front + UX |
-| HU-23 | EP-02 | Recibir notificaciones de cambios de estado | Medium | Back |
-| HU-39 | EP-02 | Ver preguntas frecuentes por categoría (estática) | Low | Front |
-| HU-04 | EP-03 | Publicar artículo en marketplace P2P | High | Front + Back |
-| HU-05 | EP-03 | Buscar y filtrar artículos en marketplace | Medium | Front |
-| HU-06 | EP-03 | Contactar publicador para coordinar retiro (chat P2P) | Medium | Back + UX |
-| HU-10 | EP-03 | Otorgar Circular Credits por entrega en marketplace | Low | Back |
-| HU-11 | EP-03 | Consultar saldo e historial de Circular Credits | Low | Front + UX |
-| HU-19 | EP-03 | Estadísticas personales de CO₂ ahorrado | Low | Front + Back |
-| HU-20 | EP-03 | Ranking de ciudadanos por impacto | Low | Back |
-| HU-07 | EP-04 | Dashboard de solicitudes de retiro con mapa (admin) | High | Front + Back |
-| HU-08 | EP-04 | Programar y asignar retiros a operadores *(replanteo: derivar a la empresa operadora en Excel; el PO actualiza el texto)* | Medium | Back |
-| HU-09 | EP-04 | Generar reporte de gestión (PDF/CSV) | Low | Back |
-| HU-31 | EP-04 | Marcar solicitud como «en ruta» *(fuera de alcance tras el replanteo)* | Medium | Back |
-| HU-32 | EP-04 | Subir foto del retiro con GPS *(fuera de alcance tras el replanteo)* | Medium | Front + Back |
-| HU-33 | EP-04 | Marcar solicitud como «retirado» | Medium | Back |
-| HU-12 | EP-01 | Iniciar sesión con ClaveÚnica | Highest | Front + Back |
-| HU-13 | EP-01 | Control de acceso por roles | High | Back |
-| HU-14 | EP-01 | Registro auditable de acciones críticas | Medium | Back + QA |
-| HU-37 | EP-01 | Editar perfil | Low | Front + Back |
-| HU-38 | EP-01 | Eliminar cuenta | Low | Back |
-| HU-15 | EP-06 | Calificar a otros usuarios (ratings) | Medium | Front + Back |
-| HU-16 | EP-06 | Denunciar incumplimiento | Medium | Back |
-| HU-18 | EP-06 | Admin revisa y bloquea usuarios | Medium | Back + UX |
+| ID | Épica | Issue | Descripción resumida | Prioridad | Asignado |
+|---|---|---|---|---|---|
+| HU-01 | EP-01 | #6 | Registrar residuo con foto desde móvil | Highest | Front + Back |
+| HU-02 | EP-02 | #7 | Clasificación automática por IA (sugerencia) | High | Back |
+| HU-03 | EP-02 | #8 | Seguir estado de solicitud de retiro | High | Front |
+| HU-17 | EP-02 | #55 | Feedback post-retiro detallado | Medium | Front + UX |
+| HU-23 | EP-02 | #59 | Recibir notificaciones de cambios de estado | Medium | Back |
+| HU-39 | EP-02 | #65 | Ver preguntas frecuentes por categoría (estática) | Low | Front |
+| HU-04 | EP-03 | #9 | Publicar artículo en marketplace P2P | High | Front + Back |
+| HU-05 | EP-03 | #10 | Buscar y filtrar artículos en marketplace | Medium | Front |
+| HU-06 | EP-03 | #11 | Contactar publicador para coordinar retiro (chat P2P) | Medium | Back + UX |
+| HU-10 | EP-03 | #15 | Otorgar Circular Credits por entrega en marketplace | Low | Back |
+| HU-11 | EP-03 | #16 | Consultar saldo e historial de Circular Credits | Low | Front + UX |
+| HU-19 | EP-03 | #57 | Estadísticas personales de CO₂ ahorrado | Low | Front + Back |
+| HU-20 | EP-03 | #58 | Ranking de ciudadanos por impacto | Low | Back |
+| HU-07 | EP-04 | #12 | Dashboard de solicitudes de retiro con mapa (admin) | High | Front + Back |
+| HU-08 | EP-04 | #13 | Programar y asignar retiros a operadores *(replanteo: derivar a la empresa operadora en Excel; el PO actualiza el texto)* | Medium | Back |
+| HU-09 | EP-04 | #14 | Generar reporte de gestión (PDF/CSV) | Low | Back |
+| HU-31 | EP-04 | #60 | Marcar solicitud como «en ruta» *(fuera de alcance tras el replanteo: issue cerrado)* | Medium | Back |
+| HU-32 | EP-04 | #61 | Subir foto del retiro con GPS *(fuera de alcance tras el replanteo: issue cerrado)* | Medium | Front + Back |
+| HU-33 | EP-04 | #62 | Registrar el resultado del retiro (funcionario, en el panel) *(antes «marcar como retirado» por el operador)* | Medium | Back |
+| HU-43 | EP-04 | #46 | Revisar solicitudes de retiro (checklist, motivos, notas internas, toma) | High | Front + Back |
+| HU-44 | EP-04 | #47 | Registrar el pago del retiro (maqueta; monto fijo al aprobar) | High | Back |
+| HU-12 | EP-01 | #17 | Iniciar sesión con ClaveÚnica | Highest | Front + Back |
+| HU-13 | EP-01 | #18 | Control de acceso por roles | High | Back |
+| HU-14 | EP-01 | #19 | Registro auditable de acciones críticas | Medium | Back + QA |
+| HU-37 | EP-01 | #63 | Editar perfil | Low | Front + Back |
+| HU-38 | EP-01 | #64 | Eliminar cuenta | Low | Back |
+| HU-15 | EP-06 | #45 | Calificar a otros usuarios (ratings) | Medium | Front + Back |
+| HU-16 | EP-06 | #54 | Denunciar incumplimiento | Medium | Back |
+| HU-18 | EP-06 | #56 | Revisar denuncias y bloquear usuarios (admin) | Medium | Back + UX |
 
 ### Historias fuera de alcance — no reproponer
 

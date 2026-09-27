@@ -293,15 +293,16 @@ inicial para las fotografías.
 
 Gestionado en **[GitHub Projects](https://github.com/users/blindjamin/projects/2)**.
 
-**27 historias de usuario en 5 épicas activas**, según el refinamiento de agosto de 2026. La
-numeración es la del tablero de GitHub: EP-05 está cerrada y EP-06 está por crearse.
+**27 historias de usuario vigentes en 5 épicas activas**: las del refinamiento de agosto de 2026,
+más HU-43 y HU-44 del replanteo del panel, menos HU-31 y HU-32, que quedaron fuera de alcance. La
+numeración es la del tablero de GitHub, donde cada épica e historia tiene su issue; EP-05 está cerrada.
 
 | ID | Épica | HUs | Fase |
 |---|---|---|---|
 | EP-01 | Fundación y Seguridad | HU-12, HU-13, HU-14, HU-01, HU-37, HU-38 | 1 — MVP |
 | EP-02 | Interfaz Ciudadana | HU-02, HU-03, HU-17, HU-23, HU-39 | 1 — MVP |
 | EP-03 | Marketplace e Incentivos | HU-04, HU-05, HU-06, HU-10, HU-11, HU-19, HU-20 | 2 — Core |
-| EP-04 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09, HU-31, HU-32, HU-33 | 2 — Core |
+| EP-04 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09, HU-33, HU-43, HU-44 · ~~HU-31, HU-32~~ | 2 — Core |
 | EP-06 | Confianza y Comunidad | HU-15, HU-16, HU-18 | 3 — Polish |
 | ~~EP-05~~ | ~~Seguridad, Autenticación y Trazabilidad~~ | **Cerrada** — HU-12, HU-13 y HU-14 pasaron a EP-01 | — |
 
