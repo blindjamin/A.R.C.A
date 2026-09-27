@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ResiduoCatalogo } from '@arca/core';
+import { ResiduoCatalogo } from '../core';
 
 @Injectable()
 export class ResiduosService {

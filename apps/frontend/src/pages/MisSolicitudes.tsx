@@ -40,7 +40,8 @@ const leerOcultas = (usuarioId: string): number[] => {
 };
 
 export default function MisSolicitudes() {
-  const { usuarioCiudadanoId } = useSession();
+  const { sesion } = useSession();
+  const usuarioCiudadanoId = sesion?.ciudadanoId ?? null;
   const [items, setItems] = useState<SolicitudRetiro[]>([]);
   const [ocultas, setOcultas] = useState<number[]>([]);
   const [seleccion, setSeleccion] = useState<SolicitudRetiro | null>(null);

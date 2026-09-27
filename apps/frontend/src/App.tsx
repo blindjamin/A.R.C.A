@@ -1,6 +1,7 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionProvider, useSession } from './auth/SessionContext';
-import { Cargando, Protected } from './components/AppShell';
+import { Cargando, Protected, RequireRol } from './components/AppShell';
 import { SolicitudFlowProvider } from './features/solicitud-retiro/SolicitudFlowContext';
 import solicitudRetiroRoutes from './features/solicitud-retiro/routes';
 import marketplaceRoutes from './features/marketplace/routes';
@@ -10,15 +11,19 @@ import Inicio from './pages/Inicio';
 import MisSolicitudes from './pages/MisSolicitudes';
 import Proximamente from './pages/Proximamente';
 
-// Login diferido: tras autenticar, decide a dónde va la persona.
-//  - sin sesión        → /login
-//  - funcionario       → pantalla de selección de contexto
-//  - solo ciudadano    → directo a la PWA (/inicio)
+// Chunk aparte: el panel (páginas, api/admin.ts, leaflet) no debe pesar en la
+// PWA del vecino (SPEC-frontend-unificado §2.2, criterio 3).
+const AdminApp = lazy(() => import('./admin/AdminApp'));
+
+// Tras autenticar, decide a dónde va la persona según el rol de la sesión:
+//  - sin sesión                  → /login
+//  - rol funcionario o admin     → pantalla de selección de contexto
+//  - rol vecino                  → directo a la PWA (/inicio)
 function Entrada() {
-  const { usuarioCiudadanoId, esAdministrador, cargando } = useSession();
+  const { sesion, cargando } = useSession();
   if (cargando) return <Cargando />;
-  if (!usuarioCiudadanoId) return <Navigate to="/login" replace />;
-  return esAdministrador ? <SeleccionInicio /> : <Navigate to="/inicio" replace />;
+  if (!sesion) return <Navigate to="/login" replace />;
+  return sesion.rol === 'vecino' ? <Navigate to="/inicio" replace /> : <SeleccionInicio />;
 }
 
 export default function App() {
@@ -59,6 +64,18 @@ export default function App() {
             {/* Marketplace P2P: listado, detalle y publicar
                 (definido en features/marketplace/routes.tsx) */}
             {marketplaceRoutes}
+
+            {/* Panel municipal, cargado aparte (SPEC-frontend-unificado §2.2) */}
+            <Route
+              path="/admin/*"
+              element={
+                <RequireRol roles={['funcionario', 'admin']}>
+                  <Suspense fallback={<Cargando />}>
+                    <AdminApp />
+                  </Suspense>
+                </RequireRol>
+              }
+            />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

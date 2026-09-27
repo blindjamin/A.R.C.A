@@ -1,6 +1,6 @@
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
-import { ENTIDADES } from '@arca/core';
+import { ENTIDADES } from '../core';
 
 config({ path: '.env.local' });
 

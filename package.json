@@ -2,14 +2,10 @@
   "name": "arca",
   "private": true,
   "workspaces": [
-    "packages/arca-core",
-    "apps/backend",
-    "apps/backend-admin"
+    "apps/backend"
   ],
   "scripts": {
-    "build:core": "npm run build -w @arca/core",
-    "dev:backend": "npm run start:dev -w backend",
-    "dev:backend-admin": "npm run start:dev -w backend-admin"
+    "dev:backend": "npm run start:dev -w backend"
   },
   "devDependencies": {
     "ts-node": "^10.9.2"

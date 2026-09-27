@@ -3,8 +3,8 @@ import { useSession } from '../auth/SessionContext';
 
 export default function SeleccionInicio() {
   const navigate = useNavigate();
-  const { perfil, logout } = useSession();
-  const nombre = perfil?.administrador?.nombre;
+  const { sesion, salir } = useSession();
+  const nombre = sesion?.nombre;
 
   return (
     <div
@@ -45,9 +45,7 @@ export default function SeleccionInicio() {
           </button>
 
           <button
-            onClick={() => {
-              window.location.href = import.meta.env.VITE_ADMIN_URL as string;
-            }}
+            onClick={() => navigate('/admin')}
             className="flex w-full items-center gap-4 rounded-2xl bg-white/10 p-4 text-left backdrop-blur transition-colors hover:bg-white/15"
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-2xl">
@@ -62,7 +60,7 @@ export default function SeleccionInicio() {
           </button>
 
           <button
-            onClick={logout}
+            onClick={() => void salir()}
             className="w-full pt-2 text-center text-xs text-green-100/70 hover:text-white"
           >
             Cerrar sesión

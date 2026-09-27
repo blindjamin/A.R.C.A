@@ -1,13 +1,10 @@
 // Capa de API de A.R.C.A. — fetch simple sobre los endpoints del backend (EP-01).
 // Cuando el estado crezca, migrar a Redux Toolkit + RTK Query (ver roadmap B.3).
 
-const API_URL = import.meta.env.VITE_API_URL as string;
+import { apiFetch } from './apiFetch';
+export { apiFetch };
 
-// Clave de localStorage donde SessionContext guarda la identidad de la sesión.
-// Vive acá y no en SessionContext porque `apiFetch` la necesita para armar el
-// header Authorization, y SessionContext ya importa de este módulo: al revés
-// quedaría un import circular.
-export const STORAGE_KEY_SESION = 'arca.usuarioCiudadanoId';
+const API_URL = import.meta.env.VITE_API_URL as string;
 
 export interface ResiduoCatalogo {
   id: number;
@@ -89,28 +86,6 @@ export const formatearPrecio = (clp: number): string =>
     maximumFractionDigits: 0,
   });
 
-// Header requerido cuando se accede vía tunel ngrok (free tier): sin el, ngrok
-// intercepta el request y devuelve una pagina HTML de advertencia en vez de
-// dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
-// Exportado para que otros módulos de API (ej. marketplace.ts) no lo dupliquen.
-export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const usuarioCiudadanoId = localStorage.getItem(STORAGE_KEY_SESION);
-
-  return fetch(path, {
-    ...init,
-    headers: {
-      ...init?.headers,
-      'ngrok-skip-browser-warning': 'true',
-      // Identidad de la sesión. Hoy es el UUID del ciudadano que guarda
-      // SessionContext al entrar; cuando HU-12 emita el JWT, acá viaja el token
-      // firmado sin que cambie nada más de esta capa.
-      ...(usuarioCiudadanoId
-        ? { Authorization: `Bearer ${usuarioCiudadanoId}` }
-        : {}),
-    },
-  });
-}
-
 export async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
@@ -155,27 +130,6 @@ export function fetchMisSolicitudes(
   );
 }
 
-// --- Identidad / login diferido ---------------------------------------------
-
-export interface PerfilAcceso {
-  usuarioCiudadanoId: string;
-  esAdministrador: boolean;
-  administrador: {
-    id: string;
-    nombre: string;
-    apellido: string;
-    rol: string;
-  } | null;
-}
-
-export function fetchPerfilAcceso(
-  usuarioCiudadanoId: string,
-): Promise<PerfilAcceso> {
-  return apiFetch(
-    `${API_URL}/usuarios/${usuarioCiudadanoId}/perfil-acceso`,
-  ).then((r) => handle<PerfilAcceso>(r));
-}
-
 export function cancelarSolicitud(
   id: number,
   usuarioCiudadanoId: string,
@@ -188,6 +142,6 @@ export function cancelarSolicitud(
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
-// Los fetchers de admin (solicitudes globales, auditoría) viven ahora en
-// apps/admin-web/src/api/admin.ts — se movieron con la migración del panel.
+// Los fetchers de admin (solicitudes globales, auditoría) viven en
+// admin/api/admin.ts — se movieron con la migración del panel.
 
