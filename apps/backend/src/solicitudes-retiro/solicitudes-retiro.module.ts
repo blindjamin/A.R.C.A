@@ -4,6 +4,7 @@ import { ResiduosModule } from '../residuos/residuos.module';
 import {
   AuditoriaModule,
   AuthModule,
+  RevisionSolicitud,
   SolicitudRetiro,
   UsuarioCiudadano,
 } from '../core';
@@ -12,7 +13,11 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([SolicitudRetiro, UsuarioCiudadano]),
+    TypeOrmModule.forFeature([
+      SolicitudRetiro,
+      UsuarioCiudadano,
+      RevisionSolicitud,
+    ]),
     ResiduosModule,
     AuthModule,
     AuditoriaModule,

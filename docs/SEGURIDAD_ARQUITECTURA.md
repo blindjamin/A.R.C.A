@@ -101,11 +101,11 @@ un paso de compilación y una frontera artificial (la inyección `PERFIL_ACCESO_
 | C1 | **Un solo backend y un solo punto de entrada**: una API, un proceso, un origen | D5, D7 | ✅ backend (4533e73) y front (FU-1, FU-3): un sitio, `apps/admin-web` eliminado, CORS solo con el origen del sitio | BU-1..3 |
 | C2 | **Una sola implementación del perfil de acceso** (`UsersService`); se elimina `IdentityService` | D4 | ✅ | BU-2 |
 | C3 | **Núcleo reabsorbido** en `apps/backend/src/core/`: los controles de seguridad viven en el mismo árbol que los usa, sin paquete intermedio ni compilación previa | Simplifica la auditoría del código | ✅ (4fd2d57): 58 archivos movidos sin cambios de contenido, 230 tests iguales antes y después | CORE-1 |
-| C4 | **Sesión de servidor con cookie** (§3.2) en lugar del UUID en claro | D1, D2, D6 | 🔄 servicio (SU-1) y guard + endpoints (SU-2, 2c1bc4d) listos · falta el callback de ClaveÚnica (SU-3) | SU-1..3 |
-| C5 | **Login de desarrollo aislado**: solo con `ALLOW_DEV_LOGIN=true` (texto exacto); la app **no arranca** si además `NODE_ENV=production` | Evita dejar una puerta trasera en producción | ✅ `verificarLoginDev` en `main.ts` (SU-2): con `NODE_ENV=production` + `ALLOW_DEV_LOGIN=true` el proceso termina con código 1; sin el flag, `/api/auth/dev/login` responde 404 y el Bearer 401 | SU-1, SU-2 |
+| C4 | **Sesión de servidor con cookie** (§3.2) en lugar del UUID en claro | D1, D2, D6 | ✅ servicio (SU-1), guard + endpoints (SU-2), callback y logout de ClaveÚnica (SU-3, PR #66); la validación revisa además la baja del ciudadano y `fecha_expiracion` (sesión 2b) | SU-1..3 |
+| C5 | **Login de desarrollo aislado**: solo con `ALLOW_DEV_LOGIN=true` (texto exacto); la app **no arranca** si además `NODE_ENV=production` | Evita dejar una puerta trasera en producción | ✅ `verificarLoginDev` en `main.ts` (SU-2): con `NODE_ENV=production` + `ALLOW_DEV_LOGIN=true` el proceso termina con código 1; sin el flag, `/api/auth/dev/login` responde 404. El Bearer da 401 siempre, con o sin el flag (SU-4) | SU-1, SU-2 |
 | C6 | **Panel detrás del rol en el front** (`RequireRol`) y **código del panel en un chunk aparte**: un vecino no descarga ni ve las pantallas municipales | D3 (defensa en profundidad; la barrera real sigue en el backend) | ✅ chunk aparte (FU-1) y `RequireRol` con el rol que devuelve `GET /api/sesion` (FU-2) | FU-1, FU-2 |
 | C7 | **Sin identidad en `localStorage`** | D2 | ✅ FU-2: la identidad solo vive en la cookie HttpOnly; `localStorage` solo guarda qué solicitudes ocultó el vecino | FU-2 |
-| C8 | **Eliminación del Bearer de desarrollo** | D1 (cierre definitivo) | ⏳ | SU-4 |
+| C8 | **Eliminación del Bearer de desarrollo** | D1 (cierre definitivo) | ✅ el `AuthGuard` solo acepta la cookie; `resolveFromAuthorizationHeader` ya no existe. Verificado: `Authorization: Bearer <uuid del funcionario>` contra `/api/admin/metricas` da 401 con `ALLOW_DEV_LOGIN=true` | SU-4 |
 | C9 | **Validación estricta de entrada unificada** (`forbidNonWhitelisted` en toda la API) | Campos inesperados se rechazan (400) en vez de ignorarse | ✅ | BU-2 |
 | C10 | **Rate limiting de un solo proceso**: una cuota por cliente para toda la API | D5 | ✅ (`SeguridadModule` una vez, antes de `AuthModule`) | BU-2 |
 
@@ -138,7 +138,12 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
   `Path=/api` (no viaja con los archivos estáticos).
 - **Duración según el riesgo del rol** (decisión 2): vecino, 7 días desde el inicio; funcionario y
   admin, 8 horas desde el inicio y **cierre a los 30 minutos sin actividad**. El límite se calcula con
-  el rol *actual*: si alguien pasa a ser funcionario, su sesión se acorta de inmediato.
+  el rol *actual*: si alguien pasa a ser funcionario, su sesión se acorta de inmediato. Ningún
+  cambio de rol la alarga más allá de la `fecha_expiracion` fijada al emitirla.
+- **La baja manda sobre la sesión:** si se desactiva a un ciudadano, sus sesiones abiertas dejan de
+  valer en la siguiente petición y quedan revocadas (no reviven si lo reactivan).
+- **Una sesión por inicio de sesión:** al volver a entrar desde el mismo navegador, la sesión anterior
+  se revoca antes de emitir la nueva, en vez de quedar activa hasta expirar.
 - **Cierre de sesión en dos niveles:** se revoca la sesión de ARCA **y** se redirige al logout de
   ClaveÚnica (si no, ClaveÚnica mantiene la suya y la persona vuelve a entrar sin escribir su clave).
 - Todo inicio de sesión se audita como `LOGIN` (origen, IP y user-agent; nunca el RUN, el nombre ni
@@ -148,20 +153,21 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
 
 | Amenaza | Vector | Control | Estado |
 |---|---|---|---|
-| Suplantación de identidad | Adivinar o robar el identificador | C4 (secreto de 256 bits, hash en la base), C7, C8 | ⏳ |
-| Robo de sesión por XSS | Script inyectado lee la credencial | Cookie `HttpOnly` (C4) | ⏳ |
+| Suplantación de identidad | Adivinar o robar el identificador | C4 (secreto de 256 bits, hash en la base), C7, C8 | ✅ |
+| Robo de sesión por XSS | Script inyectado lee la credencial | Cookie `HttpOnly` (C4) | ✅ |
 | CSRF | Sitio externo provoca una acción con la cookie de la víctima | `SameSite=Lax` (C4); chequeo de `Origin` en métodos que modifican | ✅ parcial (Lax) · ⏳ `Origin` |
 | Escalada de privilegios (vecino → panel) | Llamar directamente a `/api/admin/*` | `RolesGuard` en el backend; test que recorre todas las rutas `/admin` | ✅ guard · ⏳ test |
 | Acceso a datos de otro vecino (IDOR) | Cambiar el id en la URL | Chequeo de dueño en el servicio | ✅ · ⏳ test |
-| Sesión abandonada en un equipo municipal | Terminal compartido | Cierre por inactividad de 30 minutos (C4) | ⏳ |
+| Sesión abandonada en un equipo municipal | Terminal compartido | Cierre por inactividad de 30 minutos (C4) | ✅ |
+| Cuenta dada de baja que sigue operando | Sesión abierta antes de la baja | La validación exige `usuarios_ciudadanos.activo` y revoca la sesión (C4) | ✅ |
 | Fuerza bruta o abuso | Muchas peticiones | Rate limiting (C10), más estricto en login | ✅ |
-| Puerta trasera de desarrollo en producción | `ALLOW_DEV_LOGIN` olvidado | La app no arranca (C5) | ⏳ |
-| Filtración por volcado de la base | Robo del respaldo | Hash de secretos (C4); RUN seudonimizado con pepper fuera de la base | ✅ RUN · ⏳ sesión |
+| Puerta trasera de desarrollo en producción | `ALLOW_DEV_LOGIN` olvidado | La app no arranca (C5) | ✅ |
+| Filtración por volcado de la base | Robo del respaldo | Hash de secretos (C4); RUN seudonimizado con pepper fuera de la base | ✅ |
 | Exposición de datos internos | Respuestas con campos de más | Notas internas nunca en la API ciudadana; lista blanca de campos | ✅ notas · ⏳ lista blanca |
 
 ### 3.5 Implementación de la sesión (evidencia)
 
-`packages/arca-core/src/auth/sesion.service.ts` (SU-1; pasa a `apps/backend/src/core/auth/` con CORE-1):
+`apps/backend/src/core/auth/sesion.service.ts` (SU-1 en `packages/arca-core`; movido con CORE-1):
 
 - **Validación del formato antes de tocar la base:** una sola expresión regular exige UUID v4 en
   minúscula, un punto y 64 caracteres hex. Cualquier otra cosa se descarta sin consultar MySQL, lo
@@ -173,9 +179,13 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
   cambia el rol. La expiración por duración solo rechaza.
 - **Reloj único de la aplicación:** `fecha_inicio` y `updated_at` se escriben con el mismo reloj que
   después los compara, para que no haya desfases entre la base y la aplicación.
-- **Pruebas:** 27 casos en `sesion.service.spec.ts` (secreto incorrecto, formato inválido, sesión
-  revocada, vencimiento de 7 días y de 8 horas, inactividad municipal frente a la del vecino,
-  ascenso de rol durante la sesión, revocación) y 5 en `login-dev.spec.ts`.
+- **Primer ingreso simultáneo:** si dos callbacks del mismo vecino nuevo llegan a la vez, el índice
+  único de `clave_unica_id` frena el segundo insert y el servicio reusa la fila del primero, en vez
+  de responder 500.
+- **Pruebas:** `sesion.service.spec.ts` cubre secreto incorrecto, formato inválido, sesión revocada,
+  vencimiento de 7 días y de 8 horas, `fecha_expiracion` vencida, ciudadano dado de baja,
+  inactividad municipal frente a la del vecino, ascenso de rol durante la sesión, revocación,
+  auditoría del `LOGIN` y primer ingreso simultáneo; `login-dev.spec.ts` tiene 5 casos.
 
 **Hallazgos de la revisión que pasan a la siguiente tarea (SU-2):**
 - Una cookie con `%` malformado haría lanzar `decodeURIComponent` → error 500. El guard debe
@@ -207,3 +217,5 @@ Quedan para la revisión de seguridad acordada después de reunificar:
 | 2026-09-26 | CORE-1: el núcleo (`@arca/core`) se reabsorbe en `apps/backend/src/core/`. Para la auditoría: los guards, `SesionService`, el rate limiting y la pseudonimización del RUN ahora están en el mismo árbol y el mismo lint que el código que protegen; ya no hay una compilación previa (`build:core`) que pudiera dejar corriendo una versión vieja de los controles. Efecto colateral detectado: el código del núcleo nunca había pasado por eslint (12 hallazgos menores, ninguno de seguridad) |
 | 2026-09-26 | SU-2: el `AuthGuard` autentica con la cookie; el Bearer queda solo en modo desarrollo. Tres hallazgos de la revisión corregidos: (1) una cookie con `%` malformado provocaba una excepción no controlada (posible 500 con traza), ahora es 401; (2) la cookie no tenía `Max-Age` y moría al cerrar el navegador; (3) **desfase de zona horaria**: el driver guardaba la hora local (UTC-3) como si fuera UTC, Node leía y escribía con el mismo criterio, así que la sesión funcionaba, pero las fechas quedaban 3 h corridas respecto del reloj de MySQL: cualquier consulta SQL con `NOW()` (limpieza de sesiones, métricas, auditoría) y cualquier cambio de zona horaria del servidor (el municipal podría estar en UTC) habrían alargado o acortado todas las sesiones vigentes en 3 h. Se corrigió con `timezone: 'Z'`. Es un buen ejemplo para la tesis de cómo un control correcto en el código puede fallar por la configuración del entorno |
 | 2026-09-26 | FU-2/FU-3: el front ya no guarda ni envía identidad (sin `localStorage`, sin `Authorization`); ante cualquier 401 descarta la sesión y vuelve a `/login`. `apps/admin-web` eliminado. **Estado al abrir el PR:** C1, C2, C3, C5, C6, C7, C9 y C10 ✅; C4 🔄 (falta el callback de ClaveÚnica, SU-3); C8 ⏳ (SU-4). Mientras SU-3 no esté, el único acceso es el login de desarrollo, que no arranca en producción |
+| 2026-09-26 | SU-3 (PR #66): el callback de ClaveÚnica crea o reusa al ciudadano (un desactivado recibe 401), emite la sesión y audita el `LOGIN`; el logout de ClaveÚnica revoca la sesión. C4 ✅ |
+| 2026-09-27 | Sesión 2b + SU-4: la validación exige ciudadano activo (y revoca si no lo está) y respeta `fecha_expiracion`; volver a entrar revoca la sesión anterior del navegador; el primer ingreso simultáneo ya no da 500; se elimina el Bearer de desarrollo. **C8 ✅: D1 queda cerrada.** Verificado en ejecución: Bearer → 401 con `ALLOW_DEV_LOGIN=true`, cookie anterior → 401 tras un nuevo login, `fecha_expiracion` vencida → 401, ciudadano desactivado → 401 y sesión revocada |

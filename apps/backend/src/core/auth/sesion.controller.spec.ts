@@ -179,5 +179,23 @@ describe('SesionController', () => {
         maxAge: 8 * 60 * 60 * 1000,
       });
     });
+
+    it('revoca la sesión que ya traía el navegador antes de crear la nueva', async () => {
+      process.env.ALLOW_DEV_LOGIN = 'true';
+      const req = {
+        ip: '10.0.0.1',
+        headers: { cookie: 'arca_sesion=sesion-anterior.secreto' },
+      } as unknown as Request;
+      const { res } = crearRespuestaFalsa();
+
+      await controlador.loginDev({ ciudadanoId: 'c1' }, req, res);
+
+      expect(sesionService.revocar).toHaveBeenCalledWith(
+        'sesion-anterior.secreto',
+      );
+      expect(sesionService.revocar.mock.invocationCallOrder[0]).toBeLessThan(
+        sesionService.iniciar.mock.invocationCallOrder[0],
+      );
+    });
   });
 });

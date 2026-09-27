@@ -114,7 +114,8 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
 | `GET` | `/api/solicitudes-retiro` | Listar solicitudes (con acceso municipal, sin filtro por dueño) |
 | `GET` | `/api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
-| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo) |
+| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + `ultimaRevision` visible para el vecino) |
+| `PATCH` | `/api/solicitudes-retiro/{id}/reenviar` | **Ciudadano:** reenviar corregida su solicitud en `requiere_modificacion` (vía `aplicarTransicion`) |
 | `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud (vía `aplicarTransicion`) |
 | `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
 
@@ -126,6 +127,11 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 ### Control de acceso por roles (HU-13)
 
 Rama `2026-08-31-javier-hu13-control-acceso` · módulo `src/auth/`.
+
+> ⚠️ **Nota histórica (2026-09-27).** El `Bearer <uuid>` descrito abajo **ya no existe** (SU-4): la
+> identidad viaja solo en la cookie `arca_sesion` y el header `Authorization` se ignora. Ver
+> [`apps/backend/README.md`](../apps/backend/README.md) § Autenticación y
+> [spec `sesion-unica`](specs/SPEC-sesion-unica.md).
 
 Hasta que Benjamín integre ClaveÚnica/JWT (HU-12), en **desarrollo** las rutas protegidas
 exigen:

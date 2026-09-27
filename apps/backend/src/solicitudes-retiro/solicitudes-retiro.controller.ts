@@ -26,6 +26,7 @@ const origenDe = (req: Request): OrigenPeticion => ({
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
+import { ReenviarSolicitudRetiroDto } from './dto/reenviar-solicitud-retiro.dto';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 
 @Controller('solicitudes-retiro')
@@ -56,12 +57,27 @@ export class SolicitudesRetiroController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.solicitudesRetiroService.findOne(id, user);
+    return this.solicitudesRetiroService.findOneConUltimaRevision(id, user);
   }
 
-  // El cambio de estado municipal vive en apps/backend-admin
+  // El cambio de estado municipal vive en src/admin/
   // (PATCH /api/admin/solicitudes/:id y POST …/revision). Acá solo el vecino
-  // crea, lista, ve y cancela sus solicitudes.
+  // crea, lista, ve, reenvía corregida y cancela sus solicitudes.
+
+  @Patch(':id/reenviar')
+  reenviar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReenviarSolicitudRetiroDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
+    return this.solicitudesRetiroService.reenviarPorCiudadano(
+      id,
+      dto,
+      user,
+      origenDe(req),
+    );
+  }
 
   @Patch(':id/cancelar')
   cancelar(

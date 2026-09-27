@@ -177,10 +177,19 @@ corrección siguen desfasadas hasta que exista la migración de abajo.
 
 ### 3.2 Reenvío de la solicitud corregida (spec `revision-solicitudes` §3)
 
-- [ ] Exponer al vecino la **última revisión** de su solicitud: decisión, motivo y comentario.
-  **Nunca** las notas internas ni el checklist.
-- [ ] `PATCH /api/solicitudes-retiro/:id/reenviar`: solo el dueño; pasa de `requiere_modificacion`
-  a `en_revision` con `aplicarTransicion` y actor `vecino`; permite corregir descripción y categoría.
+> **2026-09-27 (Javier):** los dos puntos quedaron hechos en el backend. Falta la pantalla del
+> vecino (§5).
+
+- [x] Exponer al vecino la **última revisión** de su solicitud: `GET /api/solicitudes-retiro/:id`
+  agrega `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`). **Nunca** el
+  revisor, las notas internas ni el checklist.
+- [x] `PATCH /api/solicitudes-retiro/:id/reenviar`: solo el dueño; pasa de `requiere_modificacion`
+  a `en_revision` con `aplicarTransicion` y actor `vecino`; permite corregir descripción y categoría
+  (body opcional `{ descripcion?, residuoCatalogoId? }`).
+- [ ] **Hallazgo al implementarlo (fuera de alcance):** el detalle ya devolvía, desde antes,
+  `revisadoPorId` y `tomadaPorId` (ids de funcionarios) y la relación `usuarioCiudadano` completa
+  (`claveUnicaId`, `ipPrimeraLogin`). Contradice «sin revisor» del spec y la minimización. Va con la
+  lista blanca de campos de `control-acceso` (`SEGURIDAD_ARQUITECTURA.md` §3.4).
 
 ### 3.3 Módulos que esperan al backend ciudadano
 
@@ -225,7 +234,8 @@ existen. Miguel, como PO, coordina el traspaso.
 - [x] `pages/MisSolicitudes.tsx`: mostrar Cancelar solo en `en_revision`, `requiere_modificacion` o
   `aprobada`, y nunca con `estadoPago === 'pagado'`.
 - [x] `auth/SessionContext.tsx`: el comentario «operador» pasa a «funcionario».
-- [ ] Después de §3.2: pantalla **«tu solicitud requiere cambios»** con motivo, comentario y reenvío.
+- [ ] Pantalla **«tu solicitud requiere cambios»** con motivo, comentario y reenvío. El backend ya
+  está (§3.2): leer `ultimaRevision` del detalle y llamar a `PATCH …/reenviar` desde `src/api/arca.ts`.
 - [ ] Después: subida de fotos, datos de contacto y **pantalla de pago maqueteado**.
 
 **Verificar:** `cd apps/frontend && npm run lint && npm run build`.

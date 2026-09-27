@@ -200,6 +200,25 @@ describe('ClaveUnicaController', () => {
       expect(origen).toEqual({ ip: '10.0.0.1', userAgent: 'jest' });
     });
 
+    it('revoca la sesión que ya traía el navegador antes de crear la nueva', async () => {
+      const controlador = await crearControladorConClaveUnicaSimulada();
+      const { res } = crearRespuestaFalsa();
+
+      await controlador.callback(
+        peticionCon('cu_oauth_state=aaa; arca_sesion=sesion-anterior.secreto'),
+        res,
+        'codigo',
+        'aaa',
+      );
+
+      expect(sesionService.revocar).toHaveBeenCalledWith(
+        'sesion-anterior.secreto',
+      );
+      expect(sesionService.revocar.mock.invocationCallOrder[0]).toBeLessThan(
+        sesionService.iniciarConClaveUnica.mock.invocationCallOrder[0],
+      );
+    });
+
     it('no crea sesión si el state no coincide', async () => {
       const controlador = await crearControladorConClaveUnicaSimulada();
       const { res, cookies } = crearRespuestaFalsa();

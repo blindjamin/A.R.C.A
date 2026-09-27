@@ -1,4 +1,3 @@
-import { UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PERFIL_ACCESO_RESOLVER } from './interfaces/perfil-acceso-resolver.interface';
@@ -22,16 +21,13 @@ describe('AuthService', () => {
     }).compile();
 
     authService = module.get(AuthService);
-    process.env.NODE_ENV = 'development';
   });
 
-  it('rechaza peticiones sin header Authorization', async () => {
-    await expect(
-      authService.resolveFromAuthorizationHeader(undefined),
-    ).rejects.toThrow(UnauthorizedException);
+  it('ya no resuelve identidad desde el header Authorization (SU-4)', () => {
+    expect('resolveFromAuthorizationHeader' in authService).toBe(false);
   });
 
-  it('resuelve AuthUser desde Bearer UUID en desarrollo', async () => {
+  it('resuelve el AuthUser de un ciudadano con ficha de funcionario', async () => {
     const ciudadanoId = '00000000-0000-4000-8000-000000000002';
 
     usersServiceMock.getPerfilAcceso.mockResolvedValue({
@@ -45,19 +41,14 @@ describe('AuthService', () => {
       },
     });
 
-    const user = await authService.resolveFromAuthorizationHeader(
-      `Bearer ${ciudadanoId}`,
-    );
+    const user = await authService.resolveCiudadanoId(ciudadanoId);
 
-    expect(user.ciudadanoId).toBe(ciudadanoId);
-    expect(user.rol).toBe(RolAdministrador.FUNCIONARIO);
-    expect(user.esAdministrador).toBe(true);
-  });
-
-  it('rechaza Bearer que no sea UUID en desarrollo', async () => {
-    await expect(
-      authService.resolveFromAuthorizationHeader('Bearer token-jwt-falso'),
-    ).rejects.toThrow(UnauthorizedException);
+    expect(user).toEqual({
+      ciudadanoId,
+      esAdministrador: true,
+      administradorId: '00000000-0000-4000-8000-0000000000A2',
+      rol: RolAdministrador.FUNCIONARIO,
+    });
   });
 
   describe('resolverNombreAdministrador', () => {

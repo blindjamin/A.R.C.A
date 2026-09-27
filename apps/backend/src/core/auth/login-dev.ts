@@ -1,6 +1,5 @@
 /**
- * Indica si está activo el login de desarrollo (`POST /api/auth/dev/login` y,
- * mientras dure la transición, el `Bearer <uuid>`).
+ * Indica si está activo el login de desarrollo (`POST /api/auth/dev/login`).
  *
  * Se compara con el texto exacto `'true'`: con esta variable, cualquier otro
  * valor ("1", "yes", un typo) tiene que dejarlo apagado, nunca encendido.
