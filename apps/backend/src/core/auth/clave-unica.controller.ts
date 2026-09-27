@@ -125,6 +125,9 @@ export class ClaveUnicaController {
       `Autenticación completada para ${identidad.identificador.slice(0, 8)}…`,
     );
 
+    // La cookie nueva reemplaza a la anterior en el navegador, pero su fila
+    // seguiría activa hasta expirar.
+    await this.sesionService.revocar(leerCookie(req, COOKIE_SESION));
     const { valorCookie, maxAgeMs } =
       await this.sesionService.iniciarConClaveUnica(identidad, {
         ip: req.ip,

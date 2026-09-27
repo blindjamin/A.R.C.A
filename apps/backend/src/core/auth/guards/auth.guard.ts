@@ -8,15 +8,13 @@ import {
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
-import { AuthService } from '../auth.service';
 import { COOKIE_SESION, leerCookie } from '../cookies';
-import { loginDevHabilitado } from '../login-dev';
 import { SesionService } from '../sesion.service';
 import { AuthUser } from '../interfaces/auth-user.interface';
 import { RolAdministrador } from '../../entities/rol-administrador.enum';
 
 type AuthenticatedRequest = {
-  headers: { authorization?: string; cookie?: string };
+  headers: { cookie?: string };
   user?: AuthUser;
 };
 
@@ -24,15 +22,14 @@ type AuthenticatedRequest = {
 export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly authService: AuthService,
     private readonly sesionService: SesionService,
   ) {}
 
   /**
-   * Fuente de identidad (SPEC-sesion-unica §2.3): primero la cookie
-   * `arca_sesion`; el `Bearer <uuid>` es transitorio y solo se acepta con
-   * `ALLOW_DEV_LOGIN=true` (se borra en SU-4). Sin ninguna de las dos, 401
-   * genérico: no dice cuál de las dos faltó o estaba mal.
+   * Fuente de identidad (SPEC-sesion-unica §2.3): solo la cookie
+   * `arca_sesion`. El header `Authorization` se ignora, también con
+   * `ALLOW_DEV_LOGIN=true`: el login de desarrollo también emite la cookie.
+   * Sin sesión válida, 401 genérico que no dice qué falló.
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -49,19 +46,12 @@ export class AuthGuard implements CanActivate {
     const usuario = await this.sesionService.validar(
       leerCookie(request, COOKIE_SESION),
     );
-    if (usuario) {
-      request.user = usuario;
-      return true;
+    if (!usuario) {
+      throw new UnauthorizedException('No autenticado.');
     }
 
-    if (loginDevHabilitado(process.env) && request.headers.authorization) {
-      request.user = await this.authService.resolveFromAuthorizationHeader(
-        request.headers.authorization,
-      );
-      return true;
-    }
-
-    throw new UnauthorizedException('No autenticado.');
+    request.user = usuario;
+    return true;
   }
 }
 

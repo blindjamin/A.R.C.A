@@ -120,6 +120,11 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 
 Rama `2026-08-31-javier-hu13-control-acceso` · módulo `src/auth/`.
 
+> ⚠️ **Nota histórica (2026-09-27).** El `Bearer <uuid>` descrito abajo **ya no existe** (SU-4): la
+> identidad viaja solo en la cookie `arca_sesion` y el header `Authorization` se ignora. Ver
+> [`apps/backend/README.md`](../apps/backend/README.md) § Autenticación y
+> [spec `sesion-unica`](specs/SPEC-sesion-unica.md).
+
 Hasta que Benjamín integre ClaveÚnica/JWT (HU-12), en **desarrollo** las rutas protegidas
 exigen:
 
