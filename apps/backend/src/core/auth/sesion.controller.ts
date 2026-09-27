@@ -82,17 +82,16 @@ export class SesionController {
       throw new NotFoundException();
     }
 
-    const cookie = await this.sesionService.crear({
-      usuarioCiudadanoId: dto.ciudadanoId,
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
-    const usuario = await this.authService.resolveCiudadanoId(dto.ciudadanoId);
+    const { valorCookie, maxAgeMs } = await this.sesionService.iniciar(
+      {
+        usuarioCiudadanoId: dto.ciudadanoId,
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+      'dev',
+    );
 
-    res.cookie(COOKIE_SESION, cookie, {
-      ...opcionesCookieSesion(),
-      maxAge: this.sesionService.duracionMaxima(usuario),
-    });
+    res.cookie(COOKIE_SESION, valorCookie, opcionesCookieSesion(maxAgeMs));
   }
 
   private async nombreParaMostrar(usuario: AuthUser): Promise<string | null> {

@@ -7,6 +7,7 @@ import { ClaveUnicaService } from './clave-unica.service';
 import { AuthGuard, RolesGuard } from './guards/auth.guard';
 import { SesionController } from './sesion.controller';
 import { SesionService } from './sesion.service';
+import { AuditoriaModule } from '../auditoria/auditoria.module';
 import { SesionCiudadano } from '../entities/sesion-ciudadano.entity';
 import { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
 
@@ -16,7 +17,10 @@ import { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
 // específica. Quien importe AuthModule (hoy, apps/backend) debe proveer ese
 // token en algún módulo global de su propio árbol — ver users.module.ts.
 @Module({
-  imports: [TypeOrmModule.forFeature([SesionCiudadano, UsuarioCiudadano])],
+  imports: [
+    TypeOrmModule.forFeature([SesionCiudadano, UsuarioCiudadano]),
+    AuditoriaModule,
+  ],
   controllers: [ClaveUnicaController, SesionController],
   providers: [
     ClaveUnicaService,

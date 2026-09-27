@@ -34,7 +34,7 @@ function crearRespuestaFalsa() {
 
 describe('SesionController', () => {
   let sesionService: {
-    crear: jest.Mock;
+    iniciar: jest.Mock;
     revocar: jest.Mock;
     duracionMaxima: jest.Mock;
     nombreSesionActiva: jest.Mock;
@@ -49,7 +49,10 @@ describe('SesionController', () => {
   beforeEach(() => {
     entornoOriginal = { ...process.env };
     sesionService = {
-      crear: jest.fn().mockResolvedValue('id-sesion.secreto'),
+      iniciar: jest.fn().mockResolvedValue({
+        valorCookie: 'id-sesion.secreto',
+        maxAgeMs: 8 * 60 * 60 * 1000,
+      }),
       revocar: jest.fn().mockResolvedValue(undefined),
       duracionMaxima: jest.fn().mockReturnValue(1234),
       nombreSesionActiva: jest.fn().mockResolvedValue(null),
@@ -147,19 +150,11 @@ describe('SesionController', () => {
       await expect(
         controlador.loginDev({ ciudadanoId: 'c1' }, req, res),
       ).rejects.toThrow(NotFoundException);
-      expect(sesionService.crear).not.toHaveBeenCalled();
+      expect(sesionService.iniciar).not.toHaveBeenCalled();
     });
 
-    it('con el flag activo, crea la sesión y deja la cookie con maxAge y HttpOnly', async () => {
+    it('con el flag activo, inicia la sesión con origen dev y deja la cookie con maxAge y HttpOnly', async () => {
       process.env.ALLOW_DEV_LOGIN = 'true';
-      const usuario: AuthUser = {
-        ciudadanoId: 'c1',
-        esAdministrador: true,
-        administradorId: 'a1',
-        rol: RolAdministrador.FUNCIONARIO,
-      };
-      authService.resolveCiudadanoId.mockResolvedValue(usuario);
-      sesionService.duracionMaxima.mockReturnValue(8 * 60 * 60 * 1000);
       const req = {
         ip: '10.0.0.1',
         headers: { 'user-agent': 'jest' },
@@ -168,11 +163,14 @@ describe('SesionController', () => {
 
       await controlador.loginDev({ ciudadanoId: 'c1' }, req, res);
 
-      expect(sesionService.crear).toHaveBeenCalledWith({
-        usuarioCiudadanoId: 'c1',
-        ip: '10.0.0.1',
-        userAgent: 'jest',
-      });
+      expect(sesionService.iniciar).toHaveBeenCalledWith(
+        {
+          usuarioCiudadanoId: 'c1',
+          ip: '10.0.0.1',
+          userAgent: 'jest',
+        },
+        'dev',
+      );
       expect(cookies).toHaveLength(1);
       expect(cookies[0].nombre).toBe('arca_sesion');
       expect(cookies[0].valor).toBe('id-sesion.secreto');

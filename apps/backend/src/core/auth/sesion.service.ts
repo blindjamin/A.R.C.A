@@ -8,8 +8,13 @@ import {
 } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { AuthService } from './auth.service';
+import { IdentidadCiudadano } from './clave-unica.types';
 import { AuthUser } from './interfaces/auth-user.interface';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { OrigenPeticion } from '../auditoria/auditoria.types';
+import { AccionAuditoria } from '../entities/accion-auditoria.enum';
 import { SesionCiudadano } from '../entities/sesion-ciudadano.entity';
+import { TipoActorAuditoria } from '../entities/tipo-actor-auditoria.enum';
 import { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
 
 // Tiempos de la decisión 2 del mapa de unificación. El municipal dura menos y
@@ -37,6 +42,15 @@ export interface DatosNuevaSesion {
   userAgent?: string | null;
 }
 
+/** Por dónde entró la persona; queda en la auditoría del `LOGIN`. */
+export type OrigenLogin = 'clave_unica' | 'dev';
+
+/** Lo que el controlador necesita para dejar la cookie `arca_sesion`. */
+export interface SesionIniciada {
+  valorCookie: string;
+  maxAgeMs: number;
+}
+
 function sha256(valor: string): string {
   return createHash('sha256').update(valor).digest('hex');
 }
@@ -59,6 +73,7 @@ export class SesionService {
     @InjectRepository(UsuarioCiudadano)
     private readonly usuarios: Repository<UsuarioCiudadano>,
     private readonly authService: AuthService,
+    private readonly auditoria: AuditoriaService,
   ) {}
 
   /**
@@ -67,8 +82,66 @@ export class SesionService {
    */
   ahora = (): Date => new Date();
 
+  /**
+   * Cierra el callback de ClaveÚnica: busca o crea al ciudadano y le inicia
+   * sesión. Nombres y apellidos van solo a la sesión; de la identidad, lo único
+   * que se persiste en `usuarios_ciudadanos` es el identificador derivado.
+   */
+  async iniciarConClaveUnica(
+    identidad: IdentidadCiudadano,
+    origen: OrigenPeticion,
+  ): Promise<SesionIniciada> {
+    const ciudadano = await this.registrarIngreso(
+      identidad.identificador,
+      origen.ip,
+    );
+
+    return this.iniciar(
+      {
+        usuarioCiudadanoId: ciudadano.id,
+        nombre: identidad.nombres || null,
+        apellido: identidad.apellidos || null,
+        ip: origen.ip,
+        userAgent: origen.userAgent,
+      },
+      'clave_unica',
+    );
+  }
+
+  /**
+   * Crea la sesión y audita el `LOGIN` (SPEC-sesion-unica criterio 7). La
+   * auditoría lleva solo el origen: nunca el RUN, el nombre ni la cookie.
+   */
+  async iniciar(
+    datos: DatosNuevaSesion,
+    origenLogin: OrigenLogin,
+  ): Promise<SesionIniciada> {
+    const { valorCookie, usuario } = await this.emitir(datos);
+
+    // Un funcionario queda con su ficha municipal, para que el registro de
+    // auditoría lo muestre con nombre; un vecino, con su referencia opaca.
+    await this.auditoria.registrar({
+      tipoActor: usuario.esAdministrador
+        ? TipoActorAuditoria.ADMINISTRADOR
+        : TipoActorAuditoria.CIUDADANO,
+      actor: usuario,
+      entidad: 'sesiones_ciudadano',
+      accion: AccionAuditoria.LOGIN,
+      datosNuevos: { origen: origenLogin },
+      origen: { ip: datos.ip, userAgent: datos.userAgent },
+    });
+
+    return { valorCookie, maxAgeMs: this.duracionMaxima(usuario) };
+  }
+
   /** Crea la sesión y devuelve el valor de la cookie `arca_sesion`. */
   async crear(datos: DatosNuevaSesion): Promise<string> {
+    return (await this.emitir(datos)).valorCookie;
+  }
+
+  private async emitir(
+    datos: DatosNuevaSesion,
+  ): Promise<{ valorCookie: string; usuario: AuthUser }> {
     const ciudadano = await this.usuarios.findOne({
       where: { id: datos.usuarioCiudadanoId, activo: true },
     });
@@ -101,7 +174,41 @@ export class SesionService {
       }),
     );
 
-    return `${sessionId}.${secreto}`;
+    return { valorCookie: `${sessionId}.${secreto}`, usuario };
+  }
+
+  /**
+   * Upsert por `clave_unica_id`. Un ciudadano desactivado no vuelve a entrar
+   * aunque ClaveÚnica lo haya autenticado: la baja la decide ARCA, no ClaveÚnica.
+   */
+  private async registrarIngreso(
+    claveUnicaId: string,
+    ip?: string | null,
+  ): Promise<UsuarioCiudadano> {
+    const ahora = this.ahora();
+    const existente = await this.usuarios.findOne({ where: { claveUnicaId } });
+
+    if (existente) {
+      if (!existente.activo) {
+        throw new UnauthorizedException('No se pudo iniciar sesión.');
+      }
+      await this.usuarios.update(
+        { id: existente.id },
+        { fechaUltimaActividad: ahora },
+      );
+      return existente;
+    }
+
+    return this.usuarios.save(
+      this.usuarios.create({
+        id: randomUUID(),
+        claveUnicaId,
+        fechaRegistro: ahora,
+        fechaUltimaActividad: ahora,
+        activo: true,
+        ipPrimeraLogin: ip ?? null,
+      }),
+    );
   }
 
   /**
