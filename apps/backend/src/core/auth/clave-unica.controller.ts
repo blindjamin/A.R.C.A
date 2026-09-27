@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Logger,
-  NotImplementedException,
   Query,
   Req,
   Res,
@@ -14,7 +13,8 @@ import { Public } from './decorators/public.decorator';
 import { LimiteLogin } from '../seguridad/limites';
 import { ClaveUnicaService } from './clave-unica.service';
 import { OAUTH_STATE_COOKIE } from './clave-unica.constants';
-import { leerCookie } from './cookies';
+import { COOKIE_SESION, leerCookie, opcionesCookieSesion } from './cookies';
+import { SesionService } from './sesion.service';
 
 /**
  * Punto de entrada del inicio de sesión con ClaveÚnica (HU-12).
@@ -30,7 +30,10 @@ import { leerCookie } from './cookies';
 export class ClaveUnicaController {
   private readonly logger = new Logger(ClaveUnicaController.name);
 
-  constructor(private readonly claveUnicaService: ClaveUnicaService) {}
+  constructor(
+    private readonly claveUnicaService: ClaveUnicaService,
+    private readonly sesionService: SesionService,
+  ) {}
 
   /**
    * Inicia el flujo: genera el `state`, lo deja en una cookie HttpOnly y redirige
@@ -69,7 +72,8 @@ export class ClaveUnicaController {
    *
    * Valida el `state`, cambia el código por el token de acceso y consulta la
    * identidad. Las dos llamadas salen desde acá, del backend, como exige la
-   * certificación.
+   * certificación. Después emite la sesión de ARCA en la cookie `arca_sesion` y
+   * vuelve al inicio del sitio.
    */
   @Get('callback')
   async callback(
@@ -121,22 +125,22 @@ export class ClaveUnicaController {
       `Autenticación completada para ${identidad.identificador.slice(0, 8)}…`,
     );
 
-    // PENDIENTE (Benjamín, EP-05): emitir la sesión de ARCA.
-    //
-    // Acá va la creación o búsqueda del ciudadano en `usuarios_ciudadanos` por
-    // `identificador`, el registro en `sesiones_ciudadano` y la emisión del JWT.
-    //
-    // Se corta a propósito antes de eso: no se decidió el mecanismo de sesión, y
-    // resolverlo improvisando llevaría a repetir el error de Atención Vecino, que
-    // devuelve la identidad al frontend por la URL — y así cualquiera se hace
-    // pasar por otro escribiendo un RUN en la barra de direcciones.
-    throw new NotImplementedException(
-      'Identidad verificada. Falta emitir la sesión de ARCA (HU-12).',
-    );
+    const { valorCookie, maxAgeMs } =
+      await this.sesionService.iniciarConClaveUnica(identidad, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+
+    // La identidad nunca viaja en la URL de vuelta: el frontend la pide con
+    // `GET /api/sesion`. Devolverla por la URL es el error de Atención Vecino,
+    // donde cualquiera se hace pasar por otro escribiendo un RUN.
+    res.cookie(COOKIE_SESION, valorCookie, opcionesCookieSesion(maxAgeMs));
+    res.redirect(302, '/');
   }
 
   /**
-   * Cierra la sesión de ClaveÚnica (paso 7 del manual).
+   * Cierra la sesión de ARCA (revoca la fila y borra `arca_sesion`) y después
+   * la de ClaveÚnica (paso 7 del manual).
    *
    * La certificación verifica que exista un enlace o botón claramente identificado
    * para cerrar sesión y que efectivamente llame a este endpoint. Cerrar solo la
@@ -148,7 +152,9 @@ export class ClaveUnicaController {
    * sesión de ClaveÚnica queda abierta.
    */
   @Get('logout')
-  logout(@Res() res: Response): void {
+  async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
+    await this.sesionService.revocar(leerCookie(req, COOKIE_SESION));
+    res.clearCookie(COOKIE_SESION, opcionesCookieSesion());
     res.clearCookie(
       OAUTH_STATE_COOKIE,
       this.claveUnicaService.opcionesBorradoCookieEstado(),

@@ -26,7 +26,7 @@
 
 | Tarea | Qué falta | Nota |
 |---|---|---|
-| **SU-3** | Callback de ClaveÚnica: upsert del ciudadano, crear sesión, cookie, auditar `LOGIN`, `302 /`; logout de ClaveÚnica revoca la sesión | **Bloquea el login real.** Hoy el callback sigue en `NotImplementedException`: solo se entra con el login de desarrollo |
+| **SU-3** | ✅ Hecho (2026-09-26, Javier, rama `2026-09-26-javier-sesion-clave-unica`). Callback: upsert por `clave_unica_id` (desactivado → 401), sesión, cookie, `LOGIN` auditado, `302 /`; logout de ClaveÚnica revoca la sesión. El login de desarrollo también audita `LOGIN` (origen `dev`, criterio 7) | Backend 255 tests ✓. Falta probar el callback contra ClaveÚnica real: requiere credenciales de sandbox y el Redirect URI registrado |
 | **SU-4** | Borrar la vía `Bearer <uuid>` del `AuthGuard` y de `AuthService` | Depende de SU-3. Cierra D1 del documento de seguridad |
 | **Recorrido §3** | Probar en navegador los 5 pasos de SPEC-frontend-unificado §3 (vecino, funcionario, admin, salir, DevTools) | Con `ALLOW_DEV_LOGIN=true` en `apps/backend/.env.local` |
 | **SE-1/SE-2** | CLAUDE.md, AGENTS.md (tabla A.7), README raíz, `docs/SETUP_LOCAL.md`: quitar `packages/arca-core`, `build:core`, `apps/backend-admin`, `apps/admin-web`, puerto 5174 | `setup.ps1` ya está al día |
@@ -155,9 +155,9 @@
 **Descripción:** El callback hace upsert del ciudadano por `clave_unica_id`, crea la sesión, deja la cookie, audita `LOGIN` (sin RUN ni nombre) y redirige a `/`. El logout de ClaveÚnica revoca la sesión antes de redirigir.
 
 **Aceptación:**
-- [ ] El test del controlador (con `ClaveUnicaService` simulado) verifica cookie + 302 `/` + fila de auditoría sin datos personales.
-- [ ] El logout marca `activa = false` y borra la cookie.
-- [ ] No queda ninguna `NotImplementedException` en el callback.
+- [x] El test del controlador (con `ClaveUnicaService` simulado) verifica cookie + 302 `/` + fila de auditoría sin datos personales.
+- [x] El logout marca `activa = false` y borra la cookie.
+- [x] No queda ninguna `NotImplementedException` en el callback.
 
 **Verificación:** `cd apps/backend && npx jest && npm run build` (el núcleo ya vive en `apps/backend/src/core`).
 **Dependencias:** SU-2 · **Archivos:** `clave-unica.controller.ts`, su spec, `sesion.service.ts` (upsert) · **Tamaño:** S

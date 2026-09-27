@@ -1,8 +1,12 @@
 import { createHash } from 'node:crypto';
 import type { Repository } from 'typeorm';
+import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SesionService } from './sesion.service';
+import type { AuditoriaService } from '../auditoria/auditoria.service';
+import { AccionAuditoria } from '../entities/accion-auditoria.enum';
 import { RolAdministrador } from '../entities/rol-administrador.enum';
+import { TipoActorAuditoria } from '../entities/tipo-actor-auditoria.enum';
 import type { SesionCiudadano } from '../entities/sesion-ciudadano.entity';
 import type { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
 
@@ -31,8 +35,14 @@ describe('SesionService', () => {
     save: jest.Mock;
     update: jest.Mock;
   };
-  let repoUsuarios: { findOne: jest.Mock };
+  let repoUsuarios: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    update: jest.Mock;
+  };
   let resolver: { getPerfilAcceso: jest.Mock };
+  let auditoria: { registrar: jest.Mock };
   let servicio: SesionService;
 
   const comoVecino = () =>
@@ -90,14 +100,19 @@ describe('SesionService', () => {
     };
     repoUsuarios = {
       findOne: jest.fn().mockResolvedValue({ id: CIUDADANO_ID, activo: true }),
+      create: jest.fn((datos: Partial<UsuarioCiudadano>) => ({ ...datos })),
+      save: jest.fn((entidad: UsuarioCiudadano) => Promise.resolve(entidad)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     resolver = { getPerfilAcceso: jest.fn() };
+    auditoria = { registrar: jest.fn().mockResolvedValue(undefined) };
     comoVecino();
 
     servicio = new SesionService(
       repoSesiones as unknown as Repository<SesionCiudadano>,
       repoUsuarios as unknown as Repository<UsuarioCiudadano>,
       new AuthService(resolver),
+      auditoria as unknown as AuditoriaService,
     );
     servicio.ahora = () => AHORA;
   });
@@ -304,6 +319,131 @@ describe('SesionService', () => {
       await expect(servicio.revocar(COOKIE)).resolves.toBeUndefined();
       await expect(servicio.revocar('basura')).resolves.toBeUndefined();
       await expect(servicio.revocar(undefined)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('iniciar', () => {
+    it('audita el LOGIN con el origen, sin nombre ni cookie', async () => {
+      const { valorCookie } = await servicio.iniciar(
+        {
+          usuarioCiudadanoId: CIUDADANO_ID,
+          nombre: 'Ana',
+          apellido: 'Pérez',
+          ip: '10.0.0.1',
+          userAgent: 'jest',
+        },
+        'dev',
+      );
+
+      expect(auditoria.registrar).toHaveBeenCalledTimes(1);
+      const [registro] = auditoria.registrar.mock.calls[0] as [
+        Record<string, unknown>,
+      ];
+      expect(registro).toMatchObject({
+        tipoActor: TipoActorAuditoria.CIUDADANO,
+        entidad: 'sesiones_ciudadano',
+        accion: AccionAuditoria.LOGIN,
+        datosNuevos: { origen: 'dev' },
+        origen: { ip: '10.0.0.1', userAgent: 'jest' },
+      });
+      const texto = JSON.stringify(registro);
+      expect(texto).not.toContain('Ana');
+      expect(texto).not.toContain('Pérez');
+      expect(texto).not.toContain(valorCookie.split('.')[1]);
+    });
+
+    it('un funcionario queda auditado como administrador y con 8 horas', async () => {
+      comoFuncionario();
+
+      const { maxAgeMs } = await servicio.iniciar(
+        { usuarioCiudadanoId: CIUDADANO_ID },
+        'dev',
+      );
+
+      expect(maxAgeMs).toBe(8 * HORA);
+      expect(auditoria.registrar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tipoActor: TipoActorAuditoria.ADMINISTRADOR,
+        }),
+      );
+    });
+
+    it('un vecino recibe 7 días de maxAge', async () => {
+      const { maxAgeMs } = await servicio.iniciar(
+        { usuarioCiudadanoId: CIUDADANO_ID },
+        'dev',
+      );
+
+      expect(maxAgeMs).toBe(7 * DIA);
+    });
+  });
+
+  describe('iniciarConClaveUnica', () => {
+    const IDENTIDAD = {
+      identificador: 'hmac-del-run',
+      nombres: 'Ana María',
+      apellidos: 'Pérez Soto',
+    };
+    const ORIGEN = { ip: '10.0.0.1', userAgent: 'jest' };
+
+    it('crea al ciudadano la primera vez, solo con el identificador derivado', async () => {
+      repoUsuarios.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: CIUDADANO_ID, activo: true });
+      repoUsuarios.save.mockImplementationOnce((entidad: UsuarioCiudadano) =>
+        Promise.resolve({ ...entidad, id: CIUDADANO_ID }),
+      );
+
+      await servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN);
+
+      const [creado] = repoUsuarios.save.mock.calls[0] as [UsuarioCiudadano];
+      expect(creado).toMatchObject({
+        claveUnicaId: 'hmac-del-run',
+        fechaRegistro: AHORA,
+        fechaUltimaActividad: AHORA,
+        activo: true,
+        ipPrimeraLogin: '10.0.0.1',
+      });
+      expect(JSON.stringify(creado)).not.toContain('Ana');
+    });
+
+    it('reusa al ciudadano existente y actualiza su última actividad', async () => {
+      await servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN);
+
+      expect(repoUsuarios.save).not.toHaveBeenCalled();
+      expect(repoUsuarios.update).toHaveBeenCalledWith(
+        { id: CIUDADANO_ID },
+        { fechaUltimaActividad: AHORA },
+      );
+    });
+
+    it('guarda nombre y apellido en la sesión y audita el origen clave_unica', async () => {
+      await servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN);
+
+      const [guardada] = repoSesiones.save.mock.calls[0] as [SesionCiudadano];
+      expect(guardada).toMatchObject({
+        usuarioCiudadanoId: CIUDADANO_ID,
+        nombreSesion: 'Ana María',
+        apellidoSesion: 'Pérez Soto',
+        ipSesion: '10.0.0.1',
+        userAgent: 'jest',
+      });
+      expect(auditoria.registrar).toHaveBeenCalledWith(
+        expect.objectContaining({ datosNuevos: { origen: 'clave_unica' } }),
+      );
+    });
+
+    it('rechaza a un ciudadano desactivado sin crear sesión', async () => {
+      repoUsuarios.findOne.mockResolvedValueOnce({
+        id: CIUDADANO_ID,
+        activo: false,
+      });
+
+      await expect(
+        servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(repoSesiones.save).not.toHaveBeenCalled();
+      expect(auditoria.registrar).not.toHaveBeenCalled();
     });
   });
 
