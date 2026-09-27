@@ -88,6 +88,17 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
 
+### Endpoints de sesión
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/auth/clave-unica/login` | Redirige a ClaveÚnica (302) con el `state` en una cookie |
+| `GET` | `/api/auth/clave-unica/callback` | Valida el `state`, obtiene la identidad, busca o crea al ciudadano por `clave_unica_id`, deja la cookie `arca_sesion`, audita `LOGIN` y redirige a `/` |
+| `GET` | `/api/auth/clave-unica/logout` | Revoca la sesión, borra `arca_sesion` y redirige al logout de ClaveÚnica |
+| `GET` | `/api/sesion` | `{ ciudadanoId, nombre, rol, devLogin }` de la sesión actual (401 sin sesión) |
+| `POST` | `/api/auth/logout` | Revoca la sesión y borra la cookie (204) |
+| `POST` | `/api/auth/dev/login` | Solo con `ALLOW_DEV_LOGIN=true` (si no, 404). Body `{ ciudadanoId }`; crea la sesión y audita `LOGIN` con origen `dev` |
+
 ### Endpoints del panel (`/api/admin/...`)
 
 Antes vivían en `apps/backend-admin` (puerto 3001, backend aparte); desde `backend-unificado`
@@ -130,20 +141,24 @@ cambio de estado municipal viven en `src/admin/` (ver [Endpoints del panel](#end
 Detalle: [pendientes del equipo](../../docs/PENDIENTES_EQUIPO.md) ·
 [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
 
-### Autenticación (HU-13 — desarrollo)
+### Autenticación (HU-12, HU-13)
 
-Hasta que Benjamín integre ClaveÚnica/JWT, las rutas protegidas exigen:
+Las rutas protegidas exigen la cookie `arca_sesion` (`HttpOnly`, `SameSite=Lax`, `Path=/api`),
+que emite el callback de ClaveÚnica. La base guarda solo el hash del secreto de la cookie. La
+sesión dura 7 días para un vecino y 8 horas para funcionario o admin, que además la pierden tras
+30 minutos sin actividad. Detalle: [spec `sesion-unica`](../../docs/specs/SPEC-sesion-unica.md).
 
-```
-Authorization: Bearer <uuid-usuario-ciudadano>
-```
+Cada inicio de sesión queda en auditoría como `LOGIN`, con el origen (`clave_unica` o `dev`), la IP
+y el user-agent; nunca el RUN, el nombre ni la cookie.
 
-UUIDs de demo (migraciones): ciudadano `…0001`, doble rol funcionario `…0002`,
-doble rol administrador `…0003`.
+En desarrollo, con `ALLOW_DEV_LOGIN=true` en `.env.local`, se entra sin ClaveÚnica con
+`POST /api/auth/dev/login { ciudadanoId }` usando los UUID de demo (migraciones): ciudadano
+`…0001`, doble rol funcionario `…0002`, doble rol administrador `…0003`. Mientras exista esa
+variable también se acepta el transitorio `Authorization: Bearer <uuid>` (se elimina en SU-4).
+La app **no arranca** si `ALLOW_DEV_LOGIN=true` y `NODE_ENV=production`.
 
-Los tres se usan como `Authorization: Bearer <uuid>` mientras no exista el JWT. Van los ids de
-**`usuarios_ciudadanos`**, no los de `usuarios_administradores`: la identidad es siempre la
-ciudadana y el perfil municipal es una extensión sobre ella.
+Van los ids de **`usuarios_ciudadanos`**, no los de `usuarios_administradores`: la identidad es
+siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 
 | UUID | Perfil | Alcance |
 |---|---|---|
@@ -160,11 +175,6 @@ ciudadana y el perfil municipal es una extensión sobre ella.
 > **El cambio de estado municipal** (`admin`/`funcionario`) vive en `src/admin/`
 > (`PATCH /api/admin/solicitudes/:id` y `POST …/revision`, mismo puerto 3000).
 > `GET /api/operadores` se eliminó: ya no hay asignación de operadores en A.R.C.A.
-
-En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
-
-> **Integración frontend:** hasta que `arca.ts` envíe el header, la PWA obtiene `401` en
-> rutas protegidas. Ver tarea para Maximiliano en el PR de HU-13.
 
 ---
 
