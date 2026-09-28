@@ -1,14 +1,13 @@
 # Guía de despliegue en cPanel — A.R.C.A.
 
-Cómo publicar las cuatro piezas de A.R.C.A. en el servidor municipal administrado con cPanel.
-Está escrita para quien administra el servidor; la **Parte 1** la prepara el equipo COM Tech en
-un computador con el repositorio y entrega cuatro archivos `.zip`, y la **Parte 2** se hace en
-el cPanel.
+Cómo publicar A.R.C.A. en el servidor municipal administrado con cPanel. Está escrita para quien
+administra el servidor: la **Parte 1** la prepara el equipo COM Tech en un computador con el
+repositorio y entrega dos archivos `.zip`; la **Parte 2** se hace en el cPanel.
 
-> **Versión que se despliega:** `A.R.C.A-proyecto-develop-4aaec80.zip` (commit `4aaec80` de
-> `develop`, 24-09-2026). Todo lo que sigue —rutas, variables de entorno y cantidad de
-> migraciones— corresponde a esa versión. Las versiones posteriores se instalan con el
-> procedimiento de §4.
+> **Versión que se despliega:** commit `5ef7992` de `develop` (27-09-2026), la primera con la
+> **app unificada**: vecino y panel municipal en un solo sitio. Si el servidor tiene la
+> estructura anterior (subdominio del panel y una segunda API), la sección **2.4** explica cómo
+> desmontarla. Las versiones posteriores se instalan con el procedimiento de §4.
 
 ---
 
@@ -16,119 +15,90 @@ el cPanel.
 
 | Pieza | Qué es | Dirección pública | Carpeta en el servidor |
 |---|---|---|---|
-| Frontend ciudadano | Archivos estáticos (HTML/JS/CSS) | `https://arca.santodomingo.cl` | Raíz de documentos del dominio (en cPanel → Dominios) |
-| API ciudadana | Aplicación Node.js (NestJS) | `https://arca.santodomingo.cl/api` | `~/api` |
-| Panel municipal | Archivos estáticos (HTML/JS/CSS) | `https://admin.arca.santodomingo.cl` | Raíz de documentos del subdominio |
-| API del panel | Aplicación Node.js (NestJS) | `https://admin.arca.santodomingo.cl/api` | `~/api_arca_admin` |
+| Frontend | Archivos estáticos (HTML/JS/CSS). Incluye la app del vecino y el panel municipal en `/admin` | `https://arca.santodomingo.cl` | Raíz de documentos del dominio (cPanel → Dominios) |
+| API | Aplicación Node.js (NestJS) | `https://arca.santodomingo.cl/api` | `~/api` |
 | Base de datos | MySQL / MariaDB | — | `santod85_arca_db` |
 
 Puntos clave:
 
-- **Hay una sola base de datos.** Las dos APIs usan `santod85_arca_db`. No hay que crear
-  `arca_dev`: ese nombre es solo el de la base local en Docker de los computadores del equipo.
-- **Solo la API ciudadana crea tablas** (con las migraciones). La API del panel nunca las crea
-  ni las modifica (`synchronize: false`); usa las mismas tablas.
-- Cada frontend llama a **su propia API** en `/api` de su mismo dominio. Por eso el panel
-  necesita subdominio propio y no puede ir en `arca.santodomingo.cl/panel`.
-- Las carpetas `~/api` y `~/api_arca_admin` están **fuera** de `public_html`: el código y el
-  archivo de configuración con contraseñas no quedan accesibles desde internet.
+- **Un solo dominio.** Vecinos y funcionarios entran por `arca.santodomingo.cl` con ClaveÚnica.
+  Después del login, cada persona ve lo que le corresponde según su rol: el vecino, su app; el
+  funcionario y el administrador, además, el panel en `/admin`. Quién puede ver qué lo decide la
+  API en cada petición, no la dirección desde donde se entra.
+- **Una sola integración de ClaveÚnica**, con una sola dirección de retorno. Por eso el panel
+  ya no lleva subdominio propio: con dos dominios habrían hecho falta dos integraciones.
+- **La sesión es una cookie** (`arca_sesion`) que emite la API después de ClaveÚnica. Solo
+  funciona con HTTPS, porque en producción la cookie se marca como segura.
+- **Una sola base.** No hay que crear `arca_dev`: ese es el nombre de la base local de los
+  computadores del equipo.
+- La carpeta `~/api` queda **fuera** de `public_html`: el código y el archivo con contraseñas no
+  quedan accesibles desde internet.
 
 ---
 
-## 1. Estado actual — qué va a funcionar y qué no
+## 1. Estado actual — qué funciona
 
-Antes de desplegar conviene saber lo que se va a ver:
-
-| Funciona en producción | Todavía no funciona en producción |
+| Con las credenciales de ClaveÚnica configuradas | Sin credenciales de ClaveÚnica |
 |---|---|
-| Pantallas públicas de ambos frontends | Todo lo que requiere sesión iniciada (crear solicitudes, panel municipal) |
-| `GET /api/health` en ambas APIs | Inicio de sesión con ClaveÚnica |
-| Catálogo de residuos (`/api/residuos/catalogo`) | |
+| Todo: login, solicitudes, marketplace, panel municipal según el rol | Solo las pantallas públicas, `GET /api/health` y el catálogo de residuos |
+| | Todo lo que requiere sesión responde `401` |
 
-**Por qué:** la emisión de la sesión (JWT) después de ClaveÚnica está pendiente (EP-05). Con
-`NODE_ENV=production`, las APIs responden `401 — Autenticación JWT no configurada en producción`
-a cualquier petición autenticada, y el retorno de ClaveÚnica responde `501` a propósito.
-
-> ⚠️ **No cambiar `NODE_ENV` a otro valor para "hacer funcionar" el login.** Fuera de
-> producción las APIs aceptan un modo de desarrollo en que basta con conocer el identificador
-> de un usuario para actuar en su nombre, y las migraciones siembran usuarios de prueba con
-> identificadores conocidos (ver §6). En un servidor público eso deja el sistema abierto.
+**En producción no hay otra forma de entrar que ClaveÚnica.** El "login de desarrollo" que usa
+el equipo en sus computadores se activa con la variable `ALLOW_DEV_LOGIN=true`, y la API **se
+niega a arrancar** si la encuentra junto con `NODE_ENV=production`. Es a propósito: con ese modo,
+cualquiera podría entrar como funcionario sin ClaveÚnica. Los botones "Vecino (dev)" y
+"Funcionario (dev)" tampoco aparecen en el build de producción.
 
 **ClaveÚnica:** la Redirect URI registrada debe ser exactamente
-`https://arca.santodomingo.cl/api/auth/clave-unica/callback`. Según el manual de Gobierno
-Digital, en producción se exige un dominio `.gob.cl` o una excepción aprobada por la Agencia.
+`https://arca.santodomingo.cl/api/auth/clave-unica/callback`, y la Logout URI
+`https://arca.santodomingo.cl/login`. Según el manual de Gobierno Digital, en producción se
+exige un dominio `.gob.cl` o una excepción aprobada por la Agencia.
 
 ---
 
 ## 2. Requisitos del servidor
 
-- **"Setup Node.js App"** en cPanel (Node.js Selector de CloudLinux) con **Node.js 20 o
-  superior** — NestJS 11 no corre en versiones anteriores. El equipo desarrolla con Node 24.
+- **"Setup Node.js App"** en cPanel (Node.js Selector de CloudLinux) con **Node.js 22.12.0 o
+  superior** (el equipo desarrolla con Node 24). Con versiones anteriores la API no arranca.
 - **Terminal** de cPanel (o SSH).
-- Base `santod85_arca_db` creada, con un usuario MySQL que tenga **todos los privilegios** sobre
-  ella (en cPanel → Bases de datos MySQL → "Agregar usuario a la base de datos"). El usuario
-  también lleva el prefijo `santod85_`.
-- Dominio `arca.santodomingo.cl` y subdominio `admin.arca.santodomingo.cl` con HTTPS activo.
+- Base `santod85_arca_db` con un usuario MySQL que tenga **todos los privilegios** sobre ella
+  (cPanel → Bases de datos MySQL → "Agregar usuario a la base de datos"). El usuario lleva el
+  prefijo `santod85_`.
+- `arca.santodomingo.cl` con **HTTPS activo**. Sin HTTPS la sesión no se guarda en el navegador.
 
 ---
 
 ## Parte 1 — Preparar los paquetes (equipo COM Tech)
 
-Se hace en un computador con Node.js instalado, a partir del código de la versión que se
-despliega (descomprimir `A.R.C.A-proyecto-develop-4aaec80.zip`, o `git checkout 4aaec80` en un
-clon del repositorio). El resultado son cuatro archivos: `api.zip`, `api_arca_admin.zip`,
-`frontend.zip` y `admin-web.zip`.
+Se hace en un computador con Node.js 22.12 o superior, desde el código de la versión que se
+despliega (`git checkout <commit>` en un clon del repositorio). El resultado son dos archivos:
+`api.zip` y `frontend.zip`.
 
-### 1.1 Por qué hay que empaquetar
-
-Las dos APIs dependen de `@arca/core` (`packages/arca-core`), un paquete interno del repo que
-**no está publicado en npm**. Si se sube la carpeta del backend tal cual y se ejecuta
-`npm install` en el servidor, falla porque npm no encuentra `@arca/core`. La solución es
-compilarlo y adjuntarlo como archivo `.tgz` dentro de cada paquete.
-
-### 1.2 Compilar
+### 1.1 Compilar la API
 
 Desde la raíz del repo:
 
 ```bash
 npm install
-npm run build:core
 npm run build -w backend
-npm run build -w backend-admin
 ```
 
-### 1.3 Empaquetar `@arca/core`
+Deja el código compilado en `apps/backend/dist/`.
 
-`npm pack` directamente sobre `packages/arca-core` **deja afuera la carpeta `dist/`** (está en
-`.gitignore`), así que se empaqueta desde una carpeta aparte:
-
-1. Crear una carpeta temporal, por ejemplo `arca-core-pack/`, fuera del repo.
-2. Copiar ahí `packages/arca-core/package.json` y la carpeta `packages/arca-core/dist/`.
-3. Dentro de esa carpeta, ejecutar:
-
-   ```bash
-   npm pack
-   ```
-
-   Genera `arca-core-0.0.1.tgz`.
-
-### 1.4 Armar `api/` (API ciudadana)
+### 1.2 Armar `api/`
 
 Estructura final:
 
 ```
 api/
-├── dist/                      ← copia de apps/backend/dist/
-├── vendor/
-│   └── arca-core-0.0.1.tgz    ← el del paso 1.3
-└── package.json               ← copia editada de apps/backend/package.json
+├── dist/            ← copia de apps/backend/dist/
+└── package.json     ← copia editada de apps/backend/package.json
 ```
 
 En el `package.json` copiado:
 
-1. Cambiar `"@arca/core": "*"` por `"@arca/core": "file:./vendor/arca-core-0.0.1.tgz"`.
-2. Borrar las secciones `"devDependencies"` y `"jest"`.
-3. Reemplazar `"scripts"` completo por:
+1. Borrar las secciones `"devDependencies"` y `"jest"`.
+2. Reemplazar `"scripts"` completo por:
 
    ```json
    "scripts": {
@@ -138,48 +108,38 @@ En el `package.json` copiado:
    }
    ```
 
-   (Los scripts originales usan `ts-node` y el código fuente, que no se suben al servidor.)
+   (Los scripts originales usan `ts-node` y el código fuente, que no se sube al servidor.)
 
-Comprimir la carpeta como `api.zip` (el contenido, no la carpeta: al abrir el zip deben verse
-`dist/`, `vendor/` y `package.json`).
+Comprimir el **contenido** de la carpeta como `api.zip`: al abrir el zip deben verse `dist/` y
+`package.json`. **No incluir** `node_modules/` ni ningún `.env` / `.env.local`.
 
-**No incluir** `node_modules/` ni ningún `.env` / `.env.local`.
+> **En Windows, no usar `Compress-Archive` de PowerShell 5.1:** guarda las rutas con `\`, y al
+> descomprimir en el servidor (Linux) aparecen archivos llamados `dist\main.js` en vez de la
+> carpeta `dist/`. Usar el `tar` incluido en Windows, desde dentro de la carpeta:
+> `tar.exe -a -c -f ..\api.zip dist package.json`. Lo mismo para `frontend.zip`.
 
-### 1.5 Armar `api_arca_admin/` (API del panel)
+> Ya no hace falta empaquetar `@arca/core` ni un archivo `.tgz`: desde la unificación, el
+> núcleo compartido vive dentro de la API (`apps/backend/src/core`).
 
-Igual que 1.4, con estos cambios:
+### 1.3 Compilar el frontend
 
-- `dist/` es la copia de `apps/backend-admin/dist/`.
-- `package.json` es la copia editada de `apps/backend-admin/package.json`.
-- Los `"scripts"` quedan solo con `"start": "node dist/main"` — esta API no corre migraciones.
+El frontend lee su configuración al **compilar**, no en el servidor. Crear
+`apps/frontend/.env.production.local` (no se versiona; tiene prioridad sobre `.env.local` al
+compilar) con una sola línea:
 
-Comprimir como `api_arca_admin.zip`.
-
-### 1.6 Compilar los frontends
-
-Cada frontend lee su configuración al **compilar**, no en el servidor. Crear un archivo
-`.env.production.local` (no se versiona; tiene prioridad sobre `.env.local` al compilar):
-
-`apps/frontend/.env.production.local`
-```
-VITE_API_URL=/api
-VITE_ADMIN_URL=https://admin.arca.santodomingo.cl
-```
-
-`apps/admin-web/.env.production.local`
 ```
 VITE_API_URL=/api
 ```
 
-Y compilar cada uno:
+Y compilar:
 
 ```bash
 cd apps/frontend && npm install && npm run build
-cd ../admin-web && npm install && npm run build
 ```
 
-Comprimir el **contenido** de `apps/frontend/dist/` como `frontend.zip` y el de
-`apps/admin-web/dist/` como `admin-web.zip`.
+Comprobar que en `apps/frontend/dist/assets/` exista un archivo `AdminApp-*.js`: es el panel
+municipal, que se descarga solo cuando entra un funcionario. Comprimir el **contenido** de
+`apps/frontend/dist/` como `frontend.zip`.
 
 ---
 
@@ -187,31 +147,34 @@ Comprimir el **contenido** de `apps/frontend/dist/` como `frontend.zip` y el de
 
 ### 2.1 Base de datos
 
-Ya existe `santod85_arca_db`. Solo verificar que el usuario MySQL tenga todos los privilegios
-sobre ella. Las tablas **no se crean a mano**: las crean las migraciones en el paso 2.2.
+Solo verificar que el usuario MySQL tenga todos los privilegios sobre `santod85_arca_db`. Las
+tablas **no se crean a mano**: las crean las migraciones en el paso 2.2.
 
-### 2.2 API ciudadana (`~/api`)
+### 2.2 API (`~/api`)
 
 **a) Aplicación Node.js.** En "Setup Node.js App", la aplicación de `api` debe tener:
 
 | Campo | Valor |
 |---|---|
-| Node.js version | 20 o superior |
+| Node.js version | 22.12 o superior |
 | Application mode | Production |
 | Application root | `api` |
 | Application URL | `arca.santodomingo.cl` / `api` |
 | Application startup file | `dist/main.js` |
 
-Detener la aplicación antes de subir archivos.
+Detener la aplicación antes de subir archivos. Si el formulario permite definir un archivo de
+log, poner `~/api/stderr.log`: ahí quedan los errores de arranque (§5).
 
-**b) Subir los archivos.** Con el Administrador de archivos, subir `api.zip` a `~/api` y
-extraerlo. Deben quedar `~/api/dist/`, `~/api/vendor/` y `~/api/package.json`. Si quedó algún
-archivo de una instalación anterior (por ejemplo, un `app.js` de ejemplo que crea cPanel), se
-puede borrar; **no borrar** lo que cPanel haya creado como `node_modules` si ya existe.
+**b) Subir los archivos.** Con el Administrador de archivos, en `~/api`:
+
+1. Borrar `dist/`, `vendor/` y `package.json` de la instalación anterior, si existen. `vendor/`
+   era el `.tgz` de `@arca/core`, que ya no se usa. **No borrar** `.env.local` ni lo que cPanel
+   haya creado como `node_modules`.
+2. Subir `api.zip` y extraerlo ahí mismo. Deben quedar `~/api/dist/` y `~/api/package.json`.
 
 **c) Configuración — archivo `~/api/.env.local`.** Tiene que llamarse exactamente
-**`.env.local`**: la aplicación **no lee** un archivo `.env`. Crearlo con este contenido,
-completando los valores:
+**`.env.local`**: la aplicación **no lee** un archivo `.env`. Crearlo (o revisarlo, si ya
+existe) con este contenido, completando los valores:
 
 ```
 DB_HOST=localhost
@@ -222,6 +185,7 @@ DB_DATABASE=santod85_arca_db
 
 NODE_ENV=production
 FRONTEND_URL=https://arca.santodomingo.cl
+TRUST_PROXY=loopback
 
 CLAVE_UNICA_CLIENT_ID=<entregado por Gobierno Digital>
 CLAVE_UNICA_CLIENT_SECRET=<entregado por Gobierno Digital>
@@ -230,23 +194,26 @@ CLAVE_UNICA_LOGOUT_REDIRECT_URI=https://arca.santodomingo.cl/login
 CLAVE_UNICA_PEPPER=<ver abajo>
 ```
 
+- **No agregar `ALLOW_DEV_LOGIN`.** Si aparece con `NODE_ENV=production`, la API no arranca (§1).
 - `PORT` no se define: lo asigna cPanel.
+- `TRUST_PROXY=loopback` permite que la API vea la IP real de cada visitante detrás del proxy
+  del servidor, para el límite de consultas. **No poner `true`**: cualquiera podría inventar su
+  IP y saltarse el límite. Ver §6 sobre Cloudflare.
 - `CLAVE_UNICA_PEPPER` se genera **una sola vez** con
-  `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y se
-  **respalda en un lugar seguro**. Si se pierde o se cambia, ningún vecino vuelve a ser
-  reconocido y todos pierden su historial.
-- Mientras no estén las credenciales de ClaveÚnica, las variables `CLAVE_UNICA_*` pueden quedar
+  `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y se **respalda en
+  un lugar seguro**. Si se pierde o se cambia, ningún vecino vuelve a ser reconocido y todos
+  pierden su historial. Si ya existe de una instalación anterior, **no cambiarlo**.
+- Mientras no estén las credenciales de ClaveÚnica, `CLIENT_ID` y `CLIENT_SECRET` pueden quedar
   vacías: la API arranca igual, y solo el botón de ClaveÚnica responde error.
-- Cambiar los permisos del archivo a **600** (Administrador de archivos → Permisos).
+- Permisos del archivo: **600** (Administrador de archivos → Permisos).
 
-Las variables también se pueden cargar en el formulario de "Setup Node.js App"; la aplicación
-las toma igual. Pero las **migraciones** (paso d) solo leen `.env.local`, por eso se recomienda
-el archivo.
+Las variables también se pueden cargar en el formulario de "Setup Node.js App", pero las
+**migraciones** (paso d) solo leen `.env.local`; por eso se recomienda el archivo.
 
 **d) Instalar dependencias y crear las tablas.** En la parte superior de la página de la
 aplicación, cPanel muestra un comando para "entrar al entorno virtual", con la forma
-`source /home/santod85/nodevenv/api/<versión>/bin/activate && cd /home/santod85/api`.
-Copiarlo, pegarlo en la **Terminal** y luego:
+`source /home/santod85/nodevenv/api/<versión>/bin/activate && cd /home/santod85/api`. Copiarlo,
+pegarlo en la **Terminal** y luego:
 
 ```bash
 npm install --omit=dev
@@ -254,10 +221,9 @@ npm run migration:run
 npm run migration:show
 ```
 
-`migration:run` debe terminar con `has been executed successfully` para cada migración (son
-**12** en esta versión), y `migration:show` debe mostrar todas con `[X]`. Si la base ya tenía las tablas de una
-instalación anterior, solo aplica las que falten (por ejemplo, si ya se habían corrido las 9 de
-la versión `c5800af`, aplica las 3 nuevas).
+Son **12** migraciones, las mismas de la versión `4aaec80`. Si ya se habían corrido,
+`migration:run` responde `No migrations are pending` y no cambia nada. `migration:show` debe
+mostrar las 12 con `[X]`.
 
 **e) Iniciar.** Volver a "Setup Node.js App" y presionar **Start** (o **Restart**).
 
@@ -267,44 +233,23 @@ la versión `c5800af`, aplica las 3 nuevas).
 {"status":"ok","db":"connected"}
 ```
 
-### 2.3 API del panel (`~/api_arca_admin`)
+Si responde una página de error del servidor (`500 Internal Server Error`), la aplicación no
+arrancó: revisar `~/api/stderr.log` (§5).
 
-Igual que 2.2, con estas diferencias:
-
-| Campo | Valor |
-|---|---|
-| Application root | `api_arca_admin` |
-| Application URL | `admin.arca.santodomingo.cl` / `api` |
-| Application startup file | `dist/main.js` |
-
-`~/api_arca_admin/.env.local`:
-
-```
-DB_HOST=localhost
-DB_PORT=3306
-DB_USERNAME=santod85_<usuario>
-DB_PASSWORD=<contraseña>
-DB_DATABASE=santod85_arca_db
-
-NODE_ENV=production
-FRONTEND_URL=https://admin.arca.santodomingo.cl
-```
-
-- Misma base, mismo usuario y contraseña que la API ciudadana.
-- En la Terminal solo `npm install --omit=dev` — **no** correr migraciones aquí.
-- Verificar con `https://admin.arca.santodomingo.cl/api/health`.
-
-### 2.4 Frontend ciudadano (`arca.santodomingo.cl`)
+### 2.3 Frontend (`arca.santodomingo.cl`)
 
 1. En cPanel → Dominios, ver cuál es la **raíz de documentos** de `arca.santodomingo.cl`.
 2. En esa carpeta, borrar los archivos del frontend anterior (`index.html`, `assets/`, etc.)
    **excepto `.htaccess`**: cPanel guarda ahí la configuración que conecta `/api` con la
    aplicación Node.js (un bloque marcado `DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION`).
-3. Subir `frontend.zip` y extraerlo ahí mismo (debe quedar `index.html` directamente en la raíz).
-4. **Editar** (no reemplazar) el `.htaccess` y agregar **al final**:
+3. Subir `frontend.zip` y extraerlo ahí mismo (`index.html` debe quedar directamente en la raíz).
+   Junto a `index.html` quedan `assets/` y `claveunica/`: esta última trae el estilo y el logo
+   del botón oficial de ClaveÚnica. Es parte del sitio; no borrarla.
+4. Revisar que el `.htaccess` tenga **al final** este bloque (si viene de la instalación
+   anterior ya debería estar; si no, agregarlo sin tocar lo demás):
 
    ```apache
-   # A.R.C.A. — la app usa rutas del navegador (/login, /solicitudes...):
+   # A.R.C.A. — la app usa rutas del navegador (/login, /admin...):
    # cualquier ruta que no sea un archivo real ni la API devuelve index.html.
    <IfModule mod_rewrite.c>
      RewriteEngine On
@@ -315,77 +260,95 @@ FRONTEND_URL=https://admin.arca.santodomingo.cl
    </IfModule>
    ```
 
-   Sin esto, recargar la página en una ruta como `/login` da error 404.
+   Sin esto, recargar la página en `/login` o `/admin` da error 404.
 
-5. Verificar: abrir `https://arca.santodomingo.cl`, navegar a `/login` y recargar (F5).
+### 2.4 Desmontar la estructura anterior (solo si existe)
 
-### 2.5 Panel municipal (`admin.arca.santodomingo.cl`)
+Antes de la unificación, el panel tenía su propio subdominio y su propia API. Ya no se usan:
 
-Igual que 2.4, en la raíz de documentos del subdominio, con `admin-web.zip` y el mismo bloque
-en su `.htaccess`.
+1. **API del panel.** En "Setup Node.js App", detener y **eliminar** la aplicación
+   `api_arca_admin`. Después, borrar la carpeta `~/api_arca_admin` completa: su `.env.local`
+   tiene la contraseña de la base, y no conviene dejarla en un lugar que ya nadie revisa.
+2. **Subdominio del panel** (por ejemplo `arcapanel.santodomingo.cl`). Borrar sus archivos y
+   dejar una **redirección permanente (301)** hacia `https://arca.santodomingo.cl/admin`
+   (cPanel → Dominios → Redirecciones), para que quien tenga guardada la dirección antigua
+   llegue al lugar nuevo. Si se le había puesto "Directory Privacy", ya no hace falta.
+3. En `~/api`, borrar la carpeta `vendor/` si quedó de la versión anterior (paso 2.2 b).
 
 ---
 
 ## 3. Verificación final
 
-| Dirección | Resultado esperado |
+| Qué probar | Resultado esperado |
 |---|---|
 | `https://arca.santodomingo.cl/api/health` | `{"status":"ok","db":"connected"}` |
-| `https://admin.arca.santodomingo.cl/api/health` | `{"status":"ok","db":"connected"}` |
 | `https://arca.santodomingo.cl/api/residuos/catalogo` | Lista de residuos en JSON |
-| `https://arca.santodomingo.cl` y recargar en `/login` | Carga la app, sin 404 |
-| `https://admin.arca.santodomingo.cl` | Carga el panel |
-| Acciones con sesión (panel, crear solicitud) | `401` — esperado hasta EP-05 (ver §1) |
+| `https://arca.santodomingo.cl/api/sesion` sin haber iniciado sesión | `401` en JSON |
+| `https://arca.santodomingo.cl/api/no-existe` | `404` en JSON (`Cannot GET ...`), no una página de error del servidor |
+| `https://arca.santodomingo.cl`, navegar a `/login` y recargar (F5) | Carga la app, sin 404 |
+| Recargar en `https://arca.santodomingo.cl/admin` sin sesión | Carga la app y lleva a `/login` |
+| Con credenciales de ClaveÚnica: entrar como vecino | Queda en la app del vecino; no puede abrir `/admin` |
+| Con credenciales de ClaveÚnica: entrar como funcionario | Puede elegir "Modo funcionario" y abrir el panel en `/admin` |
+| Si existía: `https://arcapanel.santodomingo.cl` | Redirige a `https://arca.santodomingo.cl/admin` |
 
 ---
 
 ## 4. Actualizar a una versión nueva
 
-1. El equipo entrega los zips nuevos (Parte 1, a partir de la versión nueva). Una versión
-   nueva puede traer migraciones o dependencias adicionales, por eso el paso 4 no se puede
-   saltar.
+1. El equipo entrega los zips nuevos (Parte 1). Una versión nueva puede traer migraciones o
+   dependencias adicionales, por eso el paso 4 no se puede saltar.
 2. Detener la aplicación en "Setup Node.js App".
-3. Reemplazar `dist/`, `vendor/` y `package.json`. **No tocar `.env.local`.**
+3. En `~/api`, reemplazar `dist/` y `package.json`. **No tocar `.env.local`.**
 4. En la Terminal (con el comando del entorno virtual):
-   - `npm install --omit=dev` si cambió `package.json` o el `.tgz`.
-   - En `~/api` solamente: `npm run migration:run`.
+   - `npm install --omit=dev` si cambió `package.json`.
+   - `npm run migration:run`.
 5. **Restart** de la aplicación y verificar `/api/health`.
-6. Para los frontends: reemplazar los archivos, **conservando `.htaccess`**.
-
-Orden recomendado cuando cambian ambas APIs: primero la ciudadana (con sus migraciones), después
-la del panel.
+6. Frontend: reemplazar los archivos de la raíz, **conservando `.htaccess`**.
 
 ---
 
 ## 5. Si algo no funciona
 
-Primero revisar el registro de la aplicación: en "Setup Node.js App" se puede definir un
-archivo de log (por ejemplo `~/api/stderr.log`); los errores de arranque quedan ahí.
+Primero revisar el registro de la aplicación (`~/api/stderr.log`, o el archivo de log definido
+en "Setup Node.js App"): los errores de arranque quedan ahí. **Antes de compartir ese archivo,
+revisar que no traiga contraseñas.**
 
 | Síntoma | Causa probable | Qué hacer |
 |---|---|---|
-| `npm install` falla con `404 @arca/core` | Se subió el `package.json` sin editar | Revisar paso 1.4: `@arca/core` debe apuntar a `file:./vendor/...tgz` |
-| `Cannot find module '@arca/core'` al iniciar | Faltó `npm install` o falta `vendor/` | Repetir 2.2 d |
+| **Cualquier** `/api/...` (incluso una ruta que no existe) responde una página `500 Internal Server Error` | La aplicación Node no arrancó o se cae al iniciar | Leer `~/api/stderr.log`; revisar las filas siguientes |
+| `ALLOW_DEV_LOGIN=true no está permitido con NODE_ENV=production` | Se copió `ALLOW_DEV_LOGIN` a `.env.local` | Borrar esa línea y reiniciar |
+| Error de sintaxis o `Unsupported engine` al iniciar | Node.js menor a 22.12 | Cambiar la versión en "Setup Node.js App" |
 | `Cannot find module .../dist/main.js` | Startup file mal escrito o `dist/` no quedó en la raíz de la app | Verificar que exista `~/api/dist/main.js` |
+| `Cannot find module '@nestjs/...'` | Faltó `npm install --omit=dev` | Repetir 2.2 d |
 | `Unable to connect to the database` / `Access denied` | No existe `.env.local`, se llama `.env`, o usuario/contraseña/base incorrectos | Revisar 2.2 c; el usuario lleva prefijo `santod85_` |
 | `/api/health` responde `404` de NestJS (`Cannot GET ...`) | La ruta que llega a la app no coincide | Confirmar que "Application URL" termine en `/api` |
-| `/api/health` responde `404` del servidor web o página del frontend | La petición no llega a la app Node | Revisar que el `.htaccess` conserve el bloque de Passenger y que la regla nueva excluya `/api` |
-| `Table ... doesn't exist` | No se corrieron las migraciones | 2.2 d, en `~/api` |
-| Recargar en `/login` da 404 | Falta la regla del `.htaccess` | 2.4 paso 4 |
-| Error de CORS en la consola del navegador | `FRONTEND_URL` no coincide con el dominio | Debe ser `https://...` exacto, sin `/` al final |
-| `401 Autenticación JWT no configurada en producción` | Esperado | Ver §1 |
-| Botón ClaveÚnica responde `500` | Faltan variables `CLAVE_UNICA_*` | Completarlas cuando lleguen las credenciales |
+| `/api/health` responde la página del frontend | La petición no llega a la app Node | Revisar que el `.htaccess` conserve el bloque de Passenger y que la regla de 2.3 excluya `/api` |
+| `Table ... doesn't exist` | No se corrieron las migraciones | 2.2 d |
+| Recargar en `/login` o `/admin` da 404 | Falta la regla del `.htaccess` | 2.3 paso 4 |
+| Se inicia sesión con ClaveÚnica pero se vuelve al login | La cookie no se guarda: el sitio no está en HTTPS | Activar HTTPS en el dominio |
+| Error de CORS en la consola del navegador | `FRONTEND_URL` no coincide con el dominio | Debe ser `https://arca.santodomingo.cl` exacto, sin `/` al final |
+| `429 Demasiadas solicitudes` a muchas personas a la vez | El límite de consultas agrupa a todos en una IP | Ver §6, Cloudflare |
+| Botón ClaveÚnica responde error; en el log `Falta la variable de entorno CLAVE_UNICA_CLIENT_ID` | Faltan `CLAVE_UNICA_CLIENT_ID` / `CLIENT_SECRET` | Completarlas cuando lleguen las credenciales. El resto de la API sigue funcionando |
 
 ---
 
 ## 6. Seguridad
 
 - `.env.local` con permisos **600**, fuera de `public_html`, nunca subido al repositorio.
-- `NODE_ENV=production` siempre en el servidor (ver §1).
-- **Usuarios de prueba:** tres migraciones (`seed-operador-demo`, `seed-admin-demo`,
-  `seed-operadores-prueba`) insertan usuarios de demostración con identificadores fijos. No
-  tienen contraseña y con `NODE_ENV=production` no se pueden usar para entrar, pero **deben
-  eliminarse antes de la puesta en marcha real**. Se hará con una migración nueva (las ya
-  aplicadas no se modifican) — pendiente del equipo.
+- `NODE_ENV=production` siempre en el servidor, y **nunca** `ALLOW_DEV_LOGIN`.
 - Respaldar `CLAVE_UNICA_PEPPER` junto con las credenciales de ClaveÚnica.
+- **Usuarios de prueba:** tres migraciones (`seed-operador-demo`, `seed-admin-demo`,
+  `seed-operadores-prueba`) insertan usuarios de demostración con identificadores fijos. En
+  producción no se puede entrar con ellos (solo se entra por ClaveÚnica), pero **deben
+  eliminarse antes de la puesta en marcha real**, con una migración nueva — pendiente del equipo.
 - Respaldos periódicos de `santod85_arca_db` (cPanel → Copia de seguridad).
+- **Cloudflare y el límite de consultas.** El sitio pasa por Cloudflare (se ve en las páginas
+  de error del servidor). La API limita las consultas por IP; si el servidor no le entrega la
+  IP real del visitante, verá las IP de Cloudflare y podría bloquear a muchos vecinos a la vez.
+  Para comprobarlo después de instalar: abrir el sitio desde un teléfono con datos móviles,
+  buscar la IP pública de ese teléfono (por ejemplo, en una página tipo "cuál es mi IP") y
+  revisar en cPanel → **Métricas → Visitantes** (o "Registros de acceso sin procesar") qué IP
+  quedó registrada para esa visita. Si aparece la IP del teléfono, está bien. Si aparece otra
+  (de Cloudflare, que suelen empezar con `104.`, `162.158.` o `172.64.`–`172.71.`), avisar al
+  equipo: hay que ajustar cómo la API obtiene la IP. Hasta que se confirme, este punto queda
+  pendiente de decisión del encargado de seguridad.
