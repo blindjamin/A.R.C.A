@@ -4,8 +4,9 @@ Cómo publicar A.R.C.A. en el servidor municipal administrado con cPanel. Está 
 administra el servidor: la **Parte 1** la prepara el equipo COM Tech en un computador con el
 repositorio y entrega dos archivos `.zip`; la **Parte 2** se hace en el cPanel.
 
-> **Versión que se despliega:** commit `5ef7992` de `develop` (27-09-2026), la primera con la
-> **app unificada**: vecino y panel municipal en un solo sitio. Si el servidor tiene la
+> **Versión que se despliega:** commit `2eb03dd`: `develop` en `5ef7992` (27-09-2026, la
+> primera con la **app unificada**: vecino y panel municipal en un solo sitio) más el arreglo
+> para que la API reciba la IP real de cada visitante detrás del servidor de cPanel. Si el servidor tiene la
 > estructura anterior (subdominio del panel y una segunda API), la sección **2.4** explica cómo
 > desmontarla. Las versiones posteriores se instalan con el procedimiento de §4.
 
@@ -198,7 +199,7 @@ CLAVE_UNICA_PEPPER=<ver abajo>
 - `PORT` no se define: lo asigna cPanel.
 - `TRUST_PROXY=loopback` permite que la API vea la IP real de cada visitante detrás del proxy
   del servidor, para el límite de consultas. **No poner `true`**: cualquiera podría inventar su
-  IP y saltarse el límite. Ver §6 sobre Cloudflare.
+  IP y saltarse el límite. Si la prueba de §6 lo indica, se le agregan los rangos de Cloudflare.
 - `CLAVE_UNICA_PEPPER` se genera **una sola vez** con
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y se **respalda en
   un lugar seguro**. Si se pierde o se cambia, ningún vecino vuelve a ser reconocido y todos
@@ -342,21 +343,29 @@ revisar que no traiga contraseñas.**
   producción no se puede entrar con ellos (solo se entra por ClaveÚnica), pero **deben
   eliminarse antes de la puesta en marcha real**, con una migración nueva — pendiente del equipo.
 - Respaldos periódicos de `santod85_arca_db` (cPanel → Copia de seguridad).
-- **Cloudflare y el límite de consultas.** El sitio pasa por Cloudflare (se ve en las páginas
-  de error del servidor). La API limita las consultas por IP; si el servidor no le entrega la
-  IP real del visitante, verá las IP de Cloudflare y podría bloquear a muchos vecinos a la vez.
-  Para comprobarlo después de instalar: abrir el sitio desde un teléfono con datos móviles,
-  buscar la IP pública de ese teléfono (por ejemplo, en una página tipo "cuál es mi IP") y
-  revisar en cPanel → **Métricas → Visitantes** (o "Registros de acceso sin procesar") qué IP
-  quedó registrada para esa visita. Si aparece la IP del teléfono, está bien. Si aparece otra
-  (de Cloudflare, que suelen empezar con `104.`, `162.158.` o `172.64.`–`172.71.`), avisar al
-  equipo: hay que ajustar cómo la API obtiene la IP.
+- **Cloudflare y el límite de consultas.** La API limita las consultas por IP de cada
+  visitante. El sitio pasa por Cloudflare (se ve en las páginas de error del servidor), y si
+  la API recibe la IP de Cloudflare en vez de la del visitante, podría bloquear a muchos
+  vecinos a la vez. **Prueba, después de instalar:**
 
-  Esa revisión muestra la IP que ve el servidor web, no necesariamente la que recibe la API.
-  Para confirmar lo que ve la API: desde el teléfono con datos móviles, abrir
-  `https://arca.santodomingo.cl/api/auth/clave-unica/login` 11 veces seguidas (el límite del
-  login es 10 por minuto; la 11.ª debe mostrar "Demasiadas solicitudes"). **Inmediatamente
-  después**, abrir la misma dirección desde un computador en otra red (por ejemplo, el wifi de
-  la municipalidad). Si el computador también recibe "Demasiadas solicitudes", la API está
-  contando a todos como una sola IP: avisar al equipo antes de abrir el sitio al público.
-  Hasta que se confirme, este punto queda pendiente de decisión del encargado de seguridad.
+  1. Desde un teléfono con datos móviles, abrir
+     `https://arca.santodomingo.cl/api/auth/clave-unica/login` **11 veces seguidas** (el límite
+     del login es 10 por minuto; la 11.ª debe mostrar "Demasiadas solicitudes").
+  2. **Inmediatamente después**, abrir la misma dirección desde un computador en otra red (por
+     ejemplo, el wifi de la municipalidad).
+  3. Si el computador **no** recibe "Demasiadas solicitudes", está bien: cada visitante cuenta
+     por separado. No hay que hacer nada más.
+  4. Si el computador **también** lo recibe, la API está viendo la IP de Cloudflare. Reemplazar
+     la línea `TRUST_PROXY` de `~/api/.env.local` por esta (una sola línea; son los rangos
+     oficiales de Cloudflare, publicados en `https://www.cloudflare.com/ips/`):
+
+     ```
+     TRUST_PROXY=loopback, 173.245.48.0/20, 103.21.244.0/22, 103.22.200.0/22, 103.31.4.0/22, 141.101.64.0/18, 108.162.192.0/18, 190.93.240.0/20, 188.114.96.0/20, 197.234.240.0/22, 198.41.128.0/17, 162.158.0.0/15, 104.16.0.0/13, 104.24.0.0/14, 172.64.0.0/13, 131.0.72.0/22, 2400:cb00::/32, 2606:4700::/32, 2803:f800::/32, 2405:b500::/32, 2405:8100::/32, 2a06:98c0::/29, 2c0f:f248::/32
+     ```
+
+     Reiniciar la aplicación, esperar un minuto y repetir la prueba. Si sigue fallando, avisar
+     al equipo.
+
+  Solo se confía en esos rangos: un visitante no puede inventar su IP enviando la cabecera
+  `X-Forwarded-For` por su cuenta. La conexión interna del servidor (Passenger) ya se reconoce
+  sola desde la versión `2eb03dd`.
