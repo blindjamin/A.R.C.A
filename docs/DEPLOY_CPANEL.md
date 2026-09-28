@@ -350,5 +350,13 @@ revisar que no traiga contraseñas.**
   revisar en cPanel → **Métricas → Visitantes** (o "Registros de acceso sin procesar") qué IP
   quedó registrada para esa visita. Si aparece la IP del teléfono, está bien. Si aparece otra
   (de Cloudflare, que suelen empezar con `104.`, `162.158.` o `172.64.`–`172.71.`), avisar al
-  equipo: hay que ajustar cómo la API obtiene la IP. Hasta que se confirme, este punto queda
-  pendiente de decisión del encargado de seguridad.
+  equipo: hay que ajustar cómo la API obtiene la IP.
+
+  Esa revisión muestra la IP que ve el servidor web, no necesariamente la que recibe la API.
+  Para confirmar lo que ve la API: desde el teléfono con datos móviles, abrir
+  `https://arca.santodomingo.cl/api/auth/clave-unica/login` 11 veces seguidas (el límite del
+  login es 10 por minuto; la 11.ª debe mostrar "Demasiadas solicitudes"). **Inmediatamente
+  después**, abrir la misma dirección desde un computador en otra red (por ejemplo, el wifi de
+  la municipalidad). Si el computador también recibe "Demasiadas solicitudes", la API está
+  contando a todos como una sola IP: avisar al equipo antes de abrir el sitio al público.
+  Hasta que se confirme, este punto queda pendiente de decisión del encargado de seguridad.
