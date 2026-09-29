@@ -102,6 +102,8 @@ Table residuos_catalogo {
   categoria varchar(100) [not null, note: "ej: Muebles, Electrónica, Construcción"]
   subcategoria varchar(100)
   puede_reutilizarse boolean [default: true]
+  precio int [not null, default: 0, note: "Precio de retiro en CLP (fuente: costo retiro Voluminosos.xlsx, municipalidad)"]
+  creditos int [note: "Circular Credits del objeto. NULL mientras todos valen lo mismo (constante de prueba, spec marketplace §3.5)"]
   instrucciones_recogida text
   foto_referencia_path varchar(500)
   codigo_rae varchar(50) [note: "Código de autoridad ambiental"]
@@ -220,16 +222,21 @@ Table articulos_marketplace {
   id int [primary key, increment]
   usuario_publicador_id varchar(36) [not null]
   residuo_catalogo_id int [not null]
+  tipo enum('regalo', 'intercambio') [not null]
   titulo varchar(255) [not null]
   descripcion text
   estado enum('disponible', 'en_negociacion', 'retirado', 'completado') [default: 'disponible']
-  calificacion_promedio decimal(3,2)
-  cantidad_evaluaciones int [default: 0]
+  foto_path varchar(500) [note: "Relativa a la carpeta de subidas; se sirve por la API con sesión"]
+  latitud decimal(10,8) [note: "Ya aproximada a la grilla de 250 m; la API nunca la devuelve"]
+  longitud decimal(11,8) [note: "Ya aproximada a la grilla de 250 m; la API nunca la devuelve"]
   fecha_publicacion timestamp [not null]
-  usuario_comprador_id varchar(36)
-  fecha_transaccion timestamp
+  fecha_expiracion timestamp [not null, note: "Publicación + 30 días; vencido deja de listarse"]
+  usuario_comprador_id varchar(36) [note: "Quien presionó 'Lo quiero' y, al completarse, quien lo recibió"]
+  fecha_transaccion timestamp [note: "Cuándo se entregó"]
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Sin promedio de estrellas: la reputación es de la persona y se calcula sobre ratings (spec marketplace)."
 }
 
 Table mensajes_marketplace {
@@ -253,6 +260,10 @@ Table ratings {
   fecha_calificacion timestamp [not null]
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  indexes {
+    (articulo_id, usuario_calificador_id) [unique, note: "Una calificación por intercambio"]
+  }
 }
 
 Table denuncias {
@@ -290,16 +301,26 @@ Table referidos {
 Table transacciones_circular_credits {
   id int [primary key, increment]
   usuario_ciudadano_id varchar(36) [not null]
-  articulo_id int [note: "Null si es ajuste administrativo"]
-  monto_creditos decimal(10,2) [not null]
+  articulo_id int [note: "Null si no viene del Marketplace"]
+  solicitud_retiro_id int [note: "Lleno si el origen es una solicitud retirada"]
+  monto_creditos int [not null, note: "Puede ser 0 si se alcanzó un tope"]
   tipo enum('bonificacion', 'canje', 'ajuste') [not null]
+  origen enum('entrega', 'estrellas', 'retirada', 'ajuste') [not null]
   razon text
   otorgado_por_administrador_id varchar(36) [note: "Funcionario que aprobó un ajuste manual, si aplica"]
-  saldo_anterior int
-  saldo_nuevo int
+  saldo_anterior int [not null]
+  saldo_nuevo int [not null]
   fecha_transaccion timestamp [not null]
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  indexes {
+    (usuario_ciudadano_id, fecha_transaccion)
+    (articulo_id, origen) [unique, note: "Una entrega y un bono por artículo"]
+    solicitud_retiro_id [unique, note: "Un otorgamiento por solicitud"]
+  }
+
+  Note: "Solo se agregan movimientos; el saldo es el saldo_nuevo del último (spec marketplace §7)."
 }
 
 // ============================================
@@ -444,6 +465,7 @@ Ref: referidos.usuario_referidor_id > usuarios_ciudadanos.id
 // Circular Credits
 Ref: transacciones_circular_credits.usuario_ciudadano_id > usuarios_ciudadanos.id
 Ref: transacciones_circular_credits.articulo_id > articulos_marketplace.id
+Ref: transacciones_circular_credits.solicitud_retiro_id > solicitudes_retiro.id
 Ref: transacciones_circular_credits.otorgado_por_administrador_id > usuarios_administradores.id
 
 // Auditoría y notificaciones (actor/destinatario dual)

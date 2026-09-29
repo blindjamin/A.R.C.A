@@ -218,7 +218,8 @@ comportamiento.
 
 ```
 src/core/
-├── entities/    ← usuarios, sesiones, catálogo, solicitudes-retiro (TypeORM)
+├── entities/    ← usuarios, sesiones, catálogo, solicitudes-retiro, marketplace y
+│                  movimientos de créditos (TypeORM)
 │                  ENTIDADES (index.ts) es la lista explícita que usa
 │                  src/database/data-source.ts para las migraciones.
 ├── auth/        ← AuthGuard, RolesGuard, ClaveÚnica, decorators (Public, Roles, CurrentUser),
@@ -290,6 +291,7 @@ siempre en una migración nueva.
 | `1782164100000` | `ciclo-solicitud-revision` — estados nuevos, pago, rol `funcionario`, sin columnas de operador |
 | `1782164200000` | `revision-solicitudes` — historial de revisiones, notas y toma |
 | `1782164300000` | `lotes-derivacion` — lotes Excel hacia la empresa operadora |
+| `1782164400000` | `marketplace-circular-credits` — artículos, calificaciones, mensajes y movimientos de créditos; `creditos` en el catálogo ([spec](../../docs/specs/SPEC-marketplace.md) §3) |
 
 ### Se escriben a mano — no usar `migration:generate`
 
