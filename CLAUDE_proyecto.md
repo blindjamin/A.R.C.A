@@ -428,7 +428,10 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
 - **Marketplace (backend):** publicar con foto, buscar, detalle, mis artículos, retirar,
   "Lo quiero", liberar, entregar y calificar (`src/marketplace/`,
   [spec](docs/specs/SPEC-marketplace.md)).
-- **Pendiente:** los Circular Credits (tablas creadas el 2026-09-29), resto de migraciones del DBML (horarios, dashboard, etc.),
+- **Circular Credits (backend):** otorgamiento por entrega y por estrellas con topes, y
+  `GET /api/creditos` (`src/creditos/`, valores de prueba). El 50 % por retiro municipal está
+  programado sin disparador.
+- **Pendiente:** resto de migraciones del DBML (horarios, dashboard, etc.),
   prueba de ClaveÚnica con las credenciales del municipio, y confirmación de acceso SSH al
   servidor municipal para despliegue.
 - **Escalado futuro (post-MVP):** Redis (caché + adaptador Socket.io multi-proceso), modelo TensorFlow.js personalizado entrenado con datos reales de la municipalidad, Sentry para monitoreo.

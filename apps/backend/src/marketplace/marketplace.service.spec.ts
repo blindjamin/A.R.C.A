@@ -14,6 +14,7 @@ import {
   TipoArticuloMarketplace,
 } from '../core';
 import type { ArchivosService } from '../archivos/archivos.service';
+import type { CreditosService } from '../creditos/creditos.service';
 import type { ResiduosService } from '../residuos/residuos.service';
 import { MarketplaceService, SUBCARPETA_FOTOS } from './marketplace.service';
 import type { LimiteOrigenesService } from './ubicacion/limite-origenes.service';
@@ -74,11 +75,22 @@ function montar({
   const calificacionRepo = {
     find: jest.fn(() => Promise.resolve(calificaciones)),
     create: jest.fn((datos: Partial<Calificacion>) => ({ ...datos })),
-    save: jest.fn((c: Calificacion) =>
+  };
+  const manager = {
+    getRepository: jest.fn(() => articuloRepo),
+    save: jest.fn((_entidad: unknown, c: Calificacion) =>
       errorAlCalificar
         ? Promise.reject(errorAlCalificar)
         : Promise.resolve({ ...c, id: 1 }),
     ),
+    transaction: jest.fn(<T>(trabajo: (m: unknown) => Promise<T>): Promise<T> =>
+      trabajo(manager),
+    ),
+  };
+  Object.assign(articuloRepo, { manager });
+  const creditos = {
+    otorgarPorEntrega: jest.fn(() => Promise.resolve({})),
+    otorgarPorEstrellas: jest.fn(() => Promise.resolve(null)),
   };
   const residuos = {
     findCatalogoById: jest.fn((id: number): Promise<ResiduoCatalogo | null> =>
@@ -100,9 +112,18 @@ function montar({
     residuos as unknown as ResiduosService,
     archivos as unknown as ArchivosService,
     limiteOrigenes as unknown as LimiteOrigenesService,
+    creditos as unknown as CreditosService,
   );
 
-  return { service, articuloRepo, calificacionRepo, archivos, limiteOrigenes };
+  return {
+    service,
+    articuloRepo,
+    calificacionRepo,
+    manager,
+    creditos,
+    archivos,
+    limiteOrigenes,
+  };
 }
 
 const FOTO = { buffer: Buffer.from([0xff, 0xd8, 0xff]), size: 3 };
@@ -537,8 +558,8 @@ describe('MarketplaceService.entregar', () => {
     expect(articuloRepo.update).not.toHaveBeenCalled();
   });
 
-  it('409 si entre la lectura y el UPDATE cambió el receptor o el estado', async () => {
-    const { service } = montar({
+  it('409 si entre la lectura y el UPDATE cambió el receptor o el estado, sin créditos', async () => {
+    const { service, creditos } = montar({
       encontrado: articulo({
         usuarioPublicadorId: YO,
         estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
@@ -549,6 +570,29 @@ describe('MarketplaceService.entregar', () => {
 
     await expect(service.entregar(10, usuario(YO))).rejects.toBeInstanceOf(
       ConflictException,
+    );
+    expect(creditos.otorgarPorEntrega).not.toHaveBeenCalled();
+  });
+
+  it('otorga los créditos de la entrega en la misma transacción', async () => {
+    const { service, manager, creditos } = montar({
+      encontrado: articulo({
+        usuarioPublicadorId: YO,
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: VECINA,
+      }),
+    });
+
+    await service.entregar(10, usuario(YO));
+
+    expect(manager.getRepository).toHaveBeenCalled();
+    expect(creditos.otorgarPorEntrega).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({
+        id: 10,
+        usuarioPublicadorId: YO,
+        usuarioCompradorId: VECINA,
+      }),
     );
   });
 });
@@ -600,8 +644,33 @@ describe('MarketplaceService.calificar', () => {
     );
   });
 
+  it('otorga el bono por estrellas en la misma transacción', async () => {
+    const { service, manager, creditos } = montar({ encontrado: recibido() });
+
+    await service.calificar(10, { puntuacion: 4 }, usuario(YO));
+
+    expect(manager.transaction).toHaveBeenCalledTimes(1);
+    expect(creditos.otorgarPorEstrellas).toHaveBeenCalledWith(
+      manager,
+      expect.objectContaining({ id: 10, usuarioPublicadorId: VECINA }),
+      4,
+    );
+  });
+
+  it('si la calificación falla, no se otorga el bono', async () => {
+    const { service, creditos } = montar({
+      encontrado: recibido(),
+      errorAlCalificar: new Error('falla'),
+    });
+
+    await expect(
+      service.calificar(10, { puntuacion: 5 }, usuario(YO)),
+    ).rejects.toThrow('falla');
+    expect(creditos.otorgarPorEstrellas).not.toHaveBeenCalled();
+  });
+
   it('403 si quien califica es quien publicó', async () => {
-    const { service, calificacionRepo } = montar({
+    const { service, manager } = montar({
       encontrado: recibido({
         usuarioPublicadorId: YO,
         usuarioCompradorId: VECINA,
@@ -611,7 +680,7 @@ describe('MarketplaceService.calificar', () => {
     await expect(
       service.calificar(10, { puntuacion: 5 }, usuario(YO)),
     ).rejects.toBeInstanceOf(ForbiddenException);
-    expect(calificacionRepo.save).not.toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
   });
 
   it('409 si todavía no se entrega', async () => {

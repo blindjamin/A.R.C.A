@@ -1,6 +1,7 @@
 # Spec: `marketplace` — Backend del Marketplace P2P y Circular Credits
 
-> **Estado:** PROPUESTO (2026-09-29) — pendiente de revisión de Miguel Segovia. Nada implementado todavía.
+> **Estado:** IMPLEMENTADO en el backend (2026-09-29): PR #74 (spec), #75 (tablas), #76 (publicar y
+> listar), #77 (entrega y calificación) y el PR de Circular Credits. Pendiente: conectar la PWA (§10).
 > **Fecha:** 2026-09-29 · **Autor:** Javier Figueroa (con asistencia de IA)
 > **Origen:** "Sprint 3 - Reparto del equipo COM Tech" (Miguel Segovia, 2026-09-24), sección de Javier.
 > Se acordó que ese documento vale como acuerdo del equipo para los cambios al DBML que pide.

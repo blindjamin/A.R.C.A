@@ -108,8 +108,8 @@ Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC
 | `GET` | `/api/marketplace/mis-articulos` | Lo publicado por la sesión, en cualquier estado |
 | `POST` | `/api/marketplace/articulos/:id/solicitar` | "Lo quiero": pasa a `en_negociacion` y reserva para la sesión. `403` si es propio, `409` si ya no está disponible o venció |
 | `PATCH` | `/api/marketplace/articulos/:id/liberar` | Quien publicó rechaza al interesado: vuelve a `disponible`. `403` si no es suyo, `409` si no está reservado |
-| `PATCH` | `/api/marketplace/articulos/:id/entregar` | Quien publicó cierra el intercambio: `completado`, con la fecha de entrega. `403` si no es suyo, `409` si no está reservado |
-| `POST` | `/api/marketplace/articulos/:id/calificacion` | Quien recibió califica a quien publicó: `{ puntuacion: 1-5, comentario? }` (hasta 1000 caracteres). Responde `201` con `{ puntuacion, comentario, fecha }`. `403` si no es quien recibió, `409` si no está entregado o ya calificó |
+| `PATCH` | `/api/marketplace/articulos/:id/entregar` | Quien publicó cierra el intercambio: `completado`, con la fecha de entrega, y recibe los créditos de la entrega en la misma transacción. `403` si no es suyo, `409` si no está reservado |
+| `POST` | `/api/marketplace/articulos/:id/calificacion` | Quien recibió califica a quien publicó: `{ puntuacion: 1-5, comentario? }` (hasta 1000 caracteres). Con 4 o 5 estrellas, quien publicó recibe el bono en la misma transacción. Responde `201` con `{ puntuacion, comentario, fecha }`. `403` si no es quien recibió, `409` si no está entregado o ya calificó |
 
 Cada cambio de estado es un solo `UPDATE` condicionado al estado esperado: si dos vecinos presionan
 "Lo quiero" a la vez, uno lo reserva y el otro recibe `409`. Entregar exige además que el receptor
@@ -118,6 +118,24 @@ siga siendo el mismo que vio quien publicó.
 La respuesta nunca incluye la ubicación ni el id del publicador: solo `banda`, `esPropio` y un
 nombre fijo ("Vecino de Santo Domingo"). `creditos` es el valor de prueba de
 `src/creditos/reglas-creditos.ts`.
+
+### Circular Credits (HU-10, HU-11)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/creditos` | `{ saldo, movimientos[] }` de la sesión. Cada movimiento: `{ id, monto, origen, motivo, saldoAnterior, saldoNuevo, fecha }`, del más reciente al más antiguo. `origen`: `entrega`, `estrellas`, `retirada` o `ajuste` |
+
+Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts`:
+
+- Los créditos van a **quien regaló**: 100 por la entrega; 50 más con 4 estrellas y 100 con 5.
+- **Topes por mes calendario, en hora de Chile:** 1000 por vecino, y 400 entre los mismos dos
+  vecinos, sumando los intercambios en ambas direcciones. Al llegar a un tope se otorga hasta
+  completarlo y el movimiento queda igual, aunque sea de 0, con el motivo.
+- El saldo nunca se edita: cada movimiento guarda el saldo anterior y el nuevo. Otorgar bloquea las
+  filas de los dos vecinos (siempre en el mismo orden) antes de leer el saldo y los topes, así dos
+  otorgamientos simultáneos no leen el mismo saldo.
+- El 50 % por una solicitud `retirada` (`CreditosService.otorgarPorRetirada`) está programado pero
+  **sin disparador**: lo conecta el endpoint del panel que pase una solicitud a `retirada`.
 
 ### Endpoints de sesión
 
@@ -205,6 +223,7 @@ siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 | `POST/GET solicitudes-retiro`, `PATCH …/reenviar`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
 | `GET/POST marketplace/…` | Ciudadano autenticado. Retirar, liberar y entregar: solo quien publicó. Calificar: solo quien recibió |
+| `GET creditos` | Ciudadano autenticado (solo los propios) |
 
 > **El cambio de estado municipal** (`admin`/`funcionario`) vive en `src/admin/`
 > (`PATCH /api/admin/solicitudes/:id` y `POST …/revision`, mismo puerto 3000).
@@ -227,7 +246,7 @@ src/
 ├── marketplace/                 # Artículos del marketplace (controller, service, DTOs)
 │   └── ubicacion/               # Grilla de 250 m, bandas de distancia y límite de orígenes
 ├── archivos/                    # Guardado y lectura de fotos subidas (UPLOADS_DIR)
-├── creditos/                    # Reglas de los Circular Credits (valores de prueba)
+├── creditos/                    # Circular Credits: reglas (valores de prueba), otorgamiento y GET /creditos
 ├── users/                       # UsersService/Controller/Module — entidades en src/core;
 │                                   provee PERFIL_ACCESO_RESOLVER para AuthModule
 └── admin/                       # Panel municipal (ex apps/backend-admin, movido en backend-unificado)
