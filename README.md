@@ -248,6 +248,7 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 | [`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) | Qué se implementó en el frontend ciudadano: UI Kit, pantallas, capa de API |
 | [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md) | Roadmap del frontend por fases y deuda técnica |
 | [`docs/specs/MAPA_PANEL_MUNICIPAL.md`](docs/specs/MAPA_PANEL_MUNICIPAL.md) | Replanteo del panel municipal: módulos, decisiones y specs de cada uno |
+| [`docs/specs/SPEC-marketplace.md`](docs/specs/SPEC-marketplace.md) | Backend del marketplace y Circular Credits (Sprint 3): tablas, estados, endpoints, reglas de créditos y plan de PRs |
 | [`docs/PENDIENTES_EQUIPO.md`](docs/PENDIENTES_EQUIPO.md) | Qué falta revisar, arreglar e implementar del replanteo, por área |
 | [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API (ciudadana y del panel): scripts, entorno, autenticación, endpoints, migraciones |
 | [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA y del panel: scripts, estructura de `src/`, convenciones |
