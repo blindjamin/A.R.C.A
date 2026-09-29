@@ -5,7 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, In, Like, MoreThan, Repository } from 'typeorm';
+import {
+  FindOptionsWhere,
+  In,
+  Like,
+  MoreThan,
+  QueryFailedError,
+  Repository,
+} from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   ArticuloMarketplace,
   type AuthUser,
@@ -26,6 +34,7 @@ import {
   esVisiblePara,
   fechaExpiracionDesde,
 } from './articulo-publico';
+import type { CalificarArticuloDto } from './dto/calificar-articulo.dto';
 import type { FiltrarArticulosDto } from './dto/filtrar-articulos.dto';
 import type { OrigenDto } from './dto/origen.dto';
 import type { PublicarArticuloDto } from './dto/publicar-articulo.dto';
@@ -42,6 +51,19 @@ export const SUBCARPETA_FOTOS = 'marketplace';
 interface ArticuloConBanda {
   articulo: ArticuloMarketplace;
   banda: BandaDistancia | null;
+}
+
+/** Respuesta de `POST /marketplace/articulos/:id/calificacion`. */
+export interface CalificacionPublica {
+  puntuacion: number;
+  comentario: string | null;
+  fecha: Date;
+}
+
+function esClaveDuplicada(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) return false;
+  const { code } = error.driverError as { code?: string };
+  return code === 'ER_DUP_ENTRY';
 }
 
 const origenDe = ({ lat, lon }: OrigenDto): Coordenadas | null =>
@@ -187,23 +209,139 @@ export class MarketplaceService {
 
   /** Quien publicó saca del Marketplace un artículo todavía disponible. */
   async retirar(id: number, user: AuthUser): Promise<ArticuloPublico> {
+    await this.buscarPropio(
+      id,
+      user,
+      'Solo puedes retirar tus propias publicaciones',
+    );
+    await this.transicionar(
+      id,
+      { estado: EstadoArticuloMarketplace.DISPONIBLE },
+      { estado: EstadoArticuloMarketplace.RETIRADO },
+      'Solo se puede retirar un artículo disponible',
+    );
+    return this.obtener(id, {}, user);
+  }
+
+  /** "Lo quiero": reserva el artículo para la sesión (spec §4). */
+  async solicitar(id: number, user: AuthUser): Promise<ArticuloPublico> {
+    const articulo = await this.articuloRepository.findOne({ where: { id } });
+    if (!articulo) {
+      throw new NotFoundException(`Artículo ${id} no encontrado`);
+    }
+    if (articulo.usuarioPublicadorId === user.ciudadanoId) {
+      throw new ForbiddenException('No puedes pedir tu propio artículo');
+    }
+
+    await this.transicionar(
+      id,
+      {
+        estado: EstadoArticuloMarketplace.DISPONIBLE,
+        fechaExpiracion: MoreThan(new Date()),
+      },
+      {
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: user.ciudadanoId,
+      },
+      'Este artículo ya no está disponible',
+    );
+    return this.obtener(id, {}, user);
+  }
+
+  /** Quien publicó rechaza al interesado y el artículo vuelve a estar disponible. */
+  async liberar(id: number, user: AuthUser): Promise<ArticuloPublico> {
+    await this.buscarPropio(
+      id,
+      user,
+      'Solo puedes liberar tus propias publicaciones',
+    );
+    await this.transicionar(
+      id,
+      { estado: EstadoArticuloMarketplace.EN_NEGOCIACION },
+      {
+        estado: EstadoArticuloMarketplace.DISPONIBLE,
+        usuarioCompradorId: null,
+      },
+      'Solo se puede liberar un artículo reservado',
+    );
+    return this.obtener(id, {}, user);
+  }
+
+  /** Quien publicó cierra el intercambio con quien lo reservó. */
+  async entregar(id: number, user: AuthUser): Promise<ArticuloPublico> {
+    const articulo = await this.buscarPropio(
+      id,
+      user,
+      'Solo puedes entregar tus propias publicaciones',
+    );
+    const mensajeConflicto = 'Solo se puede entregar un artículo reservado';
+    if (
+      articulo.estado !== EstadoArticuloMarketplace.EN_NEGOCIACION ||
+      !articulo.usuarioCompradorId
+    ) {
+      throw new ConflictException(mensajeConflicto);
+    }
+
+    // También con el mismo receptor: si entre la lectura y el UPDATE se liberó
+    // y lo reservó otra persona, no se le entrega a alguien que no se eligió.
+    await this.transicionar(
+      id,
+      {
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: articulo.usuarioCompradorId,
+      },
+      {
+        estado: EstadoArticuloMarketplace.COMPLETADO,
+        fechaTransaccion: new Date(),
+      },
+      mensajeConflicto,
+    );
+    return this.obtener(id, {}, user);
+  }
+
+  /** Quien recibió el artículo califica a quien lo publicó, una sola vez. */
+  async calificar(
+    id: number,
+    dto: CalificarArticuloDto,
+    user: AuthUser,
+  ): Promise<CalificacionPublica> {
     const articulo = await this.buscarVisible(id, user, false);
 
-    if (articulo.usuarioPublicadorId !== user.ciudadanoId) {
+    if (articulo.usuarioCompradorId !== user.ciudadanoId) {
       throw new ForbiddenException(
-        'Solo puedes retirar tus propias publicaciones',
+        'Solo quien recibió el artículo puede calificarlo',
       );
     }
-    if (articulo.estado !== EstadoArticuloMarketplace.DISPONIBLE) {
+    if (articulo.estado !== EstadoArticuloMarketplace.COMPLETADO) {
       throw new ConflictException(
-        'Solo se puede retirar un artículo disponible',
+        'Solo se puede calificar un intercambio entregado',
       );
     }
 
-    await this.articuloRepository.update(id, {
-      estado: EstadoArticuloMarketplace.RETIRADO,
+    const calificacion = this.calificacionRepository.create({
+      usuarioCalificadorId: user.ciudadanoId,
+      usuarioCalificadoId: articulo.usuarioPublicadorId,
+      articuloId: articulo.id,
+      puntuacion: dto.puntuacion,
+      comentario: dto.comentario?.trim() || null,
+      fechaCalificacion: new Date(),
     });
-    return this.obtener(id, {}, user);
+
+    let guardada: Calificacion;
+    try {
+      guardada = await this.calificacionRepository.save(calificacion);
+    } catch (error) {
+      if (esClaveDuplicada(error)) {
+        throw new ConflictException('Ya calificaste este intercambio');
+      }
+      throw error;
+    }
+
+    return {
+      puntuacion: guardada.puntuacion,
+      comentario: guardada.comentario,
+      fecha: guardada.fechaCalificacion,
+    };
   }
 
   /** La foto del artículo, con la misma visibilidad que el detalle. */
@@ -232,6 +370,39 @@ export class MarketplaceService {
       throw new NotFoundException(`Artículo ${id} no encontrado`);
     }
     return articulo;
+  }
+
+  /** El artículo si es de la sesión: 404 si no puede verlo, 403 si es ajeno. */
+  private async buscarPropio(
+    id: number,
+    user: AuthUser,
+    mensajeAjeno: string,
+  ): Promise<ArticuloMarketplace> {
+    const articulo = await this.buscarVisible(id, user, false);
+    if (articulo.usuarioPublicadorId !== user.ciudadanoId) {
+      throw new ForbiddenException(mensajeAjeno);
+    }
+    return articulo;
+  }
+
+  /**
+   * Cambia el estado con un solo UPDATE condicionado al estado esperado. Si
+   * otra petición lo movió antes (dos "Lo quiero" a la vez, o retirar mientras
+   * alguien lo pide), no se toca nada y responde 409.
+   */
+  private async transicionar(
+    id: number,
+    esperado: FindOptionsWhere<ArticuloMarketplace>,
+    cambios: QueryDeepPartialEntity<ArticuloMarketplace>,
+    mensajeConflicto: string,
+  ): Promise<void> {
+    const { affected } = await this.articuloRepository.update(
+      { ...esperado, id },
+      cambios,
+    );
+    if (!affected) {
+      throw new ConflictException(mensajeConflicto);
+    }
   }
 
   /**

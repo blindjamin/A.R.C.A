@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -19,6 +21,7 @@ import {
   type ArchivoSubido,
   TAMANO_MAXIMO_IMAGEN_BYTES,
 } from '../archivos/archivos.service';
+import { CalificarArticuloDto } from './dto/calificar-articulo.dto';
 import { FiltrarArticulosDto } from './dto/filtrar-articulos.dto';
 import { OrigenDto } from './dto/origen.dto';
 import { PublicarArticuloDto } from './dto/publicar-articulo.dto';
@@ -79,6 +82,40 @@ export class MarketplaceController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.marketplaceService.retirar(id, user);
+  }
+
+  @Post('articulos/:id/solicitar')
+  @HttpCode(HttpStatus.OK)
+  solicitar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.marketplaceService.solicitar(id, user);
+  }
+
+  @Patch('articulos/:id/liberar')
+  liberar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.marketplaceService.liberar(id, user);
+  }
+
+  @Patch('articulos/:id/entregar')
+  entregar(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.marketplaceService.entregar(id, user);
+  }
+
+  @Post('articulos/:id/calificacion')
+  calificar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CalificarArticuloDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.marketplaceService.calificar(id, dto, user);
   }
 
   @Get('mis-articulos')

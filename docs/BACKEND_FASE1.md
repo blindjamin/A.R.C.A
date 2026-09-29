@@ -123,8 +123,11 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `GET` | `/api/marketplace/articulos/{id}` · `…/{id}/foto` | **Marketplace:** detalle y foto (404 si la sesión no puede verlo) |
 | `PATCH` | `/api/marketplace/articulos/{id}/retirar` | **Marketplace:** quien publicó lo retira |
 | `GET` | `/api/marketplace/mis-articulos` | **Marketplace:** lo publicado por la sesión |
+| `POST` | `/api/marketplace/articulos/{id}/solicitar` | **Marketplace:** "Lo quiero" (reserva para la sesión) |
+| `PATCH` | `/api/marketplace/articulos/{id}/liberar` · `…/entregar` | **Marketplace:** quien publicó rechaza al interesado o cierra el intercambio |
+| `POST` | `/api/marketplace/articulos/{id}/calificacion` | **Marketplace:** quien recibió califica de 1 a 5, una vez |
 
-Detalle del marketplace: [`apps/backend/README.md`](../apps/backend/README.md#endpoints-del-marketplace-hu-04-hu-05)
+Detalle del marketplace: [`apps/backend/README.md`](../apps/backend/README.md#endpoints-del-marketplace-hu-04-hu-05-hu-15)
 y [spec `marketplace`](specs/SPEC-marketplace.md).
 
 > **Movido a `apps/backend-admin` (2026-09-01):** el cambio de estado municipal vive en
