@@ -118,6 +118,14 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `PATCH` | `/api/solicitudes-retiro/{id}/reenviar` | **Ciudadano:** reenviar corregida su solicitud en `requiere_modificacion` (vía `aplicarTransicion`) |
 | `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud (vía `aplicarTransicion`) |
 | `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
+| `POST` | `/api/marketplace/articulos` | **Marketplace:** publicar (`multipart/form-data`, foto opcional de hasta 5 MB) |
+| `GET` | `/api/marketplace/articulos` | **Marketplace:** disponibles y vigentes, con filtros y banda de distancia |
+| `GET` | `/api/marketplace/articulos/{id}` · `…/{id}/foto` | **Marketplace:** detalle y foto (404 si la sesión no puede verlo) |
+| `PATCH` | `/api/marketplace/articulos/{id}/retirar` | **Marketplace:** quien publicó lo retira |
+| `GET` | `/api/marketplace/mis-articulos` | **Marketplace:** lo publicado por la sesión |
+
+Detalle del marketplace: [`apps/backend/README.md`](../apps/backend/README.md#endpoints-del-marketplace-hu-04-hu-05)
+y [spec `marketplace`](specs/SPEC-marketplace.md).
 
 > **Movido a `apps/backend-admin` (2026-09-01):** el cambio de estado municipal vive en
 > `PATCH /api/admin/solicitudes/{id}` y `POST …/revision` (puerto 3001).
@@ -321,7 +329,7 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Front: header `Authorization` | Maximiliano | PR aparte tras merge HU-13; sin esto la PWA da `401` en rutas protegidas |
 | Frontend React PWA | Maximiliano | Ver `docs/SETUP_LOCAL.md` |
 | Migraciones restantes del DBML | Javier | horarios, fotos de retiro, dashboard, etc. Marketplace y créditos: ✅ `1782164400000` (2026-09-29) |
-| Subida de fotos | Javier | Fase posterior |
+| Subida de fotos | Javier | Marketplace: ✅ `src/archivos/` (`UPLOADS_DIR`, 2026-09-29). Solicitudes de retiro: fase posterior |
 | ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados); hoy ciclo de revisión en `backend-admin` |
 | ~~Cancelación por ciudadano~~ | ✅ Hecho | `aplicarTransicion` + estados nuevos (§2, 2026-09-21) |
 | ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
