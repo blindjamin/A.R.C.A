@@ -93,7 +93,7 @@ Desde la migración de separación del panel admin (2026-09-01), entidades y `au
 
 | Fuente | Entidades / exports |
 |---|---|
-| `@arca/core` (`entities/`) | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador`, `ResiduoCatalogo`, `SolicitudRetiro`, `EstadoSolicitudRetiro`, `ENTIDADES` (usado por `data-source.ts`) |
+| `@arca/core` (`entities/`) | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador`, `ResiduoCatalogo`, `SolicitudRetiro`, `EstadoSolicitudRetiro`, `ArticuloMarketplace`, `Calificacion` (tabla `ratings`), `MensajeMarketplace`, `TransaccionCircularCredits` y sus enums (2026-09-29, [spec `marketplace`](specs/SPEC-marketplace.md)), `ENTIDADES` (usado por `data-source.ts`) |
 | `@arca/core` (`auth/`) | `AuthGuard`, `RolesGuard`, `AuthModule`, `AuthService`, `@Public`, `@Roles`, `@CurrentUser`, `PERFIL_ACCESO_RESOLVER` |
 | `@arca/core` (`health/`) | `HealthModule` — sin lógica propia de este backend, compartido para no duplicarlo |
 | `apps/backend/src/users/` | `UsersService`, `UsersController`, `UsersModule` — el módulo que provee `PERFIL_ACCESO_RESOLVER` para este backend (ver README del core) |
@@ -314,7 +314,7 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Auth ClaveÚnica + JWT | Benjamín (HU-12) | Reemplazar Bearer UUID dev en `AuthService`; requiere aprobación organismo |
 | Front: header `Authorization` | Maximiliano | PR aparte tras merge HU-13; sin esto la PWA da `401` en rutas protegidas |
 | Frontend React PWA | Maximiliano | Ver `docs/SETUP_LOCAL.md` |
-| Migraciones restantes del DBML | Javier | horarios, fotos, marketplace, credits, etc. |
+| Migraciones restantes del DBML | Javier | horarios, fotos de retiro, dashboard, etc. Marketplace y créditos: ✅ `1782164400000` (2026-09-29) |
 | Subida de fotos | Javier | Fase posterior |
 | ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados); hoy ciclo de revisión en `backend-admin` |
 | ~~Cancelación por ciudadano~~ | ✅ Hecho | `aplicarTransicion` + estados nuevos (§2, 2026-09-21) |

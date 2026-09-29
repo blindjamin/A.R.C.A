@@ -31,6 +31,13 @@ export class ResiduoCatalogo {
   @Column({ type: 'int', default: 0 })
   precio: number;
 
+  /**
+   * Circular Credits del objeto. Sin llenar mientras todos valgan lo mismo:
+   * el cálculo usa la constante de prueba (spec `marketplace` §3.5).
+   */
+  @Column({ type: 'int', nullable: true })
+  creditos: number | null;
+
   @Column({ name: 'instrucciones_recogida', type: 'text', nullable: true })
   instruccionesRecogida: string | null;
 
