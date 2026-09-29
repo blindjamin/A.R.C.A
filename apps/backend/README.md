@@ -135,7 +135,8 @@ Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts
   filas de los dos vecinos (siempre en el mismo orden) antes de leer el saldo y los topes, así dos
   otorgamientos simultáneos no leen el mismo saldo.
 - El 50 % por una solicitud `retirada` (`CreditosService.otorgarPorRetirada`) está programado pero
-  **sin disparador**: lo conecta el endpoint del panel que pase una solicitud a `retirada`.
+  **sin disparador**: se conecta en `PATCH /api/admin/solicitudes/:id` (`derivada → retirada`),
+  que es del panel.
 
 ### Endpoints de sesión
 

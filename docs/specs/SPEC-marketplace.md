@@ -244,15 +244,18 @@ otros 200 (la pareja llega a 400); tercero, 0 con el motivo del tope por pareja.
 ### 7.3 50 % por `retirada`
 
 La función queda programada y probada (50 créditos al solicitante, sujetos al tope mensual), pero
-**sin disparador**: hoy ningún endpoint pasa una solicitud a `retirada`. Ese endpoint es del panel
-municipal (Benjamín). Se conecta en el Sprint 4.
+**sin disparador conectado**. El lugar existe: `PATCH /api/admin/solicitudes/:id` pasa una solicitud
+de `derivada` a `retirada` (lo permite el núcleo a un funcionario). Conectarlo es del panel
+municipal (Benjamín), en la misma transacción que guarda el cambio de estado. Como un admin puede
+reabrir una solicitud `retirada`, el índice único `uq_creditos_solicitud` rechaza un segundo
+otorgamiento: eso se trata como "ya otorgado", no como error.
 
 ## 8. Fuera de alcance
 
 | Queda fuera | Por qué |
 |---|---|
 | Nombre real del vecino | Toca el núcleo y HU-38. Sprint 4 |
-| Disparador del 50 % por `retirada` | Falta el endpoint del panel |
+| Disparador del 50 % por `retirada` | Se conecta en `PATCH /api/admin/solicitudes/:id`, que es del panel municipal (§7.3) |
 | Chat (HU-06) | Solo si sobra tiempo; es lo primero que se corta |
 | Notificación al recibir créditos | HU-23 está fuera del sprint |
 | Fotos en las solicitudes de retiro | Sprint 4; reutilizan el servicio de §6 |
