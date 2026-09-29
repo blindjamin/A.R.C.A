@@ -225,7 +225,7 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 | **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |
 | **Autenticación ClaveÚnica** | 🟡 Flujo OAuth2 y sesión con cookie implementados · falta probarlo con las credenciales del municipio; mientras tanto, accesos de desarrollo (`ALLOW_DEV_LOGIN`) |
-| **Marketplace P2P (EP-03)** | ⛔ Pendiente — placeholders "Próximamente" |
+| **Marketplace P2P (EP-03)** | 🟡 Backend: publicar con foto, buscar, detalle y retirar · faltan "Lo quiero", entrega y calificación · la PWA sigue con placeholders "Próximamente" ([spec](docs/specs/SPEC-marketplace.md)) |
 | **Circular Credits (HU-10, HU-11 en EP-03)** | ⛔ Pendiente — la tarjeta de impacto del Inicio es estática |
 | **Confianza y Comunidad (EP-06)** | ⛔ Pendiente — ratings, denuncias y moderación no iniciados |
 
