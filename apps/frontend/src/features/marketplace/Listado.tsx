@@ -7,13 +7,20 @@ import {
   type FiltrosMarketplace,
   type TipoArticulo,
 } from '../../api/marketplace';
-import { ArticuloCard, EmptyState, ScreenHeader } from '../../components/ui';
+import {
+  ArticuloCard,
+  EmptyState,
+  ScreenHeader,
+  IconPlus,
+  IconMapPin,
+  IconRecycle,
+} from '../../components/ui';
 import { useOrigenAproximado } from './distancia';
 
 const TIPOS: { valor: TipoArticulo | null; etiqueta: string }[] = [
   { valor: null, etiqueta: 'Todos' },
-  { valor: 'regalo', etiqueta: '🎁 Regalo' },
-  { valor: 'intercambio', etiqueta: '🔄 Intercambio' },
+  { valor: 'regalo', etiqueta: 'Regalo' },
+  { valor: 'intercambio', etiqueta: 'Intercambio' },
 ];
 
 const ESPERA_BUSQUEDA_MS = 300;
@@ -96,8 +103,9 @@ export default function Listado() {
             Mis publicaciones →
           </button>
         </div>
-        <button onClick={irAPublicar} className="btn-gold shrink-0">
-          ♻️ Publicar
+        <button onClick={irAPublicar} className="btn-gold shrink-0 flex items-center gap-1.5">
+          <IconPlus className="h-4 w-4" />
+          <span>Publicar</span>
         </button>
       </div>
 
@@ -139,8 +147,9 @@ export default function Listado() {
       )}
 
       {estadoUbicacion === 'denegado' && (
-        <p className="rounded-md bg-sky-100 px-4 py-2.5 text-xs text-sky-600">
-          📍 Activa la ubicación para ver a qué distancia está cada artículo.
+        <p className="rounded-md bg-sky-100 px-4 py-2.5 text-xs text-sky-700 flex items-center gap-1.5">
+          <IconMapPin className="h-4 w-4 shrink-0 text-sky-600" />
+          <span>Activa la ubicación para ver a qué distancia está cada artículo.</span>
         </p>
       )}
 
@@ -150,7 +159,7 @@ export default function Listado() {
         <p className="text-rose-600">{resultado.error}</p>
       ) : resultado.articulos.length === 0 ? (
         <EmptyState
-          icon="♻️"
+          icon={<IconRecycle className="h-8 w-8 text-green-700" />}
           message={
             hayFiltros
               ? 'No hay artículos que coincidan con tu búsqueda.'

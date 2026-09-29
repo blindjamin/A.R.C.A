@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import IconBadge from './IconBadge';
 
 interface ListItemCardProps {
-  icon: string;
+  icon: ReactNode;
   iconClassName?: string;
   title: ReactNode;
   /** Pill/badge junto al título (ej. estado, "Reutilizable"). */

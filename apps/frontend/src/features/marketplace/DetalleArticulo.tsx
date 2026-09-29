@@ -11,6 +11,9 @@ import {
   EmptyState,
   Estrellas,
   IconBadge,
+  IconSearch,
+  IconCheck,
+  IconMapPin,
 } from '../../components/ui';
 import { ETIQUETA_BANDA, useOrigenAproximado } from './distancia';
 import { ESTADO_ARTICULO_META, TIPO_ARTICULO_META, haceCuanto } from './formato';
@@ -110,7 +113,7 @@ export default function DetalleArticulo() {
       <div className="space-y-4">
         <BackButton onClick={volver} />
         <EmptyState
-          icon="🔍"
+          icon={<IconSearch className="h-8 w-8 text-slate" />}
           message="Este artículo ya no está disponible."
           action={
             <button onClick={volver} className="btn-primary">
@@ -146,14 +149,17 @@ export default function DetalleArticulo() {
       <BackButton onClick={volver} />
 
       {recienPublicado && (
-        <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-          ✅ ¡Tu artículo ya está publicado! Tus vecinos ya pueden verlo.{' '}
-          <button
-            onClick={() => navigate('/marketplace/mis-publicaciones')}
-            className="font-semibold underline"
-          >
-            Ver mis publicaciones
-          </button>
+        <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700 flex items-center gap-2">
+          <IconCheck className="h-5 w-5 shrink-0 text-green-700" />
+          <div>
+            ¡Tu artículo ya está publicado! Tus vecinos ya pueden verlo.{' '}
+            <button
+              onClick={() => navigate('/marketplace/mis-publicaciones')}
+              className="font-semibold underline"
+            >
+              Ver mis publicaciones
+            </button>
+          </div>
         </div>
       )}
 
@@ -175,16 +181,21 @@ export default function DetalleArticulo() {
 
         <div className="space-y-2 p-5">
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-2xl font-extrabold">{titulo}</h1>
+            <h1 className="text-2xl font-extrabold text-ink">{titulo}</h1>
             {estado !== 'disponible' && (
               <span className={`pill shrink-0 ${ESTADO_ARTICULO_META[estado].clase}`}>
                 {ESTADO_ARTICULO_META[estado].etiqueta}
               </span>
             )}
           </div>
-          <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-slate">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate">
             <span>{categoria}</span>
-            {banda && <span>📍 {ETIQUETA_BANDA[banda]}</span>}
+            {banda && (
+              <span className="inline-flex items-center gap-1">
+                <IconMapPin className="h-3.5 w-3.5 text-slate-2" />
+                {ETIQUETA_BANDA[banda]}
+              </span>
+            )}
             <span>Publicado {haceCuanto(fechaPublicacion)}</span>
           </p>
           <span className="pill bg-gold-100 font-semibold text-gold-600">

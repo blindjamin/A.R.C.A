@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
   titulo: string;
   descripcion: string;
-  icono: string;
+  icono: ReactNode;
   epica: string;
 }
 

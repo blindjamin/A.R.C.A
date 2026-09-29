@@ -14,6 +14,8 @@ import {
   ListItemCard,
   metaDeEstado,
   ScreenHeader,
+  IconClipboard,
+  IconRecycle,
 } from '../components/ui';
 import { useSession } from '../auth/SessionContext';
 
@@ -178,8 +180,8 @@ export default function MisSolicitudes() {
 
       {visibles.length === 0 ? (
         <EmptyState
-          icon="📋"
-          message="Aún no tienes solicitudes."
+          icon={<IconClipboard className="h-7 w-7 text-green-700" />}
+          message="Aún no tienes solicitudes registradas."
           action={
             <Link to="/solicitar" className="btn-primary inline-flex">
               Solicitar un retiro
@@ -193,7 +195,7 @@ export default function MisSolicitudes() {
             return (
               <li key={s.id}>
                 <ListItemCard
-                  icon="♻️"
+                  icon={<IconRecycle className="h-5 w-5 text-green-700" />}
                   title={s.residuoCatalogo?.nombre ?? `Residuo #${s.residuoCatalogoId}`}
                   titleBadge={<EstadoPill estado={s.estado} />}
                   lines={[

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useSolicitudFlow } from './SolicitudFlowContext';
+import { IconCheck, IconRecycle } from '../../components/ui';
 
 export default function SolicitudCreada() {
   const navigate = useNavigate();
@@ -14,18 +15,18 @@ export default function SolicitudCreada() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6 py-4 text-center">
       {/* SuccessRing dorado */}
-      <div className="success-ring mt-4 flex h-28 w-28 items-center justify-center rounded-full bg-gold-50 text-5xl">
-        ✅
+      <div className="success-ring mt-4 flex h-28 w-28 items-center justify-center rounded-full bg-gold-50 text-gold-500">
+        <IconCheck className="h-14 w-14 text-gold-500" />
       </div>
 
       <header>
-        <h1 className="text-2xl font-extrabold">¡Solicitud creada!</h1>
+        <h1 className="text-2xl font-extrabold text-ink">¡Solicitud creada!</h1>
         <p className="mt-1 text-sm text-slate">
           Tu retiro quedó registrado. Te avisaremos cuando sea agendado.
         </p>
       </header>
 
-      <span className="pill bg-gold-100 text-gold-600">+5 Circular Credits</span>
+      <span className="pill bg-gold-100 text-gold-600 font-semibold">+5 Circular Credits</span>
 
       <div className="w-full space-y-3 pt-2">
         <p className="text-sm font-semibold text-slate">¿Qué quieres hacer ahora?</p>
@@ -37,9 +38,10 @@ export default function SolicitudCreada() {
         </button>
         <button
           onClick={() => irA('/marketplace/subir')}
-          className="btn-gold w-full py-3.5"
+          className="btn-gold w-full py-3.5 flex items-center justify-center gap-2"
         >
-          ♻️ Subir al Marketplace
+          <IconRecycle className="h-4 w-4 text-ink" />
+          <span>Publicar en el Marketplace</span>
         </button>
         <button
           onClick={() => irA('/mis-solicitudes')}

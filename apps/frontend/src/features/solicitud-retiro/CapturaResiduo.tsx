@@ -1,6 +1,6 @@
 import { useRef, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ScreenHeader } from '../../components/ui';
+import { ScreenHeader, IconCamera, IconImage } from '../../components/ui';
 import { useSolicitudFlow } from './SolicitudFlowContext';
 
 export default function CapturaResiduo() {
@@ -36,7 +36,7 @@ export default function CapturaResiduo() {
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-white/70">
-            <span className="text-5xl">📷</span>
+            <IconCamera className="h-16 w-16 text-white/40" />
             <p className="text-sm">Encuadra el objeto completo</p>
             <div className="pointer-events-none absolute inset-6 rounded-md border-2 border-dashed border-white/30" />
           </div>
@@ -70,15 +70,17 @@ export default function CapturaResiduo() {
         <div className="flex gap-3">
           <button
             onClick={() => camaraRef.current?.click()}
-            className="btn-outline flex-1"
+            className="btn-outline flex-1 flex items-center justify-center gap-2"
           >
-            📷 Cámara
+            <IconCamera className="h-4 w-4" />
+            <span>Cámara</span>
           </button>
           <button
             onClick={() => galeriaRef.current?.click()}
-            className="btn-outline flex-1"
+            className="btn-outline flex-1 flex items-center justify-center gap-2"
           >
-            🖼️ Galería
+            <IconImage className="h-4 w-4" />
+            <span>Galería</span>
           </button>
         </div>
       </div>

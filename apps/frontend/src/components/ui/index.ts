@@ -9,3 +9,4 @@ export { default as PriceTag } from './PriceTag';
 export { default as BotonClaveUnica } from './BotonClaveUnica';
 export { default as Estrellas } from './Estrellas';
 export { default as ArticuloCard } from './ArticuloCard';
+export * from './Icons';

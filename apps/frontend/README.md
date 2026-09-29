@@ -66,22 +66,24 @@ src/
 ├── components/
 │   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected
 │   └── ui/                      # UI Kit — primitivos reutilizables
+│       ├── Icons.tsx            # Sistema de íconos vectoriales SVG sobrios
 │       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader
-│       ├── EmptyState · BackButton · PriceTag
+│       ├── EmptyState · BackButton · PriceTag · BotonClaveUnica · Estrellas
 │       ├── estadoMeta.ts        # Metadata (label/color) por estado de solicitud
-│       └── index.ts             # Punto de import único: import { ScreenHeader } from '../../components/ui'
+│       └── index.ts             # Punto de import único: import { ScreenHeader, IconUser } from '../../components/ui'
 ├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
 ├── features/
+│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── CapturaResiduo · AnalizandoIA · SugerenciasIA
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada
 │       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada)
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
-│   ├── Login · SeleccionInicio · Inicio
+│   ├── Login · SeleccionInicio · Inicio · Perfil
 │   └── MisSolicitudes · Proximamente
 ├── index.css                    # Tokens y clases utilitarias del UI Kit
-└── App.tsx                      # Router: arma las rutas y monta solicitudRetiroRoutes
+└── App.tsx                      # Router: arma las rutas y monta flujos
 ```
 
 > El panel municipal vive en `src/admin/` y se sirve en `/admin/*` de este mismo sitio
