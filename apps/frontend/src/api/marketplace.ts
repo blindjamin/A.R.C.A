@@ -39,7 +39,7 @@ import {
 } from '../features/marketplace/distancia';
 
 // INTERRUPTOR: cambiar a false cuando estén los endpoints de Javier.
-const USAR_DATOS_DE_EJEMPLO = true;
+const USAR_DATOS_DE_EJEMPLO = false;
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 

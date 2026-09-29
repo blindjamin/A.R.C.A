@@ -105,7 +105,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [x] Detalle de artículo con créditos y bloque del vecino.
 - [x] Publicar: foto (vista previa local) + título + residuo del catálogo + modalidad.
 - [x] Mis publicaciones + retirar publicación.
-- [ ] Conectar a los endpoints reales (cambiar `USAR_DATOS_DE_EJEMPLO` en `api/marketplace.ts`).
+- [x] Conectar a los endpoints reales (cambiar `USAR_DATOS_DE_EJEMPLO` en `api/marketplace.ts`).
 - [x] Pestaña Marketplace y botón (+) central en la barra inferior (`AppShell.tsx`, Maxi).
 - [ ] "Me interesa" → negociación, chat y calificación (Ana).
 - [ ] Vista Lista, favoritos (`HeartBtn`), galería de varias fotos.
