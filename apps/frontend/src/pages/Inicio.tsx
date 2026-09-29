@@ -4,8 +4,8 @@ import {
   IconBadge,
   IconCamera,
   IconClipboard,
-  IconRecycle,
-  IconCoins,
+  IconMarketplace,
+  IconCircularCredits,
   IconChart,
   IconChevronRight,
   IconLeaf,
@@ -19,13 +19,13 @@ function renderModuloIcon(key: ModuloIconKey) {
     case 'solicitudes':
       return <IconClipboard className="h-5 w-5 text-green-700" />;
     case 'marketplace':
-      return <IconRecycle className="h-5 w-5 text-green-700" />;
+      return <IconMarketplace className="h-5 w-5 text-green-700" />;
     case 'creditos':
-      return <IconCoins className="h-5 w-5 text-gold-600" />;
+      return <IconCircularCredits className="h-5 w-5 text-gold-600" />;
     case 'admin':
       return <IconChart className="h-5 w-5 text-green-700" />;
     default:
-      return <IconRecycle className="h-5 w-5 text-green-700" />;
+      return <IconMarketplace className="h-5 w-5 text-green-700" />;
   }
 }
 
@@ -85,21 +85,21 @@ export default function Inicio() {
 
       {/* Tarjeta de impacto / Circular Credits */}
       <section
-        onClick={() => navigate('/perfil')}
+        onClick={() => navigate('/circular-credits')}
         className="card cursor-pointer relative overflow-hidden rounded-lg border-green-800/30 p-5 text-white shadow-green transition-all hover:shadow-lg hover:border-green-700"
         style={{ backgroundImage: 'linear-gradient(140deg, #156f4a 0%, #0f6b45 50%, #0a4f37 100%)' }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
-              <IconCoins className="h-3.5 w-3.5 text-gold-400" />
+              <IconCircularCredits className="h-3.5 w-3.5 text-gold-400" />
             </span>
             <p className="text-xs font-semibold uppercase tracking-widest text-green-100">
               Circular Credits Acumulados
             </p>
           </div>
           <span className="flex items-center gap-1 text-xs font-medium text-green-100/90 hover:text-white">
-            Ver detalle
+            Canjear premios
             <IconChevronRight className="h-3.5 w-3.5" />
           </span>
         </div>

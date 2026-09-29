@@ -80,7 +80,7 @@ src/
 │       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada)
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
-│   ├── Login · SeleccionInicio · Inicio · Perfil
+│   ├── Login · SeleccionInicio · Inicio · Perfil · CircularCredits
 │   └── MisSolicitudes · Proximamente
 ├── index.css                    # Tokens y clases utilitarias del UI Kit
 └── App.tsx                      # Router: arma las rutas y monta flujos

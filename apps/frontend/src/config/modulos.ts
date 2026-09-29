@@ -50,9 +50,9 @@ export const MODULOS: Modulo[] = [
   {
     id: 'creditos',
     titulo: 'Circular Credits',
-    descripcion: 'Consulta tu saldo acumulado, impacto ambiental y perfil.',
+    descripcion: 'Canjea premios municipales, consulta tu saldo y beneficios.',
     icono: 'creditos',
-    ruta: '/perfil',
+    ruta: '/circular-credits',
     activo: true,
     epica: 'EP-04',
   },

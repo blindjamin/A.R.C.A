@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import { Navigate, NavLink, Link } from 'react-router-dom';
 import type { ComponentType, ReactElement } from 'react';
 import { useSession, type Rol } from '../auth/SessionContext';
 import {
   IconHome,
   IconCamera,
-  IconClipboard,
-  IconRecycle,
+  IconMarketplace,
+  IconCircularCredits,
   IconUser,
   IconLogout,
+  IconPlus,
+  IconX,
   type IconProps,
 } from './ui/Icons';
 
@@ -43,40 +46,157 @@ export function RequireRol({
 }
 
 type Tab = { to: string; label: string; Icon: ComponentType<IconProps> };
-const TABS: Tab[] = [
+
+const TABS_IZQUIERDA: Tab[] = [
   { to: '/inicio', label: 'Inicio', Icon: IconHome },
-  { to: '/solicitar', label: 'Solicitar', Icon: IconCamera },
-  { to: '/mis-solicitudes', label: 'Solicitudes', Icon: IconClipboard },
-  { to: '/marketplace', label: 'Mercado', Icon: IconRecycle },
+  { to: '/marketplace', label: 'Mercado', Icon: IconMarketplace },
+];
+
+const TABS_DERECHA: Tab[] = [
+  { to: '/circular-credits', label: 'Créditos', Icon: IconCircularCredits },
   { to: '/perfil', label: 'Perfil', Icon: IconUser },
 ];
 
 function TabBar() {
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
   return (
-    <nav className="sticky bottom-0 z-10 border-t border-line bg-white/95 backdrop-blur w-full">
-      <ul className="mx-auto flex w-full max-w-lg items-stretch justify-around px-2 py-1.5 md:max-w-6xl md:justify-center md:gap-4">
-        {TABS.map((tab) => {
-          const TabIcon = tab.Icon;
-          return (
-            <li key={tab.to} className="flex-1 md:flex-initial">
-              <NavLink
-                to={tab.to}
-                className={({ isActive }) =>
-                  `flex flex-col items-center gap-1 rounded-md py-1.5 text-[10px] font-medium transition-colors md:px-6 md:py-2 md:text-sm ${
-                    isActive ? 'text-green-700 font-semibold' : 'text-slate-2 hover:text-ink'
-                  }`
-                }
+    <>
+      <nav className="sticky bottom-0 z-20 border-t border-line bg-white/95 backdrop-blur w-full">
+        <ul className="mx-auto flex w-full max-w-lg items-center justify-around px-2 py-1 md:max-w-6xl md:justify-center md:gap-4">
+          {/* Pestañas izquierda: Inicio y Marketplace */}
+          {TABS_IZQUIERDA.map((tab) => {
+            const TabIcon = tab.Icon;
+            return (
+              <li key={tab.to} className="flex-1 md:flex-initial">
+                <NavLink
+                  to={tab.to}
+                  className={({ isActive }) =>
+                    `flex flex-col items-center gap-0.5 rounded-md py-1 text-[10px] font-medium transition-colors md:px-6 md:py-2 md:text-sm ${
+                      isActive
+                        ? 'text-green-700 font-semibold'
+                        : 'text-slate-2 hover:text-ink'
+                    }`
+                  }
+                >
+                  <TabIcon className="h-5 w-5 md:h-5 md:w-5" />
+                  <span>{tab.label}</span>
+                </NavLink>
+              </li>
+            );
+          })}
+
+          {/* Botón central (+) con menú de acciones rápidas */}
+          <li className="flex-1 md:flex-initial flex items-center justify-center px-1">
+            <button
+              type="button"
+              onClick={() => setMenuAbierto(true)}
+              aria-label="Acciones rápidas: publicar o solicitar retiro"
+              className="flex h-11 w-11 -mt-3 items-center justify-center rounded-full bg-green-700 text-white shadow-green transition-transform hover:scale-105 active:scale-95 hover:bg-green-800"
+            >
+              <IconPlus className="h-6 w-6 stroke-[2.5]" />
+            </button>
+          </li>
+
+          {/* Pestañas derecha: Créditos y Perfil */}
+          {TABS_DERECHA.map((tab) => {
+            const TabIcon = tab.Icon;
+            return (
+              <li key={tab.to} className="flex-1 md:flex-initial">
+                <NavLink
+                  to={tab.to}
+                  className={({ isActive }) =>
+                    `flex flex-col items-center gap-0.5 rounded-md py-1 text-[10px] font-medium transition-colors md:px-6 md:py-2 md:text-sm ${
+                      isActive
+                        ? 'text-green-700 font-semibold'
+                        : 'text-slate-2 hover:text-ink'
+                    }`
+                  }
+                >
+                  <TabIcon className="h-5 w-5 md:h-5 md:w-5" />
+                  <span>{tab.label}</span>
+                </NavLink>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* Modal / Menú de acción del botón (+) */}
+      {menuAbierto && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fadeIn"
+          onClick={() => setMenuAbierto(false)}
+        >
+          <div
+            className="card w-full max-w-sm bg-white p-5 shadow-2xl animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-line pb-3">
+              <div>
+                <h3 className="text-sm font-bold text-ink">
+                  ¿Qué deseas realizar?
+                </h3>
+                <p className="text-xs text-slate">
+                  Acciones ciudadanas en Santo Domingo
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuAbierto(false)}
+                className="rounded-md p-1.5 text-slate hover:bg-canvas hover:text-ink"
+                aria-label="Cerrar menú"
               >
-                <TabIcon className="h-5 w-5 md:h-5 md:w-5" />
-                <span>{tab.label}</span>
-              </NavLink>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+                <IconX className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="mt-3.5 space-y-2.5">
+              <Link
+                to="/solicitar"
+                onClick={() => setMenuAbierto(false)}
+                className="flex items-start gap-3 rounded-lg border border-line p-3 transition-colors hover:border-green-300 hover:bg-green-50/50"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-green-100 text-green-800">
+                  <IconCamera className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-ink">
+                    Solicitar un retiro
+                  </p>
+                  <p className="text-xs text-slate">
+                    Foto con IA para recolección de voluminosos
+                  </p>
+                </div>
+              </Link>
+
+              <Link
+                to="/marketplace/subir"
+                onClick={() => setMenuAbierto(false)}
+                className="flex items-start gap-3 rounded-lg border border-line p-3 transition-colors hover:border-green-300 hover:bg-green-50/50"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-gold-100 text-gold-700">
+                  <IconMarketplace className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold text-ink">
+                    Publicar en Marketplace
+                  </p>
+                  <p className="text-xs text-slate">
+                    Regala o intercambia con tus vecinos
+                  </p>
+                </div>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
+
 
 function Shell({ children }: { children: ReactElement }) {
   const { sesion, salir } = useSession();
