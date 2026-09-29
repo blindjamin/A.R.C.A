@@ -53,6 +53,7 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 | `PORT` | `3000` | Puerto de la API |
 | `NODE_ENV` | `development` | Entorno |
 | `FRONTEND_URL` | `http://localhost:5173` | Orígenes CORS permitidos (separados por coma) |
+| `UPLOADS_DIR` | vacío (`./uploads`) | Carpeta de las fotos del marketplace. En el servidor, fuera de `public_html`: solo se entregan por la API |
 
 `.env.local` **no se versiona** (está en `.gitignore`). La plantilla es `.env.example`.
 
@@ -92,6 +93,23 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía una solicitud en `requiere_modificacion` (vuelve a `en_revision` vía `aplicarTransicion`). Body opcional `{ descripcion?, residuoCatalogoId? }` con las correcciones. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre), `404` si la categoría no existe. La auditoría registra estado y categoría, nunca la descripción |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
+
+### Endpoints del marketplace (HU-04, HU-05)
+
+Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC-marketplace.md) §5.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/marketplace/articulos` | Publica (`multipart/form-data`): `tipo`, `titulo`, `descripcion?`, `residuoCatalogoId`, `lat?`, `lon?` y `foto?` (JPG, PNG o WebP de hasta 5 MB, validada por su contenido, no por la extensión). La ubicación se guarda aproximada a 250 m. Vence a los 30 días. `404` si el residuo no existe |
+| `GET` | `/api/marketplace/articulos` | Disponibles y vigentes, del más nuevo al más antiguo. Filtros: `tipo`, `categoria`, `texto` (título o descripción), `banda` y el origen `lat`/`lon`, que agrega la banda de distancia (`@LimiteUbicacion`) |
+| `GET` | `/api/marketplace/articulos/:id` | Detalle. Un artículo que no está disponible y vigente solo lo ven quien lo publicó y quien lo reservó; para el resto, `404` |
+| `GET` | `/api/marketplace/articulos/:id/foto` | La foto, con la misma regla de visibilidad que el detalle (`404` si no hay foto) |
+| `PATCH` | `/api/marketplace/articulos/:id/retirar` | Quien publicó lo retira. `403` si no es suyo, `409` si no está disponible |
+| `GET` | `/api/marketplace/mis-articulos` | Lo publicado por la sesión, en cualquier estado |
+
+La respuesta nunca incluye la ubicación ni el id del publicador: solo `banda`, `esPropio` y un
+nombre fijo ("Vecino de Santo Domingo"). `creditos` es el valor de prueba de
+`src/creditos/reglas-creditos.ts`.
 
 ### Endpoints de sesión
 
@@ -178,6 +196,7 @@ siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 | `GET /health`, `GET /residuos/catalogo` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/reenviar`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
+| `GET/POST marketplace/…` | Ciudadano autenticado. Retirar: solo quien publicó |
 
 > **El cambio de estado municipal** (`admin`/`funcionario`) vive en `src/admin/`
 > (`PATCH /api/admin/solicitudes/:id` y `POST …/revision`, mismo puerto 3000).
@@ -197,6 +216,10 @@ src/
 │   └── migrations/              # Migraciones versionadas, en orden de timestamp — único dueño del esquema
 ├── residuos/                    # Catálogo de residuos (entidad en src/core)
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en src/core)
+├── marketplace/                 # Artículos del marketplace (controller, service, DTOs)
+│   └── ubicacion/               # Grilla de 250 m, bandas de distancia y límite de orígenes
+├── archivos/                    # Guardado y lectura de fotos subidas (UPLOADS_DIR)
+├── creditos/                    # Reglas de los Circular Credits (valores de prueba)
 ├── users/                       # UsersService/Controller/Module — entidades en src/core;
 │                                   provee PERFIL_ACCESO_RESOLVER para AuthModule
 └── admin/                       # Panel municipal (ex apps/backend-admin, movido en backend-unificado)
