@@ -227,6 +227,12 @@ inténtalo de nuevo."*
 - **IP real tras el proxy de cPanel:** `configurarProxyConfiable(app)` en `main.ts` aplica
   `trust proxy` según `TRUST_PROXY` (por defecto `loopback`). Sin esto todos los vecinos
   compartirían el contador de `127.0.0.1`; con `true`, cualquiera podría inventar su IP.
+  Además confía en las conexiones por **socket local** (`confiarEnSocketLocal`): en cPanel,
+  Passenger conecta con la app por un socket unix sin dirección de origen, y sin esto `req.ip`
+  quedaba vacío para todos y el límite se compartía entre todos los vecinos (probado en
+  `src/seguridad-socket-local.spec.ts`). Solo procesos de la misma máquina usan ese socket.
+  Si el sitio pasa por Cloudflare, sus rangos se agregan a `TRUST_PROXY` separados por coma
+  (ver `docs/DEPLOY_CPANEL.md` §6).
 - **Memoria del proceso:** con una instancia por backend basta. Con varias, habría que pasar
   el almacenamiento a Redis.
 - **Dependencia nueva:** `@nestjs/throttler` (exige Node ≥ 20.19). Suma un paquete al listado
