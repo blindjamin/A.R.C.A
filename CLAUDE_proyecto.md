@@ -425,10 +425,10 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
   - `apps/backend/README.md` y `apps/frontend/README.md` (guías por app; antes eran el
     boilerplate de NestJS y Vite)
   - `AGENTS.md` (reglas de IA: comportamiento del agente + política de uso del equipo)
-- **Marketplace (backend):** publicar con foto, buscar, detalle, mis artículos y retirar
-  (`src/marketplace/`, [spec](docs/specs/SPEC-marketplace.md)).
-- **Pendiente:** "Lo quiero", entrega y calificación del marketplace, y los Circular Credits
-  (tablas creadas el 2026-09-29), resto de migraciones del DBML (horarios, dashboard, etc.),
+- **Marketplace (backend):** publicar con foto, buscar, detalle, mis artículos, retirar,
+  "Lo quiero", liberar, entregar y calificar (`src/marketplace/`,
+  [spec](docs/specs/SPEC-marketplace.md)).
+- **Pendiente:** los Circular Credits (tablas creadas el 2026-09-29), resto de migraciones del DBML (horarios, dashboard, etc.),
   prueba de ClaveÚnica con las credenciales del municipio, y confirmación de acceso SSH al
   servidor municipal para despliegue.
 - **Escalado futuro (post-MVP):** Redis (caché + adaptador Socket.io multi-proceso), modelo TensorFlow.js personalizado entrenado con datos reales de la municipalidad, Sentry para monitoreo.

@@ -94,7 +94,7 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
 
-### Endpoints del marketplace (HU-04, HU-05)
+### Endpoints del marketplace (HU-04, HU-05, HU-15)
 
 Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC-marketplace.md) §5.
 
@@ -106,6 +106,14 @@ Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC
 | `GET` | `/api/marketplace/articulos/:id/foto` | La foto, con la misma regla de visibilidad que el detalle (`404` si no hay foto) |
 | `PATCH` | `/api/marketplace/articulos/:id/retirar` | Quien publicó lo retira. `403` si no es suyo, `409` si no está disponible |
 | `GET` | `/api/marketplace/mis-articulos` | Lo publicado por la sesión, en cualquier estado |
+| `POST` | `/api/marketplace/articulos/:id/solicitar` | "Lo quiero": pasa a `en_negociacion` y reserva para la sesión. `403` si es propio, `409` si ya no está disponible o venció |
+| `PATCH` | `/api/marketplace/articulos/:id/liberar` | Quien publicó rechaza al interesado: vuelve a `disponible`. `403` si no es suyo, `409` si no está reservado |
+| `PATCH` | `/api/marketplace/articulos/:id/entregar` | Quien publicó cierra el intercambio: `completado`, con la fecha de entrega. `403` si no es suyo, `409` si no está reservado |
+| `POST` | `/api/marketplace/articulos/:id/calificacion` | Quien recibió califica a quien publicó: `{ puntuacion: 1-5, comentario? }` (hasta 1000 caracteres). Responde `201` con `{ puntuacion, comentario, fecha }`. `403` si no es quien recibió, `409` si no está entregado o ya calificó |
+
+Cada cambio de estado es un solo `UPDATE` condicionado al estado esperado: si dos vecinos presionan
+"Lo quiero" a la vez, uno lo reserva y el otro recibe `409`. Entregar exige además que el receptor
+siga siendo el mismo que vio quien publicó.
 
 La respuesta nunca incluye la ubicación ni el id del publicador: solo `banda`, `esPropio` y un
 nombre fijo ("Vecino de Santo Domingo"). `creditos` es el valor de prueba de
@@ -196,7 +204,7 @@ siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 | `GET /health`, `GET /residuos/catalogo` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/reenviar`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET perfil-acceso` | Solo el propio `ciudadanoId` |
-| `GET/POST marketplace/…` | Ciudadano autenticado. Retirar: solo quien publicó |
+| `GET/POST marketplace/…` | Ciudadano autenticado. Retirar, liberar y entregar: solo quien publicó. Calificar: solo quien recibió |
 
 > **El cambio de estado municipal** (`admin`/`funcionario`) vive en `src/admin/`
 > (`PATCH /api/admin/solicitudes/:id` y `POST …/revision`, mismo puerto 3000).

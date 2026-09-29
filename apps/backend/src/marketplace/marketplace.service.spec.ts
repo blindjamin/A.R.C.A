@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { FindOperator, Like, type Repository } from 'typeorm';
+import { FindOperator, Like, QueryFailedError, type Repository } from 'typeorm';
 import {
   type ArticuloMarketplace,
   type AuthUser,
@@ -59,6 +59,8 @@ function montar({
   encontrado = null as ArticuloMarketplace | null,
   lista = [] as ArticuloMarketplace[],
   calificaciones = [] as Partial<Calificacion>[],
+  afectadas = 1,
+  errorAlCalificar = null as Error | null,
 } = {}) {
   const articuloRepo = {
     create: jest.fn((datos: Partial<ArticuloMarketplace>) => ({ ...datos })),
@@ -67,10 +69,16 @@ function montar({
     ),
     find: jest.fn(() => Promise.resolve(lista)),
     findOne: jest.fn(() => Promise.resolve(encontrado)),
-    update: jest.fn(() => Promise.resolve()),
+    update: jest.fn(() => Promise.resolve({ affected: afectadas })),
   };
   const calificacionRepo = {
     find: jest.fn(() => Promise.resolve(calificaciones)),
+    create: jest.fn((datos: Partial<Calificacion>) => ({ ...datos })),
+    save: jest.fn((c: Calificacion) =>
+      errorAlCalificar
+        ? Promise.reject(errorAlCalificar)
+        : Promise.resolve({ ...c, id: 1 }),
+    ),
   };
   const residuos = {
     findCatalogoById: jest.fn((id: number): Promise<ResiduoCatalogo | null> =>
@@ -348,9 +356,10 @@ describe('MarketplaceService.retirar', () => {
 
     await service.retirar(10, usuario(YO));
 
-    expect(articuloRepo.update).toHaveBeenCalledWith(10, {
-      estado: EstadoArticuloMarketplace.RETIRADO,
-    });
+    expect(articuloRepo.update).toHaveBeenCalledWith(
+      { id: 10, estado: EstadoArticuloMarketplace.DISPONIBLE },
+      { estado: EstadoArticuloMarketplace.RETIRADO },
+    );
   });
 
   it('403 si el artículo es de otra persona', async () => {
@@ -362,8 +371,125 @@ describe('MarketplaceService.retirar', () => {
     expect(articuloRepo.update).not.toHaveBeenCalled();
   });
 
-  it('409 si ya no está disponible', async () => {
+  it('409 si ya no está disponible (el UPDATE condicionado no afecta filas)', async () => {
     const { service } = montar({
+      encontrado: articulo({
+        usuarioPublicadorId: YO,
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: VECINA,
+      }),
+      afectadas: 0,
+    });
+
+    await expect(service.retirar(10, usuario(YO))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+});
+
+describe('MarketplaceService.solicitar', () => {
+  it('reserva para la sesión solo si sigue disponible y vigente', async () => {
+    const { service, articuloRepo } = montar({ encontrado: articulo() });
+
+    await service.solicitar(10, usuario(YO));
+
+    const [condicion, cambios] = articuloRepo.update.mock
+      .calls[0] as unknown as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(condicion).toMatchObject({
+      id: 10,
+      estado: EstadoArticuloMarketplace.DISPONIBLE,
+    });
+    expect((condicion.fechaExpiracion as FindOperator<Date>).type).toBe(
+      'moreThan',
+    );
+    expect(cambios).toEqual({
+      estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+      usuarioCompradorId: YO,
+    });
+  });
+
+  it('403 si el artículo es propio', async () => {
+    const { service, articuloRepo } = montar({
+      encontrado: articulo({ usuarioPublicadorId: YO }),
+    });
+
+    await expect(service.solicitar(10, usuario(YO))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(articuloRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('409 si otra persona lo reservó antes o venció', async () => {
+    const { service } = montar({ encontrado: articulo(), afectadas: 0 });
+
+    await expect(service.solicitar(10, usuario(YO))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+
+  it('404 si no existe', async () => {
+    const { service } = montar();
+
+    await expect(service.solicitar(10, usuario(YO))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+});
+
+describe('MarketplaceService.liberar', () => {
+  const reservado = () =>
+    articulo({
+      usuarioPublicadorId: YO,
+      estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+      usuarioCompradorId: VECINA,
+    });
+
+  it('vuelve a disponible y borra al interesado', async () => {
+    const { service, articuloRepo } = montar({ encontrado: reservado() });
+
+    await service.liberar(10, usuario(YO));
+
+    expect(articuloRepo.update).toHaveBeenCalledWith(
+      { id: 10, estado: EstadoArticuloMarketplace.EN_NEGOCIACION },
+      {
+        estado: EstadoArticuloMarketplace.DISPONIBLE,
+        usuarioCompradorId: null,
+      },
+    );
+  });
+
+  it('403 si quien lo pide es el interesado y no quien publicó', async () => {
+    const { service, articuloRepo } = montar({
+      encontrado: articulo({
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: YO,
+      }),
+    });
+
+    await expect(service.liberar(10, usuario(YO))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(articuloRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('409 si no está reservado', async () => {
+    const { service } = montar({
+      encontrado: articulo({ usuarioPublicadorId: YO }),
+      afectadas: 0,
+    });
+
+    await expect(service.liberar(10, usuario(YO))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+});
+
+describe('MarketplaceService.entregar', () => {
+  it('completa el intercambio con el mismo receptor y registra la fecha', async () => {
+    const { service, articuloRepo } = montar({
       encontrado: articulo({
         usuarioPublicadorId: YO,
         estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
@@ -371,9 +497,158 @@ describe('MarketplaceService.retirar', () => {
       }),
     });
 
-    await expect(service.retirar(10, usuario(YO))).rejects.toBeInstanceOf(
+    await service.entregar(10, usuario(YO));
+
+    const [condicion, cambios] = articuloRepo.update.mock
+      .calls[0] as unknown as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(condicion).toEqual({
+      id: 10,
+      estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+      usuarioCompradorId: VECINA,
+    });
+    expect(cambios.estado).toBe(EstadoArticuloMarketplace.COMPLETADO);
+    expect(cambios.fechaTransaccion).toBeInstanceOf(Date);
+  });
+
+  it('404 para un tercero que no puede ver el artículo reservado', async () => {
+    const { service } = montar({
+      encontrado: articulo({
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: VECINA,
+      }),
+    });
+
+    await expect(service.entregar(10, usuario(YO))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('409 si no está reservado, sin intentar el UPDATE', async () => {
+    const { service, articuloRepo } = montar({
+      encontrado: articulo({ usuarioPublicadorId: YO }),
+    });
+
+    await expect(service.entregar(10, usuario(YO))).rejects.toBeInstanceOf(
       ConflictException,
     );
+    expect(articuloRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('409 si entre la lectura y el UPDATE cambió el receptor o el estado', async () => {
+    const { service } = montar({
+      encontrado: articulo({
+        usuarioPublicadorId: YO,
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: VECINA,
+      }),
+      afectadas: 0,
+    });
+
+    await expect(service.entregar(10, usuario(YO))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+});
+
+describe('MarketplaceService.calificar', () => {
+  const recibido = (cambios: Partial<ArticuloMarketplace> = {}) =>
+    articulo({
+      estado: EstadoArticuloMarketplace.COMPLETADO,
+      usuarioCompradorId: YO,
+      ...cambios,
+    });
+
+  it('guarda la calificación de quien recibió hacia quien publicó', async () => {
+    const { service, calificacionRepo } = montar({ encontrado: recibido() });
+
+    const respuesta = await service.calificar(
+      10,
+      { puntuacion: 5, comentario: '  Todo bien ' },
+      usuario(YO),
+    );
+
+    expect(calificacionRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        usuarioCalificadorId: YO,
+        usuarioCalificadoId: VECINA,
+        articuloId: 10,
+        puntuacion: 5,
+        comentario: 'Todo bien',
+      }),
+    );
+    expect(respuesta).toEqual({
+      puntuacion: 5,
+      comentario: 'Todo bien',
+      fecha: expect.any(Date) as Date,
+    });
+  });
+
+  it('comentario vacío se guarda como null', async () => {
+    const { service, calificacionRepo } = montar({ encontrado: recibido() });
+
+    await service.calificar(
+      10,
+      { puntuacion: 4, comentario: '  ' },
+      usuario(YO),
+    );
+
+    expect(calificacionRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ comentario: null }),
+    );
+  });
+
+  it('403 si quien califica es quien publicó', async () => {
+    const { service, calificacionRepo } = montar({
+      encontrado: recibido({
+        usuarioPublicadorId: YO,
+        usuarioCompradorId: VECINA,
+      }),
+    });
+
+    await expect(
+      service.calificar(10, { puntuacion: 5 }, usuario(YO)),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(calificacionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('409 si todavía no se entrega', async () => {
+    const { service } = montar({
+      encontrado: recibido({
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+      }),
+    });
+
+    await expect(
+      service.calificar(10, { puntuacion: 5 }, usuario(YO)),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('409 si ya calificó (índice único de la base)', async () => {
+    const duplicada = new QueryFailedError('INSERT', [], {
+      code: 'ER_DUP_ENTRY',
+    } as unknown as Error);
+    const { service } = montar({
+      encontrado: recibido(),
+      errorAlCalificar: duplicada,
+    });
+
+    await expect(
+      service.calificar(10, { puntuacion: 5 }, usuario(YO)),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('otros errores de la base no se disfrazan de 409', async () => {
+    const { service } = montar({
+      encontrado: recibido(),
+      errorAlCalificar: new Error('se cayó la conexión'),
+    });
+
+    await expect(
+      service.calificar(10, { puntuacion: 5 }, usuario(YO)),
+    ).rejects.toThrow('se cayó la conexión');
   });
 });
 
