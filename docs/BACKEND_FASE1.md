@@ -126,6 +126,7 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `POST` | `/api/marketplace/articulos/{id}/solicitar` | **Marketplace:** "Lo quiero" (reserva para la sesión) |
 | `PATCH` | `/api/marketplace/articulos/{id}/liberar` · `…/entregar` | **Marketplace:** quien publicó rechaza al interesado o cierra el intercambio |
 | `POST` | `/api/marketplace/articulos/{id}/calificacion` | **Marketplace:** quien recibió califica de 1 a 5, una vez |
+| `GET` | `/api/creditos` | **Circular Credits:** saldo y movimientos de la sesión (entregar y calificar con 4 o 5 estrellas otorgan) |
 
 Detalle del marketplace: [`apps/backend/README.md`](../apps/backend/README.md#endpoints-del-marketplace-hu-04-hu-05-hu-15)
 y [spec `marketplace`](specs/SPEC-marketplace.md).

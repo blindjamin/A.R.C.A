@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
+  type EntityManager,
   FindOptionsWhere,
   In,
   Like,
@@ -25,6 +26,7 @@ import {
   type ArchivoSubido,
   ArchivosService,
 } from '../archivos/archivos.service';
+import { CreditosService } from '../creditos/creditos.service';
 import { ResiduosService } from '../residuos/residuos.service';
 import {
   aArticuloPublico,
@@ -85,6 +87,7 @@ export class MarketplaceService {
     private readonly residuosService: ResiduosService,
     private readonly archivosService: ArchivosService,
     private readonly limiteOrigenes: LimiteOrigenesService,
+    private readonly creditosService: CreditosService,
   ) {}
 
   async publicar(
@@ -267,7 +270,11 @@ export class MarketplaceService {
     return this.obtener(id, {}, user);
   }
 
-  /** Quien publicó cierra el intercambio con quien lo reservó. */
+  /**
+   * Quien publicó cierra el intercambio con quien lo reservó y recibe los
+   * créditos de la entrega, en la misma transacción: o pasan las dos cosas o
+   * ninguna.
+   */
   async entregar(id: number, user: AuthUser): Promise<ArticuloPublico> {
     const articulo = await this.buscarPropio(
       id,
@@ -282,24 +289,32 @@ export class MarketplaceService {
       throw new ConflictException(mensajeConflicto);
     }
 
-    // También con el mismo receptor: si entre la lectura y el UPDATE se liberó
-    // y lo reservó otra persona, no se le entrega a alguien que no se eligió.
-    await this.transicionar(
-      id,
-      {
-        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
-        usuarioCompradorId: articulo.usuarioCompradorId,
-      },
-      {
-        estado: EstadoArticuloMarketplace.COMPLETADO,
-        fechaTransaccion: new Date(),
-      },
-      mensajeConflicto,
-    );
+    const receptorId = articulo.usuarioCompradorId;
+    await this.articuloRepository.manager.transaction(async (manager) => {
+      // También con el mismo receptor: si entre la lectura y el UPDATE se liberó
+      // y lo reservó otra persona, no se le entrega a alguien que no se eligió.
+      await this.transicionar(
+        id,
+        {
+          estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+          usuarioCompradorId: receptorId,
+        },
+        {
+          estado: EstadoArticuloMarketplace.COMPLETADO,
+          fechaTransaccion: new Date(),
+        },
+        mensajeConflicto,
+        manager,
+      );
+      await this.creditosService.otorgarPorEntrega(manager, articulo);
+    });
     return this.obtener(id, {}, user);
   }
 
-  /** Quien recibió el artículo califica a quien lo publicó, una sola vez. */
+  /**
+   * Quien recibió el artículo califica a quien lo publicó, una sola vez. Con 4
+   * o 5 estrellas, quien publicó recibe el bono en la misma transacción.
+   */
   async calificar(
     id: number,
     dto: CalificarArticuloDto,
@@ -329,7 +344,17 @@ export class MarketplaceService {
 
     let guardada: Calificacion;
     try {
-      guardada = await this.calificacionRepository.save(calificacion);
+      guardada = await this.articuloRepository.manager.transaction(
+        async (manager) => {
+          const nueva = await manager.save(Calificacion, calificacion);
+          await this.creditosService.otorgarPorEstrellas(
+            manager,
+            articulo,
+            dto.puntuacion,
+          );
+          return nueva;
+        },
+      );
     } catch (error) {
       if (esClaveDuplicada(error)) {
         throw new ConflictException('Ya calificaste este intercambio');
@@ -395,11 +420,11 @@ export class MarketplaceService {
     esperado: FindOptionsWhere<ArticuloMarketplace>,
     cambios: QueryDeepPartialEntity<ArticuloMarketplace>,
     mensajeConflicto: string,
+    manager?: EntityManager,
   ): Promise<void> {
-    const { affected } = await this.articuloRepository.update(
-      { ...esperado, id },
-      cambios,
-    );
+    const repositorio =
+      manager?.getRepository(ArticuloMarketplace) ?? this.articuloRepository;
+    const { affected } = await repositorio.update({ ...esperado, id }, cambios);
     if (!affected) {
       throw new ConflictException(mensajeConflicto);
     }

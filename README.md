@@ -226,7 +226,7 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |
 | **Autenticación ClaveÚnica** | 🟡 Flujo OAuth2 y sesión con cookie implementados · falta probarlo con las credenciales del municipio; mientras tanto, accesos de desarrollo (`ALLOW_DEV_LOGIN`) |
 | **Marketplace P2P (EP-03)** | 🟡 Backend: publicar con foto, buscar, detalle, retirar, "Lo quiero", entrega y calificación · la PWA tiene listado, detalle, publicar y mis publicaciones con datos de ejemplo, sin conectar al backend todavía ([spec](docs/specs/SPEC-marketplace.md)) |
-| **Circular Credits (HU-10, HU-11 en EP-03)** | ⛔ Pendiente — la tarjeta de impacto del Inicio es estática |
+| **Circular Credits (HU-10, HU-11 en EP-03)** | 🟡 Backend: créditos por entrega y por estrellas, con topes mensual y por pareja, y `GET /api/creditos` (valores de prueba) · falta la billetera en la PWA; la tarjeta de impacto del Inicio sigue estática |
 | **Confianza y Comunidad (EP-06)** | ⛔ Pendiente — ratings, denuncias y moderación no iniciados |
 
 Detalle por capa: [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) ·
