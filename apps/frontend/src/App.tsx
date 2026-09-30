@@ -10,6 +10,9 @@ import SeleccionInicio from './pages/SeleccionInicio';
 import Inicio from './pages/Inicio';
 import MisSolicitudes from './pages/MisSolicitudes';
 import Proximamente from './pages/Proximamente';
+import Perfil from './pages/Perfil';
+import CircularCredits from './pages/CircularCredits';
+import { IconTruck } from './components/ui/Icons';
 
 // Chunk aparte: el panel (páginas, api/admin.ts, leaflet) no debe pesar en la
 // PWA del vecino (SPEC-frontend-unificado §2.2, criterio 3).
@@ -36,6 +39,9 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Entrada />} />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
+            <Route path="/perfil" element={<Protected><Perfil /></Protected>} />
+            <Route path="/circular-credits" element={<Protected><CircularCredits /></Protected>} />
+            <Route path="/creditos" element={<Navigate to="/circular-credits" replace />} />
 
             {/* Flujo Solicitar retiro: captura → IA → sugerencia → detalle → éxito
                 (definido en features/solicitud-retiro/routes.tsx) */}
@@ -53,7 +59,7 @@ export default function App() {
                 <Protected>
                   <Proximamente
                     titulo="Retiro municipal"
-                    icono="🚛"
+                    icono={<IconTruck className="h-10 w-10 text-green-700" />}
                     epica="EP-03"
                     descripcion="Agenda un retiro con la cuadrilla municipal. Estará disponible cuando integremos la gestión de operaciones."
                   />

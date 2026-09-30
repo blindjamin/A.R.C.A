@@ -10,6 +10,8 @@ import {
   EmptyState,
   ListItemCard,
   ScreenHeader,
+  IconPlus,
+  IconRecycle,
 } from '../../components/ui';
 import { ESTADO_ARTICULO_META, TIPO_ARTICULO_META, haceCuanto } from './formato';
 
@@ -34,8 +36,9 @@ export default function MisPublicaciones() {
           title="Mis publicaciones"
           subtitle="Lo que has regalado o puesto para intercambio."
         />
-        <button onClick={irAPublicar} className="btn-gold shrink-0">
-          ♻️ Publicar
+        <button onClick={irAPublicar} className="btn-gold shrink-0 flex items-center gap-1.5">
+          <IconPlus className="h-4 w-4" />
+          <span>Publicar</span>
         </button>
       </div>
 
@@ -45,7 +48,7 @@ export default function MisPublicaciones() {
         <p className="text-slate">Cargando tus publicaciones…</p>
       ) : articulos.length === 0 ? (
         <EmptyState
-          icon="♻️"
+          icon={<IconRecycle className="h-8 w-8 text-green-700" />}
           message="Todavía no has publicado nada."
           action={
             <button onClick={irAPublicar} className="btn-primary">

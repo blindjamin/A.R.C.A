@@ -35,6 +35,13 @@ export type EstadoSolicitud =
 
 export type EstadoPago = 'no_aplica' | 'pendiente' | 'pagado';
 
+export interface RevisionVisible {
+  decision: string;
+  motivo?: string | null;
+  comentario?: string | null;
+  fecha: string;
+}
+
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
@@ -54,6 +61,8 @@ export interface SolicitudRetiro {
   updatedAt: string;
   // El GET incluye la relación anidada; en el POST puede no venir.
   residuoCatalogo?: ResiduoCatalogo;
+  // Detalle de la última revisión del funcionario municipal (para corregir)
+  ultimaRevision?: RevisionVisible | null;
 }
 
 export interface CrearSolicitudInput {
@@ -141,6 +150,24 @@ export function cancelarSolicitud(
     body: JSON.stringify({ usuarioCiudadanoId, motivo }),
   }).then((r) => handle<SolicitudRetiro>(r));
 }
+
+export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
+  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
+    handle<SolicitudRetiro>(r),
+  );
+}
+
+export function reenviarSolicitud(
+  id: number,
+  cambios: { descripcion?: string; residuoCatalogoId?: number },
+): Promise<SolicitudRetiro> {
+  return apiFetch(`${API_URL}/solicitudes-retiro/${id}/reenviar`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cambios),
+  }).then((r) => handle<SolicitudRetiro>(r));
+}
+
 
 // Los fetchers de admin (solicitudes globales, auditoría) viven en
 // admin/api/admin.ts — se movieron con la migración del panel.

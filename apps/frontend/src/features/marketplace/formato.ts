@@ -17,8 +17,8 @@ export const TIPO_ARTICULO_META: Record<
   TipoArticulo,
   { etiqueta: string; clase: string }
 > = {
-  regalo: { etiqueta: '🎁 Regalo', clase: 'bg-gold-100 text-gold-600' },
-  intercambio: { etiqueta: '🔄 Intercambio', clase: 'bg-green-100 text-green-700' },
+  regalo: { etiqueta: 'Regalo', clase: 'bg-gold-100 text-gold-700' },
+  intercambio: { etiqueta: 'Intercambio', clase: 'bg-green-100 text-green-700' },
 };
 
 const DIA_MS = 86_400_000;

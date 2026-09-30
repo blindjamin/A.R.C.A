@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchCatalogo, type ResiduoCatalogo } from '../../api/arca';
 import { publicarArticulo, type TipoArticulo } from '../../api/marketplace';
-import { BackButton, ScreenHeader } from '../../components/ui';
+import { BackButton, ScreenHeader, IconCamera } from '../../components/ui';
 
 const TITULO_MIN = 3;
 const TITULO_MAX = 80;
@@ -161,7 +161,9 @@ export default function PublicarArticulo() {
           </div>
         ) : (
           <label className="card flex cursor-pointer flex-col items-center gap-2 border-dashed p-8 text-center transition-colors hover:border-green-300">
-            <span className="text-4xl" aria-hidden="true">📷</span>
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-700" aria-hidden="true">
+              <IconCamera className="h-6 w-6" />
+            </span>
             <span className="text-sm font-semibold text-green-700">Tomar o elegir foto</span>
             <span className="text-xs text-slate-2">JPG o PNG, hasta {FOTO_MAX_MB} MB</span>
             <input
@@ -194,7 +196,7 @@ export default function PublicarArticulo() {
               aria-pressed={tipo === t}
               className={`chip ${tipo === t ? 'chip-active' : ''}`}
             >
-              {t === 'regalo' ? '🎁 Regalarlo' : '🔄 Intercambiarlo'}
+              {t === 'regalo' ? 'Regalarlo' : 'Intercambiarlo'}
             </button>
           ))}
         </div>

@@ -86,6 +86,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [ ] **Detalle / Tracking de retiro** con Timeline de 4 pasos (UI Kit: `Timeline + PulseRing`). Ruta `/solicitud/:id`.
 - [ ] Conectar la tarjeta de créditos/impacto del Inicio a datos reales (EP-04) — hoy es estática.
 - [x] **Precio real:** columna `precio` en el backend; el overlay de precio salió de `api/arca.ts`.
+- [x] **HU-03 Reenviar solicitud:** pantalla "Tu solicitud requiere cambios" con motivo/comentario del funcionario y formulario de corrección y reenvío (Maxi).
 - [ ] **Ícono real:** agregar la columna al backend y quitar `iconoPorCategoria` de `api/arca.ts`.
 - [ ] Estados de carga con `Spinner` / skeletons y manejo de error consistente.
 - [ ] Iconografía: migrar emojis → `lucide-react` (acordado en `config/modulos.ts`).
@@ -104,8 +105,8 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [x] Detalle de artículo con créditos y bloque del vecino.
 - [x] Publicar: foto (vista previa local) + título + residuo del catálogo + modalidad.
 - [x] Mis publicaciones + retirar publicación.
-- [ ] Conectar a los endpoints reales (cambiar `USAR_DATOS_DE_EJEMPLO` en `api/marketplace.ts`).
-- [ ] Pestaña Marketplace en la barra inferior (`AppShell.tsx`, Maxi).
+- [x] Conectar a los endpoints reales (cambiar `USAR_DATOS_DE_EJEMPLO` en `api/marketplace.ts`).
+- [x] Pestaña Marketplace y botón (+) central en la barra inferior (`AppShell.tsx`, Maxi).
 - [ ] "Me interesa" → negociación, chat y calificación (Ana).
 - [ ] Vista Lista, favoritos (`HeartBtn`), galería de varias fotos.
 
@@ -114,10 +115,12 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [ ] Integrar Socket.io-client (gateways NestJS).
 
 ### Fase 5 — Perfil & Impacto (EP-04)
-- [ ] `ProfileHeader` verde + avatar.
-- [ ] `BalanceCard` Circular Credits + `ImpactCard` (CO₂, litros, barra de hito).
-- [ ] Historial `TransactionRow`, ranking `TrophyRanking`, `SettingRows`.
-- [ ] Añadir 4ª pestaña **Perfil** a la TabBar.
+- [x] `ProfileHeader` verde + avatar y datos verificados.
+- [x] `BalanceCard` Circular Credits + `ImpactCard` (CO₂ evitado, objetos reutilizados, reputación vecinal).
+- [x] Historial de transacciones de créditos y accesos directos de actividad.
+- [x] Datos de contacto y municipales opcionales (correo, teléfono, dirección, sector, canal de aviso) con renderizado condicional estricto (se omiten campos vacíos).
+- [x] Pestaña **Perfil** integrada a la TabBar y navegación ciudadana.
+- [x] Pantalla dedicada **Circular Credits** (`/circular-credits`): catálogo de premios canjeables (cafeterías, vivero municipal, descuentos y kits) con emisión de vales digitales.
 
 ### Fase 6 — Panel Municipal (desktop · EP-03)
 > App separada / layout desktop: `Sidebar + Topbar`.

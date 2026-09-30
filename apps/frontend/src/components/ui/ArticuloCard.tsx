@@ -3,6 +3,7 @@ import type { ArticuloMarketplace } from '../../api/marketplace';
 import { ETIQUETA_BANDA } from '../../features/marketplace/distancia';
 import { TIPO_ARTICULO_META } from '../../features/marketplace/formato';
 import Estrellas from './Estrellas';
+import { IconMapPin } from './Icons';
 
 interface ArticuloCardProps {
   articulo: ArticuloMarketplace;
@@ -40,7 +41,10 @@ export default function ArticuloCard({ articulo, onClick }: ArticuloCardProps) {
           {titulo}
         </h3>
         {banda && (
-          <p className="text-xs text-slate">📍 {ETIQUETA_BANDA[banda]}</p>
+          <p className="text-xs text-slate flex items-center gap-1">
+            <IconMapPin className="h-3 w-3 text-slate-2 shrink-0" />
+            <span>{ETIQUETA_BANDA[banda]}</span>
+          </p>
         )}
         <div className="mt-auto flex flex-col gap-0.5 border-t border-line-2 pt-2">
           <span className="truncate text-xs text-ink-2 sm:text-sm">
