@@ -178,7 +178,7 @@ export default function MisSolicitudes() {
     }
   };
 
-  if (loading) return <p className="text-slate">Cargando solicitudes…</p>;
+  if (loading) return <p className="text-ink-2">Cargando solicitudes…</p>;
 
   // --- Detalle de una solicitud ---------------------------------------------
   if (seleccion) {
@@ -319,7 +319,7 @@ export default function MisSolicitudes() {
                   `Residuo #${seleccion.residuoCatalogoId}`}
               </h1>
               {categoria && (
-                <p className="text-sm text-slate">
+                <p className="text-sm text-ink-2">
                   {categoria} ·{' '}
                   {formatearPrecio(seleccion.residuoCatalogo?.precio ?? 0)}
                 </p>
@@ -328,20 +328,24 @@ export default function MisSolicitudes() {
             <EstadoPill estado={seleccion.estado} />
           </div>
 
-          <div>
-            <p className="text-xs uppercase tracking-wide text-slate-2">
-              Descripción
-            </p>
-            <p className="mt-1 text-ink">
-              {seleccion.descripcion || 'Sin descripción.'}
-            </p>
-          </div>
+          <div className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2 sm:gap-0">
+            <div className="pb-3 sm:pb-0 sm:pr-4">
+              <p className="text-xs uppercase tracking-wide text-black">
+                Descripción
+              </p>
+              <p className="mt-1 text-ink-2">
+                {seleccion.descripcion || 'Sin descripción.'}
+              </p>
+            </div>
 
-          <div>
-            <p className="text-xs uppercase tracking-wide text-slate-2">
-              Solicitada
-            </p>
-            <p className="mt-1 text-ink">{fechaLarga(seleccion.fechaSolicitud)}</p>
+            <div className="border-t border-line pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+              <p className="text-xs uppercase tracking-wide text-black">
+                Solicitada
+              </p>
+              <p className="mt-1 text-ink-2">
+                {fechaLarga(seleccion.fechaSolicitud)}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -349,12 +353,12 @@ export default function MisSolicitudes() {
           <button
             onClick={() => cancelar(seleccion.id)}
             disabled={procesando}
-            className="w-full rounded-pill border border-rose-300 py-3 text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
+            className="w-full rounded-pill border border-rose-300 bg-rose-50 py-3 text-sm font-medium text-rose-600 transition-colors hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:opacity-50"
           >
             {procesando ? 'Cancelando…' : 'Cancelar solicitud'}
           </button>
         ) : (
-          <p className="text-center text-xs text-slate-2">
+          <p className="text-center text-xs text-ink-2">
             {pagada
               ? 'Esta solicitud ya fue pagada y no se puede cancelar.'
               : `Esta solicitud está en estado «${metaDeEstado(seleccion.estado).label}» y no se puede cancelar.`}
@@ -369,7 +373,7 @@ export default function MisSolicitudes() {
     <div className="space-y-4">
       <ScreenHeader
         title="Mis solicitudes"
-        subtitle="Toca una solicitud para ver el detalle."
+        subtitle={<span className="text-ink-2">Toca una solicitud para ver el detalle.</span>}
       />
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
@@ -377,7 +381,7 @@ export default function MisSolicitudes() {
       {visibles.length === 0 ? (
         <EmptyState
           icon={<IconClipboard className="h-7 w-7 text-green-700" />}
-          message="Aún no tienes solicitudes registradas."
+          message={<span className="text-ink-2">Aún no tienes solicitudes registradas.</span>}
           action={
             <Link to="/solicitar" className="btn-primary inline-flex">
               Solicitar un retiro
@@ -395,12 +399,12 @@ export default function MisSolicitudes() {
                   title={s.residuoCatalogo?.nombre ?? `Residuo #${s.residuoCatalogoId}`}
                   titleBadge={<EstadoPill estado={s.estado} />}
                   lines={[
-                    `${categoria ? `${categoria} · ` : ''}${
+                    <span className="text-ink-2">{`${categoria ? `${categoria} · ` : ''}${
                       s.residuoCatalogo ? formatearPrecio(s.residuoCatalogo.precio) : ''
-                    }`,
-                    fechaLarga(s.fechaSolicitud),
+                    }`}</span>,
+                    <span className="text-ink-2">{fechaLarga(s.fechaSolicitud)}</span>,
                   ]}
-                  trailing={<span className="text-slate-2">›</span>}
+                  trailing={<span className="text-ink-2">›</span>}
                   onClick={() => abrirDetalle(s)}
                 />
               </li>

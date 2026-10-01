@@ -127,7 +127,7 @@ export default function Derivacion() {
               </button>
               <button
                 type="button"
-                className="btn-ghost"
+                className="btn-ghost text-black hover:text-green-800"
                 disabled={trabajando}
                 onClick={() => setConfirmando(false)}
               >

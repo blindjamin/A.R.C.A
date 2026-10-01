@@ -1,5 +1,5 @@
 import { useState, useId } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
 import {
   IconCircularCredits,
@@ -18,7 +18,6 @@ import {
   IconX,
   IconCheck,
 } from '../components/ui/Icons';
-import BackButton from '../components/ui/BackButton';
 
 export interface PerfilCiudadano {
   nombre: string;
@@ -96,7 +95,6 @@ function tieneValor(valor?: string | null): valor is string {
 
 export default function Perfil() {
   const { sesion, salir } = useSession();
-  const navigate = useNavigate();
 
   const modalTitleId = useId();
   const storageKey = `arca_perfil_vecino_${sesion?.ciudadanoId || 'default'}`;
@@ -229,10 +227,9 @@ export default function Perfil() {
     tieneValor(perfil.canalPreferido);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-10">
+    <div className="page-text-contrast space-y-6 max-w-4xl mx-auto pb-10">
       <div>
-        <BackButton onClick={() => navigate('/inicio')} />
-        <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">
               Perfil del Vecino
@@ -655,7 +652,7 @@ export default function Perfil() {
       </section>
 
       {/* 5. CIERRE DE SESIÓN Y SOPORTE */}
-      <section className="card p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-canvas/60">
+      <section className="card border-green-200 bg-green-50 p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold text-ink">
             Municipalidad de Santo Domingo · Plataforma A.R.C.A.

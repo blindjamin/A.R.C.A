@@ -1,5 +1,5 @@
 import { useState, useId } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
 import {
   IconCircularCredits,
@@ -13,7 +13,6 @@ import {
   IconUser,
   IconShield,
 } from '../components/ui/Icons';
-import BackButton from '../components/ui/BackButton';
 
 export type CategoriaPremio =
   | 'todos'
@@ -163,7 +162,6 @@ const CATEGORIAS_FILTRO: { key: CategoriaPremio; label: string }[] = [
 
 export default function CircularCredits() {
   const { sesion } = useSession();
-  const navigate = useNavigate();
   const modalTitleId = useId();
 
   const storageSaldoKey = `arca_cc_saldo_${sesion?.ciudadanoId || 'default'}`;
@@ -283,8 +281,7 @@ export default function CircularCredits() {
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
       {/* Cabecera */}
       <div>
-        <BackButton onClick={() => navigate(-1)} />
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-md bg-gold-50 text-gold-600 border border-gold-200">
@@ -552,7 +549,7 @@ export default function CircularCredits() {
       )}
 
       {/* Información de Acreditación */}
-      <section className="card p-5 bg-canvas/60 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <section className="card border-green-200 bg-green-50 p-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
             <IconShield className="h-4 w-4 text-green-700" />

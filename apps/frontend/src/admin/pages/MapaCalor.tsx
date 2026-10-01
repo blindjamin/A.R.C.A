@@ -59,29 +59,29 @@ export default function MapaCalor() {
   const hasData = mapData.some(s => s.total > 0);
 
   return (
-    <div className="flex h-full flex-col gap-6">
+    <div className="flex h-full min-w-0 flex-col gap-6">
       <header>
         <h1 className="text-3xl font-extrabold text-green-900">Mapa de calor</h1>
         <p className="mt-1 text-slate">Distribución georreferenciada de solicitudes</p>
       </header>
 
-      <div className="flex flex-col gap-6 lg:flex-row">
+      <div className="flex min-w-0 flex-col gap-6 lg:flex-row">
         {/* Mapa */}
-        <div className="flex flex-1 flex-col gap-4">
-          <div className="flex items-center justify-between">
+        <div className="flex min-w-0 w-full flex-1 flex-col gap-4">
+          <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="text-lg font-bold text-ink">Comuna de Santo Domingo</h2>
               <p className="text-sm text-slate">Intensidad por sector · datos del mes</p>
             </div>
-            <div className="flex bg-line rounded-lg p-1">
+            <div className="flex max-w-full bg-line rounded-lg p-1">
               <button
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${metrica === 'volumen' ? 'bg-white text-ink shadow-sm' : 'text-slate'}`}
+                className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors sm:px-4 ${metrica === 'volumen' ? 'bg-white text-ink shadow-sm' : 'text-slate'}`}
                 onClick={() => setMetrica('volumen')}
               >
                 Volumen
               </button>
               <button
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${metrica === 'pendientes' ? 'bg-white text-ink shadow-sm' : 'text-slate'}`}
+                className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors sm:px-4 ${metrica === 'pendientes' ? 'bg-white text-ink shadow-sm' : 'text-slate'}`}
                 onClick={() => setMetrica('pendientes')}
               >
                 Pendientes
@@ -89,7 +89,7 @@ export default function MapaCalor() {
             </div>
           </div>
 
-          <div className="card relative flex-1 overflow-hidden min-h-[500px]">
+          <div className="card relative h-[500px] min-w-0 w-full overflow-hidden">
             {loading ? (
               <div className="flex h-full items-center justify-center p-8">
                 <span className="text-slate">Cargando datos...</span>
@@ -99,7 +99,7 @@ export default function MapaCalor() {
                 <span className="text-rose-600">{error}</span>
               </div>
             ) : (
-              <MapContainer center={mapCenter} zoom={13} zoomControl={false} scrollWheelZoom={false}>
+              <MapContainer className="h-full w-full" center={mapCenter} zoom={13} zoomControl={false} scrollWheelZoom={false}>
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -164,7 +164,7 @@ export default function MapaCalor() {
         </div>
 
         {/* Panel lateral */}
-        <div className="flex w-full flex-col gap-4 lg:w-80">
+        <div className="flex min-w-0 w-full flex-col gap-4 lg:w-80 lg:shrink-0">
           <div className="card p-5">
             <h3 className="font-bold text-slate mb-1">Total comuna</h3>
             <div className="text-4xl font-display font-extrabold text-green-700">{totalComuna}</div>

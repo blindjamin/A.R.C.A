@@ -126,10 +126,10 @@ export default function Solicitudes() {
           <button
             key={f.value}
             onClick={() => setFiltro(f.value)}
-            className={`pill shrink-0 ${
+            className={`pill shrink-0 border ${
               filtro === f.value
-                ? 'bg-green-700 text-white'
-                : 'bg-line-2 text-slate'
+                ? 'border-transparent bg-green-700 text-white'
+                : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
             }`}
           >
             {f.label}
@@ -370,7 +370,7 @@ function DetalleSolicitud({
                   type="button"
                   onClick={() => setPorConfirmar(null)}
                   disabled={guardando}
-                  className="btn-ghost"
+                  className="btn-ghost text-black hover:text-green-800"
                 >
                   Volver
                 </button>
@@ -385,7 +385,7 @@ function DetalleSolicitud({
                   onClick={() => setPorConfirmar(estado)}
                   className={`pill border px-4 py-2 text-sm ${
                     ACCION[estado].peligro
-                      ? 'border-rose-600 text-rose-600 hover:bg-rose-100'
+                      ? 'border-rose-300 bg-rose-50 text-rose-600 hover:border-rose-600 hover:bg-rose-600 hover:text-white'
                       : 'border-green-700 text-green-700 hover:bg-green-50'
                   }`}
                 >

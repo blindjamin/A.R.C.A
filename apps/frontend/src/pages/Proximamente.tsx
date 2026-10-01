@@ -25,7 +25,7 @@ export default function Proximamente({ titulo, descripcion, icono, epica }: Prop
         <p className="max-w-xs text-sm text-slate">{descripcion}</p>
       </div>
 
-      <button onClick={() => navigate('/inicio')} className="btn-outline w-full">
+      <button onClick={() => navigate('/inicio')} className="btn-outline w-full text-black hover:text-green-800">
         Volver al inicio
       </button>
     </div>

@@ -73,10 +73,10 @@ export default function Metricas() {
               key={r.dias}
               type="button"
               onClick={() => setDias(r.dias)}
-              className={`pill ${
+              className={`pill border ${
                 dias === r.dias
-                  ? 'bg-green-700 text-white'
-                  : 'bg-line-2 text-slate'
+                  ? 'border-transparent bg-green-700 text-white'
+                  : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
               }`}
             >
               {r.label}

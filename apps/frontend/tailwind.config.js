@@ -30,7 +30,7 @@ export default {
         sky: { 100: '#d9eef9', 600: '#1f7fb8' }, // info
         // Neutros verdosos
         ink: { DEFAULT: '#0e1a14', 2: '#2b3a32' },
-        slate: { DEFAULT: '#5d6e64', 2: '#8a988f' },
+        slate: { DEFAULT: '#47544b', 2: '#59665d' },
         line: { DEFAULT: '#e6ece8', 2: '#eef2ef' },
         canvas: '#f3f6f3',
         card: { DEFAULT: '#ffffff', 2: '#f8faf8' },
