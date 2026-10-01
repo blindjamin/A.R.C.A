@@ -8,7 +8,7 @@ interface BackButtonProps {
 // Link de "volver" usado en las vistas de detalle.
 export default function BackButton({ onClick, children = '← Volver' }: BackButtonProps) {
   return (
-    <button onClick={onClick} className="text-sm text-slate-2 hover:text-ink">
+    <button onClick={onClick} className="text-sm text-black hover:text-green-800">
       {children}
     </button>
   );

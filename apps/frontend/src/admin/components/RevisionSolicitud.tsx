@@ -198,7 +198,7 @@ export function TarjetaRevision({
             </button>
             <button
               type="button"
-              className="btn-ghost"
+              className="btn-ghost text-black hover:text-green-800"
               disabled={guardando}
               onClick={() => setFormulario(null)}
             >
@@ -247,7 +247,7 @@ export function TarjetaRevision({
               type="button"
               disabled={deshabilitado}
               onClick={() => abrirFormulario('rechazada')}
-              className="pill border border-rose-600 px-4 py-2 text-sm text-rose-600 hover:bg-rose-100 disabled:opacity-50"
+              className="pill border border-rose-300 bg-rose-50 px-4 py-2 text-sm text-rose-600 hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:opacity-50"
             >
               Rechazar
             </button>

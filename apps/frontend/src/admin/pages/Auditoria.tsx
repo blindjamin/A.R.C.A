@@ -142,10 +142,10 @@ export default function Auditoria() {
               <button
                 key={f.value}
                 onClick={() => setFiltro(f.value)}
-                className={`pill shrink-0 text-xs py-1.5 px-3.5 ${
+                className={`pill shrink-0 border text-xs py-1.5 px-3.5 ${
                   filtro === f.value
-                    ? 'bg-green-700 text-white'
-                    : 'bg-line-2 text-slate hover:bg-line'
+                    ? 'border-transparent bg-green-700 text-white'
+                    : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
                 }`}
               >
                 {f.label}

@@ -61,7 +61,7 @@ function RetirarPublicacion({ id, onRetirado }: { id: number; onRetirado: () => 
         <button
           onClick={retirar}
           disabled={retirando}
-          className="btn flex-1 bg-rose-600 text-white"
+          className="btn flex-1 border border-rose-300 bg-rose-50 text-rose-600 hover:border-rose-600 hover:bg-rose-600 hover:text-white"
         >
           {retirando ? 'Retirando…' : 'Sí, retirar'}
         </button>
