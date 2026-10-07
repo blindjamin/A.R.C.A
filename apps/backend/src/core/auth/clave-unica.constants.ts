@@ -11,10 +11,23 @@
 
 export const CLAVE_UNICA_BASE_URL = 'https://accounts.claveunica.gob.cl';
 
-export const CLAVE_UNICA_AUTHORIZE_URL = `${CLAVE_UNICA_BASE_URL}/openid/authorize/`;
-export const CLAVE_UNICA_TOKEN_URL = `${CLAVE_UNICA_BASE_URL}/openid/token/`;
-export const CLAVE_UNICA_USERINFO_URL = `${CLAVE_UNICA_BASE_URL}/openid/userinfo/`;
-export const CLAVE_UNICA_LOGOUT_URL = `${CLAVE_UNICA_BASE_URL}/api/v1/accounts/app/logout`;
+// Escritas completas y no armadas con CLAVE_UNICA_BASE_URL: la certificación pide
+// una captura del código donde se vea la URL exacta de token/ y userinfo/.
+// El test de constantes verifica que todas sigan colgando de CLAVE_UNICA_BASE_URL.
+export const CLAVE_UNICA_AUTHORIZE_URL =
+  'https://accounts.claveunica.gob.cl/openid/authorize/';
+export const CLAVE_UNICA_TOKEN_URL =
+  'https://accounts.claveunica.gob.cl/openid/token/';
+export const CLAVE_UNICA_USERINFO_URL =
+  'https://accounts.claveunica.gob.cl/openid/userinfo/';
+export const CLAVE_UNICA_LOGOUT_URL =
+  'https://accounts.claveunica.gob.cl/api/v1/accounts/app/logout';
+
+/**
+ * Valor del parámetro `error` con que vuelve a `/login` quien no pudo entrar.
+ * El frontend lo lee para mostrar el aviso; no lleva detalle del motivo.
+ */
+export const ERROR_INGRESO_CLAVE_UNICA = 'clave-unica';
 
 /** Scope exigido por la certificación. No modificar. */
 export const CLAVE_UNICA_SCOPE = 'openid run name';

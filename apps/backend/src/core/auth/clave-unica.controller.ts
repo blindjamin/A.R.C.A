@@ -12,7 +12,10 @@ import type { Request, Response } from 'express';
 import { Public } from './decorators/public.decorator';
 import { LimiteLogin } from '../seguridad/limites';
 import { ClaveUnicaService } from './clave-unica.service';
-import { OAUTH_STATE_COOKIE } from './clave-unica.constants';
+import {
+  ERROR_INGRESO_CLAVE_UNICA,
+  OAUTH_STATE_COOKIE,
+} from './clave-unica.constants';
 import { COOKIE_SESION, leerCookie, opcionesCookieSesion } from './cookies';
 import { SesionService } from './sesion.service';
 
@@ -70,10 +73,21 @@ export class ClaveUnicaController {
   /**
    * Callback de ClaveÚnica: pasos 3, 4 y 6 del manual.
    *
+   * La Redirect URI registrada es la raíz del sitio, no esta ruta: ClaveÚnica
+   * vuelve a `/` y el `index.html` del frontend reenvía `code` y `state` acá.
+   * Por eso `CLAVE_UNICA_REDIRECT_URI` vale la raíz: en el intercambio del token
+   * tiene que ir la misma URI que se usó al pedir la autorización.
+   *
    * Valida el `state`, cambia el código por el token de acceso y consulta la
    * identidad. Las dos llamadas salen desde acá, del backend, como exige la
    * certificación. Después emite la sesión de ARCA en la cookie `arca_sesion` y
    * vuelve al inicio del sitio.
+   *
+   * Si el ingreso no se completa (cuenta desactivada, `state` inválido, falla de
+   * ClaveÚnica), se hace el **cierre implícito** que exige la certificación: se
+   * cierra la sesión de ClaveÚnica y la persona vuelve a `/login` con un aviso.
+   * Sin esto, la sesión de ClaveÚnica quedaría abierta y la persona vería el
+   * JSON del error en vez de una pantalla.
    */
   @Get('callback')
   async callback(
@@ -91,6 +105,39 @@ export class ClaveUnicaController {
       this.claveUnicaService.opcionesBorradoCookieEstado(),
     );
 
+    let sesion: { valorCookie: string; maxAgeMs: number };
+    try {
+      sesion = await this.completarIngreso(
+        req,
+        estadoEsperado,
+        codigo,
+        estado,
+        error,
+      );
+    } catch (fallo) {
+      await this.cerrarIngresoFallido(req, res, fallo);
+      return;
+    }
+
+    // La identidad nunca viaja en la URL de vuelta: el frontend la pide con
+    // `GET /api/sesion`. Devolverla por la URL es el error de Atención Vecino,
+    // donde cualquiera se hace pasar por otro escribiendo un RUN.
+    res.cookie(
+      COOKIE_SESION,
+      sesion.valorCookie,
+      opcionesCookieSesion(sesion.maxAgeMs),
+    );
+    res.redirect(302, '/');
+  }
+
+  /** Valida la vuelta de ClaveÚnica y crea la sesión. Lanza si algo no cuadra. */
+  private async completarIngreso(
+    req: Request,
+    estadoEsperado: string | undefined,
+    codigo?: string,
+    estado?: string,
+    error?: string,
+  ): Promise<{ valorCookie: string; maxAgeMs: number }> {
     if (error) {
       // Es el propio ClaveÚnica avisando; no se refleja el texto al usuario.
       this.logger.warn(`ClaveÚnica devolvió un error en el callback: ${error}`);
@@ -128,17 +175,44 @@ export class ClaveUnicaController {
     // La cookie nueva reemplaza a la anterior en el navegador, pero su fila
     // seguiría activa hasta expirar.
     await this.sesionService.revocar(leerCookie(req, COOKIE_SESION));
-    const { valorCookie, maxAgeMs } =
-      await this.sesionService.iniciarConClaveUnica(identidad, {
-        ip: req.ip,
-        userAgent: req.headers['user-agent'],
-      });
+    return this.sesionService.iniciarConClaveUnica(identidad, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
 
-    // La identidad nunca viaja en la URL de vuelta: el frontend la pide con
-    // `GET /api/sesion`. Devolverla por la URL es el error de Atención Vecino,
-    // donde cualquiera se hace pasar por otro escribiendo un RUN.
-    res.cookie(COOKIE_SESION, valorCookie, opcionesCookieSesion(maxAgeMs));
-    res.redirect(302, '/');
+  /**
+   * Cierre implícito (paso 7 del manual): el ingreso falló, así que se cierra
+   * también la sesión de ClaveÚnica y la persona vuelve a `/login`.
+   *
+   * La sesión de ARCA que el navegador ya traía también se cierra: con la de
+   * ClaveÚnica cerrada, dejarla viva mostraría a la persona adentro con otra
+   * identidad que la que acaba de intentar usar.
+   */
+  private async cerrarIngresoFallido(
+    req: Request,
+    res: Response,
+    fallo: unknown,
+  ): Promise<void> {
+    // Solo el tipo de error: los mensajes ya son genéricos y el detalle quedó
+    // registrado donde ocurrió.
+    this.logger.warn(
+      `Ingreso con ClaveÚnica no completado (${(fallo as Error)?.name ?? 'desconocido'}): se cierra la sesión de ClaveÚnica.`,
+    );
+
+    try {
+      await this.sesionService.revocar(leerCookie(req, COOKIE_SESION));
+    } catch {
+      // Si la base no responde, igual hay que cerrar la sesión de ClaveÚnica.
+    }
+    res.clearCookie(COOKIE_SESION, opcionesCookieSesion());
+
+    res.redirect(
+      302,
+      this.claveUnicaService.construirUrlCierreSesion(
+        ERROR_INGRESO_CLAVE_UNICA,
+      ),
+    );
   }
 
   /**

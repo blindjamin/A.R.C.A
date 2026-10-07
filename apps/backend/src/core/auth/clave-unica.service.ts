@@ -27,12 +27,10 @@ import type {
 } from './clave-unica.types';
 
 /**
- * Paso 1 y 2 del flujo OpenID Connect de ClaveÚnica: generar el token anti-CSRF
- * y componer la URL de autorización.
- *
- * El intercambio de `code` por `access_token` y la consulta a `userinfo` viven en
- * el callback, que todavía no está implementado porque requiere las credenciales
- * entregadas por la Secretaría de Gobierno Digital.
+ * Flujo OpenID Connect de ClaveÚnica (pasos 1 a 7 del manual): el token
+ * anti-CSRF, la URL de autorización, el intercambio de `code` por
+ * `access_token`, la consulta a `userinfo` y la URL de cierre de sesión.
+ * El `ClaveUnicaController` los encadena.
  */
 @Injectable()
 export class ClaveUnicaService {
@@ -260,8 +258,12 @@ export class ClaveUnicaService {
    *
    * A diferencia del login, esto **no falla si falta configuración**: dejar a
    * alguien sin poder cerrar sesión es peor que cerrarla sin volver al sitio.
+   *
+   * `error` se agrega como parámetro al retorno, para que `/login` avise que el
+   * ingreso no se completó. ClaveÚnica valida el Logout URI solo por la
+   * autoridad (el dominio), así que la query no rompe el retorno.
    */
-  construirUrlCierreSesion(): string {
+  construirUrlCierreSesion(error?: string): string {
     const destino = this.configService
       .get<string>('CLAVE_UNICA_LOGOUT_REDIRECT_URI')
       ?.trim();
@@ -274,7 +276,20 @@ export class ClaveUnicaService {
       return CLAVE_UNICA_LOGOUT_URL;
     }
 
-    return `${CLAVE_UNICA_LOGOUT_URL}?redirect=${encodeURIComponent(destino)}`;
+    return `${CLAVE_UNICA_LOGOUT_URL}?redirect=${encodeURIComponent(
+      error ? this.agregarError(destino, error) : destino,
+    )}`;
+  }
+
+  /** Si el destino no es una URL válida, se devuelve tal cual: cerrar sesión manda. */
+  private agregarError(destino: string, error: string): string {
+    try {
+      const url = new URL(destino);
+      url.searchParams.set('error', error);
+      return url.toString();
+    } catch {
+      return destino;
+    }
   }
 
   /**

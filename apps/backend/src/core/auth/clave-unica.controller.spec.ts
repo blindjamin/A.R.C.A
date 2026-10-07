@@ -1,3 +1,7 @@
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request, Response } from 'express';
@@ -5,6 +9,7 @@ import { ClaveUnicaController } from './clave-unica.controller';
 import { ClaveUnicaService } from './clave-unica.service';
 import {
   CLAVE_UNICA_BASE_URL,
+  ERROR_INGRESO_CLAVE_UNICA,
   OAUTH_STATE_COOKIE,
 } from './clave-unica.constants';
 import { SesionService } from './sesion.service';
@@ -12,6 +17,7 @@ import { SesionService } from './sesion.service';
 const REDIRECT_URI =
   'https://arca.santodomingo.gob.cl/api/auth/clave-unica/callback';
 const CLIENT_ID = 'clientidficticiodeprueba00000000';
+const LOGOUT_REDIRECT_URI = 'https://arca.santodomingo.gob.cl/login';
 
 /** Respuesta de Express mínima, que registra lo que el controlador le pide. */
 function crearRespuestaFalsa() {
@@ -69,6 +75,7 @@ describe('ClaveUnicaController', () => {
       CLAVE_UNICA_CLIENT_SECRET: 'secretoficticiodeprueba',
       CLAVE_UNICA_REDIRECT_URI: REDIRECT_URI,
       CLAVE_UNICA_PEPPER: 'pepper-de-prueba-no-usar-en-produccion',
+      CLAVE_UNICA_LOGOUT_REDIRECT_URI: LOGOUT_REDIRECT_URI,
       NODE_ENV: 'development',
       ...variables,
     };
@@ -219,59 +226,122 @@ describe('ClaveUnicaController', () => {
       );
     });
 
-    it('no crea sesión si el state no coincide', async () => {
-      const controlador = await crearControladorConClaveUnicaSimulada();
-      const { res, cookies } = crearRespuestaFalsa();
+    /** Lo que exige el cierre implícito: logout de ClaveÚnica y vuelta a /login. */
+    function esperarCierreImplicito(
+      redirecciones: Array<{ estado: number; url: string }>,
+    ): void {
+      expect(redirecciones).toHaveLength(1);
+      expect(redirecciones[0].estado).toBe(302);
+      const url = new URL(redirecciones[0].url);
+      expect(`${url.protocol}//${url.host}`).toBe(CLAVE_UNICA_BASE_URL);
+      expect(url.pathname).toBe('/api/v1/accounts/app/logout');
+      const retorno = new URL(url.searchParams.get('redirect') as string);
+      expect(retorno.pathname).toBe('/login');
+      expect(retorno.searchParams.get('error')).toBe(ERROR_INGRESO_CLAVE_UNICA);
+    }
 
-      await expect(
-        controlador.callback(
-          peticionCon('cu_oauth_state=bbb'),
-          res,
-          'codigo',
-          'aaa',
-        ),
-      ).rejects.toThrow();
+    it('no crea sesión si el state no coincide y cierra la de ClaveÚnica', async () => {
+      const controlador = await crearControladorConClaveUnicaSimulada();
+      const { res, cookies, redirecciones } = crearRespuestaFalsa();
+
+      await controlador.callback(
+        peticionCon('cu_oauth_state=bbb'),
+        res,
+        'codigo',
+        'aaa',
+      );
 
       expect(sesionService.iniciarConClaveUnica).not.toHaveBeenCalled();
       expect(cookies).toHaveLength(0);
+      esperarCierreImplicito(redirecciones);
     });
 
-    it('rechaza si el state no coincide con la cookie', async () => {
+    it('si no llega ninguna cookie, cierra la sesión de ClaveÚnica', async () => {
       const controlador = await crearControlador();
-      const { res } = crearRespuestaFalsa();
+      const { res, cookies, redirecciones } = crearRespuestaFalsa();
 
-      await expect(
-        controlador.callback(
-          peticionCon('cu_oauth_state=bbb'),
-          res,
-          'codigo',
-          'aaa',
-        ),
-      ).rejects.toThrow();
+      await controlador.callback(peticionCon(), res, 'codigo', 'aaa');
+
+      expect(cookies).toHaveLength(0);
+      esperarCierreImplicito(redirecciones);
     });
 
-    it('rechaza si no llega ninguna cookie', async () => {
+    it('si ClaveÚnica devuelve un error, cierra su sesión', async () => {
       const controlador = await crearControlador();
-      const { res } = crearRespuestaFalsa();
+      const { res, redirecciones } = crearRespuestaFalsa();
 
-      await expect(
-        controlador.callback(peticionCon(), res, 'codigo', 'aaa'),
-      ).rejects.toThrow();
+      await controlador.callback(
+        peticionCon('cu_oauth_state=aaa'),
+        res,
+        undefined,
+        'aaa',
+        'access_denied',
+      );
+
+      esperarCierreImplicito(redirecciones);
     });
 
-    it('rechaza si ClaveÚnica devuelve un error', async () => {
-      const controlador = await crearControlador();
-      const { res } = crearRespuestaFalsa();
+    it('si la cuenta está desactivada, no deja sesión y cierra la de ClaveÚnica', async () => {
+      // Caso que el manual nombra: el RUN se autenticó pero el sitio no lo acepta.
+      sesionService.iniciarConClaveUnica.mockRejectedValue(
+        new UnauthorizedException('No se pudo iniciar sesión.'),
+      );
+      const controlador = await crearControladorConClaveUnicaSimulada();
+      const { res, cookies, cookiesBorradas, redirecciones } =
+        crearRespuestaFalsa();
+
+      await controlador.callback(
+        peticionCon('cu_oauth_state=aaa; arca_sesion=sesion-anterior.secreto'),
+        res,
+        'codigo',
+        'aaa',
+      );
+
+      expect(cookies).toHaveLength(0);
+      expect(cookiesBorradas).toContain('arca_sesion');
+      expect(sesionService.revocar).toHaveBeenCalledWith(
+        'sesion-anterior.secreto',
+      );
+      esperarCierreImplicito(redirecciones);
+    });
+
+    it('si ClaveÚnica no responde, igual cierra su sesión', async () => {
+      const controlador = await crearControladorConClaveUnicaSimulada();
+      const servicio = (
+        controlador as unknown as { claveUnicaService: ClaveUnicaService }
+      ).claveUnicaService;
+      jest
+        .spyOn(servicio, 'intercambiarCodigoPorToken')
+        .mockRejectedValue(new ServiceUnavailableException());
+      const { res, cookies, redirecciones } = crearRespuestaFalsa();
+
+      await controlador.callback(
+        peticionCon('cu_oauth_state=aaa'),
+        res,
+        'codigo',
+        'aaa',
+      );
+
+      expect(cookies).toHaveLength(0);
+      esperarCierreImplicito(redirecciones);
+    });
+
+    it('cierra la sesión de ClaveÚnica aunque la base no responda', async () => {
+      sesionService.iniciarConClaveUnica.mockRejectedValue(new Error('db'));
+      sesionService.revocar.mockRejectedValue(new Error('db'));
+      const controlador = await crearControladorConClaveUnicaSimulada();
+      const { res, redirecciones } = crearRespuestaFalsa();
 
       await expect(
         controlador.callback(
           peticionCon('cu_oauth_state=aaa'),
           res,
-          undefined,
+          'codigo',
           'aaa',
-          'access_denied',
         ),
-      ).rejects.toThrow();
+      ).resolves.toBeUndefined();
+
+      esperarCierreImplicito(redirecciones);
     });
 
     it('borra la cookie del state aunque el intento se rechace', async () => {
@@ -280,14 +350,12 @@ describe('ClaveUnicaController', () => {
       const controlador = await crearControlador();
       const { res, cookiesBorradas } = crearRespuestaFalsa();
 
-      await expect(
-        controlador.callback(
-          peticionCon('cu_oauth_state=bbb'),
-          res,
-          'codigo',
-          'aaa',
-        ),
-      ).rejects.toThrow();
+      await controlador.callback(
+        peticionCon('cu_oauth_state=bbb'),
+        res,
+        'codigo',
+        'aaa',
+      );
 
       expect(cookiesBorradas).toContain(OAUTH_STATE_COOKIE);
     });
