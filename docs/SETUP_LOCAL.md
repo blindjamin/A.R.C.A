@@ -363,7 +363,7 @@ docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLE
 - [`SEGURIDAD_ARQUITECTURA.md`](./SEGURIDAD_ARQUITECTURA.md) — Sesión, control de acceso y auditoría
 - [`CLAUDE.md`](../CLAUDE.md) — Git Flow y convenciones del equipo
 - [`README.md`](../README.md) — Producto, stack y roadmap
-- [`ARCA_database_schema.dbml`](ARCA_database_schema.dbml) — Schema completo (19 tablas)
+- [`ARCA_database_schema.dbml`](ARCA_database_schema.dbml) — Schema completo (22 tablas)
 
 ---
 

@@ -14,7 +14,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * solicitudes pero no ve la auditoría; Carlos ve ambas.
  *
  * La persona corresponde al perfil de administrador municipal documentado en
- * docs/CLAUDE_proyecto.md §11 (Carlos Álvarez, funcionario TI municipal).
+ * CLAUDE_proyecto.md §11 (Carlos Álvarez, funcionario TI municipal).
  *
  * TEMPORAL — solo para desarrollo y demo, igual que seed-operador-demo. Cuando
  * entre la auth real, los funcionarios se dan de alta desde el panel y el
