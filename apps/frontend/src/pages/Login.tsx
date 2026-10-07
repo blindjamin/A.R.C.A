@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
 import { BotonClaveUnica, IconLeaf } from '../components/ui';
 
@@ -10,9 +10,16 @@ const IDENTIDADES_DEV = {
   admin: '00000000-0000-4000-8000-000000000003',
 } as const;
 
+// Con este `?error=` vuelve el backend cuando el ingreso con ClaveÚnica no se
+// completó (cierre implícito). No trae el motivo, a propósito.
+const ERROR_INGRESO_CLAVE_UNICA = 'clave-unica';
+
 export default function Login() {
   const { entrarDev } = useSession();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const ingresoFallido =
+    searchParams.get('error') === ERROR_INGRESO_CLAVE_UNICA;
 
   const entrar = (ciudadanoId: string) => {
     entrarDev(ciudadanoId)
@@ -47,8 +54,17 @@ export default function Login() {
         <div className="space-y-3 w-full max-w-md md:shrink-0 md:bg-white/10 md:backdrop-blur-md md:p-8 md:rounded-2xl md:border md:border-white/20">
           {/* Botón oficial de ClaveÚnica. No reemplazar por uno propio ni
               cambiarle los estilos: la certificación exige este botón tal cual. */}
+          {ingresoFallido && (
+            <p
+              role="alert"
+              className="rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-center text-sm text-white"
+            >
+              No pudimos completar tu ingreso con ClaveÚnica. Inténtalo de
+              nuevo y, si el problema sigue, contacta a la Municipalidad.
+            </p>
+          )}
           <div className="flex justify-center">
-            <BotonClaveUnica tamano="l" />
+            <BotonClaveUnica />
           </div>
 
           {/* Accesos de desarrollo: solo en `npm run dev` (criterio 6). Simulan
@@ -78,9 +94,9 @@ export default function Login() {
               </div>
 
               <p className="pt-2 text-center text-xs text-green-100/70">
-                El botón de ClaveÚnica queda a la espera de las credenciales del
-                municipio; hasta entonces se entra por los accesos de
-                desarrollo. Tras autenticar, si la persona es funcionaria o
+                En local el botón de ClaveÚnica no funciona (no acepta
+                localhost): se entra por los accesos de desarrollo. Tras
+                autenticar, si la persona es funcionaria o
                 admin podrá elegir App ciudadana o Panel municipal.
               </p>
             </>

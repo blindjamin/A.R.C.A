@@ -5,17 +5,38 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0F6B45" />
+    <!-- Vuelta de ClaveÚnica (HU-12). La Redirect URI registrada en CeroFilas es
+         la raíz del sitio (https://arca.santodomingo.cl/), así que ClaveÚnica
+         vuelve acá con ?code=…&state=… (o ?error=…&state=…). Se reenvía tal cual
+         al backend, que valida el state, pide el token y deja la sesión.
+         Va primero en el <head> para que el code salga de la página antes de
+         que cargue cualquier otro script, y con replace() para que no quede en
+         el historial del navegador. -->
+    <script>
+      (function () {
+        var q = new URLSearchParams(window.location.search);
+        if (
+          window.location.pathname === '/' &&
+          q.has('state') &&
+          (q.has('code') || q.has('error'))
+        ) {
+          window.location.replace(
+            '/api/auth/clave-unica/callback' + window.location.search,
+          );
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <!-- Botón oficial de ClaveÚnica (HU-12). La hoja y la fuente Roboto las exige
-         la certificación; se sirven desde public/ sin pasar por Vite para poder
+    <!-- Botón oficial de ClaveÚnica (HU-12). La hoja y la fuente Roboto (negrita,
+         la única que usa la guía v2.0) las exige la certificación; se sirven desde public/ sin pasar por Vite para poder
          mostrar el archivo oficial intacto. -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/claveunica/cu.css" />
