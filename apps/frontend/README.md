@@ -19,11 +19,11 @@ PWA mobile-first del proyecto A.R.C.A. Construida con **React 18 + TypeScript + 
 
 ## Arrancar en local
 
-Si es la primera vez en este PC, corré el script de la raíz que deja todo listo
+Si es la primera vez en este PC, corré desde la raíz el script que deja todo listo
 (MySQL, dependencias, `.env.local`, migraciones y ambos servidores):
 
 ```powershell
-.\setup.ps1
+.\scripts\setup.ps1
 ```
 
 Manual, solo el frontend:

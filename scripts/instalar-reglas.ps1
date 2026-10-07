@@ -4,7 +4,7 @@
 # cuenta. Basta con dejarlo en CUALQUIER carpeta dentro del repositorio A.R.C.A
 # —da lo mismo como se llame la carpeta en tu computador— y correrlo una vez:
 #
-#     powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+#     powershell -ExecutionPolicy Bypass -File .\scripts\instalar-reglas.ps1
 #
 # Tambien funciona con clic derecho sobre el archivo > "Ejecutar con PowerShell".
 #
@@ -142,7 +142,7 @@ $(printf "$error")
 
   Si no aparecen solas al abrir el editor, correr de nuevo:
 
-      powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+      powershell -ExecutionPolicy Bypass -File .\scripts\instalar-reglas.ps1
 
   Para corregir el mensaje que acabas de escribir:
 

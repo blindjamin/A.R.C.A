@@ -58,7 +58,7 @@ Así se puede saber de un vistazo quién abrió cada rama y cuándo, sin tener q
 
 ## 🚀 Setup Inicial
 
-> **Atajo (Windows):** si ya están instalados Git, Node.js 24.18.0 (mínimo 22.12.0) y Docker Desktop corriendo, `.\setup.ps1`
+> **Atajo (Windows):** si ya están instalados Git, Node.js 24.18.0 (mínimo 22.12.0) y Docker Desktop corriendo, `.\scripts\setup.ps1`
 > en la raíz hace los pasos 3 a 5 por vos (MySQL, dependencias, `.env.local` y migraciones)
 > y deja los dos proyectos levantados: backend (`:3000`) y frontend (`:5173`, con el panel
 > municipal en `/admin` según el rol). Los pasos de abajo son el equivalente manual.
@@ -93,7 +93,7 @@ Crear archivos `.env.local` en cada aplicación (no se versionan):
 - `apps/backend/.env.local` — copiar de `.env.example` y completar
   `DB_USERNAME=arca_user` y `DB_PASSWORD=arca_pass` (las del `docker-compose.yml`). Para entrar
   sin ClaveÚnica en local, agregar `ALLOW_DEV_LOGIN=true` (**nunca** en el servidor: junto con
-  `NODE_ENV=production`, la app se niega a arrancar). `setup.ps1` todavía no lo agrega solo.
+  `NODE_ENV=production`, la app se niega a arrancar). `scripts/setup.ps1` todavía no lo agrega solo.
 - `apps/frontend/.env.local` — una sola línea: `VITE_API_URL=/api`
 
 ### 5. Levantar MySQL y correr migraciones
@@ -191,13 +191,13 @@ La regla A.13 exige que cada commit declare cómo se produjo. Para no tener que 
 formato, hay que correr una sola vez, desde cualquier carpeta dentro del clon:
 
 ```bash
-powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\instalar-reglas.ps1
 ```
 
 Configura la plantilla de commit y el hook que la valida. Desde ahí, las líneas `IA:`, `HU:` y
 `Revisor:` aparecen solas al commitear y solo hay que completarlas.
 
-> `instalar-reglas.ps1` está en la raíz del repositorio. La plantilla (`.gitmessage`) y el hook
+> `scripts/instalar-reglas.ps1` está en la carpeta `scripts/` del repositorio. La plantilla (`.gitmessage`) y el hook
 > (`.githooks/commit-msg`) los genera el script y **no se versionan**: si algo se rompe, basta
 > con volver a correrlo.
 

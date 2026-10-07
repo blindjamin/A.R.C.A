@@ -5,7 +5,7 @@
 # ni dependencias "planificadas" que el codigo todavia no usa.
 
 $ErrorActionPreference = "Stop"
-$RepoRoot = $PSScriptRoot
+$RepoRoot = Split-Path $PSScriptRoot -Parent
 
 function Assert-Command($name, $hint) {
     if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {

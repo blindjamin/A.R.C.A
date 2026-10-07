@@ -245,7 +245,7 @@ versionadas de TypeORM; la base se entrega vacía.
 
 `usuarios_ciudadanos` · `sesiones_ciudadano` · `usuarios_administradores` · `sesiones_administrador` · `residuos_catalogo` · `solicitudes_retiro`
 
-**22 tablas contempladas** en `ARCA_database_schema.dbml` para las etapas siguientes, todas dentro de
+**22 tablas contempladas** en `docs/ARCA_database_schema.dbml` para las etapas siguientes, todas dentro de
 la misma base. Además de las 6 anteriores:
 
 `horarios_retiro` · `foto_retiro` · `impacto_ambiental` · `feedback_retiro` · `articulos_marketplace` · `mensajes_marketplace` · `ratings` · `denuncias` · `referidos` · `transacciones_circular_credits` · `auditoria` · `notificaciones` · `faq_articulos` · `conversaciones_chatbot` · `social_shares` · `preferencias_usuario`
@@ -268,7 +268,7 @@ la misma base. Además de las 6 anteriores:
 **WebSocket:** previsto en `/socket.io/*` y `/ws/*` para el chat y las notificaciones en tiempo real
 de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF municipal (sección 4.3).
 
-> El esquema completo y actualizado es `ARCA_database_schema.dbml`. El archivo del Drive
+> El esquema completo y actualizado es `docs/ARCA_database_schema.dbml`. El archivo del Drive
 > `ARQUITECTURA_ARCA_PWA.md` está **desactualizado** (referencia PostgreSQL, Redis, Express y una tabla
 > `usuarios` única en vez del par ciudadano/administrador) — no usarlo como fuente.
 
@@ -281,19 +281,20 @@ de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF 
 ├── AGENTS.md                    ← Reglas de IA: comportamiento del agente + política de uso del equipo
 │                                   (lo cargan solas Claude Code / Cursor / Copilot)
 ├── CLAUDE.md                    ← Guía de setup colaborativo (Git Flow, ramas, convenciones)
-├── CLAUDE_proyecto.md           ← Este archivo (contexto de proyecto para Claude Code)
 ├── README.md                    ← Fuente de verdad principal (stack, arquitectura, backlog)
-├── ARCA_database_schema.dbml    ← Esquema BD en DBML (22 tablas, identidad ciudadano/admin)
 ├── ARQUITECTURA_ARCA_PWA.md     ← Documento Word (.docx) con esquema BD + endpoints
 │                                   ⚠️ Es un .docx con extensión .md · Stack desactualizado:
-│                                   usar README.md + ARCA_database_schema.dbml como verdad
+│                                   usar README.md + docs/ARCA_database_schema.dbml como verdad
 ├── UI_KIT_ARCA.md               ← Sistema de diseño (colores, tipografía, componentes)
 │                                   ⚠️ Referenciado pero aún no presente en el repo (ver Drive)
 ├── docker-compose.yml           ← MySQL 8 local para desarrollo
-├── setup.ps1                    ← Automatiza setup local completo (deps, .env.local, Docker, migraciones, arranque de backend y frontend)
+├── scripts/setup.ps1            ← Automatiza setup local completo (deps, .env.local, Docker, migraciones, arranque de backend y frontend)
 ├── package.json                 ← npm workspaces: apps/backend
 │                                   (el frontend NO es workspace, npm install independiente)
+├── scripts/instalar-reglas.ps1  ← Instala plantilla y hook de commits (regla A.13)
 ├── docs/
+│   ├── CLAUDE_proyecto.md       ← Este archivo (contexto de proyecto para Claude Code)
+│   ├── ARCA_database_schema.dbml ← Esquema BD en DBML (22 tablas, identidad ciudadano/admin)
 │   ├── SETUP_LOCAL.md           ← Guía paso a paso de entorno local (Docker, workspace, backend, frontend, scripts)
 │   ├── SEGURIDAD_ARQUITECTURA.md ← Sesión, control de acceso y auditoría del sitio único
 │   ├── BACKEND_FASE1.md         ← Resumen de implementación backend ciudadano Fase 1 (EP-02)
@@ -408,7 +409,7 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     Excel, métricas, mapa de calor y auditoría. Detalle en los README de `apps/backend` y
     `apps/frontend` y en `docs/specs/`.
   - **Infra local** — `docker-compose.yml` (MySQL 8) + `docs/SETUP_LOCAL.md`.
-  - **Automatización local** — `setup.ps1` instala todo (`npm install` en la raíz para el
+  - **Automatización local** — `scripts/setup.ps1` instala todo (`npm install` en la raíz para el
     backend y otro propio para el frontend) y levanta los dos proyectos. El frontend usa
     `VITE_API_URL=/api` (ruta relativa) y Vite proxea `/api` al backend. Detalle en
     `docs/SETUP_LOCAL.md`.
@@ -418,7 +419,7 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
   Detalle en `docs/SEGURIDAD_ARQUITECTURA.md`.
 - **Documentos producidos:**
   - `README.md` (consolidado, decisiones finales)
-  - `ARCA_database_schema.dbml` (esquema BD vigente, 22 tablas)
+  - `docs/ARCA_database_schema.dbml` (esquema BD vigente, 22 tablas)
   - `ARQUITECTURA_ARCA_PWA.md` (.docx, esquema + endpoints — stack desactualizado)
   - `UI_KIT_ARCA.md` v1.0 (sistema de diseño)
   - `docs/{SETUP_LOCAL,BACKEND_FASE1,FRONTEND_FASE1,PLAN_FRONTEND}.md`

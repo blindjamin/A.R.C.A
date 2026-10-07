@@ -313,7 +313,7 @@ npm run dev        # abre http://localhost:5173
 >
 > Nota: `VITE_API_URL` es una ruta **relativa** — Vite la proxea a `localhost:3000`
 > (`vite.config.ts`), así el mismo valor funciona en local y detrás de un túnel ngrok
-> (ver `SETUP_LOCAL.md` §10). El script `setup.ps1` en la raíz del repo automatiza todo
+> (ver `SETUP_LOCAL.md` §10). El script `scripts/setup.ps1` automatiza todo
 > este setup (Docker, backend y frontend) de punta a punta.
 
 ### Comandos útiles
@@ -385,4 +385,4 @@ los endpoints correspondientes.
 - [`SETUP_LOCAL.md`](./SETUP_LOCAL.md) — Cómo levantar el entorno completo
 - [`BACKEND_FASE1.md`](./BACKEND_FASE1.md) — Qué expone el backend hoy
 - [`../README.md`](../README.md) — Producto, stack y roadmap
-- [`../CLAUDE_proyecto.md`](../CLAUDE_proyecto.md) — Contexto general del proyecto
+- [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) — Contexto general del proyecto
