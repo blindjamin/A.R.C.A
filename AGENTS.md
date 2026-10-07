@@ -8,7 +8,7 @@
 > - **Parte A — Reglas para el agente de IA:** cómo debe comportarse la IA al trabajar en este repo.
 > - **Parte B — Política de uso para el equipo:** cómo debe usar la IA el equipo COM Tech.
 >
-> Contexto técnico completo del proyecto: [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) ·
+> Contexto técnico completo del proyecto: [`docs/CLAUDE_proyecto.md`](docs/CLAUDE_proyecto.md) ·
 > Ramas y workflow: [`CLAUDE.md`](CLAUDE.md)
 
 ---
@@ -35,8 +35,8 @@ consultar primero los archivos. **No responder de memoria** si hay documentació
 Orden de precedencia de las fuentes de verdad:
 
 1. **Código del repositorio** — lo que realmente corre, gana siempre.
-2. **Documentación del repositorio** — `README.md`, `CLAUDE_proyecto.md`, `docs/`,
-   `ARCA_database_schema.dbml`.
+2. **Documentación del repositorio** — `README.md`, `docs/CLAUDE_proyecto.md`, `docs/`,
+   `docs/ARCA_database_schema.dbml`.
 3. **Google Drive** — carpeta "Feria de Software".
 4. **GitHub** — issues y GitHub Projects.
 
@@ -63,7 +63,7 @@ Si durante la tarea aparece un problema fuera de alcance (un bug, un documento d
 
 ## A.5 RESPETAR LAS DECISIONES YA TOMADAS
 
-Las decisiones de stack de [`CLAUDE_proyecto.md` §5](CLAUDE_proyecto.md) son **definitivas** y
+Las decisiones de stack de [`docs/CLAUDE_proyecto.md` §5](docs/CLAUDE_proyecto.md) son **definitivas** y
 tienen contexto de negocio real (restricciones de la infraestructura municipal). No sugerir
 revertirlas — volver a PostgreSQL, meter Docker en producción, usar Cloud Vision, agregar Redis
 al MVP — salvo que algún integrante de COM Tech abra explícitamente esa discusión.
@@ -84,9 +84,9 @@ sin modismos regionales, salvo que un integrante del equipo indique lo contrario
 | **Backend admin** | `apps/backend/src/admin/` — API del panel municipal, `/api/admin/*` (Benjamín) |
 | **Frontend admin** | `apps/frontend/src/admin/` — panel municipal en `/admin/*`, cargado aparte según el rol (Benjamín) |
 | **Núcleo** | `apps/backend/src/core/` — entidades TypeORM, `AuthModule` (ClaveÚnica, sesión, guards), auditoría y ciclo de la solicitud, que usan la API del vecino y la del panel. Cambia solo por **PR revisado por alguien de backend ciudadano** (regla A.7 abajo) |
-| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`) |
-| **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `package.json` raíz (workspaces), CI |
-| **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `CLAUDE_proyecto.md`, `AGENTS.md` |
+| **Base de datos** | `docs/ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`) |
+| **DevOps / infra** | `docker-compose.yml`, `scripts/setup.ps1`, `package.json` raíz (workspaces), CI |
+| **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `docs/CLAUDE_proyecto.md`, `AGENTS.md` |
 
 Una vez definida el área, **el trabajo se limita a esa área**. No abrir ni modificar archivos
 de otra sin autorización, aunque parezca una mejora obvia.
@@ -169,7 +169,7 @@ los `.md` que hayan quedado desfasados por lo que se hizo:
 | Pantallas, UI Kit, estructura de `src/` ciudadano | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
 | Pantallas del panel admin | `apps/frontend/README.md` |
 | Setup, scripts, Docker | `docs/SETUP_LOCAL.md`, `README.md` |
-| Estructura del repo o del stack | `README.md`, `CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
+| Estructura del repo o del stack | `README.md`, `docs/CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
 | Ramas, workflow o convenciones | `CLAUDE.md` |
 | Reglas de IA | Este archivo |
 
@@ -213,7 +213,7 @@ con esa misma regla.
 |---|---|
 | `.env`, `.env.local` | Contienen credenciales; no se versionan ni se muestran en respuestas |
 | Migraciones ya aplicadas | Se corrigen con una **migración nueva**, jamás editando una existente |
-| `ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
+| `docs/ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
 | Sistema CAS Chile (Power Builder + Sybase) | Está fuera del alcance de ARCA. No integrar |
 | Ramas `master` y `develop` en directo | Siempre vía rama temporal + pull request (regla A.14) |
 | Archivos de un área que no es la de la sesión | Ver regla A.7 — requiere avisar y abrir un PR |
@@ -259,7 +259,7 @@ permite priorizar dónde poner atención al revisar.
 Una sola vez, desde cualquier carpeta dentro del repositorio:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\instalar-reglas.ps1
 ```
 
 Desde ahí las tres líneas aparecen solas cada vez que se abre el editor de commit; solo hay que

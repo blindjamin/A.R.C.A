@@ -138,7 +138,7 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 
 > **Superficie actual de la API:** 9 endpoints REST bajo el prefijo `/api` (health, catálogo de
 > residuos, CRUD de solicitudes de retiro y perfil de acceso). Las **6 tablas** de esta primera etapa
-> se crean solas con las migraciones; el esquema completo en `ARCA_database_schema.dbml` contempla
+> se crean solas con las migraciones; el esquema completo en `docs/ARCA_database_schema.dbml` contempla
 > **22 tablas** para las etapas siguientes, todas dentro de la misma base.
 
 > **Almacenamiento de imágenes:** las fotos se guardan como **archivos en un directorio protegido** del servidor (fuera del directorio público) y se sirven a través de la API con autenticación; en la base de datos solo se almacena la ruta. Esto resguarda los datos personales y de ubicación de los usuarios.
@@ -169,10 +169,10 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 git clone https://github.com/blindjamin/A.R.C.A.git
 cd A.R.C.A
 git checkout develop
-.\setup.ps1
+.\scripts\setup.ps1
 ```
 
-`setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias (`npm install`
+`scripts/setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias (`npm install`
 en la raíz para el backend y otro propio para el frontend), crea los `.env.local`, corre las
 migraciones y abre el backend y el frontend en ventanas separadas.
 
@@ -185,7 +185,7 @@ migraciones y abre el backend y el frontend en ventanas separadas.
 
 Para entrar en local sin ClaveÚnica, el backend necesita `ALLOW_DEV_LOGIN=true` en
 `apps/backend/.env.local` (habilita los accesos de desarrollo; nunca en el servidor).
-`setup.ps1` todavía no lo agrega solo.
+`scripts/setup.ps1` todavía no lo agrega solo.
 
 > Setup manual paso a paso, otros sistemas operativos y problemas frecuentes:
 > [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
@@ -200,13 +200,11 @@ A.R.C.A/
 ├── apps/
 │   ├── backend/                  # NestJS + TypeORM + MySQL — API ciudadana, panel (src/admin) y núcleo (src/core)
 │   └── frontend/                 # React 19 + Vite 8 + Tailwind — PWA ciudadana y panel municipal (src/admin, /admin)
-├── docs/                        # Documentación técnica del proyecto
-├── ARCA_database_schema.dbml    # Schema de la base de datos (fuente de verdad)
+├── docs/                        # Documentación técnica, contexto del proyecto (CLAUDE_proyecto.md) y esquema BD (ARCA_database_schema.dbml)
 ├── docker-compose.yml           # MySQL 8 para desarrollo local
-├── setup.ps1                    # Setup local automatizado (Windows)
+├── scripts/                     # setup.ps1 (setup local automatizado) e instalar-reglas.ps1 (hook de commits)
 ├── AGENTS.md                    # Reglas de IA: comportamiento del agente + política del equipo
-├── CLAUDE.md                    # Ramas, workflow del equipo y convenciones
-└── CLAUDE_proyecto.md           # Contexto técnico completo del proyecto
+└── CLAUDE.md                    # Ramas, workflow del equipo y convenciones
 ```
 
 ---
@@ -241,7 +239,7 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | **Reglas de IA:** cómo debe comportarse el agente en el repo y cómo debe usar IA el equipo |
 | [`CLAUDE.md`](CLAUDE.md) | Estructura de ramas, workflow de colaboración y convenciones de código |
-| [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) | Contexto técnico completo: stack confirmado, decisiones de arquitectura y su porqué |
+| [`docs/CLAUDE_proyecto.md`](docs/CLAUDE_proyecto.md) | Contexto técnico completo: stack confirmado, decisiones de arquitectura y su porqué |
 | [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md) | Levantar el proyecto desde cero, por rol, y troubleshooting |
 | [`docs/DEPLOY_CPANEL.md`](docs/DEPLOY_CPANEL.md) | Despliegue en el servidor municipal (cPanel): paquetes, APIs, frontends y verificación |
 | [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) | Qué se implementó en el backend ciudadano: endpoints, entidades, migraciones |

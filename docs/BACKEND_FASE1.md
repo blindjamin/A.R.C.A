@@ -34,8 +34,8 @@ Dejar operativa la **base del MVP backend (Fase 1)**:
 A.R.C.A/
 ├── docker-compose.yml          # MySQL 8 local
 ├── .gitignore                  # node_modules, dist, .env.local
-├── ARCA_database_schema.dbml   # Schema completo (22 tablas — referencia)
 ├── docs/
+│   ├── ARCA_database_schema.dbml # Schema completo (22 tablas — referencia)
 │   ├── BACKEND_FASE1.md        # Este archivo
 │   └── SETUP_LOCAL.md          # Guía setup para el equipo
 ├── packages/

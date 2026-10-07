@@ -27,7 +27,7 @@ coverage/
 # TypeScript cache
 *.tsbuildinfo
 
-# Generados por instalar-reglas.ps1 (regla A.13)
+# Generados por scripts/instalar-reglas.ps1 (regla A.13)
 .githooks/
 .gitmessage
 .claude/*
@@ -36,3 +36,6 @@ coverage/
 # Notas personales de backend (versionadas solo en ramas de trabajo individuales)
 .local/
 .cursor/rules/backend-arca.mdc
+
+# Borradores de mensajes de commit
+commit_msg.txt

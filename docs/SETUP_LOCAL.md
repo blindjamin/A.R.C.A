@@ -112,7 +112,7 @@ ALLOW_DEV_LOGIN=true
 ```
 
 Habilita `POST /api/auth/dev/login`. **Solo en local:** el backend se niega a arrancar si
-está junto con `NODE_ENV=production`, y nunca va en el servidor. `setup.ps1` todavía no lo
+está junto con `NODE_ENV=production`, y nunca va en el servidor. `scripts/setup.ps1` todavía no lo
 agrega solo.
 
 Ejecutar migraciones y arrancar:
@@ -363,7 +363,7 @@ docker compose exec mysql mysql -u arca_user -parca_pass arca_dev -e "SHOW TABLE
 - [`SEGURIDAD_ARQUITECTURA.md`](./SEGURIDAD_ARQUITECTURA.md) — Sesión, control de acceso y auditoría
 - [`CLAUDE.md`](../CLAUDE.md) — Git Flow y convenciones del equipo
 - [`README.md`](../README.md) — Producto, stack y roadmap
-- [`ARCA_database_schema.dbml`](../ARCA_database_schema.dbml) — Schema completo (19 tablas)
+- [`ARCA_database_schema.dbml`](ARCA_database_schema.dbml) — Schema completo (22 tablas)
 
 ---
 
