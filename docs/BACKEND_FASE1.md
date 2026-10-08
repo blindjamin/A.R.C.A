@@ -231,7 +231,7 @@ peticiones **por IP en ventanas de un minuto**. Se importa en cada `AppModule` *
 |---|---|---|
 | General | 120 | Todas las rutas de `apps/backend` y `apps/backend-admin` |
 | Login ClaveÚnica | 10 | `@LimiteLogin()` en `ClaveUnicaController` |
-| Consultas de ubicación | 30 | `@LimiteUbicacion()` — a usar en los endpoints del Marketplace |
+| Consultas de ubicación | 90 | `@LimiteUbicacion()` en el listado y el detalle del Marketplace |
 
 Al superarlo se responde **429** con el mensaje *"Demasiadas solicitudes. Espera un momento e
 inténtalo de nuevo."*
@@ -264,7 +264,8 @@ defensas:
 2. **Límite de orígenes distintos por vecino** (`LimiteOrigenesService`): hasta 10 celdas
    distintas por hora. Pasado el límite la consulta sigue funcionando pero sin banda (`null`),
    sin error que indique cómo esquivarlo.
-3. **Límite de consultas** de 30 por minuto (`@LimiteUbicacion()`).
+3. **Límite de consultas** de 90 por minuto (`@LimiteUbicacion()`). Con 30, filtrar varias
+   veces seguidas en el listado ya daba error a un vecino normal.
 
 **Descartado:** desplazar los bordes de las bandas con un valor fijo por artículo. El borde
 sigue siendo un círculo centrado en el artículo, y tres puntos bastan para hallar su centro.

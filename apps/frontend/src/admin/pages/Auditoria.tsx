@@ -1,6 +1,11 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { fetchAuditoriaLogs, type AuditoriaLog } from '../api/admin';
 import { EmptyState } from '../components/ui';
+
+// Se traen los últimos MAX_REGISTROS de una vez y se paginan en pantalla: así
+// la búsqueda y los filtros recorren todos, no solo la página visible.
+const MAX_REGISTROS = 1000;
+const REGISTROS_POR_PAGINA = 100;
 
 // Tipos de filtros por categoría de acción.
 type TipoFiltro = 'todos' | 'seguridad' | 'solicitudes' | 'sistema';
@@ -47,9 +52,11 @@ export default function Auditoria() {
   // Filtros de búsqueda.
   const [filtro, setFiltro] = useState<TipoFiltro>('todos');
   const [query, setQuery] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const inicioLista = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    fetchAuditoriaLogs()
+    fetchAuditoriaLogs(MAX_REGISTROS)
       .then(setLogs)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -79,6 +86,17 @@ export default function Auditoria() {
     });
   }, [logs, filtro, query]);
 
+  const totalPaginas = Math.max(1, Math.ceil(logsFiltrados.length / REGISTROS_POR_PAGINA));
+  const logsPagina = logsFiltrados.slice(
+    (pagina - 1) * REGISTROS_POR_PAGINA,
+    pagina * REGISTROS_POR_PAGINA,
+  );
+
+  const irAPagina = (nueva: number) => {
+    setPagina(nueva);
+    inicioLista.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   // Estadísticas rápidas calculadas en base a los logs.
   const stats = useMemo(() => {
     const totales = logs.length;
@@ -104,7 +122,9 @@ export default function Auditoria() {
             </span>
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-3xl font-extrabold text-ink">{stats.totales}</span>
-              <span className="text-xs text-green-600">Histórico completo</span>
+              <span className="text-xs text-green-600">
+                {stats.totales >= MAX_REGISTROS ? `Últimos ${MAX_REGISTROS}` : 'Histórico completo'}
+              </span>
             </div>
           </div>
           <div className="card p-4 flex flex-col justify-between bg-white border border-line">
@@ -128,11 +148,14 @@ export default function Auditoria() {
         </section>
 
         {/* Buscador y Filtros */}
-        <section className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <section ref={inicioLista} className="scroll-mt-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           <input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPagina(1);
+            }}
             placeholder="Buscar por usuario, acción u objeto..."
             className="field max-w-md"
           />
@@ -141,7 +164,10 @@ export default function Auditoria() {
             {FILTROS.map((f) => (
               <button
                 key={f.value}
-                onClick={() => setFiltro(f.value)}
+                onClick={() => {
+                  setFiltro(f.value);
+                  setPagina(1);
+                }}
                 className={`pill shrink-0 border text-xs py-1.5 px-3.5 ${
                   filtro === f.value
                     ? 'border-transparent bg-green-700 text-white'
@@ -165,7 +191,7 @@ export default function Auditoria() {
           <>
             {/* VISTA MÓVIL: Tarjetas compactas */}
             <div className="block md:hidden space-y-3">
-              {logsFiltrados.map((log) => (
+              {logsPagina.map((log) => (
                 <div key={log.id} className="card p-4 space-y-3 border border-line bg-white">
                   <div className="flex items-center justify-between">
                     <div>
@@ -203,7 +229,7 @@ export default function Auditoria() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line text-sm">
-                  {logsFiltrados.map((log) => (
+                  {logsPagina.map((log) => (
                     <tr key={log.id} className="hover:bg-canvas/10 transition-colors">
                       <td className="px-6 py-4">
                         <div>
@@ -230,6 +256,47 @@ export default function Auditoria() {
                 </tbody>
               </table>
             </div>
+
+            {totalPaginas > 1 && (
+              <nav
+                aria-label="Páginas del registro de auditoría"
+                className="flex flex-wrap items-center justify-center gap-2"
+              >
+                <button
+                  onClick={() => irAPagina(pagina - 1)}
+                  disabled={pagina === 1}
+                  className="pill border border-green-200 bg-green-50 px-3 py-1.5 text-xs text-green-700 hover:bg-green-100 disabled:opacity-40"
+                >
+                  ← Anterior
+                </button>
+                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => irAPagina(n)}
+                    aria-current={n === pagina ? 'page' : undefined}
+                    className={`pill min-w-8 border px-2.5 py-1.5 text-xs ${
+                      n === pagina
+                        ? 'border-transparent bg-green-700 text-white'
+                        : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  onClick={() => irAPagina(pagina + 1)}
+                  disabled={pagina === totalPaginas}
+                  className="pill border border-green-200 bg-green-50 px-3 py-1.5 text-xs text-green-700 hover:bg-green-100 disabled:opacity-40"
+                >
+                  Siguiente →
+                </button>
+              </nav>
+            )}
+            <p className="text-center text-xs text-slate-2">
+              Mostrando {(pagina - 1) * REGISTROS_POR_PAGINA + 1}–
+              {Math.min(pagina * REGISTROS_POR_PAGINA, logsFiltrados.length)} de{' '}
+              {logsFiltrados.length} registros
+            </p>
 
           <p className="text-center text-xs text-slate-2 pt-2">
             🛡️ Logs inmutables de auditoría protegidos bajo normativas de trazabilidad municipal.

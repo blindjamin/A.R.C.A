@@ -21,6 +21,7 @@ import {
 import {
   AuditoriaAdminService,
   type AuditoriaLog,
+  LIMITE_POR_DEFECTO,
 } from './auditoria-admin.service';
 
 /**
@@ -44,7 +45,8 @@ export class AuditoriaAdminController {
   async findAll(
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
-    @Query('limite', new DefaultValuePipe(100), ParseIntPipe) limite: number,
+    @Query('limite', new DefaultValuePipe(LIMITE_POR_DEFECTO), ParseIntPipe)
+    limite: number,
   ): Promise<AuditoriaLog[]> {
     const registros = await this.auditoriaAdminService.findAll(limite);
 

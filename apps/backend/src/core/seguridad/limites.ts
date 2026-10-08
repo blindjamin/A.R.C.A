@@ -30,8 +30,12 @@ export const LIMITE_LOGIN = 10;
  * mismo artículo desde muchos puntos permite triangular su ubicación; este
  * límite lo encarece. La defensa de fondo está en la grilla de 250 m y en el
  * límite de orígenes distintos por vecino (apps/backend/src/marketplace/ubicacion).
+ *
+ * Cada cambio de filtro del listado es una consulta: con 30 por minuto, un
+ * vecino que probaba filtros seguidos recibía el error. 90 deja buscar con
+ * holgura y sigue por debajo del límite general.
  */
-export const LIMITE_UBICACION = 30;
+export const LIMITE_UBICACION = 90;
 
 export const MENSAJE_LIMITE =
   'Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.';
