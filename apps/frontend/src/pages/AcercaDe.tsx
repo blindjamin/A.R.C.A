@@ -7,12 +7,12 @@ const EQUIPO: { nombre: string; rol: string; aporte: string }[] = [
   {
     nombre: 'Benjamín Paicil',
     rol: 'Scrum Master',
-    aporte: 'Coordinación del equipo, ceremonias Scrum y panel municipal',
+    aporte: 'Coordinación del equipo, sesión y unificación de la app, y panel municipal',
   },
   {
     nombre: 'Miguel Segovia',
-    rol: 'Product Owner y encargado de seguridad',
-    aporte: 'Requisitos, prioridades, relación con el municipio, seguridad, protección de datos e integración con ClaveÚnica',
+    rol: 'Product Owner',
+    aporte: 'Requisitos y relación con el municipio, integración con ClaveÚnica, auditoría y protección de datos',
   },
   {
     nombre: 'Maximiliano López',
@@ -22,7 +22,7 @@ const EQUIPO: { nombre: string; rol: string; aporte: string }[] = [
   {
     nombre: 'Javier Figueroa',
     rol: 'Desarrollo back-end',
-    aporte: 'API, base de datos y Circular Credits',
+    aporte: 'API, base de datos, control de acceso por roles y Circular Credits',
   },
   {
     nombre: 'Ana Araya',
