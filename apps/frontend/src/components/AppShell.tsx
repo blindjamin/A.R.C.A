@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, NavLink, Link, useLocation } from 'react-router-dom';
 import type { ComponentType, ReactElement } from 'react';
+import { MenuAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 import { useSession, type Rol } from '../auth/SessionContext';
 import {
   IconHome,
@@ -228,7 +229,8 @@ function Shell({ children }: { children: ReactElement }) {
                 </span>
               </div>
             </Link>
-            <div className="flex shrink-0 items-center gap-2.5 sm:gap-4">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
+              <MenuAccesibilidad />
               <Link
                 to="/perfil"
                 className="flex items-center gap-1.5 rounded-pill border border-line bg-white px-3 py-1 text-xs text-ink transition-colors hover:border-green-300 hover:shadow-sm"

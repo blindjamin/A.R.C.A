@@ -109,3 +109,60 @@ body,
     100% { box-shadow: 0 0 0 0 rgba(239, 157, 36, 0); }
   }
 }
+
+/*
+ * Accesibilidad — misma convención que el Kit Digital de Gobierno
+ * (framework.digital.gob.cl). Las clases las pone `src/accesibilidad`.
+ */
+
+/* Tamaño de letra: cambia la base y todo lo medido en rem escala con ella. */
+html.a11y-font-1 {
+  font-size: 20px;
+}
+html.a11y-font-2 {
+  font-size: 24px;
+}
+
+/*
+ * Alto contraste: fondo negro, texto blanco y lo interactivo en amarillo.
+ * El botón de ClaveÚnica (.btn-cu) queda fuera a propósito: la certificación
+ * exige que no se altere.
+ */
+html.a11y-contrast,
+html.a11y-contrast body {
+  background: #000 !important;
+  color-scheme: dark;
+}
+html.a11y-contrast body :not(.btn-cu, .btn-cu *) {
+  background-color: #000 !important;
+  background-image: none !important;
+  color: #fff !important;
+  border-color: #fff !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+html.a11y-contrast body :is(a, button, [role='button']):not(.btn-cu, :disabled) {
+  color: #ffd60a !important;
+  outline: 1px solid #ffd60a;
+  outline-offset: -1px;
+}
+html.a11y-contrast body a:not(.btn-cu) {
+  text-decoration: underline;
+}
+html.a11y-contrast
+  body
+  :is(.chip-active, .btn-primary, .btn-gold, [aria-pressed='true'], [aria-current='page']):not(:disabled),
+html.a11y-contrast
+  body
+  :is(.chip-active, .btn-primary, .btn-gold, [aria-pressed='true'], [aria-current='page'])
+  * {
+  background-color: #ffd60a !important;
+  color: #000 !important;
+}
+html.a11y-contrast body ::placeholder {
+  color: #bbb !important;
+}
+html.a11y-contrast body :focus-visible {
+  outline: 3px solid #ffd60a !important;
+  outline-offset: 2px;
+}
