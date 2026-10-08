@@ -25,9 +25,13 @@ export interface AuditoriaLog {
   createdAt: string;
 }
 
-/** Tope por defecto y máximo de filas devueltas: la tabla crece sin límite. */
-const LIMITE_POR_DEFECTO = 100;
-const LIMITE_MAXIMO = 500;
+/**
+ * Tope de filas que devuelve la vista. La tabla guarda todos los registros sin
+ * límite; esto solo acota cuántos se muestran (los más recientes primero).
+ * 100 se quedaba corto para revisar la actividad de un día de uso.
+ */
+export const LIMITE_POR_DEFECTO = 1000;
+const LIMITE_MAXIMO = 1000;
 
 const ETIQUETA_ROL: Record<RolAdministrador, string> = {
   [RolAdministrador.ADMIN]: 'Administrador',
