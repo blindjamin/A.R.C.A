@@ -1,6 +1,15 @@
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { ComponentType } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 import { useSession } from '../auth/SessionContext';
-import { BotonClaveUnica, IconLeaf } from '../components/ui';
+import {
+  BotonClaveUnica,
+  IconCamera,
+  IconCircularCredits,
+  IconLeaf,
+  IconRepeat,
+  type IconProps,
+} from '../components/ui';
 
 // UUIDs sembrados por la migración de seed del backend, solo para los accesos
 // de desarrollo (criterio 6: ocultos fuera de import.meta.env.DEV).
@@ -13,6 +22,25 @@ const IDENTIDADES_DEV = {
 // Con este `?error=` vuelve el backend cuando el ingreso con ClaveÚnica no se
 // completó (cierre implícito). No trae el motivo, a propósito.
 const ERROR_INGRESO_CLAVE_UNICA = 'clave-unica';
+
+// Cómo se usa la app, en tres pasos (pedido del patrocinador, 08-10-2026).
+const PASOS: { titulo: string; texto: string; Icon: ComponentType<IconProps> }[] = [
+  {
+    titulo: 'Fotografía',
+    texto: 'Saca una foto a tu residuo voluminoso y pide el retiro municipal.',
+    Icon: IconCamera,
+  },
+  {
+    titulo: 'Comparte',
+    texto: 'Si aún sirve, regálalo o intercámbialo con tus vecinos. Si ya no sirve, agenda el retiro municipal.',
+    Icon: IconRepeat,
+  },
+  {
+    titulo: 'Canjea',
+    texto: 'Suma Circular Credits y cámbialos por beneficios en la comuna.',
+    Icon: IconCircularCredits,
+  },
+];
 
 export default function Login() {
   const { entrarDev } = useSession();
@@ -36,8 +64,12 @@ export default function Login() {
       }}
     >
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-between overflow-hidden px-7 py-12 md:min-h-0 md:h-auto md:flex-row md:items-center md:justify-between md:max-w-5xl md:px-16 md:py-20 md:gap-16">
+        <div className="absolute right-4 top-4 md:right-6 md:top-6">
+          <BarraAccesibilidad />
+        </div>
+
         {/* Hero */}
-        <div className="mt-16 md:mt-0 text-center md:text-left md:max-w-lg">
+        <div className="mt-12 md:mt-0 text-center md:text-left md:max-w-lg">
           <div className="mx-auto md:mx-0 mb-6 flex h-20 w-20 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
             <IconLeaf className="h-10 w-10 text-white" />
           </div>
@@ -48,10 +80,29 @@ export default function Login() {
             Tus voluminosos tienen una segunda vida. Gestión de residuos para
             Santo Domingo.
           </p>
+
+          <ol aria-label="Cómo funciona" className="mt-8 grid gap-2.5 text-left sm:grid-cols-3">
+            {PASOS.map(({ titulo, texto, Icon }, i) => (
+              <li
+                key={titulo}
+                className="flex items-start gap-3 rounded-lg border border-white/20 bg-white/10 p-3 backdrop-blur sm:flex-col sm:gap-2"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/15">
+                  <Icon className="h-5 w-5 text-white" />
+                </span>
+                <div>
+                  <p className="text-sm font-bold">
+                    {i + 1}. {titulo}
+                  </p>
+                  <p className="text-xs leading-snug text-green-50/90">{texto}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/* CTAs */}
-        <div className="space-y-3 w-full max-w-md md:shrink-0 md:bg-white/10 md:backdrop-blur-md md:p-8 md:rounded-2xl md:border md:border-white/20">
+        <div className="mt-8 md:mt-0 space-y-3 w-full max-w-md md:shrink-0 md:bg-white/10 md:backdrop-blur-md md:p-8 md:rounded-2xl md:border md:border-white/20">
           {/* Botón oficial de ClaveÚnica. No reemplazar por uno propio ni
               cambiarle los estilos: la certificación exige este botón tal cual. */}
           {ingresoFallido && (
@@ -66,6 +117,14 @@ export default function Login() {
           <div className="flex justify-center">
             <BotonClaveUnica />
           </div>
+          <p className="text-center">
+            <Link
+              to="/acerca-de"
+              className="text-xs text-white/85 underline underline-offset-2 hover:text-white"
+            >
+              Acerca de A.R.C.A.
+            </Link>
+          </p>
 
           {/* Accesos de desarrollo: solo en `npm run dev` (criterio 6). Simulan
               las tres identidades de ClaveÚnica para probar el control de
