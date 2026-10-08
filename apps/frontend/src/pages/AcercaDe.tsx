@@ -6,13 +6,13 @@ import { IconLeaf } from '../components/ui';
 const EQUIPO: { nombre: string; rol: string; aporte: string }[] = [
   {
     nombre: 'Benjamín Paicil',
-    rol: 'Scrum Master y líder técnico',
-    aporte: 'Coordinación, seguridad, ClaveÚnica y panel municipal',
+    rol: 'Scrum Master',
+    aporte: 'Coordinación del equipo, ceremonias Scrum y panel municipal',
   },
   {
     nombre: 'Miguel Segovia',
-    rol: 'Product Owner',
-    aporte: 'Requisitos, prioridades, protección de datos y relación con el municipio',
+    rol: 'Product Owner y encargado de seguridad',
+    aporte: 'Requisitos, prioridades, relación con el municipio, seguridad, protección de datos e integración con ClaveÚnica',
   },
   {
     nombre: 'Maximiliano López',
