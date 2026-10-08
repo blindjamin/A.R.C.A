@@ -276,6 +276,20 @@ describe('ClaveUnicaService', () => {
       expect(url.searchParams.get('redirect')).toBe(destino);
     });
 
+    it('agrega el aviso de error al retorno sin perder el destino', async () => {
+      const destino = 'https://arca.santodomingo.gob.cl/login';
+      const servicio = await crearServicio({
+        CLAVE_UNICA_LOGOUT_REDIRECT_URI: destino,
+      });
+      const url = new URL(servicio.construirUrlCierreSesion('clave-unica'));
+      const retorno = new URL(url.searchParams.get('redirect') as string);
+
+      // La autoridad no cambia: es lo que ClaveÚnica compara con el Logout URI.
+      expect(retorno.host).toBe('arca.santodomingo.gob.cl');
+      expect(retorno.pathname).toBe('/login');
+      expect(retorno.searchParams.get('error')).toBe('clave-unica');
+    });
+
     it('cierra sesión igual aunque no haya retorno configurado', async () => {
       // Falla abierto a propósito: dejar a alguien sin poder salir es peor que
       // cerrarle la sesión sin devolverlo al sitio.

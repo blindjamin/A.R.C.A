@@ -146,6 +146,10 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
   se revoca antes de emitir la nueva, en vez de quedar activa hasta expirar.
 - **Cierre de sesión en dos niveles:** se revoca la sesión de ARCA **y** se redirige al logout de
   ClaveÚnica (si no, ClaveÚnica mantiene la suya y la persona vuelve a entrar sin escribir su clave).
+- **Cierre implícito:** si el ingreso no se completa (ciudadano desactivado, `state` inválido, error o
+  caída de ClaveÚnica), el callback no responde un 401: revoca la sesión de ARCA que trajera el
+  navegador, pasa por el logout de ClaveÚnica y devuelve a `/login?error=clave-unica`. Es requisito de
+  la certificación ("cuando un RUN autenticado no se encuentra en la base del sitio integrador").
 - Todo inicio de sesión se audita como `LOGIN` (origen, IP y user-agent; nunca el RUN, el nombre ni
   la cookie).
 
@@ -219,3 +223,4 @@ Quedan para la revisión de seguridad acordada después de reunificar:
 | 2026-09-26 | FU-2/FU-3: el front ya no guarda ni envía identidad (sin `localStorage`, sin `Authorization`); ante cualquier 401 descarta la sesión y vuelve a `/login`. `apps/admin-web` eliminado. **Estado al abrir el PR:** C1, C2, C3, C5, C6, C7, C9 y C10 ✅; C4 🔄 (falta el callback de ClaveÚnica, SU-3); C8 ⏳ (SU-4). Mientras SU-3 no esté, el único acceso es el login de desarrollo, que no arranca en producción |
 | 2026-09-26 | SU-3 (PR #66): el callback de ClaveÚnica crea o reusa al ciudadano (un desactivado recibe 401), emite la sesión y audita el `LOGIN`; el logout de ClaveÚnica revoca la sesión. C4 ✅ |
 | 2026-09-27 | Sesión 2b + SU-4: la validación exige ciudadano activo (y revoca si no lo está) y respeta `fecha_expiracion`; volver a entrar revoca la sesión anterior del navegador; el primer ingreso simultáneo ya no da 500; se elimina el Bearer de desarrollo. **C8 ✅: D1 queda cerrada.** Verificado en ejecución: Bearer → 401 con `ALLOW_DEV_LOGIN=true`, cookie anterior → 401 tras un nuevo login, `fecha_expiracion` vencida → 401, ciudadano desactivado → 401 y sesión revocada |
+| 2026-10-06 | Revisión previa a la certificación de ClaveÚnica (credenciales recibidas): se agrega el **cierre implícito** en el callback. Antes, un ingreso rechazado (p. ej. ciudadano desactivado) respondía 401 en JSON y dejaba abierta la sesión de ClaveÚnica, que el manual exige cerrar |
