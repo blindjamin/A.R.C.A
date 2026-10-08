@@ -238,13 +238,15 @@ function Shell({ children }: { children: ReactElement }) {
                   {sesion?.nombre || 'Mi Perfil'}
                 </span>
               </Link>
+              {/* El texto se ve también en el celular: la certificación de
+                  ClaveÚnica pide un botón de cierre "claramente identificado". */}
               <button
                 onClick={() => void salir()}
                 title="Cerrar sesión"
-                className="flex items-center gap-1 rounded-pill p-1.5 text-xs text-white transition-colors hover:bg-white/15 hover:text-white sm:px-2.5 sm:py-1"
+                className="flex items-center gap-1 rounded-pill px-2.5 py-1 text-xs text-white transition-colors hover:bg-white/15 hover:text-white"
               >
                 <IconLogout className="h-4 w-4" />
-                <span className="hidden sm:inline">Salir</span>
+                <span>Salir</span>
               </button>
             </div>
           </div>
