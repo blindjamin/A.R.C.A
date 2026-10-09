@@ -118,12 +118,15 @@ export default function Listado() {
         aria-label="Buscar artículos"
       />
 
-      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+      {/* Filtros siempre a la vista, sin deslizar hacia el lado (no se
+          descubría que había más). */}
+      <div role="group" aria-label="Tipo de publicación" className="grid grid-cols-3 gap-2">
         {TIPOS.map((t) => (
           <button
             key={t.etiqueta}
             onClick={() => setTipo(t.valor)}
-            className={`chip whitespace-nowrap ${tipo === t.valor ? 'chip-active' : ''}`}
+            aria-pressed={tipo === t.valor}
+            className={`chip justify-center ${tipo === t.valor ? 'chip-active' : ''}`}
           >
             {t.etiqueta}
           </button>
@@ -131,19 +134,19 @@ export default function Listado() {
       </div>
 
       {categorias.length > 0 && (
-        <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
-          {[null, ...categorias].map((cat) => (
-            <button
-              key={cat ?? 'todas'}
-              onClick={() => setCategoria(cat)}
-              className={`chip whitespace-nowrap ${
-                categoria === cat ? 'chip-active' : ''
-              }`}
-            >
-              {cat ?? 'Todas las categorías'}
-            </button>
+        <select
+          value={categoria ?? ''}
+          onChange={(e) => setCategoria(e.target.value || null)}
+          className="field"
+          aria-label="Categoría"
+        >
+          <option value="">Todas las categorías</option>
+          {categorias.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
           ))}
-        </div>
+        </select>
       )}
 
       {estadoUbicacion === 'denegado' && (

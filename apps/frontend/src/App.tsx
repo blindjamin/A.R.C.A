@@ -14,6 +14,7 @@ import Proximamente from './pages/Proximamente';
 import Perfil from './pages/Perfil';
 import CircularCredits from './pages/CircularCredits';
 import { IconTruck } from './components/ui/Icons';
+import { OfertaInstalacion } from './pwa/OfertaInstalacion';
 
 // Chunk aparte: el panel (páginas, api/admin.ts, leaflet) no debe pesar en la
 // PWA del vecino (SPEC-frontend-unificado §2.2, criterio 3).
@@ -87,6 +88,7 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <OfertaInstalacion />
         </BrowserRouter>
       </SolicitudFlowProvider>
     </SessionProvider>

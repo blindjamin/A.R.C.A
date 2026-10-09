@@ -8,6 +8,13 @@ body,
   min-height: 100%;
 }
 
+/* Sensación de app nativa: sin el rebote (iOS) ni el estiramiento (Android)
+   al llegar al borde del scroll, que dejaba ver el fondo blanco del navegador. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 @layer base {
   body {
     @apply bg-canvas text-ink font-body antialiased;
