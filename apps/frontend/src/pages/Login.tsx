@@ -58,30 +58,33 @@ export default function Login() {
 
   return (
     <div
-      className="flex min-h-screen w-full items-center justify-center text-white"
+      className="flex min-h-dvh w-full items-center justify-center text-white"
       style={{
         backgroundImage: 'linear-gradient(165deg,#0f6b45,#138a57,#1bb46f)',
       }}
     >
-      <div className="relative mx-auto flex min-h-screen w-full flex-col justify-between overflow-hidden px-7 py-12 md:min-h-0 md:h-auto md:flex-row md:items-center md:justify-between md:max-w-5xl md:px-16 md:py-20 md:gap-16">
+      <div className="relative mx-auto flex h-dvh w-full flex-col justify-between overflow-hidden px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] md:h-auto md:flex-row md:items-center md:justify-between md:max-w-5xl md:px-16 md:py-20 md:gap-16">
         <div className="absolute right-4 top-4 md:right-6 md:top-6">
           <BarraAccesibilidad />
         </div>
 
         {/* Hero */}
-        <div className="mt-12 md:mt-0 text-center md:text-left md:max-w-lg">
-          <div className="mx-auto md:mx-0 mb-6 flex h-20 w-20 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-            <IconLeaf className="h-10 w-10 text-white" />
+        {/* En celular la pantalla no se desliza: si el texto no cabe (letra grande,
+            pasos nuevos), solo esta parte se desplaza y se desvanece detrás de
+            los botones, que quedan siempre a la vista. */}
+        <div className="-mx-6 mt-12 min-h-0 flex-1 overflow-y-auto px-6 pb-6 [scrollbar-width:none] text-center [mask-image:linear-gradient(to_bottom,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] pt-4 md:pt-0 md:mx-0 md:mt-0 md:max-w-lg md:flex-none md:overflow-visible md:px-0 md:pb-0 md:text-left md:[mask-image:none]">
+          <div className="mx-auto md:mx-0 mb-4 md:mb-6 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+            <IconLeaf className="h-8 w-8 md:h-10 md:w-10 text-white" />
           </div>
-          <h1 className="font-display text-5xl md:text-6xl font-extrabold tracking-tight">
+          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
             A.R.C.A.
           </h1>
-          <p className="mx-auto md:mx-0 mt-6 max-w-xs md:max-w-md text-green-50/90 text-sm md:text-base leading-relaxed">
+          <p className="mx-auto md:mx-0 mt-3 md:mt-6 max-w-xs md:max-w-md text-green-50/90 text-sm md:text-base leading-relaxed">
             Tus voluminosos tienen una segunda vida. Gestión de residuos para
             Santo Domingo.
           </p>
 
-          <ol aria-label="Cómo funciona" className="mt-8 grid gap-2.5 text-left sm:grid-cols-3">
+          <ol aria-label="Cómo funciona" className="mt-6 md:mt-8 grid gap-2.5 text-left sm:grid-cols-3">
             {PASOS.map(({ titulo, texto, Icon }, i) => (
               <li
                 key={titulo}
@@ -102,7 +105,7 @@ export default function Login() {
         </div>
 
         {/* CTAs */}
-        <div className="mt-8 md:mt-0 space-y-3 w-full max-w-md md:shrink-0 md:bg-white/10 md:backdrop-blur-md md:p-8 md:rounded-2xl md:border md:border-white/20">
+        <div className="shrink-0 pt-2 md:pt-0 space-y-3 w-full max-w-md md:shrink-0 md:bg-white/10 md:backdrop-blur-md md:p-8 md:rounded-2xl md:border md:border-white/20">
           {/* Botón oficial de ClaveÚnica. No reemplazar por uno propio ni
               cambiarle los estilos: la certificación exige este botón tal cual. */}
           {ingresoFallido && (
@@ -152,7 +155,7 @@ export default function Login() {
                 </button>
               </div>
 
-              <p className="pt-2 text-center text-xs text-green-100/70">
+              <p className="hidden pt-2 text-center text-xs text-green-100/70 md:block">
                 En local el botón de ClaveÚnica no funciona (no acepta
                 localhost): se entra por los accesos de desarrollo. Tras
                 autenticar, si la persona es funcionaria o
