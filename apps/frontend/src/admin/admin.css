@@ -4,3 +4,11 @@
   height: 100%;
   width: 100%;
 }
+
+/* Sin el destello gris del navegador al tocar: el panel se usa también como app. */
+.admin-shell {
+  -webkit-tap-highlight-color: transparent;
+}
+.admin-shell :is(a, button):active {
+  opacity: 0.7;
+}

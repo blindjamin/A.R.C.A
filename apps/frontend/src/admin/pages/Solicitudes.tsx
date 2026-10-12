@@ -121,7 +121,21 @@ export default function Solicitudes() {
         </p>
       </header>
 
-      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      {/* En pantallas chicas, lista desplegable: los nueve estados no caben y
+          deslizarlos hacia el lado no deja ver que hay más. */}
+      <select
+        value={filtro}
+        onChange={(e) => setFiltro(e.target.value as EstadoSolicitud | 'todas')}
+        className="field lg:hidden"
+        aria-label="Filtrar por estado"
+      >
+        {FILTROS.map((f) => (
+          <option key={f.value} value={f.value}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+      <div className="hidden flex-wrap gap-2 lg:flex">
         {FILTROS.map((f) => (
           <button
             key={f.value}
@@ -144,7 +158,7 @@ export default function Solicitudes() {
       ) : items.length === 0 ? (
         <EmptyState message="No hay solicitudes en este estado." />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((s) => (
             <li key={s.id}>
               <ListItemCard
