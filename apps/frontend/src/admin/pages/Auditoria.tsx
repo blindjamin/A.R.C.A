@@ -157,10 +157,10 @@ export default function Auditoria() {
               setPagina(1);
             }}
             placeholder="Buscar por usuario, acción u objeto..."
-            className="field max-w-md"
+            className="field md:max-w-md"
           />
 
-          <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0">
+          <div className="grid grid-cols-2 gap-2 md:flex">
             {FILTROS.map((f) => (
               <button
                 key={f.value}
@@ -168,7 +168,7 @@ export default function Auditoria() {
                   setFiltro(f.value);
                   setPagina(1);
                 }}
-                className={`pill shrink-0 border text-xs py-1.5 px-3.5 ${
+                className={`pill shrink-0 justify-center border text-xs py-2 px-3.5 md:py-1.5 ${
                   filtro === f.value
                     ? 'border-transparent bg-green-700 text-white'
                     : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'

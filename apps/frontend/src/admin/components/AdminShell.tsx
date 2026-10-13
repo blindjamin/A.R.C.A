@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSession } from '../../auth/SessionContext';
-import { IconLeaf } from '../../components/ui/Icons';
+import { IconLeaf, IconMenu, IconX } from '../../components/ui/Icons';
 
 const NAV = [
   { to: '/admin', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
@@ -11,18 +11,55 @@ const NAV = [
   { to: '/admin/auditoria', label: 'Auditoría', icon: '🛡️', end: false, reqAdmin: true },
 ];
 
-// Layout de escritorio del panel: barra lateral fija + contenido. Reemplaza el
-// header/tabs que cada pantalla admin repetía por separado en el frontend
-// ciudadano (no tiene sentido la tab bar móvil de AppShell.tsx en un panel
-// municipal de escritorio).
+// Layout del panel: barra lateral + contenido. Desde `lg` la barra queda fija;
+// en pantallas más chicas se esconde y se abre como menú desde la barra
+// superior (menú y no tab bar, para poder sumar secciones sin que no quepan).
 export default function AdminShell({ children }: { children: ReactNode }) {
   const { sesion, salir } = useSession();
   const isAdmin = sesion?.rol === 'admin';
   const visibleNav = NAV.filter((item) => !item.reqAdmin || isAdmin);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+
+  useEffect(() => {
+    if (!menuAbierto) return;
+    const cerrarConEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuAbierto(false);
+    };
+    window.addEventListener('keydown', cerrarConEscape);
+    return () => window.removeEventListener('keydown', cerrarConEscape);
+  }, [menuAbierto]);
 
   return (
-    <div className="flex min-h-screen w-full bg-canvas">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-white/20 bg-green-700">
+    // Marco fijo de app: la barra queda quieta y solo se desplaza el contenido.
+    <div className="admin-shell flex h-dvh w-full flex-col overflow-hidden bg-canvas lg:flex-row">
+      <header className="flex shrink-0 items-center gap-3 bg-green-700 px-4 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-white lg:hidden">
+        <button
+          type="button"
+          onClick={() => setMenuAbierto(true)}
+          aria-label="Abrir menú"
+          aria-expanded={menuAbierto}
+          aria-controls="admin-menu"
+          className="-ml-2 flex h-11 w-11 items-center justify-center rounded-md hover:bg-white/10"
+        >
+          <IconMenu className="h-6 w-6" />
+        </button>
+        <span className="font-display text-base font-extrabold tracking-tight">
+          A.R.C.A.
+        </span>
+        <span className="text-xs text-white/75">Panel municipal</span>
+      </header>
+      {menuAbierto && (
+        <div
+          className="fixed inset-0 z-30 bg-ink/50 lg:hidden"
+          onClick={() => setMenuAbierto(false)}
+        />
+      )}
+      <aside
+        id="admin-menu"
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 max-w-[85vw] shrink-0 flex-col overflow-y-auto border-r border-white/20 bg-green-700 transition-[transform,visibility] duration-200 lg:visible lg:static lg:w-60 lg:translate-x-0 ${
+          menuAbierto ? 'translate-x-0' : 'invisible -translate-x-full'
+        }`}
+      >
         <div className="flex items-center gap-2.5 border-b border-white/20 px-5 py-4">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white">
             <IconLeaf className="h-5 w-5" />
@@ -35,6 +72,14 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               Panel municipal
             </span>
           </div>
+          <button
+            type="button"
+            onClick={() => setMenuAbierto(false)}
+            aria-label="Cerrar menú"
+            className="-mr-2 ml-auto flex h-11 w-11 items-center justify-center rounded-md text-white hover:bg-white/10 lg:hidden"
+          >
+            <IconX className="h-5 w-5" />
+          </button>
         </div>
         <nav className="flex flex-col gap-1 p-3">
           {visibleNav.map((item) => (
@@ -42,8 +87,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               key={item.to}
               to={item.to}
               end={item.end}
+              onClick={() => setMenuAbierto(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                `flex items-center gap-2 rounded-md px-3 py-3 text-sm font-medium transition-colors lg:py-2 ${
                   isActive
                     ? 'bg-white/20 text-white'
                     : 'text-white/90 hover:bg-white/10 hover:text-white'
@@ -68,7 +114,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </aside>
-      <main className="page-text-contrast min-w-0 flex-1 px-6 py-6">{children}</main>
+      <main className="page-text-contrast min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 lg:px-6 lg:py-6">{children}</main>
     </div>
   );
 }

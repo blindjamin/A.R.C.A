@@ -89,7 +89,7 @@ export default function MapaCalor() {
             </div>
           </div>
 
-          <div className="card relative h-[500px] min-w-0 w-full overflow-hidden">
+          <div className="card relative h-[360px] min-w-0 lg:h-[500px] w-full overflow-hidden">
             {loading ? (
               <div className="flex h-full items-center justify-center p-8">
                 <span className="text-slate">Cargando datos...</span>
