@@ -4,11 +4,13 @@ Cómo publicar A.R.C.A. en el servidor municipal administrado con cPanel. Está 
 administra el servidor: la **Parte 1** la prepara el equipo COM Tech en un computador con el
 repositorio y entrega dos archivos `.zip`; la **Parte 2** se hace en el cPanel.
 
-> **Versión que se despliega:** commit `2eb03dd`: `develop` en `5ef7992` (27-09-2026, la
-> primera con la **app unificada**: vecino y panel municipal en un solo sitio) más el arreglo
-> para que la API reciba la IP real de cada visitante detrás del servidor de cPanel. Si el servidor tiene la
-> estructura anterior (subdominio del panel y una segunda API), la sección **2.4** explica cómo
-> desmontarla. Las versiones posteriores se instalan con el procedimiento de §4.
+> **Versión que se despliega:** `develop` en `864991c` (13-10-2026). Es la versión para la
+> **certificación de ClaveÚnica**: trae el botón oficial v2.0, la vuelta de ClaveÚnica por la
+> raíz del sitio (la dirección registrada) y el cierre de sesión que exige el manual. Además suma
+> el Marketplace con fotos, la accesibilidad y el panel municipal usable desde el celular.
+> Si el servidor tiene la versión anterior (`2eb03dd`), se actualiza con el procedimiento de §4.
+> Si tiene la estructura de dos apps (subdominio del panel y una segunda API), la sección **2.4**
+> explica cómo desmontarla.
 
 ---
 
@@ -50,10 +52,12 @@ niega a arrancar** si la encuentra junto con `NODE_ENV=production`. Es a propós
 cualquiera podría entrar como funcionario sin ClaveÚnica. Los botones "Vecino (dev)" y
 "Funcionario (dev)" tampoco aparecen en el build de producción.
 
-**ClaveÚnica:** la Redirect URI registrada debe ser exactamente
-`https://arca.santodomingo.cl/api/auth/clave-unica/callback`, y la Logout URI
-`https://arca.santodomingo.cl/login`. Según el manual de Gobierno Digital, en producción se
-exige un dominio `.gob.cl` o una excepción aprobada por la Agencia.
+**ClaveÚnica:** la Redirect URI registrada en CeroFilas (solicitud N° 38844002) es la **raíz
+del sitio**, `https://arca.santodomingo.cl/`, y la Logout URI `https://arca.santodomingo.cl/login`.
+ClaveÚnica devuelve a la persona a la raíz; el `index.html` del frontend reenvía ese retorno a
+la API (`/api/auth/clave-unica/callback`), que valida y crea la sesión. Por eso
+`CLAVE_UNICA_REDIRECT_URI` (2.2 c) tiene que ser **exactamente** la raíz, con la barra final: si
+no coincide carácter por carácter con la registrada, ClaveÚnica rechaza el ingreso.
 
 ---
 
@@ -190,7 +194,7 @@ TRUST_PROXY=loopback
 
 CLAVE_UNICA_CLIENT_ID=<entregado por Gobierno Digital>
 CLAVE_UNICA_CLIENT_SECRET=<entregado por Gobierno Digital>
-CLAVE_UNICA_REDIRECT_URI=https://arca.santodomingo.cl/api/auth/clave-unica/callback
+CLAVE_UNICA_REDIRECT_URI=https://arca.santodomingo.cl/
 CLAVE_UNICA_LOGOUT_REDIRECT_URI=https://arca.santodomingo.cl/login
 CLAVE_UNICA_PEPPER=<ver abajo>
 ```
@@ -204,8 +208,15 @@ CLAVE_UNICA_PEPPER=<ver abajo>
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y se **respalda en
   un lugar seguro**. Si se pierde o se cambia, ningún vecino vuelve a ser reconocido y todos
   pierden su historial. Si ya existe de una instalación anterior, **no cambiarlo**.
+- `CLAVE_UNICA_REDIRECT_URI` es la raíz **con la barra final** (§1). No es la ruta `/api/...`.
+- **Credenciales:** Gobierno Digital entregó tres pares (sandbox, QA y producción). Para probar
+  y certificar se usan las de **QA**; las de producción no funcionan hasta que la integración
+  quede certificada y se pida su activación a la Mesa de Servicio. Al activarlas, se cambian
+  `CLIENT_ID` y `CLIENT_SECRET` y se reinicia la aplicación; **el pepper no se cambia**.
 - Mientras no estén las credenciales de ClaveÚnica, `CLIENT_ID` y `CLIENT_SECRET` pueden quedar
   vacías: la API arranca igual, y solo el botón de ClaveÚnica responde error.
+- **Fotos del Marketplace:** se guardan en `~/api/uploads/`, fuera de `public_html`, y solo se
+  entregan por la API con sesión. No hace falta configurar nada (`UPLOADS_DIR` vacío).
 - Permisos del archivo: **600** (Administrador de archivos → Permisos).
 
 Las variables también se pueden cargar en el formulario de "Setup Node.js App", pero las
@@ -222,9 +233,9 @@ npm run migration:run
 npm run migration:show
 ```
 
-Son **12** migraciones, las mismas de la versión `4aaec80`. Si ya se habían corrido,
-`migration:run` responde `No migrations are pending` y no cambia nada. `migration:show` debe
-mostrar las 12 con `[X]`.
+Son **13** migraciones (la versión `2eb03dd` tenía 12; la nueva crea las tablas del
+Marketplace y los Circular Credits). Si ya se habían corrido, `migration:run` solo aplica las
+que falten. `migration:show` debe mostrar las 13 con `[X]`.
 
 **e) Iniciar.** Volver a "Setup Node.js App" y presionar **Start** (o **Restart**).
 
@@ -288,8 +299,11 @@ Antes de la unificación, el panel tenía su propio subdominio y su propia API. 
 | `https://arca.santodomingo.cl/api/no-existe` | `404` en JSON (`Cannot GET ...`), no una página de error del servidor |
 | `https://arca.santodomingo.cl`, navegar a `/login` y recargar (F5) | Carga la app, sin 404 |
 | Recargar en `https://arca.santodomingo.cl/admin` sin sesión | Carga la app y lleva a `/login` |
-| Con credenciales de ClaveÚnica: entrar como vecino | Queda en la app del vecino; no puede abrir `/admin` |
-| Con credenciales de ClaveÚnica: entrar como funcionario | Puede elegir "Modo funcionario" y abrir el panel en `/admin` |
+| Página de inicio (`/login`) | Solo el botón oficial «Iniciar sesión» de ClaveÚnica; **no** aparecen botones "(dev)" |
+| Con credenciales de ClaveÚnica: entrar como vecino | Vuelve a `arca.santodomingo.cl/`, pasa solo a `/inicio` (app del vecino) y no puede abrir `/admin` |
+| Con credenciales de ClaveÚnica: entrar como funcionario o administrador (§7) | Ve la pantalla para elegir el modo y puede abrir el panel en `/admin` |
+| Botón **Salir** | Cierra la sesión de A.R.C.A. **y la de ClaveÚnica**, y vuelve a `/login` |
+| Ingreso que no se completa (por ejemplo, cancelar en ClaveÚnica) | Vuelve a `/login` con el aviso «No pudimos completar tu ingreso con ClaveÚnica» |
 | Si existía: `https://arcapanel.santodomingo.cl` | Redirige a `https://arca.santodomingo.cl/admin` |
 
 ---
@@ -299,7 +313,8 @@ Antes de la unificación, el panel tenía su propio subdominio y su propia API. 
 1. El equipo entrega los zips nuevos (Parte 1). Una versión nueva puede traer migraciones o
    dependencias adicionales, por eso el paso 4 no se puede saltar.
 2. Detener la aplicación en "Setup Node.js App".
-3. En `~/api`, reemplazar `dist/` y `package.json`. **No tocar `.env.local`.**
+3. En `~/api`, reemplazar `dist/` y `package.json`. **No tocar `.env.local` ni `uploads/`**
+   (ahí están las fotos que subieron los vecinos).
 4. En la Terminal (con el comando del entorno virtual):
    - `npm install --omit=dev` si cambió `package.json`.
    - `npm run migration:run`.
@@ -338,6 +353,15 @@ revisar que no traiga contraseñas.**
 - `.env.local` con permisos **600**, fuera de `public_html`, nunca subido al repositorio.
 - `NODE_ENV=production` siempre en el servidor, y **nunca** `ALLOW_DEV_LOGIN`.
 - Respaldar `CLAVE_UNICA_PEPPER` junto con las credenciales de ClaveÚnica.
+- **La base de datos es la llave de los roles** (§7): quien puede escribir en
+  `usuarios_administradores` puede darse acceso al panel. Por eso:
+  - MySQL **sin acceso remoto** (cPanel → "MySQL remoto" sin hosts agregados): la API se conecta
+    por `localhost` y nadie más necesita entrar desde fuera.
+  - El usuario y la contraseña de la base solo en `~/api/.env.local`; contraseña larga y única.
+  - El acceso a cPanel y phpMyAdmin, solo para TI municipal, con segundo factor si cPanel lo
+    ofrece.
+  - Respaldos periódicos y revisar de vez en cuando la lista de funcionarios (§7, consulta
+    final).
 - **Usuarios de prueba:** tres migraciones (`seed-operador-demo`, `seed-admin-demo`,
   `seed-operadores-prueba`) insertan usuarios de demostración con identificadores fijos. En
   producción no se puede entrar con ellos (solo se entra por ClaveÚnica), pero **deben
@@ -369,3 +393,79 @@ revisar que no traiga contraseñas.**
   Solo se confía en esos rangos: un visitante no puede inventar su IP enviando la cabecera
   `X-Forwarded-For` por su cuenta. La conexión interna del servidor (Passenger) ya se reconoce
   sola desde la versión `2eb03dd`.
+
+---
+
+## 7. Asignar funcionarios y administradores
+
+A.R.C.A. **no tiene una pantalla para dar roles**, a propósito: si existiera, una falla en la
+app podría permitir que alguien se diera acceso al panel. Los roles se asignan directamente en
+la base de datos, y lo hace **solo el equipo de TI municipal** desde cPanel. Ninguna ruta de la
+API permite cambiar un rol.
+
+| Rol | Qué ve |
+|---|---|
+| (sin fila en `usuarios_administradores`) | Vecino: solo la app ciudadana |
+| `funcionario` | Elige entre la app del vecino y el panel: revisión de solicitudes, métricas, mapa, derivación |
+| `admin` | Lo mismo que el funcionario, más el registro de **auditoría** |
+
+**Requisito:** la persona tiene que haber entrado **una vez** con ClaveÚnica. Ese primer
+ingreso crea su cuenta (`usuarios_ciudadanos`); recién entonces se le puede dar un rol.
+
+### 7.1 Encontrar la cuenta de la persona
+
+A.R.C.A. **no guarda el RUN**: guarda una huella calculada con el RUN y el pepper
+(`clave_unica_id`). Para encontrar la cuenta se calcula esa huella en la Terminal, con el
+comando del entorno virtual (2.2 d), desde `~/api`. Reemplazar `12345678-K` por el RUN de la
+persona: **sin puntos, con guion y con el dígito verificador en mayúscula**.
+
+```bash
+CLAVE_UNICA_PEPPER="$(grep '^CLAVE_UNICA_PEPPER=' .env.local | cut -d= -f2-)" \
+  node -e "console.log(require('crypto').createHmac('sha256', process.env.CLAVE_UNICA_PEPPER).update(process.argv[1]).digest('hex'))" 12345678-K
+history -c
+```
+
+El resultado es un texto de 64 caracteres (la huella). `history -c` borra el RUN del
+historial de la Terminal.
+
+### 7.2 Dar el rol
+
+En phpMyAdmin (cPanel → phpMyAdmin → `santod85_arca_db` → SQL):
+
+```sql
+-- 1. El id de la cuenta (pegar la huella del paso 7.1)
+SELECT id FROM usuarios_ciudadanos WHERE clave_unica_id = '<huella>';
+
+-- 2. Darle el rol: 'funcionario' o 'admin'
+INSERT INTO usuarios_administradores
+  (id, usuario_ciudadano_id, nombre, apellido, email_institucional,
+   telefono_institucional, rol, cargo, fecha_ingreso, activo)
+VALUES
+  (UUID(), '<id del paso 1>', 'Nombre', 'Apellido', 'nombre.apellido@santodomingo.cl',
+   NULL, 'funcionario', 'Cargo', NOW(), 1);
+```
+
+Si el `SELECT` no devuelve nada, la persona todavía no ha entrado con ClaveÚnica o el RUN se
+escribió con otro formato.
+
+### 7.3 Cambiar o quitar un rol
+
+```sql
+-- Cambiar de funcionario a administrador (o al revés)
+UPDATE usuarios_administradores SET rol = 'admin'
+ WHERE email_institucional = 'nombre.apellido@santodomingo.cl';
+
+-- Quitar el acceso al panel (no se borra: queda el registro de quién fue funcionario)
+UPDATE usuarios_administradores SET activo = 0
+ WHERE email_institucional = 'nombre.apellido@santodomingo.cl';
+
+-- Revisar quiénes tienen acceso al panel
+SELECT nombre, apellido, email_institucional, rol, cargo, activo
+  FROM usuarios_administradores ORDER BY activo DESC, rol;
+```
+
+El cambio rige **en la siguiente acción** de la persona, sin esperar a que cierre sesión: la API
+consulta el rol en cada petición. Con `activo = 0`, la persona sigue entrando, pero como vecino.
+
+**Antes de la puesta en marcha real**, quitar el acceso a las cuentas de demostración que crean
+las migraciones (§6, usuarios de prueba).
