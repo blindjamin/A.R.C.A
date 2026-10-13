@@ -6,6 +6,8 @@ export default function SeleccionInicio() {
   const navigate = useNavigate();
   const { sesion, salir } = useSession();
   const nombre = sesion?.nombre;
+  // Mismo panel para ambos roles; el admin además ve la auditoría.
+  const esAdmin = sesion?.rol === 'admin';
 
   return (
     <div
@@ -53,9 +55,13 @@ export default function SeleccionInicio() {
               <IconShield className="h-6 w-6" />
             </span>
             <span>
-              <span className="block text-base font-bold">Modo funcionario</span>
+              <span className="block text-base font-bold">
+                {esAdmin ? 'Modo administrador' : 'Modo funcionario'}
+              </span>
               <span className="block text-sm text-green-50/80">
-                Panel municipal: revisa y gestiona solicitudes
+                {esAdmin
+                  ? 'Panel municipal: gestiona solicitudes y revisa la auditoría'
+                  : 'Panel municipal: revisa y gestiona solicitudes'}
               </span>
             </span>
           </button>
