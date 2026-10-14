@@ -162,9 +162,14 @@ export class CreditosService {
     });
 
     // Con el vecino ya bloqueado, nadie más puede estar otorgando lo mismo.
+    // Se filtra también por origen: un ajuste o una reversa futura ligada a la
+    // misma solicitud no cuenta como el otorgamiento del retiro.
     if (datos.solicitudRetiroId !== undefined) {
       const yaOtorgado = await manager.findOne(TransaccionCircularCredits, {
-        where: { solicitudRetiroId: datos.solicitudRetiroId },
+        where: {
+          solicitudRetiroId: datos.solicitudRetiroId,
+          origen: datos.origen,
+        },
       });
       if (yaOtorgado) return yaOtorgado;
     }
