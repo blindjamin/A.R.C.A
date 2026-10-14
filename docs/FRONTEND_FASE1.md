@@ -337,7 +337,7 @@ npm run lint      # ESLint
 ## Verificación (flujo end-to-end EP-01 y EP-03)
 
 1. Backend OK (`GET /api/health` → `{"status":"ok","db":"connected"}`).
-2. Abrir `http://localhost:5173` → "Entrar como vecino (dev)" o "Ingresar con ClaveÚnica".
+2. Abrir `http://localhost:5173` → "Vecino (dev)" (pide nombre y RUT de prueba) o el botón de ClaveÚnica.
 3. Caer en **Inicio**: tarjeta de impacto (demo) + grid de módulos.
 4. Tab **Solicitar** (📷) → captura → "Analizar con IA" → pantalla de análisis →
    resultado con la detección mock sobre el catálogo real.
