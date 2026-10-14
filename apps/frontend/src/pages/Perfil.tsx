@@ -110,7 +110,12 @@ export default function Perfil() {
     try {
       const guardado = localStorage.getItem(storageKey);
       if (guardado) {
-        return JSON.parse(guardado) as PerfilCiudadano;
+        const perfilGuardado = JSON.parse(guardado) as PerfilCiudadano;
+        // El nombre lo entrega ClaveÚnica: manda el de la sesión, no el guardado.
+        return {
+          ...perfilGuardado,
+          nombre: sesion?.nombre || perfilGuardado.nombre,
+        };
       }
     } catch {
       // Ignorar error de parsing
@@ -132,10 +137,8 @@ export default function Perfil() {
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
   // Formulario temporal de edición
-  const [formNombre, setFormNombre] = useState(perfil.nombre);
   const [formEmail, setFormEmail] = useState(perfil.email ?? '');
   const [formTelefono, setFormTelefono] = useState(perfil.telefono ?? '');
-  const [formRut, setFormRut] = useState(perfil.rut ?? '');
   const [formDireccion, setFormDireccion] = useState(perfil.direccion ?? '');
   const [formSector, setFormSector] = useState(perfil.sector ?? '');
   const [formCanalPreferido, setFormCanalPreferido] = useState(
@@ -143,10 +146,8 @@ export default function Perfil() {
   );
 
   const abrirEditor = () => {
-    setFormNombre(perfil.nombre);
     setFormEmail(perfil.email ?? '');
     setFormTelefono(perfil.telefono ?? '');
-    setFormRut(perfil.rut ?? '');
     setFormDireccion(perfil.direccion ?? '');
     setFormSector(perfil.sector ?? '');
     setFormCanalPreferido(perfil.canalPreferido ?? '');
@@ -156,12 +157,13 @@ export default function Perfil() {
   const guardarCambios = (e: React.FormEvent) => {
     e.preventDefault();
     const nuevoPerfil: PerfilCiudadano = {
-      nombre: formNombre.trim() || sesion?.nombre || 'Vecino de Santo Domingo',
+      // Nombre y RUT los entrega ClaveÚnica: el vecino no los edita.
+      nombre: perfil.nombre,
       email: formEmail.trim() ? formEmail.trim() : undefined,
       emailVerificado:
         Boolean(perfil.emailVerificado && formEmail.trim() === perfil.email),
       telefono: formTelefono.trim() ? formTelefono.trim() : undefined,
-      rut: formRut.trim() ? formRut.trim() : undefined,
+      rut: perfil.rut,
       direccion: formDireccion.trim() ? formDireccion.trim() : undefined,
       sector: formSector.trim() ? formSector.trim() : undefined,
       canalPreferido: formCanalPreferido.trim()
@@ -184,17 +186,14 @@ export default function Perfil() {
   const limpiarCamposOpcionales = () => {
     setFormEmail('');
     setFormTelefono('');
-    setFormRut('');
     setFormDireccion('');
     setFormSector('');
     setFormCanalPreferido('');
   };
 
   const cargarDatosEjemplo = () => {
-    setFormNombre(sesion?.nombre || 'Maximiliano Osorio');
     setFormEmail('maximiliano.vecino@santodomingo.cl');
     setFormTelefono('+56 9 8765 4321');
-    setFormRut('18.943.201-4');
     setFormDireccion('Calle Las Torcazas 420');
     setFormSector('Rocas de Santo Domingo');
     setFormCanalPreferido('WhatsApp / SMS');
@@ -695,19 +694,20 @@ export default function Perfil() {
             </div>
 
             <form onSubmit={guardarCambios} className="mt-5 space-y-4">
-              {/* Nombre (obligatorio para identificar) */}
+              {/* Nombre: lo entrega ClaveÚnica, no se edita */}
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
-                  Nombre Completo <span className="text-rose-500">*</span>
+                  Nombre Completo
                 </label>
                 <input
                   type="text"
-                  required
-                  value={formNombre}
-                  onChange={(e) => setFormNombre(e.target.value)}
-                  placeholder="Tu nombre completo"
-                  className="field"
+                  readOnly
+                  value={perfil.nombre}
+                  className="field cursor-not-allowed text-slate"
                 />
+                <p className="mt-1 text-[11px] text-slate-2">
+                  Viene de ClaveÚnica y no se puede modificar.
+                </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -747,20 +747,19 @@ export default function Perfil() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {/* RUT (opcional) */}
+                {/* RUT: lo entrega ClaveÚnica, no se edita */}
                 <div>
                   <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
-                    RUT de Identidad <span className="font-normal text-slate-2">(opcional)</span>
+                    RUT de Identidad
                   </label>
                   <input
                     type="text"
-                    value={formRut}
-                    onChange={(e) => setFormRut(e.target.value)}
-                    placeholder="12.345.678-9"
-                    className="field font-mono"
+                    readOnly
+                    value={perfil.rut ?? ''}
+                    className="field cursor-not-allowed font-mono text-slate"
                   />
                   <p className="mt-1 text-[11px] text-slate-2">
-                    Opcional. Se oculta si no se ingresa.
+                    Viene de ClaveÚnica y no se puede modificar.
                   </p>
                 </div>
 

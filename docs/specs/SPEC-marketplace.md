@@ -95,7 +95,7 @@ Igual que el DBML, con estos cambios:
 |---|---|
 | `monto_creditos` pasa de decimal(10,2) a **int** | `saldo_anterior` y `saldo_nuevo` ya son int; los valores de §7 son enteros |
 | Nueva `origen` enum(`entrega`, `estrellas`, `retirada`, `ajuste`), not null | Para mostrar el origen en la billetera y aplicar el tope por intercambio |
-| Nueva `solicitud_retiro_id` int, null, FK `solicitudes_retiro` | Para el 50 % por `retirada` (§7.3) |
+| Nueva `solicitud_retiro_id` int, null, FK `solicitudes_retiro` | Para el 50 % por retiro pagado (§7.3) |
 | Índice único (`articulo_id`, `origen`) | Tope "uno por intercambio": una entrega y un bono por artículo |
 | Índice único (`solicitud_retiro_id`) | Un otorgamiento por solicitud |
 
@@ -241,21 +241,25 @@ solo la función de cálculo.
 **Ejemplo con dos vecinos de prueba:** primer intercambio con 5 estrellas, 200 créditos; segundo,
 otros 200 (la pareja llega a 400); tercero, 0 con el motivo del tope por pareja.
 
-### 7.3 50 % por `retirada`
+### 7.3 50 % por retiro pagado
 
-La función queda programada y probada (50 créditos al solicitante, sujetos al tope mensual), pero
-**sin disparador conectado**. El lugar existe: `PATCH /api/admin/solicitudes/:id` pasa una solicitud
-de `derivada` a `retirada` (lo permite el núcleo a un funcionario). Conectarlo es del panel
-municipal (Benjamín), en la misma transacción que guarda el cambio de estado. Como un admin puede
-reabrir una solicitud `retirada`, el índice único `uq_creditos_solicitud` rechaza un segundo
-otorgamiento: eso se trata como "ya otorgado", no como error.
+El vecino recibe los créditos del retiro municipal **al momento del pago** de su solicitud (decisión
+del 13-10-2026; antes se pensó otorgarlos al llegar a `retirada`). Son 50 créditos al solicitante,
+sujetos al tope mensual.
+
+`CreditosService.otorgarPorPago(manager, solicitud)` está programada y probada. Falta el
+disparador: la confirmación del pago con Webpay (HU-44) debe llamarla **en la misma transacción**
+que deja `estado_pago = pagado`. Confirmar dos veces el mismo pago no otorga dos veces: la función
+devuelve el movimiento que ya existía, y el índice único `uq_creditos_solicitud` lo respalda.
+
+Los créditos por intercambios y regalos entre vecinos siguen las reglas de §7.2.
 
 ## 8. Fuera de alcance
 
 | Queda fuera | Por qué |
 |---|---|
 | Nombre real del vecino | Toca el núcleo y HU-38. Sprint 4 |
-| Disparador del 50 % por `retirada` | Se conecta en `PATCH /api/admin/solicitudes/:id`, que es del panel municipal (§7.3) |
+| Disparador del 50 % por retiro pagado | Se conecta en la confirmación del pago con Webpay, HU-44 (§7.3) |
 | Chat (HU-06) | Solo si sobra tiempo; es lo primero que se corta |
 | Notificación al recibir créditos | HU-23 está fuera del sprint |
 | Fotos en las solicitudes de retiro | Sprint 4; reutilizan el servicio de §6 |

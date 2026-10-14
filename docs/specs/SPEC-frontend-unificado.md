@@ -77,10 +77,12 @@ rol que no corresponde → `/inicio`. **Es una comodidad de interfaz, no una bar
 
 ### 2.3 Sesión en el front
 
-`SessionContext` expone `{ sesion: { ciudadanoId, nombre, rol, devLogin } | null, cargando, entrarDev(id), salir() }`:
+`SessionContext` expone `{ sesion: { ciudadanoId, nombre, rol, devLogin } | null, cargando, entrarDev(id, nombre?), salir() }`:
 
 - Al montar: `GET /api/sesion`. 200 → sesión; 401 → `null`.
-- `entrarDev(id)`: `POST /api/auth/dev/login`, y luego vuelve a pedir `/api/sesion`.
+- `entrarDev(id, nombre?)`: `POST /api/auth/dev/login`, y luego vuelve a pedir `/api/sesion`.
+  En `/login`, cada acceso de desarrollo pide antes nombre y RUT (paso provisorio): el nombre
+  va a la sesión y el RUT queda solo en el navegador, en los datos locales del perfil.
 - `salir()`: según `devLogin` (criterio 7).
 - Ante un 401 en cualquier llamada (sesión vencida o cerrada por inactividad): `sesion = null` →
   `/login`. `apiFetch` se comparte entre `api/arca.ts` y `admin/api/admin.ts`, y avisa al contexto.

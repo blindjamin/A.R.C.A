@@ -153,6 +153,23 @@ describe('SesionController', () => {
       expect(sesionService.iniciar).not.toHaveBeenCalled();
     });
 
+    it('con nombre de prueba, lo deja en la sesión sin espacios sobrantes', async () => {
+      process.env.ALLOW_DEV_LOGIN = 'true';
+      const req = { ip: '10.0.0.1', headers: {} } as unknown as Request;
+      const { res } = crearRespuestaFalsa();
+
+      await controlador.loginDev(
+        { ciudadanoId: 'c1', nombre: '  Ana Pérez ' },
+        req,
+        res,
+      );
+
+      expect(sesionService.iniciar).toHaveBeenCalledWith(
+        expect.objectContaining({ nombre: 'Ana Pérez' }),
+        'dev',
+      );
+    });
+
     it('con el flag activo, inicia la sesión con origen dev y deja la cookie con maxAge y HttpOnly', async () => {
       process.env.ALLOW_DEV_LOGIN = 'true';
       const req = {

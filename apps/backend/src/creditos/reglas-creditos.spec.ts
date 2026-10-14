@@ -2,7 +2,7 @@ import {
   aplicarTopes,
   bonoPorEstrellas,
   creditosPorEntrega,
-  creditosPorRetirada,
+  creditosPorRetiro,
   inicioDeMesEnChile,
   TOPE_MENSUAL,
   TOPE_PAREJA,
@@ -25,7 +25,7 @@ describe('montos por origen', () => {
   });
 
   it('el retiro municipal da el 50 % de VALOR_BASE', () => {
-    expect(creditosPorRetirada()).toBe(50);
+    expect(creditosPorRetiro()).toBe(50);
   });
 });
 

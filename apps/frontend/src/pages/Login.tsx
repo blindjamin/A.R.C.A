@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react';
+import { useState, type ComponentType, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 import { useSession } from '../auth/SessionContext';
@@ -49,11 +49,33 @@ export default function Login() {
   const ingresoFallido =
     searchParams.get('error') === ERROR_INGRESO_CLAVE_UNICA;
 
-  const entrar = (ciudadanoId: string) => {
-    entrarDev(ciudadanoId)
-      // El gate de "/" decide a dónde ir según el rol de la sesión.
-      .then(() => navigate('/'))
-      .catch((e: Error) => window.alert(e.message));
+  // Paso provisorio de los accesos de desarrollo: pide los datos que en
+  // producción entrega ClaveÚnica, para probar el perfil sin ella.
+  const [identidadDev, setIdentidadDev] = useState<string | null>(null);
+  const [nombreDev, setNombreDev] = useState('');
+  const [rutDev, setRutDev] = useState('');
+
+  const entrar = (e: FormEvent) => {
+    e.preventDefault();
+    if (!identidadDev) return;
+    entrarDev(identidadDev, nombreDev.trim())
+      .then(() => {
+        // El RUT no viaja al backend (que nunca guarda el RUN): queda solo en
+        // este navegador, en los datos locales del perfil.
+        try {
+          const clave = `arca_perfil_vecino_${identidadDev}`;
+          const previo = JSON.parse(localStorage.getItem(clave) ?? '{}') as object;
+          localStorage.setItem(
+            clave,
+            JSON.stringify({ ...previo, nombre: nombreDev.trim(), rut: rutDev.trim() }),
+          );
+        } catch {
+          // Sin almacenamiento local el perfil muestra sus datos de ejemplo.
+        }
+        // El gate de "/" decide a dónde ir según el rol de la sesión.
+        navigate('/');
+      })
+      .catch((err: Error) => window.alert(err.message));
   };
 
   return (
@@ -63,7 +85,7 @@ export default function Login() {
         backgroundImage: 'linear-gradient(165deg,#0f6b45,#138a57,#1bb46f)',
       }}
     >
-      <div className="relative mx-auto flex h-dvh w-full flex-col justify-between overflow-hidden px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] md:h-auto md:flex-row md:items-center md:justify-between md:max-w-5xl md:px-16 md:py-20 md:gap-16">
+      <div className="relative mx-auto flex h-dvh w-full flex-col justify-between overflow-hidden px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))] lg:h-auto lg:flex-row lg:items-center lg:justify-between lg:max-w-6xl lg:px-16 lg:py-20 lg:gap-16">
         <div className="absolute right-4 top-4 md:right-6 md:top-6">
           <BarraAccesibilidad />
         </div>
@@ -72,14 +94,14 @@ export default function Login() {
         {/* En celular la pantalla no se desliza: si el texto no cabe (letra grande,
             pasos nuevos), solo esta parte se desplaza y se desvanece detrás de
             los botones, que quedan siempre a la vista. */}
-        <div className="-mx-6 mt-12 min-h-0 flex-1 overflow-y-auto px-6 pb-6 [scrollbar-width:none] text-center [mask-image:linear-gradient(to_bottom,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] pt-4 md:pt-0 md:mx-0 md:mt-0 md:max-w-lg md:flex-none md:overflow-visible md:px-0 md:pb-0 md:text-left md:[mask-image:none]">
-          <div className="mx-auto md:mx-0 mb-4 md:mb-6 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
+        <div className="-mx-6 mt-12 min-h-0 flex-1 overflow-y-auto px-6 pb-6 [scrollbar-width:none] text-center [mask-image:linear-gradient(to_bottom,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] pt-4 lg:pt-0 lg:mx-0 lg:mt-0 lg:max-w-lg lg:min-w-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:text-left lg:[mask-image:none]">
+          <div className="mx-auto lg:mx-0 mb-4 md:mb-6 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
             <IconLeaf className="h-8 w-8 md:h-10 md:w-10 text-white" />
           </div>
           <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
             A.R.C.A.
           </h1>
-          <p className="mx-auto md:mx-0 mt-3 md:mt-6 max-w-xs md:max-w-md text-green-50/90 text-sm md:text-base leading-relaxed">
+          <p className="mx-auto lg:mx-0 mt-3 md:mt-6 max-w-xs md:max-w-md text-green-50/90 text-sm md:text-base leading-relaxed">
             Tus voluminosos tienen una segunda vida. Gestión de residuos para
             Santo Domingo.
           </p>
@@ -105,7 +127,7 @@ export default function Login() {
         </div>
 
         {/* CTAs */}
-        <div className="shrink-0 pt-2 md:pt-0 space-y-3 w-full max-w-md md:shrink-0 md:bg-white/10 md:backdrop-blur-md md:p-8 md:rounded-2xl md:border md:border-white/20">
+        <div className="mx-auto shrink-0 pt-2 space-y-3 w-full max-w-md lg:mx-0 lg:bg-white/10 lg:backdrop-blur-md lg:p-8 lg:rounded-2xl lg:border lg:border-white/20">
           {/* Botón oficial de ClaveÚnica. No reemplazar por uno propio ni
               cambiarle los estilos: la certificación exige este botón tal cual. */}
           {ingresoFallido && (
@@ -132,30 +154,78 @@ export default function Login() {
           {/* Accesos de desarrollo: solo en `npm run dev` (criterio 6). Simulan
               las tres identidades de ClaveÚnica para probar el control de
               acceso por rol sin depender del municipio. */}
-          {import.meta.env.DEV && (
+          {import.meta.env.DEV && identidadDev && (
+            <form onSubmit={entrar} className="space-y-3">
+              <p className="text-center text-xs text-white/85">
+                Acceso de desarrollo: ingresa los datos que entregaría ClaveÚnica.
+              </p>
+              <label className="block text-xs font-medium text-white/90">
+                Nombre completo
+                <input
+                  type="text"
+                  required
+                  maxLength={100}
+                  autoFocus
+                  value={nombreDev}
+                  onChange={(e) => setNombreDev(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-white/30 bg-white px-4 py-3 text-sm text-ink"
+                />
+              </label>
+              <label className="block text-xs font-medium text-white/90">
+                RUT
+                <input
+                  type="text"
+                  required
+                  maxLength={12}
+                  pattern="[0-9.]{7,10}-[0-9kK]"
+                  title="Formato: 12.345.678-9"
+                  placeholder="12.345.678-9"
+                  value={rutDev}
+                  onChange={(e) => setRutDev(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-white/30 bg-white px-4 py-3 font-mono text-sm text-ink"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIdentidadDev(null)}
+                  className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
+                >
+                  Volver
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-pill bg-white py-3 text-sm font-bold text-green-700 transition-colors hover:bg-white/90"
+                >
+                  Entrar
+                </button>
+              </div>
+            </form>
+          )}
+          {import.meta.env.DEV && !identidadDev && (
             <>
               <div className="grid grid-cols-3 gap-2">
                 <button
-                  onClick={() => entrar(IDENTIDADES_DEV.vecino)}
+                  onClick={() => setIdentidadDev(IDENTIDADES_DEV.vecino)}
                   className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
                 >
                   Vecino (dev)
                 </button>
                 <button
-                  onClick={() => entrar(IDENTIDADES_DEV.funcionario)}
+                  onClick={() => setIdentidadDev(IDENTIDADES_DEV.funcionario)}
                   className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
                 >
                   Funcionario (dev)
                 </button>
                 <button
-                  onClick={() => entrar(IDENTIDADES_DEV.admin)}
+                  onClick={() => setIdentidadDev(IDENTIDADES_DEV.admin)}
                   className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
                 >
                   Admin (dev)
                 </button>
               </div>
 
-              <p className="hidden pt-2 text-center text-xs text-green-100/70 md:block">
+              <p className="hidden pt-2 text-center text-xs text-green-100/70 lg:block">
                 En local el botón de ClaveÚnica no funciona (no acepta
                 localhost): se entra por los accesos de desarrollo. Tras
                 autenticar, si la persona es funcionaria o
