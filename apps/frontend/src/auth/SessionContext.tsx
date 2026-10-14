@@ -21,7 +21,7 @@ export interface Sesion {
 interface SessionContextValue {
   sesion: Sesion | null;
   cargando: boolean;
-  entrarDev: (ciudadanoId: string) => Promise<void>;
+  entrarDev: (ciudadanoId: string, nombre?: string) => Promise<void>;
   salir: () => Promise<void>;
   recargar: () => Promise<void>;
 }
@@ -67,11 +67,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const entrarDev = useCallback(
-    async (ciudadanoId: string) => {
+    async (ciudadanoId: string, nombre?: string) => {
       const res = await apiFetch('/api/auth/dev/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ciudadanoId }),
+        body: JSON.stringify({ ciudadanoId, nombre }),
       });
       if (!res.ok) {
         throw new Error(`Error ${res.status} en el login de desarrollo`);
