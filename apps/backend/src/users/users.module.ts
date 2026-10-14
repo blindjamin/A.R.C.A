@@ -7,7 +7,6 @@ import {
   UsuarioAdministrador,
   UsuarioCiudadano,
 } from '../core';
-import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
 // @Global(): AuthModule (en src/core) inyecta PERFIL_ACCESO_RESOLVER sin
@@ -25,7 +24,6 @@ import { UsersService } from './users.service';
       SesionAdministrador,
     ]),
   ],
-  controllers: [UsersController],
   providers: [
     UsersService,
     { provide: PERFIL_ACCESO_RESOLVER, useExisting: UsersService },

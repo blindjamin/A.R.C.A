@@ -124,7 +124,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 ### Fase 6 — Panel Municipal (desktop · EP-03)
 > App separada / layout desktop: `Sidebar + Topbar`.
-- [x] **Login diferido** (`/login` → gate `/`): ClaveÚnica primero; según `perfil-acceso`
+- [x] **Login diferido** (`/login` → gate `/`): ClaveÚnica primero; según el rol de la sesión (`GET /api/sesion`)
       el funcionario elige contexto y el ciudadano va directo a la PWA. `/admin` con `RequireAdmin`.
 - [x] **Gestión de solicitudes base** (`/admin`): listar, filtrar por estado, detalle y
       cambiar estado en cualquier dirección (reversible, para pruebas). Falta layout desktop pulido.
