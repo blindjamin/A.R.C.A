@@ -209,6 +209,41 @@ Quedan para la revisión de seguridad acordada después de reunificar:
 - Limpieza periódica de sesiones vencidas; eliminar `sesiones_administrador` (sin uso) y
   `GET /api/usuarios/:id/perfil-acceso` (reemplazado por `GET /api/sesion`).
 - Renombrar `jwt_token_hash` → `token_hash` cuando haya una migración que lo justifique.
+- Versión del pepper junto al identificador, para poder rotarlo (§3.6, D-PEP-4).
+
+### 3.6 Decisión: gestión del pepper del RUN por municipalidad
+
+> **Decidido:** 2026-10-13 · **Responsable:** Miguel Segovia (encargado de seguridad)
+> **Contexto:** A.R.C.A. hoy opera solo en Santo Domingo, pero se ofrecerá a otras municipalidades.
+
+El RUN se guarda como `HMAC-SHA256(pepper, "numero-DV")` en `usuarios_ciudadanos.clave_unica_id`
+(`clave-unica.service.ts#derivarIdentificador`). El código es público y el mismo en todas las
+instalaciones; **la protección depende solo de que el pepper sea secreto.** Sin él, quien obtenga un
+volcado de la base no puede recorrer los ~30 millones de RUN válidos para revertir los
+identificadores.
+
+| # | Decisión | Por qué |
+|---|---|---|
+| D-PEP-1 | **Un pepper distinto por municipalidad**, generado al instalarla. Nunca se copia el de otra instalación | Si se compromete una instalación, las demás no quedan expuestas. Además, la misma persona tiene identificadores distintos en cada comuna, así que no se pueden cruzar bases para seguirla entre municipios (minimización, Ley 21.719) |
+| D-PEP-2 | **Se genera en el propio servidor** (`randomBytes(32)`, ver [`DEPLOY_CPANEL.md`](DEPLOY_CPANEL.md)) y se pega directo en la configuración. No viaja por chat, correo ni drive compartido | Cada copia en tránsito es una filtración posible |
+| D-PEP-3 | **Custodia acotada:** lo conocen solo quien administra el servidor de esa municipalidad y un respaldo sellado (gestor de contraseñas o sobre en la municipalidad) a cargo de una o dos personas designadas. El equipo de desarrollo no lo necesita: en local cada uno usa un pepper de prueba propio | Si se pierde, nadie vuelve a ser reconocido y todos pierden su historial; si se filtra, el identificador deja de proteger el RUN |
+| D-PEP-4 | **Pendiente, antes de sumar la segunda municipalidad:** guardar junto al identificador qué versión de pepper se usó | Hoy el pepper no se puede rotar sin desconocer a todos. Con la versión guardada, se rota recalculando el identificador de cada persona en su siguiente ingreso. Es un cambio barato ahora y caro con muchos usuarios registrados |
+
+**Lo que el pepper no cubre:** quien tenga acceso completo al servidor puede leer el pepper y la base
+a la vez. El pepper protege frente a volcados, respaldos filtrados e inyección SQL, no frente a un
+administrador del servidor comprometido. Por eso el acceso al cPanel de cada municipalidad también es
+parte de este control.
+
+**Costo aceptado:** con peppers separados, el historial de una persona no se puede reconocer entre
+comunas. Si algún día se quiere eso, hay que decidirlo de forma explícita, porque implica un
+identificador común entre municipalidades.
+
+**Checklist al instalar en una municipalidad nueva:**
+
+- [ ] Generar un pepper nuevo en su servidor (nunca reutilizar el de Santo Domingo ni el de pruebas).
+- [ ] Respaldarlo con su custodia designada antes de abrir el registro de vecinos.
+- [ ] Revisar quién tiene acceso al cPanel de esa instalación.
+- [ ] Confirmar que D-PEP-4 ya está implementada.
 
 ## 4. Registro de cambios de este documento
 
@@ -224,3 +259,4 @@ Quedan para la revisión de seguridad acordada después de reunificar:
 | 2026-09-26 | SU-3 (PR #66): el callback de ClaveÚnica crea o reusa al ciudadano (un desactivado recibe 401), emite la sesión y audita el `LOGIN`; el logout de ClaveÚnica revoca la sesión. C4 ✅ |
 | 2026-09-27 | Sesión 2b + SU-4: la validación exige ciudadano activo (y revoca si no lo está) y respeta `fecha_expiracion`; volver a entrar revoca la sesión anterior del navegador; el primer ingreso simultáneo ya no da 500; se elimina el Bearer de desarrollo. **C8 ✅: D1 queda cerrada.** Verificado en ejecución: Bearer → 401 con `ALLOW_DEV_LOGIN=true`, cookie anterior → 401 tras un nuevo login, `fecha_expiracion` vencida → 401, ciudadano desactivado → 401 y sesión revocada |
 | 2026-10-06 | Revisión previa a la certificación de ClaveÚnica (credenciales recibidas): se agrega el **cierre implícito** en el callback. Antes, un ingreso rechazado (p. ej. ciudadano desactivado) respondía 401 en JSON y dejaba abierta la sesión de ClaveÚnica, que el manual exige cerrar |
+| 2026-10-13 | §3.6: decisión de gestión del pepper del RUN de cara a otras municipalidades (un pepper por instalación, generado en el servidor, custodia acotada, versión del pepper pendiente antes de la segunda municipalidad) |
