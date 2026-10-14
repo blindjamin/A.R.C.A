@@ -3,7 +3,9 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { MailService } from '../../mail/mail.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -70,6 +72,8 @@ export class RevisionAdminService {
     @InjectRepository(NotaSolicitud)
     private readonly notaRepository: Repository<NotaSolicitud>,
     private readonly auditoriaService: AuditoriaService,
+    @Optional()
+    private readonly mailService?: MailService,
   ) {}
 
   async tomar(id: number, user: AuthUser): Promise<{ tomadaHasta: Date }> {
@@ -168,6 +172,31 @@ export class RevisionAdminService {
       },
       origen,
     });
+
+    // Notificación por correo al vecino si tiene email verificado/registrado
+    if (this.mailService) {
+      this.mailService
+        .obtenerCorreoCiudadano(solicitud.usuarioCiudadanoId)
+        .then((correo) => {
+          if (correo) {
+            return this.mailService!.notificarCambioEstado(
+              correo,
+              {
+                id: solicitud.id,
+                residuoNombre: solicitud.residuoCatalogo?.nombre,
+                categoria: solicitud.residuoCatalogo?.categoria,
+                direccion: solicitud.direccionAnonimizada,
+                fechaSolicitud: solicitud.fechaSolicitud,
+              },
+              dto.decision,
+              dto.comentario,
+            );
+          }
+        })
+        .catch(() => {
+          // El fallo de correo no interrumpe el guardado municipal
+        });
+    }
 
     return solicitud;
   }

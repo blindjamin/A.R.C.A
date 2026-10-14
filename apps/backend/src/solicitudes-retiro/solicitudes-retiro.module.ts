@@ -8,6 +8,7 @@ import {
   SolicitudRetiro,
   UsuarioCiudadano,
 } from '../core';
+import { MailModule } from '../mail/mail.module';
 import { SolicitudesRetiroController } from './solicitudes-retiro.controller';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 
@@ -21,6 +22,7 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
     ResiduosModule,
     AuthModule,
     AuditoriaModule,
+    MailModule,
   ],
   controllers: [SolicitudesRetiroController],
   providers: [SolicitudesRetiroService],

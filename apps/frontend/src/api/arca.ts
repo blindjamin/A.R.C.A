@@ -69,6 +69,7 @@ export interface CrearSolicitudInput {
   usuarioCiudadanoId: string;
   residuoCatalogoId: number;
   descripcion?: string;
+  emailContacto?: string;
 }
 
 // --- Overlay visual ---------------------------------------------------------
@@ -171,4 +172,41 @@ export function reenviarSolicitud(
 
 // Los fetchers de admin (solicitudes globales, auditoría) viven en
 // admin/api/admin.ts — se movieron con la migración del panel.
+
+export interface EnviarCodigoRespuesta {
+  ok: boolean;
+  mensaje: string;
+  codigoDev?: string;
+}
+
+export interface VerificarCodigoRespuesta {
+  ok: boolean;
+  verificado: boolean;
+  mensaje: string;
+}
+
+export async function solicitarCodigoCorreo(
+  email: string,
+  usuarioCiudadanoId?: string,
+): Promise<EnviarCodigoRespuesta> {
+  const res = await apiFetch(`${API_URL}/mail/enviar-codigo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, usuarioCiudadanoId }),
+  });
+  return handle<EnviarCodigoRespuesta>(res);
+}
+
+export async function verificarCodigoCorreo(
+  email: string,
+  codigo: string,
+  usuarioCiudadanoId?: string,
+): Promise<VerificarCodigoRespuesta> {
+  const res = await apiFetch(`${API_URL}/mail/verificar-codigo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, codigo, usuarioCiudadanoId }),
+  });
+  return handle<VerificarCodigoRespuesta>(res);
+}
 

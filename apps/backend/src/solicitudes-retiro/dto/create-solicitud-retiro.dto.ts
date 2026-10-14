@@ -1,4 +1,5 @@
 import {
+  IsEmail,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -32,4 +33,8 @@ export class CreateSolicitudRetiroDto {
   @IsOptional()
   @IsString()
   longitudCapturada?: string;
+
+  @IsOptional()
+  @IsEmail({}, { message: 'El correo de contacto no es válido' })
+  emailContacto?: string;
 }
