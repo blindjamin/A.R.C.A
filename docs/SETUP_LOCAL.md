@@ -115,6 +115,10 @@ Habilita `POST /api/auth/dev/login`. **Solo en local:** el backend se niega a ar
 está junto con `NODE_ENV=production`, y nunca va en el servidor. `scripts/setup.ps1` todavía no lo
 agrega solo.
 
+Al elegir un acceso de desarrollo, `/login` pide un **nombre y un RUT de prueba** (los datos que
+en producción entrega ClaveÚnica). Usar datos ficticios: el nombre queda en la sesión y el RUT
+solo en el navegador. Funcionario y admin muestran igual el nombre de su ficha municipal.
+
 Ejecutar migraciones y arrancar:
 
 ```bash

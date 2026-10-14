@@ -86,6 +86,7 @@ export class SesionController {
     const { valorCookie, maxAgeMs } = await this.sesionService.iniciar(
       {
         usuarioCiudadanoId: dto.ciudadanoId,
+        nombre: dto.nombre?.trim() || undefined,
         ip: req.ip,
         userAgent: req.headers['user-agent'],
       },

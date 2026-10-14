@@ -4,7 +4,7 @@ export enum OrigenMovimientoCreditos {
   ENTREGA = 'entrega',
   /** Bono por una calificación de 4 o 5 estrellas. */
   ESTRELLAS = 'estrellas',
-  /** Solicitud de retiro que llegó a `retirada`. */
+  /** Retiro municipal: se otorga al pagarse la solicitud. */
   RETIRADA = 'retirada',
   AJUSTE = 'ajuste',
 }

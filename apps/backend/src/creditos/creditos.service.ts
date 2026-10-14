@@ -4,6 +4,7 @@ import { type EntityManager, In, MoreThanOrEqual, Repository } from 'typeorm';
 import {
   type ArticuloMarketplace,
   OrigenMovimientoCreditos,
+  type SolicitudRetiro,
   TipoMovimientoCreditos,
   TransaccionCircularCredits,
   UsuarioCiudadano,
@@ -12,7 +13,7 @@ import {
   aplicarTopes,
   bonoPorEstrellas,
   creditosPorEntrega,
-  creditosPorRetirada,
+  creditosPorRetiro,
   inicioDeMesEnChile,
   type TopeAlcanzado,
 } from './reglas-creditos';
@@ -123,20 +124,21 @@ export class CreditosService {
   }
 
   /**
-   * 50 % para quien pidió un retiro que llegó a `retirada`, solo con el tope
-   * mensual. Sin disparador todavía: lo conecta el panel municipal (spec §7.3).
+   * 50 % para quien pidió el retiro, al pagarse la solicitud, solo con el tope
+   * mensual. Se llama en la misma transacción que deja el pago en `pagado`
+   * (spec §7.3). Confirmar dos veces el mismo pago no otorga dos veces:
+   * devuelve el movimiento que ya existía.
    */
-  otorgarPorRetirada(
+  otorgarPorPago(
     manager: EntityManager,
-    solicitudRetiroId: number,
-    ciudadanoId: string,
+    solicitud: Pick<SolicitudRetiro, 'id' | 'usuarioCiudadanoId'>,
   ): Promise<TransaccionCircularCredits> {
     return this.otorgar(manager, {
-      ciudadanoId,
-      monto: creditosPorRetirada(),
+      ciudadanoId: solicitud.usuarioCiudadanoId,
+      monto: creditosPorRetiro(),
       origen: OrigenMovimientoCreditos.RETIRADA,
-      motivo: `Retiro municipal de la solicitud #${solicitudRetiroId}`,
-      solicitudRetiroId,
+      motivo: `Retiro municipal de la solicitud #${solicitud.id}`,
+      solicitudRetiroId: solicitud.id,
     });
   }
 
@@ -158,6 +160,14 @@ export class CreditosService {
       order: { id: 'ASC' },
       lock: { mode: 'pessimistic_write' },
     });
+
+    // Con el vecino ya bloqueado, nadie más puede estar otorgando lo mismo.
+    if (datos.solicitudRetiroId !== undefined) {
+      const yaOtorgado = await manager.findOne(TransaccionCircularCredits, {
+        where: { solicitudRetiroId: datos.solicitudRetiroId },
+      });
+      if (yaOtorgado) return yaOtorgado;
+    }
 
     const ahora = new Date();
     const inicioMes = inicioDeMesEnChile(ahora);

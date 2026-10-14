@@ -22,11 +22,20 @@ function montar({
   ganadoMes = 0,
   generadoPareja = 0,
   historial = [] as Partial<TransaccionCircularCredits>[],
+  yaOtorgado = null as Partial<TransaccionCircularCredits> | null,
 } = {}) {
   const manager = {
     find: jest.fn(() => Promise.resolve([])),
-    findOne: jest.fn(() =>
-      Promise.resolve(saldo === null ? null : { saldoNuevo: saldo }),
+    // Por solicitud se busca el otorgamiento previo; si no, el último saldo.
+    findOne: jest.fn(
+      (_entidad: unknown, { where }: { where: Record<string, unknown> }) =>
+        Promise.resolve(
+          'solicitudRetiroId' in where
+            ? yaOtorgado
+            : saldo === null
+              ? null
+              : { saldoNuevo: saldo },
+        ),
     ),
     // La suma con una lista de condiciones es la de la pareja.
     sum: jest.fn((_entidad: unknown, _columna: string, where: unknown) =>
@@ -161,11 +170,14 @@ describe('CreditosService.otorgarPorEstrellas', () => {
   });
 });
 
-describe('CreditosService.otorgarPorRetirada', () => {
+describe('CreditosService.otorgarPorPago', () => {
   it('da 50 al solicitante, sin tope por pareja', async () => {
     const { service, em, manager } = montar({ saldo: 0 });
 
-    const movimiento = await service.otorgarPorRetirada(em, 12, RECIBE);
+    const movimiento = await service.otorgarPorPago(em, {
+      id: 12,
+      usuarioCiudadanoId: RECIBE,
+    });
 
     expect(movimiento).toMatchObject({
       usuarioCiudadanoId: RECIBE,
@@ -180,6 +192,19 @@ describe('CreditosService.otorgarPorRetirada', () => {
       unknown,
     ][];
     expect(sumas.some(([, , where]) => Array.isArray(where))).toBe(false);
+  });
+
+  it('si la solicitud ya tiene su otorgamiento, lo devuelve sin sumar otro', async () => {
+    const previo = { id: 9, solicitudRetiroId: 12, montoCreditos: 50 };
+    const { service, em, manager } = montar({ saldo: 50, yaOtorgado: previo });
+
+    const movimiento = await service.otorgarPorPago(em, {
+      id: 12,
+      usuarioCiudadanoId: RECIBE,
+    });
+
+    expect(movimiento).toBe(previo);
+    expect(manager.save).not.toHaveBeenCalled();
   });
 });
 

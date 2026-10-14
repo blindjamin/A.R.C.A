@@ -56,12 +56,4 @@ export const MODULOS: Modulo[] = [
     activo: true,
     epica: 'EP-04',
   },
-  {
-    id: 'panel-municipal',
-    titulo: 'Panel municipal',
-    descripcion: 'Métricas, mapa de calor y gestión de retiros (funcionarios).',
-    icono: 'admin',
-    activo: false,
-    epica: 'EP-03',
-  },
 ];

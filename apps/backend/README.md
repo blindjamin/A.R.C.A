@@ -134,9 +134,10 @@ Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts
 - El saldo nunca se edita: cada movimiento guarda el saldo anterior y el nuevo. Otorgar bloquea las
   filas de los dos vecinos (siempre en el mismo orden) antes de leer el saldo y los topes, así dos
   otorgamientos simultáneos no leen el mismo saldo.
-- El 50 % por una solicitud `retirada` (`CreditosService.otorgarPorRetirada`) está programado pero
-  **sin disparador**: se conecta en `PATCH /api/admin/solicitudes/:id` (`derivada → retirada`),
-  que es del panel.
+- El 50 % por un retiro municipal se otorga **al pagarse la solicitud**
+  (`CreditosService.otorgarPorPago`). Está programado y probado pero **sin disparador**: lo llama
+  la confirmación del pago con Webpay (HU-44), en la misma transacción que deja el pago en
+  `pagado`. Confirmar dos veces no otorga dos veces.
 
 ### Endpoints de sesión
 
@@ -147,7 +148,7 @@ Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts
 | `GET` | `/api/auth/clave-unica/logout` | Revoca la sesión, borra `arca_sesion` y redirige al logout de ClaveÚnica |
 | `GET` | `/api/sesion` | `{ ciudadanoId, nombre, rol, devLogin }` de la sesión actual (401 sin sesión) |
 | `POST` | `/api/auth/logout` | Revoca la sesión y borra la cookie (204) |
-| `POST` | `/api/auth/dev/login` | Solo con `ALLOW_DEV_LOGIN=true` (si no, 404). Body `{ ciudadanoId }`; crea la sesión y audita `LOGIN` con origen `dev` |
+| `POST` | `/api/auth/dev/login` | Solo con `ALLOW_DEV_LOGIN=true` (si no, 404). Body `{ ciudadanoId, nombre? }`; crea la sesión y audita `LOGIN` con origen `dev`. `nombre` es opcional y queda en la sesión, como el que entrega ClaveÚnica |
 
 ### Endpoints del panel (`/api/admin/...`)
 
@@ -204,7 +205,7 @@ Cada inicio de sesión queda en auditoría como `LOGIN`, con el origen (`clave_u
 y el user-agent; nunca el RUN, el nombre ni la cookie.
 
 En desarrollo, con `ALLOW_DEV_LOGIN=true` en `.env.local`, se entra sin ClaveÚnica con
-`POST /api/auth/dev/login { ciudadanoId }` usando los UUID de demo (migraciones): ciudadano
+`POST /api/auth/dev/login { ciudadanoId, nombre? }` usando los UUID de demo (migraciones): ciudadano
 `…0001`, doble rol funcionario `…0002`, doble rol administrador `…0003`. Ese login también deja
 la cookie `arca_sesion`: con curl, guardarla con `-c` y enviarla con `-b`.
 La app **no arranca** si `ALLOW_DEV_LOGIN=true` y `NODE_ENV=production`.
