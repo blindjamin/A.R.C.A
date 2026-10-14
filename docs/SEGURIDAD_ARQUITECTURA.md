@@ -159,8 +159,8 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
 |---|---|---|---|
 | Suplantación de identidad | Adivinar o robar el identificador | C4 (secreto de 256 bits, hash en la base), C7, C8 | ✅ |
 | Robo de sesión por XSS | Script inyectado lee la credencial | Cookie `HttpOnly` (C4) | ✅ |
-| CSRF | Sitio externo provoca una acción con la cookie de la víctima | `SameSite=Lax` (C4); chequeo de `Origin` en métodos que modifican | ✅ parcial (Lax) · ⏳ `Origin` |
-| Escalada de privilegios (vecino → panel) | Llamar directamente a `/api/admin/*` | `RolesGuard` en el backend; test que recorre todas las rutas `/admin` | ✅ guard · ⏳ test |
+| CSRF | Sitio externo provoca una acción con la cookie de la víctima | `SameSite=Lax` (C4); chequeo de `Origin` en métodos que modifican (`core/seguridad/origen.ts`) | ✅ |
+| Escalada de privilegios (vecino → panel) | Llamar directamente a `/api/admin/*` | `RolesGuard` en el backend; test que recorre todas las rutas `/admin` (`seguridad-rutas-admin.spec.ts`) | ✅ |
 | Acceso a datos de otro vecino (IDOR) | Cambiar el id en la URL | Chequeo de dueño en el servicio | ✅ · ⏳ test |
 | Sesión abandonada en un equipo municipal | Terminal compartido | Cierre por inactividad de 30 minutos (C4) | ✅ |
 | Cuenta dada de baja que sigue operando | Sesión abierta antes de la baja | La validación exige `usuarios_ciudadanos.activo` y revoca la sesión (C4) | ✅ |
@@ -201,13 +201,10 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
 
 Quedan para la revisión de seguridad acordada después de reunificar:
 
-- Chequeo de `Origin` en POST/PATCH/DELETE (complementa `SameSite=Lax`).
-- Test automático que recorra **todas** las rutas `/api/admin/*` y falle si alguna queda sin rol.
 - Test de IDOR sobre las rutas del vecino.
 - Respuestas con lista blanca de campos (serialización explícita).
-- Cabeceras de seguridad (CSP, HSTS, `X-Content-Type-Options`), en el proxy inverso o en la app.
-- Limpieza periódica de sesiones vencidas; eliminar `sesiones_administrador` (sin uso) y
-  `GET /api/usuarios/:id/perfil-acceso` (reemplazado por `GET /api/sesion`).
+- Cabeceras de seguridad del **frontend** (CSP de la página, en el `.htaccess`). Las de la API ya están.
+- Limpieza periódica de sesiones vencidas; eliminar `sesiones_administrador` (sin uso).
 - Renombrar `jwt_token_hash` → `token_hash` cuando haya una migración que lo justifique.
 - Versión del pepper junto al identificador, para poder rotarlo (§3.6, D-PEP-4).
 
@@ -260,3 +257,4 @@ identificador común entre municipalidades.
 | 2026-09-27 | Sesión 2b + SU-4: la validación exige ciudadano activo (y revoca si no lo está) y respeta `fecha_expiracion`; volver a entrar revoca la sesión anterior del navegador; el primer ingreso simultáneo ya no da 500; se elimina el Bearer de desarrollo. **C8 ✅: D1 queda cerrada.** Verificado en ejecución: Bearer → 401 con `ALLOW_DEV_LOGIN=true`, cookie anterior → 401 tras un nuevo login, `fecha_expiracion` vencida → 401, ciudadano desactivado → 401 y sesión revocada |
 | 2026-10-06 | Revisión previa a la certificación de ClaveÚnica (credenciales recibidas): se agrega el **cierre implícito** en el callback. Antes, un ingreso rechazado (p. ej. ciudadano desactivado) respondía 401 en JSON y dejaba abierta la sesión de ClaveÚnica, que el manual exige cerrar |
 | 2026-10-13 | §3.6: decisión de gestión del pepper del RUN de cara a otras municipalidades (un pepper por instalación, generado en el servidor, custodia acotada, versión del pepper pendiente antes de la segunda municipalidad) |
+| 2026-10-13 | Revisión de seguridad: **chequeo de `Origin`** en POST/PUT/PATCH/DELETE (un subdominio de `santodomingo.cl` es "el mismo sitio" para `SameSite=Lax`; ahora solo pasa `FRONTEND_URL`, la vuelta de Webpay deberá quedar exenta); **cabeceras de seguridad** en la API (nosniff, `X-Frame-Options`, `Referrer-Policy`, CSP `default-src 'none'`, CORP y HSTS en producción); **test de escalada** que recorre todos los controladores y falla si una ruta `/admin` no exige rol municipal (verificado quitando `@Roles` a un controlador: el test falla); se elimina `GET /api/usuarios/:id/perfil-acceso`, sin uso desde `GET /api/sesion` |

@@ -52,7 +52,7 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 | `DB_DATABASE` | `arca_dev` | Base de datos |
 | `PORT` | `3000` | Puerto de la API |
 | `NODE_ENV` | `development` | Entorno |
-| `FRONTEND_URL` | `http://localhost:5173` | Orígenes CORS permitidos (separados por coma) |
+| `FRONTEND_URL` | `http://localhost:5173` | Orígenes del frontend (separados por coma): CORS y únicos aceptados en POST/PUT/PATCH/DELETE (chequeo de `Origin`). En local con otro puerto o un túnel, agregarlo aquí |
 | `UPLOADS_DIR` | vacío (`./uploads`) | Carpeta de las fotos del marketplace. En el servidor, fuera de `public_html`: solo se entregan por la API |
 
 `.env.local` **no se versiona** (está en `.gitignore`). La plantilla es `.env.example`.
@@ -92,7 +92,6 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud, con `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`): nunca el revisor, el checklist ni las notas internas |
 | `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía una solicitud en `requiere_modificacion` (vuelve a `en_revision` vía `aplicarTransicion`). Body opcional `{ descripcion?, residuoCatalogoId? }` con las correcciones. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre), `404` si la categoría no existe. La auditoría registra estado y categoría, nunca la descripción |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
-| `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | Perfil de acceso — habilita el login diferido (**requiere auth**, solo el propio id) |
 
 ### Endpoints del marketplace (HU-04, HU-05, HU-15)
 
@@ -223,7 +222,6 @@ siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 |---|---|
 | `GET /health`, `GET /residuos/catalogo` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/reenviar`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
-| `GET perfil-acceso` | Solo el propio `ciudadanoId` |
 | `GET/POST marketplace/…` | Ciudadano autenticado. Retirar, liberar y entregar: solo quien publicó. Calificar: solo quien recibió |
 | `GET creditos` | Ciudadano autenticado (solo los propios) |
 
@@ -237,7 +235,7 @@ siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 
 ```
 src/
-├── main.ts                      # Bootstrap: CORS, prefijo /api, ValidationPipe global
+├── main.ts                      # Bootstrap: CORS, cabeceras de seguridad, chequeo de Origin, prefijo /api, ValidationPipe global
 ├── app.module.ts                # Módulo raíz — importa AuthModule de src/core
 ├── core/                        # Núcleo compartido (ver sección de abajo)
 ├── database/
