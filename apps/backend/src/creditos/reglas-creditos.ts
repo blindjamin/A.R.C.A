@@ -18,7 +18,7 @@ export const TOPE_MENSUAL = 1000;
 /** Máximo que generan, en un mes, los intercambios entre los mismos dos vecinos. */
 export const TOPE_PAREJA = 400;
 
-/** Porcentaje de `VALOR_BASE` por una solicitud de retiro que llegó a `retirada`. */
+/** Porcentaje de `VALOR_BASE` por una solicitud de retiro pagada. */
 export const PORCENTAJE_RETIRADA = 50;
 
 export const ZONA_HORARIA_CHILE = 'America/Santiago';
@@ -34,7 +34,7 @@ export function bonoPorEstrellas(puntuacion: number): number {
   return 0;
 }
 
-export function creditosPorRetirada(): number {
+export function creditosPorRetiro(): number {
   return Math.floor((VALOR_BASE * PORCENTAJE_RETIRADA) / 100);
 }
 
