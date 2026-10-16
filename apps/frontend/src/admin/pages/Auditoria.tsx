@@ -1,5 +1,13 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { fetchAuditoriaLogs, type AuditoriaLog } from '../api/admin';
+import {
+  descargarAuditoria,
+  fetchActoresAuditoria,
+  fetchAuditoriaLogs,
+  type ActorAuditoria,
+  type AuditoriaLog,
+  type FiltroAuditoria,
+  type FormatoExportacion,
+} from '../api/admin';
 import { EmptyState } from '../components/ui';
 
 // Se traen los últimos MAX_REGISTROS de una vez y se paginan en pantalla: así
@@ -16,6 +24,17 @@ const FILTROS: { value: TipoFiltro; label: string }[] = [
   { value: 'solicitudes', label: 'Gestión Retiros' },
   { value: 'sistema', label: 'Sistema' },
 ];
+
+// El backend no acepta rangos de más de un año.
+const RANGO_MAXIMO_DIAS = 366;
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+// Las fechas de los <input type="date"> son días de Chile: se mandan como el
+// primer y el último instante de ese día en la hora del navegador.
+const inicioDelDia = (dia: string): string =>
+  new Date(`${dia}T00:00:00`).toISOString();
+const finDelDia = (dia: string): string =>
+  new Date(`${dia}T23:59:59.999`).toISOString();
 
 const formatoFecha = (iso: string): string =>
   new Date(iso).toLocaleString('es-CL', {
@@ -45,9 +64,6 @@ const colorAccion = (accion: string): string => {
 };
 
 export default function Auditoria() {
-  const [logs, setLogs] = useState<AuditoriaLog[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   // Filtros de búsqueda.
   const [filtro, setFiltro] = useState<TipoFiltro>('todos');
@@ -55,12 +71,85 @@ export default function Auditoria() {
   const [pagina, setPagina] = useState(1);
   const inicioLista = useRef<HTMLElement>(null);
 
+  // Filtros que consulta el backend (fecha y usuario). El buscador y las
+  // categorías trabajan sobre lo que devuelve.
+  const [diaDesde, setDiaDesde] = useState('');
+  const [diaHasta, setDiaHasta] = useState('');
+  const [actor, setActor] = useState('');
+  const [actores, setActores] = useState<ActorAuditoria[]>([]);
+  const [descargando, setDescargando] = useState<FormatoExportacion | null>(null);
+  const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
+
+  const errorRango = useMemo(() => {
+    if (!diaDesde || !diaHasta) return null;
+    const dias = (Date.parse(diaHasta) - Date.parse(diaDesde)) / DIA_MS;
+    if (dias < 0) return 'La fecha «desde» es posterior a «hasta».';
+    if (dias > RANGO_MAXIMO_DIAS) return 'El rango no puede superar un año.';
+    return null;
+  }, [diaDesde, diaHasta]);
+
+  const filtroApi = useMemo<FiltroAuditoria>(
+    () => ({
+      desde: diaDesde ? inicioDelDia(diaDesde) : undefined,
+      hasta: diaHasta ? finDelDia(diaHasta) : undefined,
+      actor: actor || undefined,
+    }),
+    [diaDesde, diaHasta, actor],
+  );
+  const hayFiltroApi = Boolean(diaDesde || diaHasta || actor);
+
   useEffect(() => {
-    fetchAuditoriaLogs(MAX_REGISTROS)
-      .then(setLogs)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+    fetchActoresAuditoria()
+      .then(setActores)
+      .catch(() => setActores([]));
   }, []);
+
+  // El resultado guarda para qué filtro se pidió: mientras no coincida con el
+  // filtro actual, la consulta está en curso.
+  const clave = JSON.stringify(filtroApi);
+  const [resultado, setResultado] = useState<{
+    clave: string;
+    logs: AuditoriaLog[];
+    error: string | null;
+  } | null>(null);
+  const logs = useMemo(() => resultado?.logs ?? [], [resultado]);
+  const error = resultado?.error ?? null;
+  const loading = !errorRango && resultado?.clave !== clave;
+
+  useEffect(() => {
+    if (errorRango) return;
+    // Si el filtro cambia antes de que llegue la respuesta, esa se descarta.
+    let vigente = true;
+    fetchAuditoriaLogs(filtroApi, MAX_REGISTROS)
+      .then((datos) => {
+        if (vigente) setResultado({ clave, logs: datos, error: null });
+      })
+      .catch((e: Error) => {
+        if (vigente) setResultado({ clave, logs: [], error: e.message });
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [filtroApi, clave, errorRango]);
+
+  const descargar = async (formato: FormatoExportacion) => {
+    setDescargando(formato);
+    setErrorDescarga(null);
+    try {
+      await descargarAuditoria(filtroApi, formato);
+    } catch (e) {
+      setErrorDescarga((e as Error).message);
+    } finally {
+      setDescargando(null);
+    }
+  };
+
+  const limpiarFiltros = () => {
+    setDiaDesde('');
+    setDiaHasta('');
+    setActor('');
+    setPagina(1);
+  };
 
   // Procesamiento y filtrado de logs.
   const logsFiltrados = useMemo(() => {
@@ -123,7 +212,11 @@ export default function Auditoria() {
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-3xl font-extrabold text-ink">{stats.totales}</span>
               <span className="text-xs text-green-600">
-                {stats.totales >= MAX_REGISTROS ? `Últimos ${MAX_REGISTROS}` : 'Histórico completo'}
+                {stats.totales >= MAX_REGISTROS
+                  ? `Últimos ${MAX_REGISTROS}`
+                  : hayFiltroApi
+                    ? 'Con los filtros aplicados'
+                    : 'Histórico completo'}
               </span>
             </div>
           </div>
@@ -147,6 +240,98 @@ export default function Auditoria() {
           </div>
         </section>
 
+        {/* Filtros que consulta el backend (fecha y usuario) y descarga */}
+        <section
+          aria-label="Filtrar y exportar"
+          className="card flex flex-col gap-3 border border-line bg-white p-4"
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-2">
+              Desde
+              <input
+                type="date"
+                value={diaDesde}
+                max={diaHasta || undefined}
+                onChange={(e) => {
+                  setDiaDesde(e.target.value);
+                  setPagina(1);
+                }}
+                className="field"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-2">
+              Hasta
+              <input
+                type="date"
+                value={diaHasta}
+                min={diaDesde || undefined}
+                onChange={(e) => {
+                  setDiaHasta(e.target.value);
+                  setPagina(1);
+                }}
+                className="field"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-2">
+              Usuario
+              <select
+                value={actor}
+                onChange={(e) => {
+                  setActor(e.target.value);
+                  setPagina(1);
+                }}
+                className="field"
+              >
+                <option value="">Todos</option>
+                <option value="vecinos">Vecinos</option>
+                <option value="sistema">Sistema</option>
+                {actores.length > 0 && (
+                  <optgroup label="Funcionarios">
+                    {actores.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nombre} · {a.rol}
+                        {a.activo ? '' : ' (inactivo)'}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(['csv', 'xlsx'] as const).map((formato) => (
+              <button
+                key={formato}
+                type="button"
+                onClick={() => void descargar(formato)}
+                disabled={descargando !== null || errorRango !== null}
+                className="pill border border-transparent bg-green-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-green-800 disabled:opacity-50"
+              >
+                {descargando === formato
+                  ? 'Descargando…'
+                  : formato === 'csv'
+                    ? 'Descargar CSV'
+                    : 'Descargar Excel'}
+              </button>
+            ))}
+            {/* Al final, para que al aparecer no corra los botones de descarga. */}
+            {hayFiltroApi && (
+              <button
+                type="button"
+                onClick={limpiarFiltros}
+                className="pill border border-line bg-white px-3.5 py-2 text-xs text-slate hover:bg-canvas"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        </section>
+        {(errorRango ?? errorDescarga) && (
+          <p role="alert" className="-mt-3 text-sm text-rose-600">
+            {errorRango ?? errorDescarga}
+          </p>
+        )}
+
         {/* Buscador y Filtros */}
         <section ref={inicioLista} className="scroll-mt-4 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           <input
@@ -160,7 +345,7 @@ export default function Auditoria() {
             className="field md:max-w-md"
           />
 
-          <div className="grid grid-cols-2 gap-2 md:flex">
+          <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end">
             {FILTROS.map((f) => (
               <button
                 key={f.value}
