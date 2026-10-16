@@ -50,7 +50,10 @@ export interface SolicitudRetiro {
   estadoPago: EstadoPago;
   monto: number | null;
   descripcion: string | null;
+  direccionRetiro?: string | null;
   direccionAnonimizada?: string | null;
+  // Endpoint protegido de la foto del vecino (`GET …/:id/foto`), o null.
+  fotoUrl?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
   fechaSolicitud: string;
@@ -68,6 +71,8 @@ export interface SolicitudRetiro {
 export interface CrearSolicitudInput {
   usuarioCiudadanoId: string;
   residuoCatalogoId: number;
+  direccionRetiro: string;
+  foto: File;
   descripcion?: string;
   emailContacto?: string;
 }
@@ -124,10 +129,18 @@ export function fetchCatalogo(): Promise<ResiduoCatalogo[]> {
 export function crearSolicitudRetiro(
   data: CrearSolicitudInput,
 ): Promise<SolicitudRetiro> {
+  const form = new FormData();
+  form.set('usuarioCiudadanoId', data.usuarioCiudadanoId);
+  form.set('residuoCatalogoId', String(data.residuoCatalogoId));
+  form.set('direccionRetiro', data.direccionRetiro);
+  form.set('foto', data.foto);
+  if (data.descripcion) form.set('descripcion', data.descripcion);
+  if (data.emailContacto) form.set('emailContacto', data.emailContacto);
+
+  // Sin Content-Type explícito: el navegador pone el boundary del multipart.
   return apiFetch(`${API_URL}/solicitudes-retiro`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: form,
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
