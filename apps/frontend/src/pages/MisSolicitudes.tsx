@@ -24,6 +24,7 @@ import {
   IconPencil,
 } from '../components/ui';
 import { useSession } from '../auth/SessionContext';
+import { CampoFoto } from '../features/solicitud-retiro/CampoFoto';
 
 // Misma regla que ESTADOS_CANCELABLES_POR_VECINO en @arca/core: el vecino cancela
 // antes de la derivación y solo si no pagó. El backend la valida igual.
@@ -67,6 +68,9 @@ export default function MisSolicitudes() {
   const [editandoCorreccion, setEditandoCorreccion] = useState(false);
   const [nuevaDescripcion, setNuevaDescripcion] = useState('');
   const [nuevoResiduoId, setNuevoResiduoId] = useState<number | ''>('');
+  const [nuevaDireccion, setNuevaDireccion] = useState('');
+  const [nuevaFoto, setNuevaFoto] = useState<File | null>(null);
+  const [nuevaFotoPreview, setNuevaFotoPreview] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCatalogo()
@@ -109,6 +113,9 @@ export default function MisSolicitudes() {
     setEditandoCorreccion(false);
     setNuevaDescripcion(s.descripcion || '');
     setNuevoResiduoId(s.residuoCatalogoId);
+    setNuevaDireccion(s.direccionRetiro || '');
+    setNuevaFoto(null);
+    setNuevaFotoPreview(null);
 
     // Cargar detalle completo desde el backend con su última revisión municipal
     fetchSolicitud(s.id)
@@ -116,6 +123,7 @@ export default function MisSolicitudes() {
         setSeleccion(det);
         setNuevaDescripcion(det.descripcion || '');
         setNuevoResiduoId(det.residuoCatalogoId);
+        setNuevaDireccion(det.direccionRetiro || '');
       })
       .catch(() => {});
   };
@@ -154,12 +162,21 @@ export default function MisSolicitudes() {
   const enviarCorreccion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!seleccion) return;
+    const direccion = nuevaDireccion.trim();
+    if (!direccion) {
+      setError('La dirección de retiro no puede quedar vacía.');
+      return;
+    }
     setProcesando(true);
     setError(null);
     try {
       const actualizada = await reenviarSolicitud(seleccion.id, {
         descripcion: nuevaDescripcion.trim() || undefined,
         residuoCatalogoId: nuevoResiduoId ? Number(nuevoResiduoId) : undefined,
+        // Solo se mandan si cambiaron: el backend deja el resto como estaba.
+        direccionRetiro:
+          direccion !== (seleccion.direccionRetiro ?? '') ? direccion : undefined,
+        foto: nuevaFoto ?? undefined,
       });
 
       setSeleccion(actualizada);
@@ -167,6 +184,8 @@ export default function MisSolicitudes() {
         prev.map((s) => (s.id === actualizada.id ? actualizada : s)),
       );
       setEditandoCorreccion(false);
+      setNuevaFoto(null);
+      setNuevaFotoPreview(null);
       setMensajeExito(
         'Tu solicitud ha sido corregida y reenviada exitosamente a revisión municipal.',
       );
@@ -289,6 +308,41 @@ export default function MisSolicitudes() {
                   />
                 </div>
 
+                <div>
+                  <label
+                    htmlFor="direccion-correccion"
+                    className="block text-xs font-bold text-ink mb-1"
+                  >
+                    Dirección de retiro
+                  </label>
+                  <input
+                    id="direccion-correccion"
+                    type="text"
+                    value={nuevaDireccion}
+                    onChange={(e) => setNuevaDireccion(e.target.value)}
+                    maxLength={500}
+                    required
+                    autoComplete="street-address"
+                    className="field text-xs bg-white py-2"
+                  />
+                </div>
+
+                <div>
+                  <p className="block text-xs font-bold text-ink mb-1">
+                    Foto <span className="font-normal text-slate-2">(sube una nueva si te la pidieron)</span>
+                  </p>
+                  <CampoFoto
+                    preview={nuevaFotoPreview ?? seleccion.fotoUrl ?? null}
+                    onElegir={(archivo, preview) => {
+                      setError(null);
+                      setNuevaFoto(archivo);
+                      setNuevaFotoPreview(preview);
+                    }}
+                    onError={setError}
+                    textoCambiar="Nueva foto"
+                  />
+                </div>
+
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
@@ -327,6 +381,23 @@ export default function MisSolicitudes() {
             </div>
             <EstadoPill estado={seleccion.estado} />
           </div>
+
+          {seleccion.fotoUrl && (
+            <img
+              src={seleccion.fotoUrl}
+              alt={seleccion.residuoCatalogo?.nombre ?? 'Foto del residuo'}
+              className="h-48 w-full rounded-md border border-line object-cover"
+            />
+          )}
+
+          {seleccion.direccionRetiro && (
+            <div className="border-t border-line pt-4">
+              <p className="text-xs uppercase tracking-wide text-black">
+                Dirección de retiro
+              </p>
+              <p className="mt-1 text-ink-2">{seleccion.direccionRetiro}</p>
+            </div>
+          )}
 
           <div className="grid gap-3 border-t border-line pt-4 sm:grid-cols-2 sm:gap-0">
             <div className="pb-3 sm:pb-0 sm:pr-4">
