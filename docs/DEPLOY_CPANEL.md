@@ -208,6 +208,8 @@ CLAVE_UNICA_PEPPER=<ver abajo>
   `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` y se **respalda en
   un lugar seguro**. Si se pierde o se cambia, ningún vecino vuelve a ser reconocido y todos
   pierden su historial. Si ya existe de una instalación anterior, **no cambiarlo**.
+  En otra municipalidad se genera **uno nuevo**: nunca se copia el de Santo Domingo
+  (ver [`SEGURIDAD_ARQUITECTURA.md` §3.6](SEGURIDAD_ARQUITECTURA.md)).
 - `CLAVE_UNICA_REDIRECT_URI` es la raíz **con la barra final** (§1). No es la ruta `/api/...`.
 - **Credenciales:** Gobierno Digital entregó tres pares (sandbox, QA y producción). Para probar
   y certificar se usan las de **QA**; las de producción no funcionan hasta que la integración

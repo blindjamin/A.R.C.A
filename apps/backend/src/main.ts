@@ -1,7 +1,13 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { configurarProxyConfiable, verificarLoginDev } from './core';
+import {
+  cabecerasDeSeguridad,
+  configurarProxyConfiable,
+  origenesPermitidos,
+  verificarLoginDev,
+  verificarOrigen,
+} from './core';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -12,12 +18,13 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // IP real del cliente tras el proxy de cPanel, para el rate limiting.
   configurarProxyConfiable(app);
-  const allowedOrigins = (process.env.FRONTEND_URL ?? 'http://localhost:5173')
-    .split(',')
-    .map((origin) => origin.trim());
+  const allowedOrigins = origenesPermitidos();
   app.enableCors({
     origin: allowedOrigins,
   });
+  // Antes de las rutas: cabeceras en toda respuesta y CSRF por Origin.
+  app.use(cabecerasDeSeguridad());
+  app.use(verificarOrigen(allowedOrigins));
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({

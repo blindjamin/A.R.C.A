@@ -3,7 +3,6 @@ export interface PerfilCiudadano {
   email?: string;
   emailVerificado?: boolean;
   telefono?: string;
-  rut?: string;
   direccion?: string;
   sector?: string;
   canalPreferido?: string;

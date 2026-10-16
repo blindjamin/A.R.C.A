@@ -136,7 +136,6 @@ Expone funciones tipadas e interfaces del dominio (`ResiduoCatalogo`, `Solicitud
 | `fetchSolicitudesAdmin(estado?)` | `GET /api/admin/solicitudes?estado={estado}` (hoy en `apps/admin-web/src/api/admin.ts`, contra `apps/backend-admin`) | Panel de administración |
 | `actualizarSolicitud(id, data)` | `PATCH /api/solicitudes-retiro/{id}` | Cambio de estado / asignación (HU-08) |
 | `cancelarSolicitud(id, uuid, motivo?)` | `PATCH /api/solicitudes-retiro/{id}/cancelar` | Cancelación de solicitud |
-| `fetchPerfilAcceso(uuid)` | `GET /api/usuarios/{uuid}/perfil-acceso` | Roles y contexto (vecino/funcionario) |
 | `fetchAuditoriaLogs()` | Mock / Endpoint trazabilidad | Lista de logs de auditoría (HU-13) |
 | `fetchAuditoriaStats()` | Mock / Endpoint trazabilidad | Resumen y KPIs de auditoría |
 
@@ -372,7 +371,7 @@ los endpoints correspondientes.
 | EP-03 Dashboard municipal | ✅ En `apps/admin-web`: revisión de solicitudes, derivación en Excel, métricas, auditoría y mapa de calor con **Leaflet**. Falta reportes y configuración |
 | Programación con operadores | ❌ **Descartada** (replanteo 2026-09-17): los retiros los ejecuta una empresa externa. Ya eliminada del panel ([pendientes](PENDIENTES_EQUIPO.md)) |
 | Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
-| Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
+| Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por el rol de `GET /api/sesion` |
 | Proteger el panel admin | ⛔ Sin gate de sesión en `apps/admin-web` (deuda declarada, migración 2026-09-01). Falta login ClaveÚnica propio + guard real |
 | Cancelar desde detalle (ciudadano) | ✅ Mis solicitudes: tocar → detalle → cancelar; oculta local |
 | Tests | Vitest + React Testing Library |
