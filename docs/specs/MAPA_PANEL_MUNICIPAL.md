@@ -91,6 +91,7 @@ Criterio: el funcionario **opera**; el admin toma las decisiones que **revierten
 | `pago-maqueta` | Pantalla de pago simulado en la app ciudadana; estado de pago visible en el panel | ciclo-solicitud | Front ciudadano (+ panel) |
 | `derivacion-excel` | Botón que genera el Excel, lote, paso a `derivada`, historial de lotes, registro de resultados | revision-solicitudes, datos-retiro, pago-maqueta | Benjamín |
 | `dashboard-metricas` | Indicadores, gráficos, mapa por sector, rango de fechas | revision-solicitudes, derivacion-excel | Benjamín |
+| `listado-pagadas` | Listado de solicitudes pagadas con filtros (estado, fecha, sector) y exportación CSV/XLSX auditada | ciclo-solicitud, datos-retiro (dirección real) | Benjamín |
 | `configuracion-admin` | Motivos, catálogo y precios, funcionarios, umbrales, reabrir y anular | admin-auth, ciclo-solicitud | Benjamín |
 
 **Orden de construcción**
@@ -140,3 +141,4 @@ admin-auth + ciclo-solicitud ─► configuracion-admin   (en paralelo)
 | `revision-solicitudes` | [SPEC-revision-solicitudes.md](SPEC-revision-solicitudes.md) | Núcleo, BD y panel implementados (sin fotos); reenvío/última revisión al vecino pendientes (§3.2); PWA pendiente |
 | `derivacion-excel` | [SPEC-derivacion-excel.md](SPEC-derivacion-excel.md) | Núcleo, BD y panel implementados; dirección real y contacto esperan `datos-retiro` |
 | `dashboard-metricas` | [SPEC-dashboard-metricas.md](SPEC-dashboard-metricas.md) | Panel implementado (sin cambios de esquema); zona horaria de la conexión por corregir |
+| `listado-pagadas` | [SPEC-listado-pagadas.md](SPEC-listado-pagadas.md) | Backend implementado; panel pendiente; dirección real espera `datos-retiro` |

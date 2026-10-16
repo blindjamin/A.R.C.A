@@ -9,6 +9,7 @@ import {
 import {
   SECTORES_PROVISIONALES,
   MINIMO_SOLICITUDES_POR_SECTOR,
+  sectorMasCercano,
 } from './sectores.constants';
 
 export interface SectorAgregado {
@@ -63,7 +64,7 @@ export class MapaCalorService {
       const lat = parseFloat(sol.latitudCapturada);
       const lng = parseFloat(sol.longitudCapturada);
 
-      const sector = this.encontrarSectorMasCercano(lat, lng);
+      const sector = sectorMasCercano(lat, lng);
 
       const grupo = agrupados.get(sector.nombre);
       if (grupo) {
@@ -132,22 +133,5 @@ export class MapaCalorService {
     }
 
     return resultados;
-  }
-
-  private encontrarSectorMasCercano(lat: number, lng: number) {
-    let minDist = Infinity;
-    let sectorCercano = SECTORES_PROVISIONALES[0];
-
-    for (const sector of SECTORES_PROVISIONALES) {
-      const dLat = sector.lat - lat;
-      const dLng = sector.lng - lng;
-      // Usamos distancia euclidiana simple por ser áreas muy cercanas
-      const dist = dLat * dLat + dLng * dLng;
-      if (dist < minDist) {
-        minDist = dist;
-        sectorCercano = sector;
-      }
-    }
-    return sectorCercano;
   }
 }
