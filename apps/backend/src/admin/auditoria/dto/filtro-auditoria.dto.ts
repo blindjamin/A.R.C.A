@@ -8,6 +8,10 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import {
+  FORMATOS_EXPORTACION,
+  type FormatoExportacion,
+} from '../../comun/exportar-tabla';
 
 /** Valores de `actor` que no son un funcionario puntual. */
 export const ACTOR_VECINOS = 'vecinos';
@@ -49,9 +53,6 @@ export class ConsultaAuditoriaDto extends FiltroAuditoriaDto {
   @Max(1000)
   limite?: number;
 }
-
-export const FORMATOS_EXPORTACION = ['csv', 'xlsx'] as const;
-export type FormatoExportacion = (typeof FORMATOS_EXPORTACION)[number];
 
 export class ExportarAuditoriaDto extends FiltroAuditoriaDto {
   @IsOptional()

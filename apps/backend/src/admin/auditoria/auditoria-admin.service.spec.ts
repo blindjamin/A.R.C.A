@@ -162,4 +162,23 @@ describe('AuditoriaAdminService', () => {
     );
     expect(consulta.accion).toBe('Acceso al registro de auditoría');
   });
+
+  it('distingue la exportación de solicitudes pagadas', async () => {
+    const { servicio } = montar([
+      {
+        id: 3,
+        tipoActor: TipoActorAuditoria.ADMINISTRADOR,
+        entidad: 'solicitudes_retiro',
+        entidadId: null,
+        accion: AccionAuditoria.ACCESO,
+        ipOrigen: null,
+        fechaAccion: new Date('2026-10-16T15:00:00Z'),
+        actorAdministrador: null,
+        datosNuevos: { exportacion: 'xlsx', filas: 3 },
+      },
+    ]);
+
+    const [fila] = await servicio.findAll();
+    expect(fila.accion).toBe('Exportación de solicitudes pagadas (XLSX)');
+  });
 });

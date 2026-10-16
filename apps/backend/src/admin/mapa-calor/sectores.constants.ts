@@ -21,3 +21,30 @@ export const SECTORES_PROVISIONALES = [
  * se reporte en el mapa. Previene la identificación de hogares individuales.
  */
 export const MINIMO_SOLICITUDES_POR_SECTOR = 3;
+
+export const SIN_UBICACION = 'Sin ubicación';
+
+export const NOMBRES_SECTOR: string[] = [
+  ...SECTORES_PROVISIONALES.map((s) => s.nombre),
+  SIN_UBICACION,
+];
+
+/** Sector provisional más cercano (distancia euclidiana: las áreas son muy cercanas). */
+export function sectorMasCercano(
+  lat: number,
+  lng: number,
+): (typeof SECTORES_PROVISIONALES)[number] {
+  let minDist = Infinity;
+  let sectorCercano = SECTORES_PROVISIONALES[0];
+
+  for (const sector of SECTORES_PROVISIONALES) {
+    const dLat = sector.lat - lat;
+    const dLng = sector.lng - lng;
+    const dist = dLat * dLat + dLng * dLng;
+    if (dist < minDist) {
+      minDist = dist;
+      sectorCercano = sector;
+    }
+  }
+  return sectorCercano;
+}

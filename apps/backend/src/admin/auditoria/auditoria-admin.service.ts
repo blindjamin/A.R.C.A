@@ -1,12 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Between,
-  type FindOptionsWhere,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+import { type FindOptionsWhere, Repository } from 'typeorm';
 import {
   AccionAuditoria,
   Auditoria,
@@ -14,6 +8,8 @@ import {
   TipoActorAuditoria,
   UsuarioAdministrador,
 } from '../../core';
+import { LIMITE_EXPORTACION } from '../comun/exportar-tabla';
+import { condicionRango } from '../comun/rango-fechas';
 import {
   ACTOR_SISTEMA,
   ACTOR_VECINOS,
@@ -45,16 +41,8 @@ export interface AuditoriaLog {
 export const LIMITE_POR_DEFECTO = 1000;
 const LIMITE_MAXIMO = 1000;
 
-/**
- * Tope de la exportación. Es más alto que el de la vista porque el archivo se
- * revisa fuera del panel, pero no infinito: con el rango máximo de un año da
- * margen de sobra y evita armar un archivo que tumbe el proceso.
- */
-export const LIMITE_EXPORTACION = 50_000;
-
-/** Rango máximo entre `desde` y `hasta`. */
-const RANGO_MAXIMO_DIAS = 366;
-const DIA_MS = 24 * 60 * 60 * 1000;
+// El tope vive con el generador de tablas; se re-exporta para quien ya lo importa de acá.
+export { LIMITE_EXPORTACION } from '../comun/exportar-tabla';
 
 /** Funcionario como opción del filtro por usuario. */
 export interface ActorAuditoria {
@@ -134,24 +122,8 @@ export class AuditoriaAdminService {
 
   private condiciones(filtro: FiltroAuditoriaDto): FindOptionsWhere<Auditoria> {
     const where: FindOptionsWhere<Auditoria> = {};
-    const desde = filtro.desde ? new Date(filtro.desde) : null;
-    const hasta = filtro.hasta ? new Date(filtro.hasta) : null;
-
-    if (desde && hasta) {
-      if (desde > hasta) {
-        throw new BadRequestException('desde no puede ser posterior a hasta');
-      }
-      if (hasta.getTime() - desde.getTime() > RANGO_MAXIMO_DIAS * DIA_MS) {
-        throw new BadRequestException(
-          `El rango no puede superar ${RANGO_MAXIMO_DIAS} días`,
-        );
-      }
-      where.fechaAccion = Between(desde, hasta);
-    } else if (desde) {
-      where.fechaAccion = MoreThanOrEqual(desde);
-    } else if (hasta) {
-      where.fechaAccion = LessThanOrEqual(hasta);
-    }
+    const rango = condicionRango(filtro.desde, filtro.hasta);
+    if (rango) where.fechaAccion = rango;
 
     if (filtro.actor === ACTOR_VECINOS) {
       where.tipoActor = TipoActorAuditoria.CIUDADANO;
@@ -230,8 +202,12 @@ export class AuditoriaAdminService {
         return 'Descarga del Excel de derivación';
       }
       const formato = fila.datosNuevos?.exportacion;
+      const que =
+        fila.entidad === 'solicitudes_retiro'
+          ? 'de solicitudes pagadas'
+          : 'del registro de auditoría';
       return typeof formato === 'string'
-        ? `Exportación del registro de auditoría (${formato.toUpperCase()})`
+        ? `Exportación ${que} (${formato.toUpperCase()})`
         : 'Acceso al registro de auditoría';
     }
     if (fila.accion === AccionAuditoria.CREATE) return 'Creación';

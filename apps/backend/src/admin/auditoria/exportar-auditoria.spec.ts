@@ -3,10 +3,10 @@ import type { AuditoriaLog } from './auditoria-admin.service';
 import {
   celdaCsv,
   fechaLocal,
-  generarArchivo,
   generarCsv,
   generarXlsx,
-} from './exportar-auditoria';
+} from '../comun/exportar-tabla';
+import { COLUMNAS_AUDITORIA, generarArchivo } from './exportar-auditoria';
 
 const log = (cambios: Partial<AuditoriaLog> = {}): AuditoriaLog => ({
   id: 7,
@@ -39,7 +39,7 @@ describe('exportar-auditoria', () => {
   );
 
   it('genera un CSV con BOM, separador ; y saltos CRLF', () => {
-    const texto = generarCsv([
+    const texto = generarCsv(COLUMNAS_AUDITORIA, [
       log(),
       log({ id: 8, accion: '=HYPERLINK("x")' }),
     ]).toString('utf8');
@@ -59,7 +59,13 @@ describe('exportar-auditoria', () => {
 
   it('genera un XLSX legible con los mismos datos como texto', async () => {
     const libro = new ExcelJS.Workbook();
-    await libro.xlsx.load(await generarXlsx([log({ accion: '=1+1' })]));
+    await libro.xlsx.load(
+      await generarXlsx(
+        COLUMNAS_AUDITORIA,
+        [log({ accion: '=1+1' })],
+        'Auditoría',
+      ),
+    );
     const hoja = libro.worksheets[0];
 
     expect(hoja.getRow(1).getCell(5).value).toBe('Acción');
