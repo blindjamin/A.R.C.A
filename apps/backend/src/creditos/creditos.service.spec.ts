@@ -2,7 +2,7 @@ import type { EntityManager, Repository } from 'typeorm';
 import {
   OrigenMovimientoCreditos,
   TipoMovimientoCreditos,
-  type TransaccionCircularCredits,
+  TransaccionCircularCredits,
   UsuarioCiudadano,
 } from '../core';
 import { CreditosService } from './creditos.service';
@@ -205,6 +205,22 @@ describe('CreditosService.otorgarPorPago', () => {
 
     expect(movimiento).toBe(previo);
     expect(manager.save).not.toHaveBeenCalled();
+  });
+
+  it('busca el otorgamiento previo por solicitud y por origen del retiro', async () => {
+    const { service, em, manager } = montar({ saldo: 0 });
+
+    await service.otorgarPorPago(em, { id: 12, usuarioCiudadanoId: RECIBE });
+
+    expect(manager.findOne).toHaveBeenCalledWith(
+      TransaccionCircularCredits,
+      expect.objectContaining({
+        where: {
+          solicitudRetiroId: 12,
+          origen: OrigenMovimientoCreditos.RETIRADA,
+        },
+      }),
+    );
   });
 });
 

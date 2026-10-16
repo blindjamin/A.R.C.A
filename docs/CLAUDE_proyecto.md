@@ -263,7 +263,6 @@ la misma base. Además de las 6 anteriores:
 | `POST` `GET` | `/api/solicitudes-retiro` | crear y listar solicitudes |
 | `GET` `PATCH` | `/api/solicitudes-retiro/:id` | detalle y cambio de estado |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | cancelar solicitud |
-| `GET` | `/api/usuarios/:ciudadanoId/perfil-acceso` | gate de login diferido |
 
 **WebSocket:** previsto en `/socket.io/*` y `/ws/*` para el chat y las notificaciones en tiempo real
 de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF municipal (sección 4.3).
@@ -388,7 +387,7 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     + `residuos_catalogo` + `solicitudes_retiro`). Endpoints bajo prefijo global **`/api`**
     (`app.setGlobalPrefix('api')`): `GET /api/health`, `GET /api/residuos/catalogo`,
     `POST`/`GET /api/solicitudes-retiro` (+ `:id`, `:id/cancelar`),
-    `GET /api/usuarios/:id/perfil-acceso`. CORS habilitado (orígenes separados por coma en
+    `GET /api/sesion` (rol de la sesión). CORS habilitado (orígenes separados por coma en
     `FRONTEND_URL`). `ResiduoCatalogo` tiene **precio real** (CLP): el catálogo son los
     26 ítems de `costo retiro Voluminosos.xlsx` (municipalidad), no valores referenciales.
     Detalle en `docs/BACKEND_FASE1.md`.

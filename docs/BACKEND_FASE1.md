@@ -117,7 +117,6 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + `ultimaRevision` visible para el vecino) |
 | `PATCH` | `/api/solicitudes-retiro/{id}/reenviar` | **Ciudadano:** reenviar corregida su solicitud en `requiere_modificacion` (vía `aplicarTransicion`) |
 | `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud (vía `aplicarTransicion`) |
-| `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
 | `POST` | `/api/marketplace/articulos` | **Marketplace:** publicar (`multipart/form-data`, foto opcional de hasta 5 MB) |
 | `GET` | `/api/marketplace/articulos` | **Marketplace:** disponibles y vigentes, con filtros y banda de distancia |
 | `GET` | `/api/marketplace/articulos/{id}` · `…/{id}/foto` | **Marketplace:** detalle y foto (404 si la sesión no puede verlo) |
@@ -158,7 +157,6 @@ UUIDs de demo (migraciones): ciudadano `…0001`, doble rol funcionario `…0002
 |---|---|
 | `GET /health`, `GET /residuos/catalogo`, `GET /` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (propias, o municipal sin filtro) |
-| `GET perfil-acceso` | Solo el propio `ciudadanoId` |
 | `PATCH admin/solicitudes/{id}` (en `apps/backend-admin`, :3001) | Rol `admin` o `funcionario` |
 
 En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
@@ -193,7 +191,10 @@ El texto siguiente describe el **modelo viejo** (solo contexto histórico):
 
 ### Login diferido
 
-`GET /api/usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
+> **Eliminado el 13-10-2026:** el frontend usa `GET /api/sesion`, que ya trae el rol. La ruta
+> salió para reducir superficie; el servicio `getPerfilAcceso` sigue, lo usa la sesión.
+
+`GET /api/usuarios/{ciudadanoId}/perfil-acceso` resolvía si una identidad base además
 tiene extensión de administrador activa. El frontend lo usa tras autenticar para
 decidir el destino: funcionario → selección de contexto; solo ciudadano → PWA directa.
 
@@ -337,7 +338,7 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Subida de fotos | Javier | Marketplace: ✅ `src/archivos/` (`UPLOADS_DIR`, 2026-09-29). Solicitudes de retiro: fase posterior |
 | ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados); hoy ciclo de revisión en `backend-admin` |
 | ~~Cancelación por ciudadano~~ | ✅ Hecho | `aplicarTransicion` + estados nuevos (§2, 2026-09-21) |
-| ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
+| ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | Hoy `GET /api/sesion` (la ruta `perfil-acceso` se eliminó el 13-10) |
 | ~~Control de acceso por roles (HU-13)~~ | ✅ Hecho | `auth/`: guards, `@Roles`, auth dev Bearer UUID |
 | ~~Adaptar backend al ciclo nuevo (§2)~~ | ✅ Hecho | Crear `en_revision`, sin `operadores/`, rol `funcionario` |
 | ~~`GET /api/operadores`~~ | ❌ Eliminado | Replanteo: no hay asignación de operadores |
