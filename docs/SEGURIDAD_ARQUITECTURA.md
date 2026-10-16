@@ -242,6 +242,45 @@ identificador común entre municipalidades.
 - [ ] Revisar quién tiene acceso al cPanel de esa instalación.
 - [ ] Confirmar que D-PEP-4 ya está implementada.
 
+### 3.7 Qué registra la auditoría y qué no (minimización)
+
+> **Por qué está acá:** el criterio vivía en comentarios del código y se perdió al reordenar
+> `solicitudes-retiro.service.ts` (#101). Se documenta aparte para que no dependa de cómo esté
+> escrito el código. Decisión 016 del PO.
+
+La tabla `auditoria` **no se borra**: es la constancia de quién hizo qué, y por eso nunca puede ser
+el lugar donde queden datos personales del vecino. La regla general es **registrar que algo cambió,
+no qué dice**: códigos, estados, ids y cantidades sí; texto libre y datos de contacto, no. Así los
+datos personales quedan solo en su tabla, donde el borrado (baja, plazos de conservación) los
+alcanza.
+
+| Acción | Se registra | No se registra, y por qué |
+|---|---|---|
+| Vecino crea una solicitud | `CREATE` con el `estado` inicial | Descripción, coordenadas, dirección de retiro, foto: datos personales que quedan en `solicitudes_retiro` / `foto_retiro`, donde el plazo los alcanza |
+| Vecino reenvía una solicitud corregida | `estado` y `residuoCatalogoId` si cambió (igual que cuando lo corrige el panel) | Descripción y dirección nueva: texto libre que puede llevar datos personales |
+| Vecino cancela | `estado` antes y después | El motivo que escribe (`razonRechazo`): texto libre; queda en la solicitud, que se puede borrar |
+| Vecino edita su perfil | `UPDATE` sobre `contacto_ciudadano` con `camposCambiados` (`telefono`, `direccion`) | Los valores: son el dato personal mismo |
+| Funcionario decide una revisión | Campos cambiados, `decision` y `motivo` (es un código) | El comentario al vecino: texto libre |
+| Funcionario corrige la categoría | `residuoCatalogoId` antes y después | — |
+| Funcionario agrega una nota interna | `CREATE` sobre `notas_solicitud` con el id de la solicitud | El contenido de la nota |
+| Cambios del panel sobre una solicitud | Solo los campos de la lista explícita `CAMPOS_AUDITADOS` (`admin/solicitudes/auditoria-solicitud.ts`): estado, pago, monto, revisor, cierre, categoría | Cualquier columna nueva: no entra sola; se suma a la lista de forma deliberada |
+| Lote de derivación | `CREATE` con la cantidad; cada solicitud derivada con sus campos cambiados | El contenido del Excel |
+| Descargas (Excel de derivación, pagadas, exportar auditoría, consultar auditoría) | `ACCESO` con formato, filtros y cantidad de filas | Las filas descargadas |
+| Inicio de sesión | `LOGIN` con el origen (`clave_unica` o `dev`) | RUN, nombre, cookie |
+| Plazo de la dirección de retiro (tarea diaria) | `UPDATE` como `sistema` con la cantidad borrada y el plazo | Ids y direcciones |
+
+**Cómo se aplica en el código:**
+- Los campos de la solicitud que se auditan son una **lista explícita**, no la fila completa.
+- `AuditoriaService.registrar` **no lanza**: si la escritura falla, la operación sigue y el fallo queda
+  en el log, **sin** volcar `datosAnteriores` ni `datosNuevos` (los logs no tienen el mismo control de
+  acceso que la tabla). Es *fail-open*, una decisión discutible: si el municipio exige que ninguna
+  acción crítica quede sin registro, ese es el punto donde se invierte (pregunta abierta n.º 3 de la
+  tesina).
+- Los vecinos aparecen en la auditoría por su id opaco, no por nombre ni RUN.
+
+**Al agregar una acción auditada nueva:** registrar estados, códigos, ids o cantidades; si hay texto
+libre o un dato de contacto, registrar solo que cambió. Sumar la fila a esta tabla.
+
 ## 4. Registro de cambios de este documento
 
 | Fecha | Cambio |
@@ -260,3 +299,4 @@ identificador común entre municipalidades.
 | 2026-10-13 | Revisión de seguridad: **chequeo de `Origin`** en POST/PUT/PATCH/DELETE (un subdominio de `santodomingo.cl` es "el mismo sitio" para `SameSite=Lax`; ahora solo pasa `FRONTEND_URL`, la vuelta de Webpay deberá quedar exenta); **cabeceras de seguridad** en la API (nosniff, `X-Frame-Options`, `Referrer-Policy`, CSP `default-src 'none'`, CORP y HSTS en producción); **test de escalada** que recorre todos los controladores y falla si una ruta `/admin` no exige rol municipal (verificado quitando `@Roles` a un controlador: el test falla); se elimina `GET /api/usuarios/:id/perfil-acceso`, sin uso desde `GET /api/sesion` |
 | 2026-10-16 | Auditoría (Sprint 4): filtros por fecha y por funcionario, y **exportación a CSV y XLSX** (`GET /api/admin/auditoria/exportar`, solo rol `admin`). Cada exportación queda registrada como `ACCESO` con el formato, los filtros y la cantidad de filas, igual que la descarga del Excel de derivación: es una salida masiva de datos. El CSV neutraliza la **inyección de fórmulas** (celdas que empiezan con `=`, `+`, `-`, `@`, tabulación o retorno de carro llevan un apóstrofo delante, OWASP *CSV Injection*); el XLSX no la necesita porque los valores se escriben como texto. Los filtros se validan con DTO (fechas ISO, rango de 1 año como máximo, `actor` restringido a un id, `vecinos` o `sistema`, sin parámetros desconocidos) y la exportación tiene un tope de 50 000 filas. Los vecinos siguen sin nombre en el registro: se filtran como grupo, no uno por uno |
 | 2026-10-16 | Listado de solicitudes pagadas (Sprint 4): `GET /api/admin/pagadas`, `/sectores` y `/exportar` (admin y funcionario). Cada descarga queda registrada como `ACCESO` sobre `solicitudes_retiro` con el formato, los filtros y la cantidad de filas, sin copiar el contenido. Usa la misma protección contra **inyección de fórmulas** que la auditoría (`admin/comun/exportar-tabla.ts`). El listado no incluye nombre, RUN ni contacto del vecino. Los filtros se validan con DTO (rango de 1 año como máximo, sin parámetros desconocidos) y la exportación tiene un tope de 50 000 filas |
+| 2026-10-16 | §3.7: qué registra la auditoría y qué no, acción por acción (regla de minimización). Recupera el criterio que estaba en comentarios del código y se perdió al reordenar el service de solicitudes (#101). Incluye la auditoría del perfil y del plazo de la dirección de retiro (decisión 016) |
