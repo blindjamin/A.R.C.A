@@ -16,6 +16,7 @@ import { ResiduosAdminModule } from './admin/residuos/residuos-admin.module';
 import { DerivacionesAdminModule } from './admin/derivaciones/derivaciones-admin.module';
 import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
 import { MailModule } from './mail/mail.module';
+import { PerfilModule } from './perfil/perfil.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { MailModule } from './mail/mail.module';
     AuthModule,
     HealthModule,
     MailModule,
+    PerfilModule,
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,

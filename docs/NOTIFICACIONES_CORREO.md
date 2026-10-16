@@ -47,8 +47,9 @@ Para asegurar la recepción de avisos sin fricción innecesaria:
      - Envía notificaciones de cambio de estado.
      - **Modo simulación (fallback):** Si no hay credenciales configuradas en el entorno local (`MAIL_PASS`), no lanza errores ni interrumpe la aplicación; registra el correo en consola (`[MAIL DEV]`) y expone el código en el payload para facilitar el testing.
    - **`MailController` (`/api/mail`):**
-     - `POST /api/mail/enviar-codigo`: Recibe `{ email, usuarioCiudadanoId? }`.
-     - `POST /api/mail/verificar-codigo`: Recibe `{ email, codigo, usuarioCiudadanoId? }`.
+   - `POST /api/mail/enviar-codigo`: Recibe `{ email }`. El ciudadano es el de la cookie de sesión.
+   - `POST /api/mail/verificar-codigo`: Recibe `{ email, codigo }`. Asocia el correo a la sesión autenticada.
+   - Perfil canónico de contacto: `GET/PATCH /api/perfil` (teléfono/dirección en sesión; correo vía este flujo OTP). Los datos en sesión son volátiles.
    - **`mail-templates.ts`:**
      - Plantilla HTML para verificación de código con número destacado.
      - Plantilla HTML para cambio de estado con badges de color por estado (`#0F6B45` aprobada, `#D97706` requiere modificación, `#BE123C` rechazada, `#1D4ED8` derivada, `#047857` retirada), tabla de detalles y observaciones del funcionario.

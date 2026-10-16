@@ -522,4 +522,52 @@ describe('SesionService', () => {
       ).resolves.toBeNull();
     });
   });
+
+  describe('contactoSesionActiva', () => {
+    it('devuelve nombre, email, teléfono y dirección de la sesión activa', async () => {
+      repoSesiones.findOne.mockResolvedValueOnce({
+        nombreSesion: 'Ana',
+        emailSesion: 'ana@ejemplo.cl',
+        telefonoSesion: '+56911111111',
+        direccionSesion: 'Calle 1',
+      });
+
+      await expect(
+        servicio.contactoSesionActiva(CIUDADANO_ID),
+      ).resolves.toEqual({
+        nombre: 'Ana',
+        email: 'ana@ejemplo.cl',
+        telefono: '+56911111111',
+        direccion: 'Calle 1',
+      });
+    });
+  });
+
+  describe('actualizarContactoSesion', () => {
+    it('actualiza solo las sesiones activas del ciudadano', async () => {
+      const execute = jest.fn(() => Promise.resolve());
+      const andWhere = jest.fn(() => ({ execute }));
+      const where = jest.fn(() => ({ andWhere }));
+      const set = jest.fn(() => ({ where }));
+      const update = jest.fn(() => ({ set }));
+      repoSesiones.createQueryBuilder = jest.fn(() => ({ update }));
+
+      await servicio.actualizarContactoSesion(CIUDADANO_ID, {
+        telefono: '+56911111111',
+        direccion: 'Calle 1',
+      });
+
+      expect(set).toHaveBeenCalledWith({
+        telefonoSesion: '+56911111111',
+        direccionSesion: 'Calle 1',
+      });
+      expect(where).toHaveBeenCalledWith('usuario_ciudadano_id = :id', {
+        id: CIUDADANO_ID,
+      });
+      expect(andWhere).toHaveBeenCalledWith('activa = :activa', {
+        activa: true,
+      });
+      expect(execute).toHaveBeenCalled();
+    });
+  });
 });
