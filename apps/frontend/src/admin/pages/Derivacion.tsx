@@ -9,17 +9,9 @@ import {
   type ResumenDerivacion,
 } from '../api/admin';
 import { EmptyState } from '../components/ui';
+import { formatoFechaHora } from '../fechas';
 
 // Entrega de solicitudes a la empresa operadora (docs/specs/SPEC-derivacion-excel.md).
-
-const formatoFecha = (iso: string): string =>
-  new Date(iso).toLocaleString('es-CL', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 
 export default function Derivacion() {
   const [resumen, setResumen] = useState<ResumenDerivacion | null>(null);
@@ -170,7 +162,7 @@ export default function Derivacion() {
                     {l.cantidad === 1 ? 'solicitud' : 'solicitudes'}
                   </p>
                   <p className="text-xs text-slate-2">
-                    {l.generadoPor} · {formatoFecha(l.createdAt)}
+                    {l.generadoPor} · {formatoFechaHora(l.createdAt)}
                   </p>
                 </div>
                 <button

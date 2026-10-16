@@ -9,6 +9,7 @@ import {
   type FormatoExportacion,
 } from '../api/admin';
 import { EmptyState } from '../components/ui';
+import { errorDeRango, finDelDia, inicioDelDia } from '../fechas';
 
 // Se traen los últimos MAX_REGISTROS de una vez y se paginan en pantalla: así
 // la búsqueda y los filtros recorren todos, no solo la página visible.
@@ -24,17 +25,6 @@ const FILTROS: { value: TipoFiltro; label: string }[] = [
   { value: 'solicitudes', label: 'Gestión Retiros' },
   { value: 'sistema', label: 'Sistema' },
 ];
-
-// El backend no acepta rangos de más de un año.
-const RANGO_MAXIMO_DIAS = 366;
-const DIA_MS = 24 * 60 * 60 * 1000;
-
-// Las fechas de los <input type="date"> son días de Chile: se mandan como el
-// primer y el último instante de ese día en la hora del navegador.
-const inicioDelDia = (dia: string): string =>
-  new Date(`${dia}T00:00:00`).toISOString();
-const finDelDia = (dia: string): string =>
-  new Date(`${dia}T23:59:59.999`).toISOString();
 
 const formatoFecha = (iso: string): string =>
   new Date(iso).toLocaleString('es-CL', {
@@ -80,13 +70,10 @@ export default function Auditoria() {
   const [descargando, setDescargando] = useState<FormatoExportacion | null>(null);
   const [errorDescarga, setErrorDescarga] = useState<string | null>(null);
 
-  const errorRango = useMemo(() => {
-    if (!diaDesde || !diaHasta) return null;
-    const dias = (Date.parse(diaHasta) - Date.parse(diaDesde)) / DIA_MS;
-    if (dias < 0) return 'La fecha «desde» es posterior a «hasta».';
-    if (dias > RANGO_MAXIMO_DIAS) return 'El rango no puede superar un año.';
-    return null;
-  }, [diaDesde, diaHasta]);
+  const errorRango = useMemo(
+    () => errorDeRango(diaDesde, diaHasta),
+    [diaDesde, diaHasta],
+  );
 
   const filtroApi = useMemo<FiltroAuditoria>(
     () => ({
