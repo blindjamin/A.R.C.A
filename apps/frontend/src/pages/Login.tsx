@@ -53,28 +53,15 @@ export default function Login() {
   // producción entrega ClaveÚnica, para probar el perfil sin ella.
   const [identidadDev, setIdentidadDev] = useState<string | null>(null);
   const [nombreDev, setNombreDev] = useState('');
-  const [rutDev, setRutDev] = useState('');
 
   const entrar = (e: FormEvent) => {
     e.preventDefault();
     if (!identidadDev) return;
     entrarDev(identidadDev, nombreDev.trim())
-      .then(() => {
-        // El RUT no viaja al backend (que nunca guarda el RUN): queda solo en
-        // este navegador, en los datos locales del perfil.
-        try {
-          const clave = `arca_perfil_vecino_${identidadDev}`;
-          const previo = JSON.parse(localStorage.getItem(clave) ?? '{}') as object;
-          localStorage.setItem(
-            clave,
-            JSON.stringify({ ...previo, nombre: nombreDev.trim(), rut: rutDev.trim() }),
-          );
-        } catch {
-          // Sin almacenamiento local el perfil muestra sus datos de ejemplo.
-        }
-        // El gate de "/" decide a dónde ir según el rol de la sesión.
-        navigate('/');
-      })
+      // El nombre queda en la sesión, como el de ClaveÚnica. No se pide RUT:
+      // A.R.C.A. no lo guarda ni lo muestra (ni siquiera en el navegador).
+      // El gate de "/" decide a dónde ir según el rol de la sesión.
+      .then(() => navigate('/'))
       .catch((err: Error) => window.alert(err.message));
   };
 
@@ -157,7 +144,7 @@ export default function Login() {
           {import.meta.env.DEV && identidadDev && (
             <form onSubmit={entrar} className="space-y-3">
               <p className="text-center text-xs text-white/85">
-                Acceso de desarrollo: ingresa los datos que entregaría ClaveÚnica.
+                Acceso de desarrollo: ingresa el nombre que entregaría ClaveÚnica.
               </p>
               <label className="block text-xs font-medium text-white/90">
                 Nombre completo
@@ -169,20 +156,6 @@ export default function Login() {
                   value={nombreDev}
                   onChange={(e) => setNombreDev(e.target.value)}
                   className="mt-1 w-full rounded-md border border-white/30 bg-white px-4 py-3 text-sm text-ink"
-                />
-              </label>
-              <label className="block text-xs font-medium text-white/90">
-                RUT
-                <input
-                  type="text"
-                  required
-                  maxLength={12}
-                  pattern="[0-9.]{7,10}-[0-9kK]"
-                  title="Formato: 12.345.678-9"
-                  placeholder="12.345.678-9"
-                  value={rutDev}
-                  onChange={(e) => setRutDev(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-white/30 bg-white px-4 py-3 font-mono text-sm text-ink"
                 />
               </label>
               <div className="grid grid-cols-2 gap-2">

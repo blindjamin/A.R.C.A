@@ -23,7 +23,6 @@ export interface PerfilCiudadano {
   nombre: string;
   email?: string;
   telefono?: string;
-  rut?: string;
   direccion?: string;
   sector?: string;
   canalPreferido?: string;
@@ -117,7 +116,16 @@ export default function Perfil() {
     try {
       const guardado = localStorage.getItem(storageKey);
       if (guardado) {
-        const perfilGuardado = JSON.parse(guardado) as PerfilCiudadano;
+        // `rut` puede venir de perfiles guardados antes de dejar de mostrarlo:
+        // se descarta y no se vuelve a escribir.
+        const perfilGuardado = JSON.parse(guardado) as PerfilCiudadano & {
+          rut?: string;
+        };
+        delete perfilGuardado.rut;
+        // El contacto con el vecino es solo por correo o llamada.
+        if (perfilGuardado.canalPreferido === 'WhatsApp / SMS') {
+          delete perfilGuardado.canalPreferido;
+        }
         // El nombre lo entrega ClaveÚnica: manda el de la sesión, no el guardado.
         return {
           ...perfilGuardado,
@@ -128,15 +136,9 @@ export default function Perfil() {
       // Ignorar error de parsing
     }
 
-    return {
-      nombre: sesion?.nombre || 'Maximiliano Osorio',
-      email: 'maximiliano.vecino@santodomingo.cl',
-      telefono: '+56 9 8765 4321',
-      rut: '18.943.201-4',
-      direccion: 'Calle Las Torcazas 420',
-      sector: 'Rocas de Santo Domingo',
-      canalPreferido: 'WhatsApp / SMS',
-    };
+    // Sin perfil guardado: solo el nombre de ClaveÚnica. Los datos de contacto
+    // los agrega el vecino; nunca se muestran datos de ejemplo como si fueran suyos.
+    return { nombre: sesion?.nombre || 'Vecino de Santo Domingo' };
   });
 
   // Estado del modal de edición
@@ -164,11 +166,10 @@ export default function Perfil() {
   const guardarCambios = (e: React.FormEvent) => {
     e.preventDefault();
     const nuevoPerfil: PerfilCiudadano = {
-      // Nombre y RUT los entrega ClaveÚnica: el vecino no los edita.
+      // El nombre lo entrega ClaveÚnica: el vecino no lo edita.
       nombre: perfil.nombre,
       email: formEmail.trim() ? formEmail.trim() : undefined,
       telefono: formTelefono.trim() ? formTelefono.trim() : undefined,
-      rut: perfil.rut,
       direccion: formDireccion.trim() ? formDireccion.trim() : undefined,
       sector: formSector.trim() ? formSector.trim() : undefined,
       canalPreferido: formCanalPreferido.trim()
@@ -201,7 +202,7 @@ export default function Perfil() {
     setFormTelefono('+56 9 8765 4321');
     setFormDireccion('Calle Las Torcazas 420');
     setFormSector('Rocas de Santo Domingo');
-    setFormCanalPreferido('WhatsApp / SMS');
+    setFormCanalPreferido('Correo Electrónico');
   };
 
   const iniciales = perfil.nombre
@@ -220,7 +221,6 @@ export default function Perfil() {
   const hayDatosContacto =
     tieneValor(perfil.email) ||
     tieneValor(perfil.telefono) ||
-    tieneValor(perfil.rut) ||
     tieneValor(perfil.direccion) ||
     tieneValor(perfil.sector) ||
     tieneValor(perfil.canalPreferido);
@@ -483,23 +483,6 @@ export default function Perfil() {
               </div>
             )}
 
-            {/* RUT Ciudadano (opcional: solo si está relleno) */}
-            {tieneValor(perfil.rut) && (
-              <div className="card flex items-start gap-3 p-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
-                  <IconShield className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
-                    RUT de Identidad
-                  </span>
-                  <p className="truncate text-sm font-mono font-semibold text-ink">
-                    {perfil.rut}
-                  </p>
-                </div>
-              </div>
-            )}
-
             {/* Dirección de Retiro (opcional: solo si está relleno) */}
             {tieneValor(perfil.direccion) && (
               <div className="card flex items-start gap-3 p-4">
@@ -752,22 +735,6 @@ export default function Perfil() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {/* RUT: lo entrega ClaveÚnica, no se edita */}
-                <div>
-                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
-                    RUT de Identidad
-                  </label>
-                  <input
-                    type="text"
-                    readOnly
-                    value={perfil.rut ?? ''}
-                    className="field cursor-not-allowed font-mono text-slate"
-                  />
-                  <p className="mt-1 text-[11px] text-slate-2">
-                    Viene de ClaveÚnica y no se puede modificar.
-                  </p>
-                </div>
-
                 {/* Sector Municipal (opcional) */}
                 <div>
                   <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
@@ -819,33 +786,34 @@ export default function Perfil() {
                   className="field"
                 >
                   <option value="">(Sin preferencia - se ocultará)</option>
-                  <option value="WhatsApp / SMS">WhatsApp / SMS</option>
                   <option value="Correo Electrónico">Correo Electrónico</option>
                   <option value="Llamada Telefónica">Llamada Telefónica</option>
                 </select>
               </div>
 
-              {/* Botones de acción rápida para pruebas */}
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-canvas/70 p-3 text-xs border border-line">
-                <span className="text-slate font-medium">Herramientas de prueba:</span>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={limpiarCamposOpcionales}
-                    className="text-rose-600 hover:underline font-semibold"
-                  >
-                    Limpiar opcionales
-                  </button>
-                  <span className="text-line">•</span>
-                  <button
-                    type="button"
-                    onClick={cargarDatosEjemplo}
-                    className="text-green-700 hover:underline font-semibold"
-                  >
-                    Cargar datos demo
-                  </button>
+              {/* Herramientas de prueba: solo en desarrollo, nunca en producción. */}
+              {import.meta.env.DEV && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-canvas/70 p-3 text-xs border border-line">
+                  <span className="text-slate font-medium">Herramientas de prueba:</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={limpiarCamposOpcionales}
+                      className="text-rose-600 hover:underline font-semibold"
+                    >
+                      Limpiar opcionales
+                    </button>
+                    <span className="text-line">•</span>
+                    <button
+                      type="button"
+                      onClick={cargarDatosEjemplo}
+                      className="text-green-700 hover:underline font-semibold"
+                    >
+                      Cargar datos demo
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-line">
                 <button
