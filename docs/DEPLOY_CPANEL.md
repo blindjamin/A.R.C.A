@@ -367,7 +367,7 @@ revisar que no traiga contraseñas.**
 - **Usuarios de prueba:** tres migraciones (`seed-operador-demo`, `seed-admin-demo`,
   `seed-operadores-prueba`) insertan usuarios de demostración con identificadores fijos. En
   producción no se puede entrar con ellos (solo se entra por ClaveÚnica), pero **deben
-  eliminarse antes de la puesta en marcha real**, con una migración nueva — pendiente del equipo.
+  desactivarse antes de la puesta en marcha real** (§7.4).
 - Respaldos periódicos de `santod85_arca_db` (cPanel → Copia de seguridad).
 - **Cloudflare y el límite de consultas.** La API limita las consultas por IP de cada
   visitante. El sitio pasa por Cloudflare (se ve en las páginas de error del servidor), y si
@@ -469,5 +469,54 @@ SELECT nombre, apellido, email_institucional, rol, cargo, activo
 El cambio rige **en la siguiente acción** de la persona, sin esperar a que cierre sesión: la API
 consulta el rol en cada petición. Con `activo = 0`, la persona sigue entrando, pero como vecino.
 
-**Antes de la puesta en marcha real**, quitar el acceso a las cuentas de demostración que crean
-las migraciones (§6, usuarios de prueba).
+### 7.4 Desactivar las cuentas de demostración
+
+**Una vez, antes de la puesta en marcha real** (después de la feria), en phpMyAdmin → SQL.
+Desactiva las siete cuentas que crean las migraciones (el vecino de desarrollo, Camila, Carlos
+y los operadores de prueba) y cierra sus sesiones.
+
+Se desactivan y no se borran: tienen historial (solicitudes, revisiones, lotes) y entradas en la
+auditoría, que no se toca. Con `activo = 0` la cuenta ya no puede iniciar sesión, y una sesión
+abierta deja de valer en la siguiente acción. El cambio queda en la auditoría con actor `sistema`.
+
+```sql
+START TRANSACTION;
+
+-- Las cuentas demo se reconocen por su clave_unica_id inventado; las reales
+-- guardan una huella de 64 caracteres y nunca calzan con este filtro.
+CREATE TEMPORARY TABLE cuentas_demo AS
+  SELECT id FROM usuarios_ciudadanos
+   WHERE clave_unica_id LIKE 'demo-%' OR clave_unica_id = 'dev-claveunica-test';
+
+UPDATE usuarios_ciudadanos c JOIN cuentas_demo d ON d.id = c.id
+   SET c.activo = 0;
+UPDATE usuarios_administradores a JOIN cuentas_demo d ON d.id = a.usuario_ciudadano_id
+   SET a.activo = 0;
+UPDATE sesiones_ciudadano s JOIN cuentas_demo d ON d.id = s.usuario_ciudadano_id
+   SET s.activa = 0;
+UPDATE sesiones_administrador s
+  JOIN usuarios_administradores a ON a.id = s.usuario_administrador_id
+  JOIN cuentas_demo d ON d.id = a.usuario_ciudadano_id
+   SET s.activa = 0;
+
+INSERT INTO auditoria (tipo_actor, entidad, accion, datos_nuevos, user_agent, fecha_accion)
+SELECT 'sistema', 'usuarios_ciudadanos', 'UPDATE',
+       JSON_OBJECT('activo', false, 'cuentas_demo', JSON_ARRAYAGG(id)),
+       'desactivar cuentas demo', UTC_TIMESTAMP()
+  FROM cuentas_demo;
+
+COMMIT;
+
+-- Revisar: las siete deben quedar con activo y activo_panel en 0
+SELECT c.id, c.clave_unica_id, c.activo, a.nombre, a.rol, a.activo AS activo_panel
+  FROM usuarios_ciudadanos c
+  LEFT JOIN usuarios_administradores a ON a.usuario_ciudadano_id = c.id
+ WHERE c.clave_unica_id LIKE 'demo-%' OR c.clave_unica_id = 'dev-claveunica-test';
+```
+
+Para deshacerlo, el mismo bloque con `SET c.activo = 1` y `SET a.activo = 1`, sin los dos
+`UPDATE` de sesiones, y `'reactivar cuentas demo'` en el `INSERT`.
+
+No es una migración a propósito: una migración correría también en la base de cada integrante
+y apagaría los botones de desarrollo (Vecino, Funcionario y Admin entran con estas cuentas) y
+la demo de la feria.

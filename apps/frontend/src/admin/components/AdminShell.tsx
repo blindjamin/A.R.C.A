@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
+import { BarraAccesibilidad, MenuAccesibilidad } from '../../accesibilidad/BarraAccesibilidad';
 import { useSession } from '../../auth/SessionContext';
-import { IconLeaf, IconMenu, IconX } from '../../components/ui/Icons';
+import { IconMenu, IconX } from '../../components/ui/Icons';
 
 const NAV = [
   { to: '/admin', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
@@ -47,6 +48,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           A.R.C.A.
         </span>
         <span className="text-xs text-white/75">Panel municipal</span>
+        <div className="ml-auto">
+          <MenuAccesibilidad />
+        </div>
       </header>
       {menuAbierto && (
         <div
@@ -61,9 +65,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         }`}
       >
         <div className="flex items-center gap-2.5 border-b border-white/20 px-5 py-4">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white">
-            <IconLeaf className="h-5 w-5" />
-          </span>
+          <img src="/isotipo.svg" alt="" className="h-9 w-9 shrink-0" />
           <div className="flex flex-col">
             <span className="font-display text-base font-extrabold leading-none tracking-tight text-white">
               A.R.C.A.
@@ -101,7 +103,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto border-t border-white/20 px-3 py-3">
+        <div className="mt-auto hidden border-t border-white/20 px-5 py-3 lg:block">
+          <BarraAccesibilidad />
+        </div>
+        <div className="border-t border-white/20 px-3 py-3">
           <p className="truncate px-2 text-sm font-semibold text-white">
             {sesion?.nombre ?? 'Sesión municipal'}
           </p>
