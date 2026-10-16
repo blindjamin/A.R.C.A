@@ -199,7 +199,7 @@ export default function NuevaSolicitud() {
             maxLength={LARGO_MAXIMO_DIRECCION}
             required
             autoComplete="street-address"
-            placeholder="Calle, número y sector"
+            placeholder="Ej: Av. del Mar 123, Santo Domingo"
             className="field"
           />
           <p className="mt-1 text-xs text-slate">

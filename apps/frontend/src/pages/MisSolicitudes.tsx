@@ -346,7 +346,11 @@ export default function MisSolicitudes() {
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => setEditandoCorreccion(false)}
+                    onClick={() => {
+                      setEditandoCorreccion(false);
+                      setNuevaFoto(null);
+                      setNuevaFotoPreview(null);
+                    }}
                     className="btn-outline flex-1 py-2 text-xs font-semibold"
                   >
                     Cancelar

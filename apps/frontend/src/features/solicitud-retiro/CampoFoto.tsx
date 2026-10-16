@@ -1,6 +1,6 @@
-import { useRef, type ChangeEvent } from 'react';
+import { useEffect, useRef, type ChangeEvent } from 'react';
 import { IconCamera, IconImage } from '../../components/ui';
-import { validarFoto } from './fotoSolicitud';
+import { TAMANO_MAXIMO_FOTO_BYTES, validarFoto } from './fotoSolicitud';
 
 interface CampoFotoProps {
   /** Vista previa a mostrar: la foto elegida o la que ya tiene la solicitud. */
@@ -19,6 +19,16 @@ export function CampoFoto({
 }: CampoFotoProps) {
   const camaraRef = useRef<HTMLInputElement>(null);
   const galeriaRef = useRef<HTMLInputElement>(null);
+  // URL de la vista previa creada acá, para liberarla al cambiar de foto o
+  // al salir. Una URL de objeto pesa mucho menos que la foto en base64.
+  const urlCreada = useRef<string | null>(null);
+
+  useEffect(
+    () => () => {
+      if (urlCreada.current) URL.revokeObjectURL(urlCreada.current);
+    },
+    [],
+  );
 
   const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0];
@@ -32,9 +42,9 @@ export function CampoFoto({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => onElegir(archivo, reader.result as string);
-    reader.readAsDataURL(archivo);
+    if (urlCreada.current) URL.revokeObjectURL(urlCreada.current);
+    urlCreada.current = URL.createObjectURL(archivo);
+    onElegir(archivo, urlCreada.current);
   };
 
   return (
@@ -49,6 +59,9 @@ export function CampoFoto({
         <div className="flex h-32 flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-line bg-canvas text-slate">
           <IconCamera className="h-8 w-8" />
           <p className="text-xs">Agrega una foto del objeto completo</p>
+          <p className="text-[11px] text-slate-2">
+            JPG, PNG o WebP, hasta {TAMANO_MAXIMO_FOTO_BYTES / (1024 * 1024)} MB
+          </p>
         </div>
       )}
 
