@@ -98,8 +98,10 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/solicitudes-retiro/:id/foto` | Foto `antes` del vecino; misma regla de acceso que el detalle (`404` si no hay) |
 | `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía en `requiere_modificacion` (vuelve a `en_revision`). `multipart` opcional: `{ descripcion?, residuoCatalogoId?, direccionRetiro? }` + archivo `foto?`. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre). La auditoría registra estado y categoría, nunca la descripción |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
-| `POST` | `/api/mail/enviar-codigo` | Solicitar código de verificación de correo de 6 dígitos (`{ email, usuarioCiudadanoId? }`) |
-| `POST` | `/api/mail/verificar-codigo` | Validar código de verificación (`{ email, codigo, usuarioCiudadanoId? }`) y asociar correo al ciudadano |
+| `GET` | `/api/perfil` | Perfil de contacto del vecino: `{ nombre, email, telefono, direccion }` desde la sesión activa (HU-37). `nombre` solo lectura |
+| `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en la sesión. El correo solo cambia vía `/api/mail` |
+| `POST` | `/api/mail/enviar-codigo` | Solicitar código OTP (`{ email }`). El ciudadano se toma de la sesión, no del body |
+| `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y asociar correo a la sesión del vecino autenticado |
 
 ### Endpoints del marketplace (HU-04, HU-05, HU-15)
 
