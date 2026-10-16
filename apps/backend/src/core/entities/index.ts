@@ -4,6 +4,7 @@ import { UsuarioAdministrador } from './usuario-administrador.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
 import { SolicitudRetiro } from './solicitud-retiro.entity';
+import { FotoRetiro } from './foto-retiro.entity';
 import { Auditoria } from './auditoria.entity';
 import { RevisionSolicitud } from './revision-solicitud.entity';
 import { NotaSolicitud } from './nota-solicitud.entity';
@@ -22,6 +23,8 @@ export { ResiduoCatalogo } from './residuo-catalogo.entity';
 export { EstadoSolicitudRetiro } from './estado-solicitud-retiro.enum';
 export { EstadoPagoSolicitud } from './estado-pago-solicitud.enum';
 export { SolicitudRetiro } from './solicitud-retiro.entity';
+export { TipoFotoRetiro } from './tipo-foto-retiro.enum';
+export { FotoRetiro } from './foto-retiro.entity';
 export { AccionAuditoria } from './accion-auditoria.enum';
 export { TipoActorAuditoria } from './tipo-actor-auditoria.enum';
 export { Auditoria } from './auditoria.entity';
@@ -49,6 +52,7 @@ export const ENTIDADES = [
   SesionAdministrador,
   ResiduoCatalogo,
   SolicitudRetiro,
+  FotoRetiro,
   Auditoria,
   RevisionSolicitud,
   NotaSolicitud,

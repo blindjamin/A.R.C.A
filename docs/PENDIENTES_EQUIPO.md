@@ -193,14 +193,11 @@ corrección siguen desfasadas hasta que exista la migración de abajo.
 
 ### 3.3 Módulos que esperan al backend ciudadano
 
-- [ ] **`fotos-solicitud`:** subida de fotos al crear y corregir la solicitud (tabla, almacenamiento
-  en servidor y endpoint protegido para el panel). Sin esto, la revisión no muestra imágenes y
-  `foto_clara` del checklist no se puede comprobar.
-- [ ] **`datos-retiro`:** dirección real, referencia y contacto mientras la solicitud está abierta;
-  consentimiento y borrado al cerrar. Sin esto, el Excel de la empresa solo lleva la dirección
-  aproximada y las coordenadas. Requiere el acuerdo de la municipalidad (decisión 4 del mapa).
-
-Los dos necesitan su propio spec antes de implementarse.
+- [x] **`fotos-solicitud` (MVP Sprint 4):** subida al crear/reenviar (`foto_retiro`, tipo `antes`) y
+  `GET /api/solicitudes-retiro/:id/foto` (dueño o municipal). Falta UI de galería en el panel (Benjamín).
+- [x] **`datos-retiro` (MVP Sprint 4):** `direccion_retiro` obligatoria al crear; puente a
+  `direccionAnonimizada` para Excel/panel. Pendiente: consentimiento/borrado al cerrar (municipalidad)
+  y que el panel/Excel lean `direccionRetiro` de forma explícita.
 
 ---
 

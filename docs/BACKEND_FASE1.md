@@ -213,7 +213,7 @@ usuario autenticado (mismo `ciudadanoId` que el Bearer).
 
 `residuoCatalogoId` tiene que ser un id real del catálogo vigente (`GET /api/residuos/catalogo`
 — los ids cambiaron con la migración de precios reales, no asumir valores fijos).
-Campos opcionales: `direccionAnonimizada`, `latitudCapturada`, `longitudCapturada`.
+Crear es `multipart/form-data`: obligatorios `direccionRetiro` y archivo `foto`; opcionales `descripcion`, coords, `emailContacto`. La dirección se copia también a `direccionAnonimizada` (puente temporal para panel/Excel).
 
 ---
 
@@ -335,7 +335,7 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Front: header `Authorization` | Maximiliano | PR aparte tras merge HU-13; sin esto la PWA da `401` en rutas protegidas |
 | Frontend React PWA | Maximiliano | Ver `docs/SETUP_LOCAL.md` |
 | Migraciones restantes del DBML | Javier | horarios, fotos de retiro, dashboard, etc. Marketplace y créditos: ✅ `1782164400000` (2026-09-29) |
-| Subida de fotos | Javier | Marketplace: ✅ `src/archivos/` (`UPLOADS_DIR`, 2026-09-29). Solicitudes de retiro: fase posterior |
+| Subida de fotos | Javier | Marketplace: ✅ `src/archivos/`. Solicitudes: ✅ `foto_retiro` + `POST/GET …/solicitudes-retiro` (Sprint 4) |
 | ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados); hoy ciclo de revisión en `backend-admin` |
 | ~~Cancelación por ciudadano~~ | ✅ Hecho | `aplicarTransicion` + estados nuevos (§2, 2026-09-21) |
 | ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | Hoy `GET /api/sesion` (la ruta `perfil-acceso` se eliminó el 13-10) |

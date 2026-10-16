@@ -4,9 +4,11 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { FotoRetiro } from './foto-retiro.entity';
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
 import { UsuarioAdministrador } from './usuario-administrador.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -48,6 +50,14 @@ export class SolicitudRetiro {
 
   @Column({ type: 'text', nullable: true })
   descripcion: string | null;
+
+  /**
+   * Dirección real de retiro (Sprint 4). Obligatoria al crear.
+   * Mientras el panel/Excel no lean este campo, el create también copia el
+   * texto a `direccionAnonimizada` como puente temporal.
+   */
+  @Column({ name: 'direccion_retiro', type: 'text', nullable: true })
+  direccionRetiro: string | null;
 
   @Column({
     name: 'direccion_anonimizada',
@@ -133,4 +143,7 @@ export class SolicitudRetiro {
   @ManyToOne(() => UsuarioAdministrador, { nullable: true })
   @JoinColumn({ name: 'revisado_por_id' })
   revisadoPor: UsuarioAdministrador | null;
+
+  @OneToMany(() => FotoRetiro, (foto) => foto.solicitudRetiro)
+  fotos: FotoRetiro[];
 }

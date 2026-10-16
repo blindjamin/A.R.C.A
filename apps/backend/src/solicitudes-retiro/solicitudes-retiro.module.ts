@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ArchivosModule } from '../archivos/archivos.module';
 import { ResiduosModule } from '../residuos/residuos.module';
 import {
   AuditoriaModule,
   AuthModule,
+  FotoRetiro,
   RevisionSolicitud,
   SolicitudRetiro,
   UsuarioCiudadano,
@@ -18,10 +20,12 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
       SolicitudRetiro,
       UsuarioCiudadano,
       RevisionSolicitud,
+      FotoRetiro,
     ]),
     ResiduosModule,
     AuthModule,
     AuditoriaModule,
+    ArchivosModule,
     MailModule,
   ],
   controllers: [SolicitudesRetiroController],
