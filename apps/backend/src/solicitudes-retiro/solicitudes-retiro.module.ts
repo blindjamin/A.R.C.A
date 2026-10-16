@@ -12,6 +12,7 @@ import {
 } from '../core';
 import { MailModule } from '../mail/mail.module';
 import { SolicitudesRetiroController } from './solicitudes-retiro.controller';
+import { ConservacionDireccionesService } from './conservacion-direcciones.service';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 
 @Module({
@@ -29,6 +30,6 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
     MailModule,
   ],
   controllers: [SolicitudesRetiroController],
-  providers: [SolicitudesRetiroService],
+  providers: [SolicitudesRetiroService, ConservacionDireccionesService],
 })
 export class SolicitudesRetiroModule {}

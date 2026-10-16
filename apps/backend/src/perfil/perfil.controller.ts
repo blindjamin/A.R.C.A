@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { CurrentUser, type AuthUser } from '../core';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 import { PerfilService } from './perfil.service';
@@ -13,7 +14,14 @@ export class PerfilController {
   }
 
   @Patch()
-  actualizar(@CurrentUser() user: AuthUser, @Body() dto: ActualizarPerfilDto) {
-    return this.perfilService.actualizar(user, dto);
+  actualizar(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ActualizarPerfilDto,
+    @Req() req: Request,
+  ) {
+    return this.perfilService.actualizar(user, dto, {
+      ip: req.ip ?? null,
+      userAgent: req.headers['user-agent'] ?? null,
+    });
   }
 }
