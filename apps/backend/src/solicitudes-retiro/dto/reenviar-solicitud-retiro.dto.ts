@@ -1,9 +1,16 @@
-import { IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 /**
- * Correcciones del vecino al reenviar una solicitud que requiere
- * modificación. Ambas son opcionales: si lo pedido era otra cosa (por
- * ejemplo, una foto), puede reenviarla tal cual.
+ * Correcciones del vecino al reenviar una solicitud que requiere modificación.
+ * Todo es opcional. La foto nueva (si hay) viaja como archivo `foto` en
+ * multipart, fuera de este DTO.
  */
 export class ReenviarSolicitudRetiroDto {
   @IsOptional()
@@ -12,6 +19,13 @@ export class ReenviarSolicitudRetiroDto {
   descripcion?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   residuoCatalogoId?: number;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  direccionRetiro?: string;
 }

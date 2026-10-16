@@ -9,12 +9,15 @@ import {
   type AuthUser,
   EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
+  type FotoRetiro,
   MotivoRevision,
   type ResiduoCatalogo,
   type RevisionSolicitud,
   type SolicitudRetiro,
+  TipoFotoRetiro,
   type UsuarioCiudadano,
 } from '../core';
+import type { ArchivosService } from '../archivos/archivos.service';
 import type { Repository } from 'typeorm';
 import type { ResiduosService } from '../residuos/residuos.service';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
@@ -27,6 +30,11 @@ const VECINO: AuthUser = {
   esAdministrador: false,
   administradorId: null,
   rol: null,
+};
+
+const FOTO = {
+  buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]),
+  size: 6,
 };
 
 const filaBase = (cambios: Partial<SolicitudRetiro> = {}): SolicitudRetiro =>
@@ -42,15 +50,30 @@ const filaBase = (cambios: Partial<SolicitudRetiro> = {}): SolicitudRetiro =>
     fechaCierre: null,
     razonRechazo: null,
     descripcion: null,
-    direccionAnonimizada: null,
+    direccionRetiro: 'Calle Uno 123, Santo Domingo',
+    direccionAnonimizada: 'Calle Uno 123, Santo Domingo',
     latitudCapturada: null,
     longitudCapturada: null,
     fechaSolicitud: new Date('2026-09-17T12:00:00.000Z'),
+    createdAt: new Date('2026-09-17T12:00:00.000Z'),
+    updatedAt: new Date('2026-09-17T12:00:00.000Z'),
+    fotos: [
+      {
+        id: 1,
+        solicitudRetiroId: 7,
+        rutaArchivo: 'solicitudes-retiro/abc.jpg',
+        tipoFoto: TipoFotoRetiro.ANTES,
+        hashIntegridad: null,
+        fechaCaptura: new Date('2026-09-17T12:00:00.000Z'),
+      } as FotoRetiro,
+    ],
     ...cambios,
   }) as SolicitudRetiro;
 
 function montar(fila?: SolicitudRetiro) {
-  let guardada = fila ? { ...fila } : null;
+  let guardada = fila
+    ? { ...fila, fotos: fila.fotos ? [...fila.fotos] : [] }
+    : null;
 
   const solicitudRepo = {
     create: jest.fn((data: Partial<SolicitudRetiro>) => ({
@@ -58,10 +81,19 @@ function montar(fila?: SolicitudRetiro) {
       ...data,
     })),
     save: jest.fn((s: SolicitudRetiro) => {
-      guardada = { ...s };
-      return Promise.resolve({ ...s });
+      guardada = {
+        ...s,
+        fotos: s.fotos ?? guardada?.fotos ?? [],
+        createdAt: s.createdAt ?? new Date(),
+        updatedAt: s.updatedAt ?? new Date(),
+      };
+      return Promise.resolve({ ...guardada });
     }),
-    findOne: jest.fn(() => Promise.resolve(guardada ? { ...guardada } : null)),
+    findOne: jest.fn(() =>
+      Promise.resolve(
+        guardada ? { ...guardada, fotos: guardada.fotos ?? [] } : null,
+      ),
+    ),
     find: jest.fn(() => Promise.resolve([])),
   };
 
@@ -80,6 +112,29 @@ function montar(fila?: SolicitudRetiro) {
     ),
   };
 
+  const fotoRepo = {
+    create: jest.fn((data: Partial<FotoRetiro>) => ({ id: 1, ...data })),
+    save: jest.fn((f: FotoRetiro) => {
+      if (guardada) {
+        const resto = (guardada.fotos ?? []).filter(
+          (x) => x.tipoFoto !== TipoFotoRetiro.ANTES,
+        );
+        guardada = {
+          ...guardada,
+          fotos: [
+            ...resto,
+            {
+              ...f,
+              id: f.id ?? 1,
+              tipoFoto: TipoFotoRetiro.ANTES,
+            },
+          ],
+        };
+      }
+      return Promise.resolve(f);
+    }),
+  };
+
   const residuos = {
     findCatalogoById: jest.fn((id: number): Promise<ResiduoCatalogo | null> =>
       Promise.resolve({ id, precio: 15000 } as ResiduoCatalogo),
@@ -88,45 +143,97 @@ function montar(fila?: SolicitudRetiro) {
 
   const auditoria = { registrar: jest.fn(() => Promise.resolve()) };
 
+  const archivos = {
+    guardarImagen: jest.fn(() =>
+      Promise.resolve('solicitudes-retiro/nueva.jpg'),
+    ),
+    abrir: jest.fn(),
+    borrar: jest.fn(() => Promise.resolve()),
+  };
+
   const service = new SolicitudesRetiroService(
     solicitudRepo as unknown as Repository<SolicitudRetiro>,
     ciudadanoRepo as unknown as Repository<UsuarioCiudadano>,
     revisionRepo as unknown as Repository<RevisionSolicitud>,
+    fotoRepo as unknown as Repository<FotoRetiro>,
     residuos as unknown as ResiduosService,
     auditoria as unknown as AuditoriaService,
+    archivos as unknown as ArchivosService,
   );
 
   return {
     service,
     solicitudRepo,
     revisionRepo,
+    fotoRepo,
     residuos,
     auditoria,
+    archivos,
     guardada: () => guardada,
   };
 }
 
 describe('SolicitudesRetiroService.create', () => {
-  it('deja la solicitud en en_revision con pago no_aplica', async () => {
-    const { service, auditoria, guardada } = montar();
+  it('deja la solicitud en en_revision con dirección, foto y pago no_aplica', async () => {
+    const { service, auditoria, guardada, archivos } = montar();
 
     const creada = await service.create(
       {
         usuarioCiudadanoId: CIUDADANO_ID,
         residuoCatalogoId: 1,
+        direccionRetiro: 'Av. Costanera 100',
       },
+      FOTO,
       VECINO,
     );
 
     expect(creada.estado).toBe(EstadoSolicitudRetiro.EN_REVISION);
     expect(creada.estadoPago).toBe(EstadoPagoSolicitud.NO_APLICA);
-    expect(guardada()?.estado).toBe(EstadoSolicitudRetiro.EN_REVISION);
+    expect(creada.direccionRetiro).toBe('Av. Costanera 100');
+    expect(creada.direccionAnonimizada).toBe('Av. Costanera 100');
+    expect(creada.fotoUrl).toBe('/api/solicitudes-retiro/1/foto');
+    expect(guardada()?.direccionRetiro).toBe('Av. Costanera 100');
+    expect(archivos.guardarImagen).toHaveBeenCalled();
     expect(auditoria.registrar).toHaveBeenCalledWith(
       expect.objectContaining({
         accion: AccionAuditoria.CREATE,
         datosNuevos: { estado: EstadoSolicitudRetiro.EN_REVISION },
       }),
     );
+  });
+
+  it('sin foto responde 400', async () => {
+    const { service, solicitudRepo } = montar();
+
+    await expect(
+      service.create(
+        {
+          usuarioCiudadanoId: CIUDADANO_ID,
+          residuoCatalogoId: 1,
+          direccionRetiro: 'Calle 1',
+        },
+        undefined,
+        VECINO,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(solicitudRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('sin dirección responde 400', async () => {
+    const { service, solicitudRepo } = montar();
+
+    await expect(
+      service.create(
+        {
+          usuarioCiudadanoId: CIUDADANO_ID,
+          residuoCatalogoId: 1,
+          direccionRetiro: '   ',
+        },
+        FOTO,
+        VECINO,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(solicitudRepo.save).not.toHaveBeenCalled();
   });
 });
 
@@ -221,6 +328,7 @@ describe('SolicitudesRetiroService.findOneConUltimaRevision', () => {
       comentario: 'Indica el tamaño del mueble',
       fecha,
     });
+    expect(detalle.fotoUrl).toBe('/api/solicitudes-retiro/7/foto');
     const [consulta] = revisionRepo.findOne.mock.calls[0] as unknown as [
       { where: unknown; select: Record<string, boolean> },
     ];
@@ -266,6 +374,7 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     await service.reenviarPorCiudadano(
       7,
       { descripcion: 'Sillón de tres cuerpos', residuoCatalogoId: 4 },
+      undefined,
       VECINO,
     );
 
@@ -295,7 +404,7 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
   it('sin correcciones también se puede reenviar, y la auditoría lleva solo el estado', async () => {
     const { service, auditoria, guardada } = montar(requiereModificacion());
 
-    await service.reenviarPorCiudadano(7, {}, VECINO);
+    await service.reenviarPorCiudadano(7, {}, undefined, VECINO);
 
     expect(guardada()).toMatchObject({
       estado: EstadoSolicitudRetiro.EN_REVISION,
@@ -312,6 +421,22 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     );
   });
 
+  it('actualiza dirección y copia el puente a direccionAnonimizada', async () => {
+    const { service, guardada } = montar(requiereModificacion());
+
+    await service.reenviarPorCiudadano(
+      7,
+      { direccionRetiro: 'Nueva 99' },
+      undefined,
+      VECINO,
+    );
+
+    expect(guardada()).toMatchObject({
+      direccionRetiro: 'Nueva 99',
+      direccionAnonimizada: 'Nueva 99',
+    });
+  });
+
   it.each([
     EstadoSolicitudRetiro.EN_REVISION,
     EstadoSolicitudRetiro.APROBADA,
@@ -320,7 +445,7 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     const { service, solicitudRepo } = montar(filaBase({ estado }));
 
     await expect(
-      service.reenviarPorCiudadano(7, {}, VECINO),
+      service.reenviarPorCiudadano(7, {}, undefined, VECINO),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(solicitudRepo.save).not.toHaveBeenCalled();
   });
@@ -331,7 +456,7 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     );
 
     await expect(
-      service.reenviarPorCiudadano(7, {}, VECINO),
+      service.reenviarPorCiudadano(7, {}, undefined, VECINO),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(solicitudRepo.save).not.toHaveBeenCalled();
   });
@@ -342,7 +467,7 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     );
 
     await expect(
-      service.reenviarPorCiudadano(7, {}, VECINO),
+      service.reenviarPorCiudadano(7, {}, undefined, VECINO),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(solicitudRepo.save).not.toHaveBeenCalled();
   });
@@ -352,7 +477,12 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     residuos.findCatalogoById.mockResolvedValueOnce(null);
 
     await expect(
-      service.reenviarPorCiudadano(7, { residuoCatalogoId: 999 }, VECINO),
+      service.reenviarPorCiudadano(
+        7,
+        { residuoCatalogoId: 999 },
+        undefined,
+        VECINO,
+      ),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(solicitudRepo.save).not.toHaveBeenCalled();
   });
@@ -361,7 +491,7 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     const { service } = montar();
 
     await expect(
-      service.reenviarPorCiudadano(7, {}, VECINO),
+      service.reenviarPorCiudadano(7, {}, undefined, VECINO),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

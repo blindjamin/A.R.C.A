@@ -92,10 +92,11 @@ Todos cuelgan del prefijo `/api`.
 |---|---|---|
 | `GET` | `/api/health` | Health check |
 | `GET` | `/api/residuos/catalogo` | Catálogo de residuos (incluye `precio` real) |
-| `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
-| `GET` | `/api/solicitudes-retiro` | Listar solicitudes (filtrable por estado) |
-| `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud, con `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`): nunca el revisor, el checklist ni las notas internas |
-| `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía una solicitud en `requiere_modificacion` (vuelve a `en_revision` vía `aplicarTransicion`). Body opcional `{ descripcion?, residuoCatalogoId? }` con las correcciones. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre), `404` si la categoría no existe. La auditoría registra estado y categoría, nunca la descripción |
+| `POST` | `/api/solicitudes-retiro` | Crear solicitud (`multipart/form-data`): `usuarioCiudadanoId`, `residuoCatalogoId`, `direccionRetiro` (obligatoria), `descripcion?`, `emailContacto?`, coords opcionales y archivo `foto` (JPG/PNG/WebP ≤5 MB, obligatorio). Copia `direccionRetiro` a `direccionAnonimizada` como puente para panel/Excel. Respuesta incluye `fotoUrl` |
+| `GET` | `/api/solicitudes-retiro` | Listar solicitudes (filtrable por estado); cada ítem trae `direccionRetiro` y `fotoUrl` |
+| `GET` | `/api/solicitudes-retiro/:id` | Detalle con `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`), `direccionRetiro` y `fotoUrl`. Nunca el revisor, el checklist ni las notas internas |
+| `GET` | `/api/solicitudes-retiro/:id/foto` | Foto `antes` del vecino; misma regla de acceso que el detalle (`404` si no hay) |
+| `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía en `requiere_modificacion` (vuelve a `en_revision`). `multipart` opcional: `{ descripcion?, residuoCatalogoId?, direccionRetiro? }` + archivo `foto?`. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre). La auditoría registra estado y categoría, nunca la descripción |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
 | `POST` | `/api/mail/enviar-codigo` | Solicitar código de verificación de correo de 6 dígitos (`{ email, usuarioCiudadanoId? }`) |
 | `POST` | `/api/mail/verificar-codigo` | Validar código de verificación (`{ email, codigo, usuarioCiudadanoId? }`) y asociar correo al ciudadano |
@@ -349,6 +350,7 @@ siempre en una migración nueva.
 | `1782164200000` | `revision-solicitudes` — historial de revisiones, notas y toma |
 | `1782164300000` | `lotes-derivacion` — lotes Excel hacia la empresa operadora |
 | `1782164400000` | `marketplace-circular-credits` — artículos, calificaciones, mensajes y movimientos de créditos; `creditos` en el catálogo ([spec](../../docs/specs/SPEC-marketplace.md) §3) |
+| `1782164500000` | `solicitud-direccion-fotos` — `direccion_retiro` en solicitudes + tabla `foto_retiro` (foto del vecino al solicitar) |
 
 ### Se escriben a mano — no usar `migration:generate`
 

@@ -119,7 +119,8 @@ Table solicitudes_retiro {
   estado_pago enum('no_aplica', 'pendiente', 'pagado') [not null, default: 'no_aplica', note: "Pago maqueteado; se cobra después de aprobar"]
   monto int [note: "CLP congelado al aprobar"]
   descripcion text
-  direccion_anonimizada varchar(255) [note: "Hash de la dirección para mapeos internos"]
+  direccion_retiro text [note: "Dirección real de retiro (Sprint 4). Obligatoria al crear."]
+  direccion_anonimizada varchar(255) [note: "Puente temporal / mapeos: hoy copia de direccion_retiro truncada; el panel y Excel aún la leen"]
   latitud_capturada decimal(10,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   longitud_capturada decimal(11,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   fecha_solicitud timestamp [not null]
@@ -180,9 +181,9 @@ Table horarios_retiro {
 Table foto_retiro {
   id int [primary key, increment]
   solicitud_retiro_id int [not null]
-  ruta_archivo_encriptada varchar(500) [not null, note: "Ruta a servidor protegido"]
-  tipo_foto enum('antes', 'durante', 'despues') [not null]
-  hash_integridad varchar(255) [note: "SHA256 para verificar tampering"]
+  ruta_archivo varchar(500) [not null, note: "Relativa a UPLOADS_DIR; se sirve por GET /api/solicitudes-retiro/:id/foto con sesión"]
+  tipo_foto enum('antes', 'durante', 'despues') [not null, note: "El vecino sube 'antes' al crear/corregir"]
+  hash_integridad varchar(255) [note: "Opcional; no se calcula en el MVP"]
   fecha_captura timestamp [not null]
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
 }
