@@ -1,12 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import {
+  Between,
+  type FindOptionsWhere,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import {
   AccionAuditoria,
   Auditoria,
   RolAdministrador,
   TipoActorAuditoria,
+  UsuarioAdministrador,
 } from '../../core';
+import {
+  ACTOR_SISTEMA,
+  ACTOR_VECINOS,
+  type FiltroAuditoriaDto,
+} from './dto/filtro-auditoria.dto';
 
 /**
  * Fila de auditoría como la consume el panel municipal.
@@ -33,6 +45,25 @@ export interface AuditoriaLog {
 export const LIMITE_POR_DEFECTO = 1000;
 const LIMITE_MAXIMO = 1000;
 
+/**
+ * Tope de la exportación. Es más alto que el de la vista porque el archivo se
+ * revisa fuera del panel, pero no infinito: con el rango máximo de un año da
+ * margen de sobra y evita armar un archivo que tumbe el proceso.
+ */
+export const LIMITE_EXPORTACION = 50_000;
+
+/** Rango máximo entre `desde` y `hasta`. */
+const RANGO_MAXIMO_DIAS = 366;
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+/** Funcionario como opción del filtro por usuario. */
+export interface ActorAuditoria {
+  id: string;
+  nombre: string;
+  rol: string;
+  activo: boolean;
+}
+
 const ETIQUETA_ROL: Record<RolAdministrador, string> = {
   [RolAdministrador.ADMIN]: 'Administrador',
   [RolAdministrador.FUNCIONARIO]: 'Funcionario',
@@ -53,18 +84,85 @@ export class AuditoriaAdminService {
   constructor(
     @InjectRepository(Auditoria)
     private readonly auditoriaRepository: Repository<Auditoria>,
+    @InjectRepository(UsuarioAdministrador)
+    private readonly administradorRepository: Repository<UsuarioAdministrador>,
   ) {}
 
-  async findAll(limite?: number): Promise<AuditoriaLog[]> {
+  async findAll(
+    filtro: FiltroAuditoriaDto = {},
+    limite?: number,
+  ): Promise<AuditoriaLog[]> {
     const take = Math.min(limite ?? LIMITE_POR_DEFECTO, LIMITE_MAXIMO);
+    return this.buscar(filtro, take);
+  }
 
+  /** Mismos filtros que la vista, con el tope de la exportación. */
+  exportar(filtro: FiltroAuditoriaDto): Promise<AuditoriaLog[]> {
+    return this.buscar(filtro, LIMITE_EXPORTACION);
+  }
+
+  /**
+   * Funcionarios para el filtro por usuario, también los inactivos: su
+   * historial sigue en la auditoría aunque ya no tengan acceso al panel.
+   */
+  async actores(): Promise<ActorAuditoria[]> {
+    const admins = await this.administradorRepository.find({
+      order: { activo: 'DESC', nombre: 'ASC', apellido: 'ASC' },
+    });
+
+    return admins.map((a) => ({
+      id: a.id,
+      nombre: `${a.nombre} ${a.apellido}`,
+      rol: ETIQUETA_ROL[a.rol] ?? 'Funcionario',
+      activo: a.activo,
+    }));
+  }
+
+  private async buscar(
+    filtro: FiltroAuditoriaDto,
+    take: number,
+  ): Promise<AuditoriaLog[]> {
     const filas = await this.auditoriaRepository.find({
+      where: this.condiciones(filtro),
       relations: { actorAdministrador: true },
       order: { fechaAccion: 'DESC', id: 'DESC' },
       take,
     });
 
     return filas.map((fila) => this.aLog(fila));
+  }
+
+  private condiciones(filtro: FiltroAuditoriaDto): FindOptionsWhere<Auditoria> {
+    const where: FindOptionsWhere<Auditoria> = {};
+    const desde = filtro.desde ? new Date(filtro.desde) : null;
+    const hasta = filtro.hasta ? new Date(filtro.hasta) : null;
+
+    if (desde && hasta) {
+      if (desde > hasta) {
+        throw new BadRequestException('desde no puede ser posterior a hasta');
+      }
+      if (hasta.getTime() - desde.getTime() > RANGO_MAXIMO_DIAS * DIA_MS) {
+        throw new BadRequestException(
+          `El rango no puede superar ${RANGO_MAXIMO_DIAS} días`,
+        );
+      }
+      where.fechaAccion = Between(desde, hasta);
+    } else if (desde) {
+      where.fechaAccion = MoreThanOrEqual(desde);
+    } else if (hasta) {
+      where.fechaAccion = LessThanOrEqual(hasta);
+    }
+
+    if (filtro.actor === ACTOR_VECINOS) {
+      where.tipoActor = TipoActorAuditoria.CIUDADANO;
+    } else if (filtro.actor === ACTOR_SISTEMA) {
+      where.tipoActor = TipoActorAuditoria.SISTEMA;
+    } else if (filtro.actor) {
+      where.tipoActor = TipoActorAuditoria.ADMINISTRADOR;
+      where.actorAdministradorId = filtro.actor;
+    }
+
+    return where;
   }
 
   private aLog(fila: Auditoria): AuditoriaLog {
@@ -128,8 +226,12 @@ export class AuditoriaAdminService {
   private describirAccion(fila: Auditoria): string {
     if (fila.accion === AccionAuditoria.LOGIN) return 'Inicio de sesión';
     if (fila.accion === AccionAuditoria.ACCESO) {
-      return fila.entidad === 'lotes_derivacion'
-        ? 'Descarga del Excel de derivación'
+      if (fila.entidad === 'lotes_derivacion') {
+        return 'Descarga del Excel de derivación';
+      }
+      const formato = fila.datosNuevos?.exportacion;
+      return typeof formato === 'string'
+        ? `Exportación del registro de auditoría (${formato.toUpperCase()})`
         : 'Acceso al registro de auditoría';
     }
     if (fila.accion === AccionAuditoria.CREATE) return 'Creación';
