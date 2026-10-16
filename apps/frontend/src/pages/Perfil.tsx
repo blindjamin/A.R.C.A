@@ -19,14 +19,8 @@ import {
   IconCheck,
 } from '../components/ui/Icons';
 
-export interface PerfilCiudadano {
-  nombre: string;
-  email?: string;
-  telefono?: string;
-  direccion?: string;
-  sector?: string;
-  canalPreferido?: string;
-}
+import { type PerfilCiudadano } from '../utils/perfilStorage';
+export type { PerfilCiudadano };
 
 interface MovimientoCredito {
   id: string;
@@ -169,6 +163,8 @@ export default function Perfil() {
       // El nombre lo entrega ClaveÚnica: el vecino no lo edita.
       nombre: perfil.nombre,
       email: formEmail.trim() ? formEmail.trim() : undefined,
+      emailVerificado:
+        Boolean(perfil.emailVerificado && formEmail.trim() === perfil.email),
       telefono: formTelefono.trim() ? formTelefono.trim() : undefined,
       direccion: formDireccion.trim() ? formDireccion.trim() : undefined,
       sector: formSector.trim() ? formSector.trim() : undefined,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  apiFetch,
   crearSolicitudRetiro,
   fetchCatalogo,
   formatearPrecio,
@@ -9,6 +10,11 @@ import {
 } from '../../api/arca';
 import { PriceTag, ScreenHeader } from '../../components/ui';
 import { useSession } from '../../auth/SessionContext';
+import {
+  obtenerPerfilVecino,
+  tieneCorreoValido,
+} from '../../utils/perfilStorage';
+import { VerificarCorreoModal } from './VerificarCorreoModal';
 
 export default function NuevaSolicitud() {
   const navigate = useNavigate();
@@ -23,6 +29,7 @@ export default function NuevaSolicitud() {
   const [descripcion, setDescripcion] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mostrarModalCorreo, setMostrarModalCorreo] = useState(false);
 
   useEffect(() => {
     fetchCatalogo()
@@ -32,22 +39,59 @@ export default function NuevaSolicitud() {
 
   const seleccionado = catalogo.find((r) => r.id === residuoId);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!seleccionado || !usuarioCiudadanoId) return;
+  const ejecutarCreacion = async (emailContacto?: string) => {
+    if (!seleccionado) return;
     setSubmitting(true);
     setError(null);
     try {
+      // Sincronizar con la sesión activa actual para evitar desfasajes si se cambiaron cuentas o pestañas
+      const resSesion = await apiFetch('/api/sesion');
+      const sesionFresca = resSesion.ok
+        ? ((await resSesion.json()) as { ciudadanoId?: string })
+        : null;
+      const ciudadanoIdValido = sesionFresca?.ciudadanoId || usuarioCiudadanoId;
+
+      if (!ciudadanoIdValido) {
+        throw new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
+      }
+
       await crearSolicitudRetiro({
-        usuarioCiudadanoId,
+        usuarioCiudadanoId: ciudadanoIdValido,
         residuoCatalogoId: seleccionado.id,
         descripcion: descripcion.trim() || undefined,
+        emailContacto,
       });
       navigate('/solicitud/creada');
     } catch (err) {
       setError((err as Error).message);
       setSubmitting(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!seleccionado) return;
+
+    // Verificar identidad activa desde la sesión actual
+    const resSesion = await apiFetch('/api/sesion');
+    const sesionFresca = resSesion.ok
+      ? ((await resSesion.json()) as { ciudadanoId?: string })
+      : null;
+    const ciudadanoIdActivo = sesionFresca?.ciudadanoId || usuarioCiudadanoId;
+
+    if (!ciudadanoIdActivo) {
+      setError('Debes iniciar sesión para crear una solicitud.');
+      return;
+    }
+
+    // Si el vecino aún no tiene correo verificado, se le solicita obligatoriamente
+    if (!tieneCorreoValido(ciudadanoIdActivo)) {
+      setMostrarModalCorreo(true);
+      return;
+    }
+
+    const perfil = obtenerPerfilVecino(ciudadanoIdActivo);
+    await ejecutarCreacion(perfil.email);
   };
 
   return (
@@ -114,6 +158,17 @@ export default function NuevaSolicitud() {
           {submitting ? 'Enviando…' : 'Crear solicitud'}
         </button>
       </form>
+
+      {mostrarModalCorreo && (
+        <VerificarCorreoModal
+          ciudadanoId={usuarioCiudadanoId}
+          onVerificado={(emailVerificado) => {
+            setMostrarModalCorreo(false);
+            void ejecutarCreacion(emailVerificado);
+          }}
+          onCerrar={() => setMostrarModalCorreo(false)}
+        />
+      )}
     </div>
   );
 }

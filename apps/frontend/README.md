@@ -76,12 +76,13 @@ src/
 │   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── CapturaResiduo · AnalizandoIA · SugerenciasIA
-│       ├── Catalogo · NuevaSolicitud · SolicitudCreada
+│       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
 │       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada)
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
 │   ├── Login · SeleccionInicio · Inicio · Perfil · CircularCredits
 │   └── MisSolicitudes · Proximamente
+├── utils/                       # Utilidades transversales (perfilStorage.ts)
 ├── index.css                    # Tokens y clases utilitarias del UI Kit
 └── App.tsx                      # Router: arma las rutas y monta flujos
 ```

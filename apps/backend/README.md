@@ -54,6 +54,11 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 | `NODE_ENV` | `development` | Entorno |
 | `FRONTEND_URL` | `http://localhost:5173` | Orígenes del frontend (separados por coma): CORS y únicos aceptados en POST/PUT/PATCH/DELETE (chequeo de `Origin`). En local con otro puerto o un túnel, agregarlo aquí |
 | `UPLOADS_DIR` | vacío (`./uploads`) | Carpeta de las fotos del marketplace. En el servidor, fuera de `public_html`: solo se entregan por la API |
+| `MAIL_HOST` | `smtp.gmail.com` | Servidor SMTP para envío de correos |
+| `MAIL_PORT` | `465` | Puerto SMTP (465 SSL o 587 TLS) |
+| `MAIL_USER` | `soporte.arcaa@gmail.com` | Cuenta de correo emisora |
+| `MAIL_PASS` | opcional | Contraseña de aplicación de Google (si falta, activa modo simulación en consola) |
+| `MAIL_FROM` | `"A.R.C.A. <soporte.arcaa@gmail.com>"` | Nombre y dirección en cabecera From |
 
 `.env.local` **no se versiona** (está en `.gitignore`). La plantilla es `.env.example`.
 
@@ -92,6 +97,8 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle de una solicitud, con `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`): nunca el revisor, el checklist ni las notas internas |
 | `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía una solicitud en `requiere_modificacion` (vuelve a `en_revision` vía `aplicarTransicion`). Body opcional `{ descripcion?, residuoCatalogoId? }` con las correcciones. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre), `404` si la categoría no existe. La auditoría registra estado y categoría, nunca la descripción |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
+| `POST` | `/api/mail/enviar-codigo` | Solicitar código de verificación de correo de 6 dígitos (`{ email, usuarioCiudadanoId? }`) |
+| `POST` | `/api/mail/verificar-codigo` | Validar código de verificación (`{ email, codigo, usuarioCiudadanoId? }`) y asociar correo al ciudadano |
 
 ### Endpoints del marketplace (HU-04, HU-05, HU-15)
 
