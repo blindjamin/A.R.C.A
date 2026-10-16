@@ -364,12 +364,15 @@ export function crearLoteDerivacion(): Promise<{ id: number; cantidad: number }>
 }
 
 /**
- * Descarga el Excel del lote. Va por `fetch` y no por un enlace porque hay que
- * leer el nombre de archivo del header `content-disposition` antes de
- * disparar la descarga; cada descarga queda auditada.
+ * Descarga un archivo del backend. Va por `fetch` y no por un enlace porque
+ * hay que leer el nombre de archivo del header `content-disposition` antes de
+ * disparar la descarga.
  */
-export async function descargarExcelLote(id: number): Promise<void> {
-  const res = await apiFetch(`${API_URL}/admin/derivaciones/${id}/excel`);
+async function descargarArchivo(
+  url: string,
+  nombrePorDefecto: string,
+): Promise<void> {
+  const res = await apiFetch(url);
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Error ${res.status}: ${body || res.statusText}`);
@@ -377,14 +380,22 @@ export async function descargarExcelLote(id: number): Promise<void> {
 
   const disposicion = res.headers.get('content-disposition') ?? '';
   const nombre =
-    /filename="([^"]+)"/.exec(disposicion)?.[1] ?? `arca-lote-${id}.xlsx`;
+    /filename="([^"]+)"/.exec(disposicion)?.[1] ?? nombrePorDefecto;
 
-  const url = URL.createObjectURL(await res.blob());
+  const blob = URL.createObjectURL(await res.blob());
   const enlace = document.createElement('a');
-  enlace.href = url;
+  enlace.href = blob;
   enlace.download = nombre;
   enlace.click();
-  URL.revokeObjectURL(url);
+  URL.revokeObjectURL(blob);
+}
+
+/** Descarga el Excel del lote; cada descarga queda auditada. */
+export function descargarExcelLote(id: number): Promise<void> {
+  return descargarArchivo(
+    `${API_URL}/admin/derivaciones/${id}/excel`,
+    `arca-lote-${id}.xlsx`,
+  );
 }
 
 // --- Métricas (docs/specs/SPEC-dashboard-metricas.md) -----------------------
@@ -460,10 +471,109 @@ export interface AuditoriaLog {
  *
  * Consultar este registro queda a su vez auditado, con acción ACCESO.
  */
-export function fetchAuditoriaLogs(limite?: number): Promise<AuditoriaLog[]> {
-  const qs = limite ? `?limite=${limite}` : '';
+export function fetchAuditoriaLogs(
+  filtro: FiltroAuditoria = {},
+  limite?: number,
+): Promise<AuditoriaLog[]> {
+  const qs = paramsFiltro(filtro, limite ? { limite: String(limite) } : {});
 
   return apiFetch(`${API_URL}/admin/auditoria${qs}`).then((r) =>
     handle<AuditoriaLog[]>(r),
+  );
+}
+
+/**
+ * Filtros del registro. `desde` y `hasta` son instantes ISO, ambos inclusive;
+ * `actor` es el id de un funcionario, `vecinos` o `sistema`.
+ */
+export interface FiltroAuditoria {
+  desde?: string;
+  hasta?: string;
+  actor?: string;
+}
+
+export interface ActorAuditoria {
+  id: string;
+  nombre: string;
+  rol: string;
+  activo: boolean;
+}
+
+export type FormatoExportacion = 'csv' | 'xlsx';
+
+function paramsFiltro(
+  filtro: FiltroAuditoria | FiltroPagadas,
+  extra: Record<string, string> = {},
+): string {
+  const params = new URLSearchParams(extra);
+  for (const [clave, valor] of Object.entries(filtro)) {
+    if (valor) params.set(clave, valor);
+  }
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
+/** Funcionarios para el filtro por usuario. */
+export function fetchActoresAuditoria(): Promise<ActorAuditoria[]> {
+  return apiFetch(`${API_URL}/admin/auditoria/actores`).then((r) =>
+    handle<ActorAuditoria[]>(r),
+  );
+}
+
+/** Descarga el registro filtrado; la exportación queda auditada. */
+export function descargarAuditoria(
+  filtro: FiltroAuditoria,
+  formato: FormatoExportacion,
+): Promise<void> {
+  return descargarArchivo(
+    `${API_URL}/admin/auditoria/exportar${paramsFiltro(filtro, { formato })}`,
+    `arca-auditoria.${formato}`,
+  );
+}
+
+// --- Solicitudes pagadas (docs/specs/SPEC-listado-pagadas.md) ---
+
+/** Fila del listado; sin datos del vecino. `direccion` es la anonimizada hasta `datos-retiro`. */
+export interface SolicitudPagada {
+  id: number;
+  fechaSolicitud: string;
+  fechaRevision: string | null;
+  estado: EstadoSolicitud;
+  residuo: string;
+  categoria: string;
+  sector: string;
+  direccion: string;
+  monto: number | null;
+}
+
+/** `desde` y `hasta` son instantes ISO, ambos inclusive; `sector` viene de `fetchSectoresPagadas`. */
+export interface FiltroPagadas {
+  estado?: EstadoSolicitud;
+  desde?: string;
+  hasta?: string;
+  sector?: string;
+}
+
+export function fetchPagadas(filtro: FiltroPagadas = {}): Promise<SolicitudPagada[]> {
+  return apiFetch(`${API_URL}/admin/pagadas${paramsFiltro(filtro)}`).then((r) =>
+    handle<SolicitudPagada[]>(r),
+  );
+}
+
+/** Sectores para el filtro, con «Sin ubicación» al final. */
+export function fetchSectoresPagadas(): Promise<string[]> {
+  return apiFetch(`${API_URL}/admin/pagadas/sectores`).then((r) =>
+    handle<string[]>(r),
+  );
+}
+
+/** Descarga el listado filtrado; cada descarga queda auditada. */
+export function descargarPagadas(
+  filtro: FiltroPagadas,
+  formato: FormatoExportacion,
+): Promise<void> {
+  return descargarArchivo(
+    `${API_URL}/admin/pagadas/exportar${paramsFiltro(filtro, { formato })}`,
+    `arca-pagadas.${formato}`,
   );
 }

@@ -8,6 +8,7 @@ const NAV = [
   { to: '/admin', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
   { to: '/admin/metricas', label: 'Métricas', icon: '📊', end: false, reqAdmin: false },
   { to: '/admin/derivacion', label: 'Derivación', icon: '📦', end: false, reqAdmin: false },
+  { to: '/admin/pagadas', label: 'Pagadas', icon: '💳', end: false, reqAdmin: false },
   { to: '/admin/mapa-calor', label: 'Mapa de calor', icon: '🗺️', end: false, reqAdmin: false },
   { to: '/admin/auditoria', label: 'Auditoría', icon: '🛡️', end: false, reqAdmin: true },
 ];

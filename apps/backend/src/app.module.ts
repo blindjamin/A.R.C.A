@@ -15,6 +15,7 @@ import { AuditoriaAdminModule } from './admin/auditoria/auditoria-admin.module';
 import { ResiduosAdminModule } from './admin/residuos/residuos-admin.module';
 import { DerivacionesAdminModule } from './admin/derivaciones/derivaciones-admin.module';
 import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
+import { PagadasAdminModule } from './admin/pagadas/pagadas-admin.module';
 import { MailModule } from './mail/mail.module';
 
 @Module({
@@ -63,6 +64,7 @@ import { MailModule } from './mail/mail.module';
     ResiduosAdminModule,
     DerivacionesAdminModule,
     MetricasAdminModule,
+    PagadasAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

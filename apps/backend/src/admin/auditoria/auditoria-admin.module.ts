@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Auditoria, AuditoriaModule } from '../../core';
+import { Auditoria, AuditoriaModule, UsuarioAdministrador } from '../../core';
 import { AuditoriaAdminController } from './auditoria-admin.controller';
 import { AuditoriaAdminService } from './auditoria-admin.service';
 
@@ -9,7 +9,10 @@ import { AuditoriaAdminService } from './auditoria-admin.service';
 // AuditoriaAdminService es la lectura, y vive acá porque es del panel: la API
 // ciudadana escribe auditoría pero no debe poder leerla.
 @Module({
-  imports: [TypeOrmModule.forFeature([Auditoria]), AuditoriaModule],
+  imports: [
+    TypeOrmModule.forFeature([Auditoria, UsuarioAdministrador]),
+    AuditoriaModule,
+  ],
   controllers: [AuditoriaAdminController],
   providers: [AuditoriaAdminService],
 })

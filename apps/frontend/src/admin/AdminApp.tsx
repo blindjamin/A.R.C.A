@@ -6,6 +6,7 @@ import Auditoria from './pages/Auditoria';
 import MapaCalor from './pages/MapaCalor';
 import Derivacion from './pages/Derivacion';
 import Metricas from './pages/Metricas';
+import Pagadas from './pages/Pagadas';
 import './admin.css';
 
 // El panel vive en /admin/* (rutas relativas: el BrowserRouter lo pone
@@ -18,6 +19,7 @@ export default function AdminApp() {
         <Route index element={<Solicitudes />} />
         <Route path="metricas" element={<Metricas />} />
         <Route path="derivacion" element={<Derivacion />} />
+        <Route path="pagadas" element={<Pagadas />} />
         <Route path="mapa-calor" element={<MapaCalor />} />
         <Route
           path="auditoria"
