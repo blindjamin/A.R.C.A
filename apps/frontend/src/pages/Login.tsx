@@ -6,7 +6,6 @@ import {
   BotonClaveUnica,
   IconCamera,
   IconCircularCredits,
-  IconLeaf,
   IconRepeat,
   type IconProps,
 } from '../components/ui';
@@ -82,11 +81,12 @@ export default function Login() {
             pasos nuevos), solo esta parte se desplaza y se desvanece detrás de
             los botones, que quedan siempre a la vista. */}
         <div className="-mx-6 mt-12 min-h-0 flex-1 overflow-y-auto px-6 pb-6 [scrollbar-width:none] text-center [mask-image:linear-gradient(to_bottom,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] pt-4 lg:pt-0 lg:mx-0 lg:mt-0 lg:max-w-lg lg:min-w-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:text-left lg:[mask-image:none]">
-          <div className="mx-auto lg:mx-0 mb-4 md:mb-6 flex h-14 w-14 md:h-20 md:w-20 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-            <IconLeaf className="h-8 w-8 md:h-10 md:w-10 text-white" />
-          </div>
-          <h1 className="font-display text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight">
-            A.R.C.A.
+          <h1>
+            <img
+              src="/logotipo-blanco.svg"
+              alt="A.R.C.A."
+              className="mx-auto lg:mx-0 h-12 sm:h-14 md:h-20 w-auto"
+            />
           </h1>
           <p className="mx-auto lg:mx-0 mt-3 md:mt-6 max-w-xs md:max-w-md text-green-50/90 text-sm md:text-base leading-relaxed">
             Tus voluminosos tienen una segunda vida. Gestión de residuos para

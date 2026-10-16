@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
-import { IconLeaf } from '../components/ui';
 
 // Pública: se llega desde el login, antes de iniciar sesión.
 const EQUIPO: { nombre: string; rol: string; aporte: string }[] = [
@@ -51,9 +50,7 @@ export default function AcercaDe() {
 
       <main className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
         <section className="flex items-center gap-4">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-green-700 text-white">
-            <IconLeaf className="h-8 w-8" />
-          </span>
+          <img src="/isotipo.svg" alt="" className="h-14 w-14 shrink-0" />
           <div>
             <h1 className="text-2xl font-extrabold text-ink">Acerca de A.R.C.A.</h1>
             <p className="text-sm text-ink-2">

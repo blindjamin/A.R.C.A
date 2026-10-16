@@ -9,7 +9,6 @@ import {
   IconMarketplace,
   IconCircularCredits,
   IconUser,
-  IconLeaf,
   IconLogout,
   IconPlus,
   IconX,
@@ -217,9 +216,7 @@ function Shell({ children }: { children: ReactElement }) {
         <div className="mx-auto w-full max-w-6xl">
           <div className="flex items-center justify-between gap-3">
             <Link to="/inicio" className="flex min-w-0 items-center gap-2 group">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-green-700 transition-colors group-hover:bg-green-50">
-                <IconLeaf className="h-5 w-5" />
-              </span>
+              <img src="/isotipo.svg" alt="" className="h-8 w-8 shrink-0" />
               <div className="flex min-w-0 flex-col">
                 <span className="font-display text-base font-extrabold tracking-tight leading-none text-white">
                   A.R.C.A.

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
-import { IconLeaf, IconUser, IconShield } from '../components/ui';
+import { IconUser, IconShield } from '../components/ui';
 
 export default function SeleccionInicio() {
   const navigate = useNavigate();
@@ -19,9 +19,7 @@ export default function SeleccionInicio() {
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-between overflow-hidden px-7 py-12 md:min-h-0 md:h-auto md:flex-row md:items-center md:justify-between md:max-w-5xl md:px-16 md:py-20 md:gap-16">
         {/* Hero */}
         <div className="mt-16 md:mt-0 text-center md:text-left md:max-w-lg">
-          <div className="mx-auto md:mx-0 mb-6 flex h-20 w-20 items-center justify-center rounded-xl bg-white/15 backdrop-blur">
-            <IconLeaf className="h-10 w-10 text-white" />
-          </div>
+          <img src="/isotipo.svg" alt="" className="mx-auto md:mx-0 mb-6 h-20 w-20" />
           <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight">
             {nombre ? `Hola, ${nombre}` : 'A.R.C.A.'}
           </h1>
