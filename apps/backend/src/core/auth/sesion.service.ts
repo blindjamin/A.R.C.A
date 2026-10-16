@@ -355,63 +355,10 @@ export class SesionService {
    * `usuarios_administradores` (SPEC-sesion-unica §2.4).
    */
   async nombreSesionActiva(usuarioCiudadanoId: string): Promise<string | null> {
-    const sesion = await this.sesionActivaMasReciente(usuarioCiudadanoId);
-    return sesion?.nombreSesion ?? null;
-  }
-
-  /**
-   * Datos de contacto de la sesión activa (HU-37). Viven en la sesión: son
-   * volátiles y se pierden al expirar o revocar.
-   */
-  async contactoSesionActiva(usuarioCiudadanoId: string): Promise<{
-    nombre: string | null;
-    email: string | null;
-    telefono: string | null;
-    direccion: string | null;
-  }> {
-    const sesion = await this.sesionActivaMasReciente(usuarioCiudadanoId);
-    return {
-      nombre: sesion?.nombreSesion ?? null,
-      email: sesion?.emailSesion ?? null,
-      telefono: sesion?.telefonoSesion ?? null,
-      direccion: sesion?.direccionSesion ?? null,
-    };
-  }
-
-  /**
-   * Actualiza teléfono y/o dirección en todas las sesiones activas del
-   * ciudadano (mismo criterio que el correo en MailService).
-   */
-  async actualizarContactoSesion(
-    usuarioCiudadanoId: string,
-    datos: { telefono?: string | null; direccion?: string | null },
-  ): Promise<void> {
-    const patch: Partial<SesionCiudadano> = {};
-    if (datos.telefono !== undefined) {
-      patch.telefonoSesion = datos.telefono;
-    }
-    if (datos.direccion !== undefined) {
-      patch.direccionSesion = datos.direccion;
-    }
-    if (Object.keys(patch).length === 0) {
-      return;
-    }
-
-    await this.sesiones
-      .createQueryBuilder()
-      .update(SesionCiudadano)
-      .set(patch)
-      .where('usuario_ciudadano_id = :id', { id: usuarioCiudadanoId })
-      .andWhere('activa = :activa', { activa: true })
-      .execute();
-  }
-
-  private sesionActivaMasReciente(
-    usuarioCiudadanoId: string,
-  ): Promise<SesionCiudadano | null> {
-    return this.sesiones.findOne({
+    const sesion = await this.sesiones.findOne({
       where: { usuarioCiudadanoId, activa: true },
       order: { fechaInicio: 'DESC' },
     });
+    return sesion?.nombreSesion ?? null;
   }
 }

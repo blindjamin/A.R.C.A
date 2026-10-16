@@ -2,6 +2,7 @@ import { SesionAdministrador } from './sesion-administrador.entity';
 import { SesionCiudadano } from './sesion-ciudadano.entity';
 import { UsuarioAdministrador } from './usuario-administrador.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
+import { ContactoCiudadano } from './contacto-ciudadano.entity';
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
 import { SolicitudRetiro } from './solicitud-retiro.entity';
 import { FotoRetiro } from './foto-retiro.entity';
@@ -16,6 +17,7 @@ import { TransaccionCircularCredits } from './transaccion-circular-credits.entit
 
 export { RolAdministrador } from './rol-administrador.enum';
 export { UsuarioCiudadano } from './usuario-ciudadano.entity';
+export { ContactoCiudadano } from './contacto-ciudadano.entity';
 export { SesionCiudadano } from './sesion-ciudadano.entity';
 export { UsuarioAdministrador } from './usuario-administrador.entity';
 export { SesionAdministrador } from './sesion-administrador.entity';
@@ -47,6 +49,7 @@ export { TransaccionCircularCredits } from './transaccion-circular-credits.entit
 // nueva se agrega acá también, o las migraciones dejan de verla.
 export const ENTIDADES = [
   UsuarioCiudadano,
+  ContactoCiudadano,
   SesionCiudadano,
   UsuarioAdministrador,
   SesionAdministrador,

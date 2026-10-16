@@ -403,6 +403,11 @@ export class SolicitudesRetiroService {
       solicitud.razonRechazo = 'Cancelada por el ciudadano';
     }
 
+    // Una cancelada no se reabre: la dirección de retiro (que puede ser de
+    // un tercero) ya no tiene finalidad y se borra ahora (decisión 016).
+    solicitud.direccionRetiro = null;
+    solicitud.direccionAnonimizada = null;
+
     const guardada = await this.solicitudRetiroRepository.save(solicitud);
 
     await this.auditoriaService.registrar({
