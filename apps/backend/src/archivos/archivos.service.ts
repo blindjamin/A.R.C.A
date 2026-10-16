@@ -8,6 +8,7 @@ import { createReadStream, type ReadStream } from 'node:fs';
 import { mkdir, stat, unlink, writeFile } from 'node:fs/promises';
 import { extname, join, relative, resolve, sep } from 'node:path';
 import { detectarTipoImagen, mimeDeExtension } from './firma-imagen';
+import { quitarMetadatos } from './quitar-metadatos';
 
 /** Tamaño máximo de una imagen subida (spec `marketplace` §6). */
 export const TAMANO_MAXIMO_IMAGEN_BYTES = 5 * 1024 * 1024;
@@ -42,8 +43,9 @@ export class ArchivosService {
   private readonly raiz = resolve(process.env.UPLOADS_DIR || 'uploads');
 
   /**
-   * Valida la imagen por su contenido y la guarda con un nombre aleatorio en
-   * `subcarpeta`. Devuelve la ruta relativa que se guarda en la base.
+   * Valida la imagen por su contenido, le quita los metadatos (GPS incluido)
+   * y la guarda con un nombre aleatorio en `subcarpeta`. Devuelve la ruta
+   * relativa que se guarda en la base.
    */
   async guardarImagen(
     archivo: ArchivoSubido,
@@ -58,11 +60,20 @@ export class ArchivosService {
       throw new BadRequestException('La foto debe ser JPG, PNG o WebP');
     }
 
+    let limpia: Buffer;
+    try {
+      limpia = quitarMetadatos(archivo.buffer, tipo);
+    } catch {
+      throw new BadRequestException(
+        'La foto parece dañada. Prueba con otra o vuelve a tomarla.',
+      );
+    }
+
     const carpeta = this.rutaSegura(subcarpeta);
     await mkdir(carpeta, { recursive: true });
 
     const nombre = `${randomUUID()}.${tipo.extension}`;
-    await writeFile(join(carpeta, nombre), archivo.buffer, { flag: 'wx' });
+    await writeFile(join(carpeta, nombre), limpia, { flag: 'wx' });
 
     return relative(this.raiz, join(carpeta, nombre)).split(sep).join('/');
   }
