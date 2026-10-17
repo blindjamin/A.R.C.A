@@ -10,6 +10,7 @@ import {
   EstadoArticuloMarketplace,
   type MensajeMarketplace,
 } from '../../core';
+import type { PushService } from '../../push/push.service';
 import { MarketplaceChatGateway } from './marketplace-chat.gateway';
 import { MarketplaceChatService } from './marketplace-chat.service';
 import { puedeEscribir } from './reglas-chat';
@@ -73,12 +74,14 @@ function montar({
     emitirLeidos: jest.fn(),
     estaConectado: jest.fn(),
   };
+  const pushService = { enviarA: jest.fn(() => Promise.resolve()) };
   const service = new MarketplaceChatService(
     articuloRepo as unknown as Repository<ArticuloMarketplace>,
     mensajeRepo as unknown as Repository<MensajeMarketplace>,
     gateway as unknown as MarketplaceChatGateway,
+    pushService as unknown as PushService,
   );
-  return { service, mensajeRepo, gateway };
+  return { service, mensajeRepo, gateway, pushService };
 }
 
 describe('MarketplaceChatService.enviar', () => {
@@ -134,6 +137,30 @@ describe('MarketplaceChatService.enviar', () => {
       [YO, true],
       [VECINA, false],
     ]);
+  });
+
+  it('sin sockets del destinatario, le manda un aviso push', async () => {
+    const { service, gateway, pushService } = montar();
+    gateway.estaConectado.mockReturnValue(false);
+
+    await service.enviar(10, {}, 'Hola', usuario(YO));
+
+    expect(pushService.enviarA).toHaveBeenCalledWith(
+      VECINA,
+      expect.objectContaining({
+        url: '/marketplace/10/chat/77',
+        tag: 'chat-77',
+      }),
+    );
+  });
+
+  it('con el destinatario conectado no manda push', async () => {
+    const { service, gateway, pushService } = montar();
+    gateway.estaConectado.mockReturnValue(true);
+
+    await service.enviar(10, {}, 'Hola', usuario(YO));
+
+    expect(pushService.enviarA).not.toHaveBeenCalled();
   });
 
   it('avisa al otro participante al marcar leídos', async () => {

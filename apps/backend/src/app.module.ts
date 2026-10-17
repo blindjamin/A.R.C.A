@@ -7,6 +7,7 @@ import { AuthModule, ENTIDADES, HealthModule, SeguridadModule } from './core';
 import { ResiduosModule } from './residuos/residuos.module';
 import { SolicitudesRetiroModule } from './solicitudes-retiro/solicitudes-retiro.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
+import { PushModule } from './push/push.module';
 import { CreditosModule } from './creditos/creditos.module';
 import { UsersModule } from './users/users.module';
 import { SolicitudesAdminModule } from './admin/solicitudes/solicitudes-admin.module';
@@ -59,6 +60,7 @@ import { PerfilModule } from './perfil/perfil.module';
     ResiduosModule,
     SolicitudesRetiroModule,
     MarketplaceModule,
+    PushModule,
     CreditosModule,
     SolicitudesAdminModule,
     MapaCalorModule,

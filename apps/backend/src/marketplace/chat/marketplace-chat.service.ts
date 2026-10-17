@@ -11,6 +11,7 @@ import {
   type AuthUser,
   MensajeMarketplace,
 } from '../../core';
+import { PushService } from '../../push/push.service';
 import { esVisiblePara } from '../articulo-publico';
 import type { ConversacionDto, HistorialDto } from '../dto/conversacion.dto';
 import { MarketplaceChatGateway } from './marketplace-chat.gateway';
@@ -41,6 +42,7 @@ export class MarketplaceChatService {
     @InjectRepository(MensajeMarketplace)
     private readonly mensajeRepo: Repository<MensajeMarketplace>,
     private readonly gateway: MarketplaceChatGateway,
+    private readonly pushService: PushService,
   ) {}
 
   /**
@@ -161,6 +163,17 @@ export class MarketplaceChatService {
         articuloId,
         conversacionId: idConversacion,
         mensaje: aMensajePublico(guardado, vecino),
+      });
+    }
+    // Sin pestañas abiertas: aviso al celular. Nunca bloquea ni hace fallar el envío.
+    if (!this.gateway.estaConectado(destinatario)) {
+      void this.pushService.enviarA(destinatario, {
+        titulo: articulo.titulo,
+        cuerpo: contenido.slice(0, 80),
+        url: soyPublicador
+          ? `/marketplace/${articulo.id}/chat`
+          : `/marketplace/${articulo.id}/chat/${idConversacion}`,
+        tag: `chat-${idConversacion}`,
       });
     }
     return {

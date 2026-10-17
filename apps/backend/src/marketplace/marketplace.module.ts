@@ -8,6 +8,7 @@ import {
   MensajeMarketplace,
 } from '../core';
 import { CreditosModule } from '../creditos/creditos.module';
+import { PushModule } from '../push/push.module';
 import { ResiduosModule } from '../residuos/residuos.module';
 import { MarketplaceChatController } from './chat/marketplace-chat.controller';
 import { MarketplaceChatGateway } from './chat/marketplace-chat.gateway';
@@ -24,6 +25,7 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
       MensajeMarketplace,
     ]),
     AuthModule,
+    PushModule,
     ResiduosModule,
     ArchivosModule,
     UbicacionMarketplaceModule,
