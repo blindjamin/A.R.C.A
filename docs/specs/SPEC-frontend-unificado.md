@@ -24,7 +24,7 @@ con la vista decidida por el rol de la sesión. `apps/admin-web` desaparece.
 6. Los botones de desarrollo (Vecino, Funcionario, Admin) solo aparecen con `import.meta.env.DEV`, y
    usan `POST /api/auth/dev/login`.
 7. "Salir" (PWA, selección y panel) cierra la sesión: si `devLogin`, con `POST /api/auth/logout` y
-   luego `/login`; si no, navegando a `/api/auth/clave-unica/logout`.
+   luego `/login`; si no, con `POST /api/auth/clave-unica/logout` y luego navegando (`window.location.assign`) a la `url` que devuelve.
 8. `apps/admin-web/` no existe. `npm run lint && npm run build` en verde en `apps/frontend`.
 
 ## 2. Diseño

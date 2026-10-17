@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Controller,
   Get,
+  HttpCode,
   Logger,
+  Post,
   Query,
   Req,
   Res,
@@ -216,20 +218,21 @@ export class ClaveUnicaController {
   }
 
   /**
-   * Cierra la sesión de ARCA (revoca la fila y borra `arca_sesion`) y después
-   * la de ClaveÚnica (paso 7 del manual).
+   * Cierra la sesión de ARCA (revoca la fila y borra `arca_sesion`) y devuelve
+   * la URL de cierre de ClaveÚnica (paso 7 del manual), a la que el frontend
+   * navega con `window.location.assign`: tiene que ser una navegación de nivel
+   * superior, no un popup ni un iframe (el manual advierte un error de CORS).
    *
-   * La certificación verifica que exista un enlace o botón claramente identificado
-   * para cerrar sesión y que efectivamente llame a este endpoint. Cerrar solo la
-   * sesión propia no basta: ClaveÚnica mantiene la suya y la persona volvería a
-   * entrar sin escribir su clave.
-   *
-   * Igual que el login, tiene que ser una navegación de nivel superior. El manual
-   * advierte que llamarlo desde un popup o un iframe provoca un error de CORS y la
-   * sesión de ClaveÚnica queda abierta.
+   * Es POST a propósito: como GET, cualquier sitio podía cerrar la sesión del
+   * vecino con un enlace (logout CSRF). Como POST pasa por `verificarOrigen`, y
+   * `SameSite=Lax` no manda la cookie en un POST iniciado desde otro sitio.
    */
-  @Get('logout')
-  async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
+  @Post('logout')
+  @HttpCode(200)
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ url: string }> {
     await this.sesionService.revocar(leerCookie(req, COOKIE_SESION));
     res.clearCookie(COOKIE_SESION, opcionesCookieSesion());
     res.clearCookie(
@@ -237,6 +240,6 @@ export class ClaveUnicaController {
       this.claveUnicaService.opcionesBorradoCookieEstado(),
     );
 
-    res.redirect(302, this.claveUnicaService.construirUrlCierreSesion());
+    return { url: this.claveUnicaService.construirUrlCierreSesion() };
   }
 }

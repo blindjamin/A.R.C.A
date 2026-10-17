@@ -29,9 +29,10 @@ Decisiones del mapa: sesión en servidor con cookie (decisión 1); vecino 7 día
    - pasó su `fecha_expiracion` (sesión 2b);
    - el ciudadano está desactivado; en ese caso además se revoca (sesión 2b);
    - si es de rol municipal, lleva más de 30 minutos sin actividad.
-5. `GET /api/auth/clave-unica/logout` revoca la sesión (`activa = false`), borra la cookie y
-   redirige al logout de ClaveÚnica. `POST /api/auth/logout` hace lo mismo sin redirigir (204): es
-   para el login de desarrollo.
+5. `POST /api/auth/clave-unica/logout` revoca la sesión (`activa = false`), borra la cookie y
+   devuelve `{ url }` con el logout de ClaveÚnica, al que el front navega. Es POST para que otro
+   sitio no pueda cerrar la sesión con un enlace (logout CSRF): pasa por el chequeo de `Origin`.
+   `POST /api/auth/logout` hace lo mismo sin URL (204) y es para el login de desarrollo.
 6. El login de desarrollo (`POST /api/auth/dev/login { ciudadanoId, nombre? }`) existe solo con
    `ALLOW_DEV_LOGIN=true`. Si además `NODE_ENV=production`, **la app no arranca**.
 7. Cada inicio de sesión se audita como `LOGIN`: actor, origen (`clave_unica` o `dev`), IP y
@@ -108,13 +109,13 @@ funcionario, su sesión pasa a durar 8 horas desde ese momento.
 |---|---|:-:|---|
 | `GET` | `/api/auth/clave-unica/login` | ✓ | Sin cambios |
 | `GET` | `/api/auth/clave-unica/callback` | ✓ | Valida (como hoy) → upsert de `usuarios_ciudadanos` (`fecha_ultima_actividad`) → crea sesión → cookie → audita `LOGIN` → `302 /` |
-| `GET` | `/api/auth/clave-unica/logout` | ✓ | Revoca la sesión actual si hay cookie → borra la cookie → `302` al logout de ClaveÚnica |
+| `POST` | `/api/auth/clave-unica/logout` | ✓ | Revoca la sesión actual si hay cookie → borra la cookie → `200 { url }` del logout de ClaveÚnica (el front navega a ella) |
 | `POST` | `/api/auth/logout` | ✓ | Revoca y borra la cookie → `204` |
 | `POST` | `/api/auth/dev/login` | ✓ | Solo con `ALLOW_DEV_LOGIN=true` (si no, 404). Body `{ ciudadanoId, nombre? }` (UUID existente; `nombre` de prueba opcional, queda en la sesión) → crea sesión → `204` |
 | `GET` | `/api/sesion` | — | `{ ciudadanoId, nombre, rol, devLogin }` |
 
 `nombre`: el de `usuarios_administradores` si es municipal; si no, `nombre_sesion`; si no hay, `null`.
-`devLogin`: el valor de `ALLOW_DEV_LOGIN`. Con él, el front decide si "Salir" navega al logout de
+`devLogin`: el valor de `ALLOW_DEV_LOGIN`. Con él, el front decide si "Salir" pide el logout de
 ClaveÚnica o llama a `POST /api/auth/logout`.
 
 ### 2.5 Dónde vive el código

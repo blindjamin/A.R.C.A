@@ -82,13 +82,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const salir = useCallback(async () => {
-    // Criterio 7: devLogin cierra con el endpoint mock; ClaveÚnica necesita una
-    // navegación completa (cierra también la sesión en ClaveÚnica).
+    // Criterio 7: devLogin cierra con el endpoint mock; ClaveÚnica, con un POST
+    // que revoca y devuelve la URL de cierre, y luego una navegación completa
+    // (cierra también la sesión en ClaveÚnica).
     if (sesion?.devLogin) {
       await apiFetch('/api/auth/logout', { method: 'POST' });
       setSesion(null);
     } else {
-      window.location.assign('/api/auth/clave-unica/logout');
+      // POST (no GET): un enlace desde otro sitio no puede cerrar la sesión.
+      // La navegación a ClaveÚnica sigue siendo de nivel superior.
+      const res = await apiFetch('/api/auth/clave-unica/logout', {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        throw new Error(`Error ${res.status} al cerrar sesión`);
+      }
+      const { url } = (await res.json()) as { url: string };
+      window.location.assign(url);
     }
   }, [sesion]);
 

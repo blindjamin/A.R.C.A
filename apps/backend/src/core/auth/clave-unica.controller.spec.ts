@@ -1,8 +1,10 @@
 import {
+  RequestMethod,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { METHOD_METADATA } from '@nestjs/common/constants';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request, Response } from 'express';
 import { ClaveUnicaController } from './clave-unica.controller';
@@ -365,29 +367,33 @@ describe('ClaveUnicaController', () => {
     const peticion = (cookie?: string): Request =>
       ({ headers: cookie ? { cookie } : {} }) as unknown as Request;
 
-    it('revoca la sesión de ARCA, borra las cookies y redirige a ClaveÚnica', async () => {
+    it('revoca la sesión de ARCA, borra las cookies y devuelve la URL de cierre de ClaveÚnica', async () => {
       const controlador = await crearControlador();
       const { res, cookiesBorradas, redirecciones } = crearRespuestaFalsa();
 
-      await controlador.logout(peticion('arca_sesion=id-sesion.secreto'), res);
+      const { url } = await controlador.logout(
+        peticion('arca_sesion=id-sesion.secreto'),
+        res,
+      );
 
       expect(sesionService.revocar).toHaveBeenCalledWith('id-sesion.secreto');
       expect(cookiesBorradas).toEqual(
         expect.arrayContaining(['arca_sesion', OAUTH_STATE_COOKIE]),
       );
-      expect(redirecciones).toHaveLength(1);
-      expect(redirecciones[0].estado).toBe(302);
-      expect(redirecciones[0].url).toContain('/api/v1/accounts/app/logout');
+      expect(redirecciones).toHaveLength(0);
+      const destino = new URL(url);
+      expect(destino.pathname).toBe('/api/v1/accounts/app/logout');
+      expect(destino.searchParams.get('redirect')).toBe(LOGOUT_REDIRECT_URI);
     });
 
     it('sin cookie de sesión igual cierra la de ClaveÚnica', async () => {
       const controlador = await crearControlador();
-      const { res, redirecciones } = crearRespuestaFalsa();
+      const { res } = crearRespuestaFalsa();
 
-      await controlador.logout(peticion(), res);
+      const { url } = await controlador.logout(peticion(), res);
 
       expect(sesionService.revocar).toHaveBeenCalledWith(undefined);
-      expect(redirecciones).toHaveLength(1);
+      expect(url).toContain('/api/v1/accounts/app/logout');
     });
 
     it('funciona aunque falte la configuración del login', async () => {
@@ -395,12 +401,20 @@ describe('ClaveUnicaController', () => {
         CLAVE_UNICA_CLIENT_ID: undefined,
         CLAVE_UNICA_REDIRECT_URI: undefined,
       });
-      const { res, redirecciones } = crearRespuestaFalsa();
+      const { res } = crearRespuestaFalsa();
 
-      await expect(
-        controlador.logout(peticion(), res),
-      ).resolves.toBeUndefined();
-      expect(redirecciones).toHaveLength(1);
+      const { url } = await controlador.logout(peticion(), res);
+
+      expect(url).toContain('/api/v1/accounts/app/logout');
+    });
+
+    it('solo responde a POST: un enlace o <img> de otro sitio no puede cerrar la sesión', () => {
+      const metodo = Reflect.getMetadata(
+        METHOD_METADATA,
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        ClaveUnicaController.prototype.logout,
+      ) as RequestMethod;
+      expect(metodo).toBe(RequestMethod.POST);
     });
   });
 

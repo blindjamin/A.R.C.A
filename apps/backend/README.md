@@ -154,7 +154,7 @@ Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts
 |---|---|---|
 | `GET` | `/api/auth/clave-unica/login` | Redirige a ClaveÚnica (302) con el `state` en una cookie |
 | `GET` | `/api/auth/clave-unica/callback` | Recibe la vuelta de ClaveÚnica, que llega a `/` (la Redirect URI registrada) y el `index.html` reenvía acá. Valida el `state`, obtiene la identidad, busca o crea al ciudadano por `clave_unica_id`, deja la cookie `arca_sesion`, audita `LOGIN` y redirige a `/`. Si el ingreso falla, cierra también la sesión de ClaveÚnica y vuelve a `/login?error=clave-unica` (cierre implícito) |
-| `GET` | `/api/auth/clave-unica/logout` | Revoca la sesión, borra `arca_sesion` y redirige al logout de ClaveÚnica |
+| `POST` | `/api/auth/clave-unica/logout` | Revoca la sesión, borra `arca_sesion` y devuelve `{ url }` del logout de ClaveÚnica (el front navega a ella) |
 | `GET` | `/api/sesion` | `{ ciudadanoId, nombre, rol, devLogin }` de la sesión actual (401 sin sesión) |
 | `POST` | `/api/auth/logout` | Revoca la sesión y borra la cookie (204) |
 | `POST` | `/api/auth/dev/login` | Solo con `ALLOW_DEV_LOGIN=true` (si no, 404). Body `{ ciudadanoId, nombre? }`; crea la sesión y audita `LOGIN` con origen `dev`. `nombre` es opcional y queda en la sesión, como el que entrega ClaveÚnica |
