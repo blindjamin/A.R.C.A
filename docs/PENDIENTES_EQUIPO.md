@@ -186,10 +186,14 @@ corrección siguen desfasadas hasta que exista la migración de abajo.
 - [x] `PATCH /api/solicitudes-retiro/:id/reenviar`: solo el dueño; pasa de `requiere_modificacion`
   a `en_revision` con `aplicarTransicion` y actor `vecino`; permite corregir descripción y categoría
   (body opcional `{ descripcion?, residuoCatalogoId? }`).
-- [ ] **Hallazgo al implementarlo (fuera de alcance):** el detalle ya devolvía, desde antes,
+- [x] **Hallazgo al implementarlo (fuera de alcance):** el detalle ya devolvía, desde antes,
   `revisadoPorId` y `tomadaPorId` (ids de funcionarios) y la relación `usuarioCiudadano` completa
   (`claveUnicaId`, `ipPrimeraLogin`). Contradice «sin revisor» del spec y la minimización. Va con la
   lista blanca de campos de `control-acceso` (`SEGURIDAD_ARQUITECTURA.md` §3.4).
+  Resuelto (2026-10-16): el detalle del vecino ya sale por `aSolicitudPublica`. El del panel
+  (`GET /api/admin/solicitudes/:id`) pasa a una lista blanca explícita (`SolicitudDetalle` en
+  `solicitudes-admin.service.ts`) y deja de cargar `usuarioCiudadano`, lo que también lo quita de
+  la respuesta del `PATCH`.
 
 ### 3.3 Módulos que esperan al backend ciudadano
 

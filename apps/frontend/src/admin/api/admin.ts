@@ -52,6 +52,7 @@ export interface SolicitudRetiro {
   estadoPago: EstadoPago;
   monto: number | null;
   descripcion: string | null;
+  direccionRetiro?: string | null;
   direccionAnonimizada?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
@@ -66,8 +67,26 @@ export interface SolicitudRetiro {
   residuoCatalogo?: ResiduoCatalogo;
 }
 
-/** Lo que devuelve `GET /admin/solicitudes/:id`. */
-export interface SolicitudDetalle extends SolicitudRetiro {
+/** Lo que devuelve `GET /admin/solicitudes/:id` (lista blanca del backend). */
+export interface SolicitudDetalle
+  extends Pick<
+    SolicitudRetiro,
+    | 'id'
+    | 'usuarioCiudadanoId'
+    | 'residuoCatalogoId'
+    | 'residuoCatalogo'
+    | 'estado'
+    | 'estadoPago'
+    | 'monto'
+    | 'descripcion'
+    | 'direccionRetiro'
+    | 'direccionAnonimizada'
+    | 'fechaSolicitud'
+    | 'fechaRevision'
+    | 'fechaCierre'
+    | 'razonRechazo'
+    | 'updatedAt'
+  > {
   revisadoPor?: FuncionarioResumen | null;
   /** Funcionario con la toma vigente; `null` si nadie la está revisando. */
   tomadaPor?: FuncionarioResumen | null;

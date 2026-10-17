@@ -167,7 +167,7 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
 | Fuerza bruta o abuso | Muchas peticiones | Rate limiting (C10), más estricto en login | ✅ |
 | Puerta trasera de desarrollo en producción | `ALLOW_DEV_LOGIN` olvidado | La app no arranca (C5) | ✅ |
 | Filtración por volcado de la base | Robo del respaldo | Hash de secretos (C4); RUN seudonimizado con pepper fuera de la base | ✅ |
-| Exposición de datos internos | Respuestas con campos de más | Notas internas nunca en la API ciudadana; lista blanca de campos | ✅ notas · ⏳ lista blanca |
+| Exposición de datos internos | Respuestas con campos de más | Notas internas nunca en la API ciudadana; lista blanca de campos | ✅ notas · ✅ detalle (vecino y panel) · ⏳ resto del panel |
 
 ### 3.5 Implementación de la sesión (evidencia)
 
@@ -202,7 +202,7 @@ base de datos      = sesiones_ciudadano.jwt_token_hash = SHA-256(secreto)
 Quedan para la revisión de seguridad acordada después de reunificar:
 
 - Test de IDOR sobre las rutas del vecino.
-- Respuestas con lista blanca de campos (serialización explícita).
+- Lista blanca de campos: hecha en el detalle del vecino (`aSolicitudPublica`) y del panel (`SolicitudDetalle`). Falta en el listado `GET /admin/solicitudes` y en las respuestas de `PATCH /:id`, `POST /:id/revision` y `POST /:id/notas`, que devuelven la entidad cruda (sin datos del vecino, pero con ids y columnas internas).
 - Cabeceras de seguridad del **frontend** (CSP de la página, en el `.htaccess`). Las de la API ya están.
 - Limpieza periódica de sesiones vencidas; eliminar `sesiones_administrador` (sin uso).
 - Renombrar `jwt_token_hash` → `token_hash` cuando haya una migración que lo justifique.

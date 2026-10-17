@@ -34,10 +34,30 @@ export interface FuncionarioResumen {
   apellido: string;
 }
 
-export type SolicitudDetalle = Omit<
+/**
+ * Lista blanca del detalle del panel (`control-acceso`): solo lo que la
+ * pantalla muestra. Nunca la relación `usuarioCiudadano` (claveUnicaId, IP),
+ * ids de funcionarios ni columnas internas; un campo nuevo se suma aquí a
+ * propósito.
+ */
+export interface SolicitudDetalle extends Pick<
   SolicitudRetiro,
-  'revisadoPor' | 'tomadaPor' | 'fotos'
-> & {
+  | 'id'
+  | 'usuarioCiudadanoId'
+  | 'residuoCatalogoId'
+  | 'residuoCatalogo'
+  | 'estado'
+  | 'estadoPago'
+  | 'monto'
+  | 'descripcion'
+  | 'direccionRetiro'
+  | 'direccionAnonimizada'
+  | 'fechaSolicitud'
+  | 'fechaRevision'
+  | 'fechaCierre'
+  | 'razonRechazo'
+  | 'updatedAt'
+> {
   revisadoPor: FuncionarioResumen | null;
   /** Funcionario con la toma vigente, si la hay. */
   tomadaPor: FuncionarioResumen | null;
@@ -52,7 +72,7 @@ export type SolicitudDetalle = Omit<
    * salen: traen la ruta interna del archivo y su hash.
    */
   fotoUrl: string | null;
-};
+}
 
 /**
  * Vista admin de solicitudes: sin filtro por dueño (el equivalente en
@@ -96,14 +116,14 @@ export class SolicitudesAdminService {
    * Sin la relación `revisadoPor` a propósito: este es el objeto que `update`
    * guarda, y cuando una relación ManyToOne viene cargada TypeORM reescribe la
    * columna FK con ella al guardar — el revisor nuevo quedaría pisado por el
-   * anterior.
+   * anterior. Tampoco `usuarioCiudadano`: nadie la lee y `update` devuelve este
+   * objeto.
    */
   async findOne(id: number, conFotos = false): Promise<SolicitudRetiro> {
     const solicitud = await this.solicitudRetiroRepository.findOne({
       where: { id },
       relations: {
         residuoCatalogo: true,
-        usuarioCiudadano: true,
         // Solo para leer: `detalle` no guarda la entidad.
         fotos: conFotos,
       },
@@ -118,7 +138,7 @@ export class SolicitudesAdminService {
 
   /** Detalle para el panel, con las acciones que la sesión puede ejecutar. */
   async detalle(id: number, user: AuthUser): Promise<SolicitudDetalle> {
-    const { fotos, ...solicitud } = await this.findOne(id, true);
+    const solicitud = await this.findOne(id, true);
 
     const tomaVigente =
       !!solicitud.tomadaPorId &&
@@ -131,13 +151,27 @@ export class SolicitudesAdminService {
     }).filter((hacia) => !this.esDecisionDeRevision(solicitud.estado, hacia));
 
     return {
-      ...solicitud,
+      id: solicitud.id,
+      usuarioCiudadanoId: solicitud.usuarioCiudadanoId,
+      residuoCatalogoId: solicitud.residuoCatalogoId,
+      residuoCatalogo: solicitud.residuoCatalogo,
+      estado: solicitud.estado,
+      estadoPago: solicitud.estadoPago,
+      monto: solicitud.monto,
+      descripcion: solicitud.descripcion,
+      direccionRetiro: solicitud.direccionRetiro,
+      direccionAnonimizada: solicitud.direccionAnonimizada,
+      fechaSolicitud: solicitud.fechaSolicitud,
+      fechaRevision: solicitud.fechaRevision,
+      fechaCierre: solicitud.fechaCierre,
+      razonRechazo: solicitud.razonRechazo,
+      updatedAt: solicitud.updatedAt,
       revisadoPor: await this.resumenFuncionario(solicitud.revisadoPorId),
       tomadaPor: tomaVigente
         ? await this.resumenFuncionario(solicitud.tomadaPorId)
         : null,
       transicionesDisponibles: disponibles,
-      fotoUrl: fotoUrlDe({ id, fotos }),
+      fotoUrl: fotoUrlDe(solicitud),
     };
   }
 

@@ -10,6 +10,7 @@ import {
   type SolicitudRetiro,
   TipoFotoRetiro,
   type UsuarioAdministrador,
+  type UsuarioCiudadano,
 } from '../../core';
 import type { Repository } from 'typeorm';
 import { SolicitudesAdminService } from './solicitudes-admin.service';
@@ -166,6 +167,93 @@ describe('SolicitudesAdminService.update', () => {
 });
 
 describe('SolicitudesAdminService.detalle', () => {
+  it('lista blanca: sin datos del vecino ni ids internos', async () => {
+    const { service } = montar(
+      filaBase({
+        descripcion: 'Sillón',
+        direccionRetiro: 'Pasaje Real 742',
+        direccionAnonimizada: 'Calle X',
+        revisadoPorId: '00000000-0000-4000-8000-0000000000A9',
+        tomadaPorId: '00000000-0000-4000-8000-0000000000A8',
+        tomadaHasta: new Date(Date.now() + 60_000),
+        latitudCapturada: '-33.63000000',
+        loteDerivacionId: 4,
+        usuarioCiudadano: {
+          id: '00000000-0000-4000-8000-000000000001',
+          claveUnicaId: 'clave-unica-secreta',
+          ipPrimeraLogin: '10.9.8.7',
+        } as unknown as UsuarioCiudadano,
+      }),
+    );
+
+    const detalle = await service.detalle(7, FUNCIONARIO);
+
+    expect(Object.keys(detalle).sort()).toEqual(
+      [
+        'id',
+        'usuarioCiudadanoId',
+        'residuoCatalogoId',
+        'residuoCatalogo',
+        'estado',
+        'estadoPago',
+        'monto',
+        'descripcion',
+        'direccionRetiro',
+        'direccionAnonimizada',
+        'fechaSolicitud',
+        'fechaRevision',
+        'fechaCierre',
+        'razonRechazo',
+        'updatedAt',
+        'revisadoPor',
+        'tomadaPor',
+        'transicionesDisponibles',
+        'fotoUrl',
+      ].sort(),
+    );
+    const json = JSON.stringify(detalle);
+    for (const prohibido of [
+      'clave-unica-secreta',
+      '10.9.8.7',
+      'claveUnicaId',
+      'ipPrimeraLogin',
+      '0000000000A9',
+      '0000000000A8',
+      '-33.63',
+    ]) {
+      expect(json).not.toContain(prohibido);
+    }
+    expect(detalle.direccionRetiro).toBe('Pasaje Real 742');
+    expect(detalle.usuarioCiudadanoId).toBe(
+      '00000000-0000-4000-8000-000000000001',
+    );
+    expect(detalle.tomadaPor).toEqual({
+      id: 'x',
+      nombre: 'Camila',
+      apellido: 'Operadora',
+    });
+  });
+
+  it('no carga la relación usuarioCiudadano', async () => {
+    const { service, repositorio } = montar(
+      filaBase({ estado: EstadoSolicitudRetiro.APROBADA }),
+    );
+
+    await service.detalle(7, FUNCIONARIO);
+    await service.update(
+      7,
+      { estado: EstadoSolicitudRetiro.DERIVADA },
+      FUNCIONARIO,
+    );
+
+    expect(repositorio.findOne).toHaveBeenCalled();
+    for (const [opciones] of repositorio.findOne.mock.calls as unknown as [
+      { relations?: object },
+    ][]) {
+      expect(opciones.relations ?? {}).not.toHaveProperty('usuarioCiudadano');
+    }
+  });
+
   it('en revisión no ofrece transiciones por PATCH: se decide con /revision', async () => {
     const { service } = montar(filaBase());
 
