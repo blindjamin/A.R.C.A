@@ -185,7 +185,7 @@ migraciones y abre el backend y el frontend en ventanas separadas.
 
 Para entrar en local sin ClaveÚnica, el backend necesita `ALLOW_DEV_LOGIN=true` en
 `apps/backend/.env.local` (habilita los accesos de desarrollo; nunca en el servidor).
-`scripts/setup.ps1` todavía no lo agrega solo.
+`scripts/setup.ps1` lo agrega solo al crear el `.env.local`.
 
 > Setup manual paso a paso, otros sistemas operativos y problemas frecuentes:
 > [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
