@@ -77,7 +77,8 @@ src/
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── CapturaResiduo · AnalizandoIA · SugerenciasIA
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
-│       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada)
+│       ├── CampoFoto · fotoSolicitud.ts  # Foto obligatoria de la solicitud (JPG/PNG/WebP, 5 MB)
+│       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada y su archivo)
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
 │   ├── Login · SeleccionInicio · Inicio · Perfil · CircularCredits

@@ -15,18 +15,33 @@ import {
   tieneCorreoValido,
 } from '../../utils/perfilStorage';
 import { VerificarCorreoModal } from './VerificarCorreoModal';
+import { CampoFoto } from './CampoFoto';
+import { useSolicitudFlow } from './SolicitudFlowContext';
+import { validarFoto } from './fotoSolicitud';
+
+const LARGO_MAXIMO_DIRECCION = 500;
 
 export default function NuevaSolicitud() {
   const navigate = useNavigate();
   const { sesion } = useSession();
   const usuarioCiudadanoId = sesion?.ciudadanoId ?? null;
   const [searchParams] = useSearchParams();
+  const flujo = useSolicitudFlow();
 
   const [catalogo, setCatalogo] = useState<ResiduoCatalogo[]>([]);
   const [residuoId, setResiduoId] = useState<number | ''>(
     searchParams.get('residuo') ? Number(searchParams.get('residuo')) : '',
   );
   const [descripcion, setDescripcion] = useState('');
+  // Por defecto, la dirección del perfil; el vecino puede cambiarla (por
+  // ejemplo, si pide el retiro para un familiar que vive en otra casa).
+  const [direccionRetiro, setDireccionRetiro] = useState(
+    () => obtenerPerfilVecino(usuarioCiudadanoId).direccion ?? '',
+  );
+  const [foto, setFoto] = useState<File | null>(flujo.fotoArchivo);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(
+    flujo.fotoArchivo ? flujo.fotoPreview : null,
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mostrarModalCorreo, setMostrarModalCorreo] = useState(false);
@@ -38,9 +53,11 @@ export default function NuevaSolicitud() {
   }, []);
 
   const seleccionado = catalogo.find((r) => r.id === residuoId);
+  const direccionLimpia = direccionRetiro.trim();
+  const listoParaEnviar = Boolean(seleccionado && foto && direccionLimpia);
 
   const ejecutarCreacion = async (emailContacto?: string) => {
-    if (!seleccionado) return;
+    if (!seleccionado || !foto || !direccionLimpia) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -58,9 +75,12 @@ export default function NuevaSolicitud() {
       await crearSolicitudRetiro({
         usuarioCiudadanoId: ciudadanoIdValido,
         residuoCatalogoId: seleccionado.id,
+        direccionRetiro: direccionLimpia,
+        foto,
         descripcion: descripcion.trim() || undefined,
         emailContacto,
       });
+      flujo.reset();
       navigate('/solicitud/creada');
     } catch (err) {
       setError((err as Error).message);
@@ -71,6 +91,20 @@ export default function NuevaSolicitud() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!seleccionado) return;
+    if (!foto) {
+      setError('Agrega una foto del objeto para que el municipio pueda revisarlo.');
+      return;
+    }
+    // La foto pudo venir del paso de captura, que no la valida.
+    const errorFoto = validarFoto(foto);
+    if (errorFoto) {
+      setError(errorFoto);
+      return;
+    }
+    if (!direccionLimpia) {
+      setError('Indica la dirección donde se hará el retiro.');
+      return;
+    }
 
     // Verificar identidad activa desde la sesión actual
     const resSesion = await apiFetch('/api/sesion');
@@ -138,6 +172,42 @@ export default function NuevaSolicitud() {
         )}
 
         <div>
+          <label className="mb-1.5 block text-sm font-semibold">Foto del objeto</label>
+          <CampoFoto
+            preview={fotoPreview}
+            onElegir={(archivo, preview) => {
+              setError(null);
+              setFoto(archivo);
+              setFotoPreview(preview);
+            }}
+            onError={setError}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="direccion-retiro"
+            className="mb-1.5 block text-sm font-semibold"
+          >
+            Dirección de retiro
+          </label>
+          <input
+            id="direccion-retiro"
+            type="text"
+            value={direccionRetiro}
+            onChange={(e) => setDireccionRetiro(e.target.value)}
+            maxLength={LARGO_MAXIMO_DIRECCION}
+            required
+            autoComplete="street-address"
+            placeholder="Ej: Av. del Mar 123, Santo Domingo"
+            className="field"
+          />
+          <p className="mt-1 text-xs text-slate">
+            Donde la empresa retirará el objeto. Puede ser distinta a la tuya.
+          </p>
+        </div>
+
+        <div>
           <label className="mb-1.5 block text-sm font-semibold">
             Descripción <span className="font-normal text-slate-2">(opcional)</span>
           </label>
@@ -152,7 +222,7 @@ export default function NuevaSolicitud() {
 
         <button
           type="submit"
-          disabled={submitting || !seleccionado}
+          disabled={submitting || !listoParaEnviar}
           className="btn-primary w-full py-3.5"
         >
           {submitting ? 'Enviando…' : 'Crear solicitud'}

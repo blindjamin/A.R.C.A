@@ -5,17 +5,17 @@ import { useSolicitudFlow } from './SolicitudFlowContext';
 
 export default function CapturaResiduo() {
   const navigate = useNavigate();
-  const { fotoPreview, setFotoPreview } = useSolicitudFlow();
+  const { fotoPreview, setFoto } = useSolicitudFlow();
   const camaraRef = useRef<HTMLInputElement>(null);
   const galeriaRef = useRef<HTMLInputElement>(null);
 
-  // La captura es solo visual: si el usuario elige una foto la mostramos,
-  // pero no es obligatoria para continuar.
+  // La foto no es obligatoria en este paso (la IA es solo una sugerencia),
+  // pero se guarda para subirla con la solicitud, donde sí se exige.
   const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setFotoPreview(reader.result as string);
+    reader.onload = () => setFoto(file, reader.result as string);
     reader.readAsDataURL(file);
   };
 
