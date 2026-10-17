@@ -24,6 +24,7 @@ import {
   diferencias,
   fotografiar,
 } from './auditoria-solicitud';
+import { fotoUrlDe } from '../../solicitudes-retiro/solicitud-publica';
 import { FilterSolicitudesAdminDto } from './dto/filter-solicitudes-admin.dto';
 import { UpdateSolicitudAdminDto } from './dto/update-solicitud-admin.dto';
 
@@ -35,7 +36,7 @@ export interface FuncionarioResumen {
 
 export type SolicitudDetalle = Omit<
   SolicitudRetiro,
-  'revisadoPor' | 'tomadaPor'
+  'revisadoPor' | 'tomadaPor' | 'fotos'
 > & {
   revisadoPor: FuncionarioResumen | null;
   /** Funcionario con la toma vigente, si la hay. */
@@ -45,6 +46,12 @@ export type SolicitudDetalle = Omit<
    * decisiones de revisión no aparecen: se toman con `POST /revision`.
    */
   transicionesDisponibles: EstadoSolicitudRetiro[];
+  /**
+   * Endpoint protegido de la foto del vecino (`GET /solicitudes-retiro/:id/foto`,
+   * que ya admite admin y funcionario), o null. Las filas de `foto_retiro` no
+   * salen: traen la ruta interna del archivo y su hash.
+   */
+  fotoUrl: string | null;
 };
 
 /**
@@ -91,12 +98,14 @@ export class SolicitudesAdminService {
    * columna FK con ella al guardar — el revisor nuevo quedaría pisado por el
    * anterior.
    */
-  async findOne(id: number): Promise<SolicitudRetiro> {
+  async findOne(id: number, conFotos = false): Promise<SolicitudRetiro> {
     const solicitud = await this.solicitudRetiroRepository.findOne({
       where: { id },
       relations: {
         residuoCatalogo: true,
         usuarioCiudadano: true,
+        // Solo para leer: `detalle` no guarda la entidad.
+        fotos: conFotos,
       },
     });
 
@@ -109,7 +118,7 @@ export class SolicitudesAdminService {
 
   /** Detalle para el panel, con las acciones que la sesión puede ejecutar. */
   async detalle(id: number, user: AuthUser): Promise<SolicitudDetalle> {
-    const solicitud = await this.findOne(id);
+    const { fotos, ...solicitud } = await this.findOne(id, true);
 
     const tomaVigente =
       !!solicitud.tomadaPorId &&
@@ -128,6 +137,7 @@ export class SolicitudesAdminService {
         ? await this.resumenFuncionario(solicitud.tomadaPorId)
         : null,
       transicionesDisponibles: disponibles,
+      fotoUrl: fotoUrlDe({ id, fotos }),
     };
   }
 

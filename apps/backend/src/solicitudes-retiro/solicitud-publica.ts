@@ -40,19 +40,28 @@ export interface SolicitudPublica {
   ultimaRevision?: RevisionVisible | null;
 }
 
-export function fotoAntesPath(solicitud: SolicitudRetiro): string | null {
+export function fotoAntesPath(
+  solicitud: Pick<SolicitudRetiro, 'fotos'>,
+): string | null {
   const foto = solicitud.fotos?.find(
     (f) => f.tipoFoto === TipoFotoRetiro.ANTES,
   );
   return foto?.rutaArchivo ?? null;
 }
 
+/** Endpoint protegido de la foto del vecino, o null si no tiene. */
+export function fotoUrlDe(
+  solicitud: Pick<SolicitudRetiro, 'id' | 'fotos'>,
+): string | null {
+  return fotoAntesPath(solicitud)
+    ? `/api/solicitudes-retiro/${solicitud.id}/foto`
+    : null;
+}
+
 export function aSolicitudPublica(
   solicitud: SolicitudRetiro,
   extras: { ultimaRevision?: RevisionVisible | null } = {},
 ): SolicitudPublica {
-  const tieneFoto = Boolean(fotoAntesPath(solicitud));
-
   return {
     id: solicitud.id,
     usuarioCiudadanoId: solicitud.usuarioCiudadanoId,
@@ -72,7 +81,7 @@ export function aSolicitudPublica(
     createdAt: solicitud.createdAt,
     updatedAt: solicitud.updatedAt,
     residuoCatalogo: solicitud.residuoCatalogo,
-    fotoUrl: tieneFoto ? `/api/solicitudes-retiro/${solicitud.id}/foto` : null,
+    fotoUrl: fotoUrlDe(solicitud),
     ...(extras.ultimaRevision !== undefined
       ? { ultimaRevision: extras.ultimaRevision }
       : {}),

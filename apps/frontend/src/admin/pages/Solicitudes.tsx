@@ -303,6 +303,8 @@ function DetalleSolicitud({
           <EstadoPill estado={solicitud.estado} />
         </div>
 
+        <FotoSolicitud solicitud={solicitud} />
+
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <Dato label="Categoría" valor={solicitud.residuoCatalogo?.categoria} />
           {/* Referencia seudónima, igual que en la auditoría: el panel no necesita saber quién es. */}
@@ -419,6 +421,27 @@ function DetalleSolicitud({
 
       <HistorialYNotas solicitudId={solicitud.id} version={version} />
     </div>
+  );
+}
+
+// La URL de la foto no cambia cuando el vecino sube otra al corregir, y la
+// respuesta se cachea 5 minutos: `updatedAt` en el query fuerza la nueva.
+function FotoSolicitud({ solicitud }: { solicitud: SolicitudDetalle }) {
+  if (!solicitud.fotoUrl) {
+    return <p className="text-sm text-slate-2">La solicitud no tiene foto.</p>;
+  }
+  const src = `${solicitud.fotoUrl}?v=${encodeURIComponent(solicitud.updatedAt)}`;
+  return (
+    <a href={src} target="_blank" rel="noreferrer" className="block">
+      <img
+        src={src}
+        alt={`Foto del vecino: ${solicitud.residuoCatalogo?.nombre ?? 'residuo'}`}
+        className="max-h-80 w-full rounded-md border border-line bg-canvas object-contain"
+      />
+      <span className="mt-1 block text-xs text-slate-2">
+        Abrir en tamaño completo
+      </span>
+    </a>
   );
 }
 

@@ -120,11 +120,6 @@ export function TarjetaRevision({
     <div className="card space-y-4 p-5">
       <h2 className="font-bold">Revisión</h2>
 
-      <div className="rounded-lg border border-dashed border-line-2 p-4 text-center text-sm text-slate-2">
-        Las fotos de la solicitud estarán disponibles con el módulo
-        «fotos-solicitud».
-      </div>
-
       <label className="block space-y-1 text-sm">
         <span className="text-xs uppercase tracking-wide text-slate-2">
           Categoría del residuo
