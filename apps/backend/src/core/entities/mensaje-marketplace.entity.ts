@@ -10,7 +10,7 @@ import {
 import { ArticuloMarketplace } from './articulo-marketplace.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
 
-/** Mensaje del chat de un artículo (HU-06). */
+/** Mensaje del chat de un artículo (HU-06). `leido` lo marca solo el destinatario. */
 @Entity('mensajes_marketplace')
 export class MensajeMarketplace {
   @PrimaryGeneratedColumn()
@@ -18,6 +18,10 @@ export class MensajeMarketplace {
 
   @Column({ name: 'articulo_id', type: 'int' })
   articuloId: number;
+
+  /** Vecino que pregunta. Conversación = (articulo, interesado); el otro participante es siempre quien publicó. */
+  @Column({ name: 'interesado_id', type: 'varchar', length: 36 })
+  interesadoId: string;
 
   @Column({ name: 'usuario_remitente_id', type: 'varchar', length: 36 })
   usuarioRemitenteId: string;
@@ -44,4 +48,8 @@ export class MensajeMarketplace {
   @ManyToOne(() => UsuarioCiudadano)
   @JoinColumn({ name: 'usuario_remitente_id' })
   usuarioRemitente: UsuarioCiudadano;
+
+  @ManyToOne(() => UsuarioCiudadano)
+  @JoinColumn({ name: 'interesado_id' })
+  interesado: UsuarioCiudadano;
 }

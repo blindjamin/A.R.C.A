@@ -37,6 +37,13 @@ export const LIMITE_LOGIN = 10;
  */
 export const LIMITE_UBICACION = 90;
 
+/**
+ * Envío de mensajes del chat del Marketplace (HU-06). Por IP, como los demás:
+ * holgado para una conversación real (varios vecinos pueden compartir IP) y
+ * corta el envío masivo.
+ */
+export const LIMITE_CHAT = 30;
+
 export const MENSAJE_LIMITE =
   'Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.';
 
@@ -47,3 +54,7 @@ export const LimiteLogin = () =>
 /** Aplica el límite de consultas de ubicación a un controlador o ruta. */
 export const LimiteUbicacion = () =>
   Throttle({ default: { limit: LIMITE_UBICACION, ttl: VENTANA_MS } });
+
+/** Aplica el límite de envío de mensajes del chat a una ruta. */
+export const LimiteChat = () =>
+  Throttle({ default: { limit: LIMITE_CHAT, ttl: VENTANA_MS } });
