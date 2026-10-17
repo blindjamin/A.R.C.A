@@ -93,7 +93,7 @@ Crear archivos `.env.local` en cada aplicación (no se versionan):
 - `apps/backend/.env.local` — copiar de `.env.example` y completar
   `DB_USERNAME=arca_user` y `DB_PASSWORD=arca_pass` (las del `docker-compose.yml`). Para entrar
   sin ClaveÚnica en local, agregar `ALLOW_DEV_LOGIN=true` (**nunca** en el servidor: junto con
-  `NODE_ENV=production`, la app se niega a arrancar). `scripts/setup.ps1` todavía no lo agrega solo.
+  `NODE_ENV=production`, la app se niega a arrancar). `scripts/setup.ps1` lo agrega solo al crear el `.env.local`.
 - `apps/frontend/.env.local` — una sola línea: `VITE_API_URL=/api`
 
 ### 5. Levantar MySQL y correr migraciones
