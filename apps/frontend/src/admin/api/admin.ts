@@ -73,6 +73,8 @@ export interface SolicitudDetalle extends SolicitudRetiro {
   tomadaPor?: FuncionarioResumen | null;
   /** Estados a los que la sesión actual puede mover la solicitud. */
   transicionesDisponibles: EstadoSolicitud[];
+  /** Endpoint protegido de la foto del vecino (`/api/solicitudes-retiro/:id/foto`), o null. */
+  fotoUrl: string | null;
 }
 
 export interface ActualizarSolicitudInput {
