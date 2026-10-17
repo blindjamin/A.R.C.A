@@ -2,7 +2,7 @@
 
 > **Estado:** BORRADOR — en implementación · **Fecha:** 2026-10-16
 > **Autor:** Benjamín Paicil (con asistencia de IA)
-> **Módulo del mapa:** [`listado-pagadas`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `ciclo-solicitud` (`estado_pago`, `monto`) · **Espera:** `datos-retiro` (dirección real, PR de Javier) y el comprobante de Webpay (HU-44)
+> **Módulo del mapa:** [`listado-pagadas`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `ciclo-solicitud` (`estado_pago`, `monto`) · **Espera:** el comprobante de Webpay (HU-44)
 > **Origen:** Repartición Sprint 4, Benjamín semana 1: «Listado de solicitudes pagadas con filtros por estado, fecha y sector, exportable a CSV o XLSX, con la dirección de retiro».
 
 ## 1. Objetivo
@@ -25,9 +25,8 @@ existe el Excel por lote de `derivacion-excel`, que no filtra ni muestra lo ya d
 4. **«Sector» es el sector provisional más cercano** a las coordenadas capturadas, el mismo
    cálculo que usa el mapa de calor (`sectores.constants.ts`). Las que no tienen coordenadas van a
    «Sin ubicación».
-5. **«Dirección de retiro»:** el campo real lo agrega Javier (`datos-retiro`). Mientras no exista,
-   se muestra `direccion_anonimizada`, leída en **una sola función** (`direccionDe`) para que el
-   cambio cuando llegue el campo sea de una línea.
+5. **«Dirección de retiro»:** se muestra `direccion_retiro`, con respaldo en `direccion_anonimizada`
+   para filas antiguas, leída en una sola función (`direccionDe`, `admin/comun/direccion-retiro.ts`).
 6. **Sin datos del vecino:** ni nombre, ni RUN, ni correo, igual que el Excel de derivación.
 
 ### Criterios de aceptación
@@ -78,8 +77,9 @@ Reutilización (no duplicar):
   `sectorMasCercano(lat, lng)` en `sectores.constants.ts`; el mapa de calor la usa igual.
 
 ```ts
-// Único punto que cambia cuando exista el campo de `datos-retiro`.
-const direccionDe = (s: SolicitudRetiro): string => s.direccionAnonimizada ?? '';
+export const direccionDe = (
+  s: Pick<SolicitudRetiro, 'direccionRetiro' | 'direccionAnonimizada'>,
+): string => s.direccionRetiro || s.direccionAnonimizada || '';
 ```
 
 `ponytail:` el filtro por sector se aplica en memoria tras la consulta, porque el sector no es una
@@ -149,5 +149,5 @@ exportación y su helper de descarga:
 
 1. **Fecha de pago:** cuando el comprobante de Webpay la guarde, ¿el filtro «fecha» pasa a ser la
    fecha de pago? (propuesta: sí).
-2. **Dirección real:** al integrarse `datos-retiro`, cambiar `direccionDe`. Si la dirección es de
+2. **Dirección real:** Resuelta 2026-10-16: `direccionDe` lee `direccionRetiro`. Si la dirección es de
    un tercero, la decisión del PO sobre el Excel de la empresa aplica también aquí.

@@ -7,6 +7,7 @@ import {
   SolicitudRetiro,
 } from '../../core';
 import { LIMITE_EXPORTACION } from '../comun/exportar-tabla';
+import { direccionDe } from '../comun/direccion-retiro';
 import { condicionRango } from '../comun/rango-fechas';
 import {
   NOMBRES_SECTOR,
@@ -33,10 +34,6 @@ export interface SolicitudPagada {
 
 /** Tope de filas de la vista; la exportación usa LIMITE_EXPORTACION. */
 const LIMITE_VISTA = 1000;
-
-// Único punto que cambia cuando exista el campo de `datos-retiro`.
-export const direccionDe = (s: SolicitudRetiro): string =>
-  s.direccionAnonimizada ?? '';
 
 @Injectable()
 export class PagadasAdminService {

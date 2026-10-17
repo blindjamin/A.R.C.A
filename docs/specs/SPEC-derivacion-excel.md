@@ -2,7 +2,7 @@
 
 > **Estado:** BORRADOR — implementado en el panel; pendiente de revisión del equipo · **Fecha:** 2026-09-17
 > **Autor:** Benjamín Paicil (con asistencia de IA)
-> **Módulo del mapa:** [`derivacion-excel`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `revision-solicitudes` (y, para dirección real y contacto, `datos-retiro`, que todavía no existe)
+> **Módulo del mapa:** [`derivacion-excel`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `revision-solicitudes` (y, para dirección real y contacto, `datos-retiro`: dirección real integrada 2026-10-16; contacto pendiente (PR #105))
 
 ## 1. Objetivo
 
@@ -64,12 +64,12 @@ el último lote en que salió. Si vuelve a derivarse, se sobrescribe con el lote
 | Residuo · Categoría | `residuos_catalogo.nombre` · `categoria` |
 | Instrucciones de recogida | `residuos_catalogo.instrucciones_recogida` |
 | Descripción | `descripcion` |
-| Dirección | `direccion_anonimizada` (hasta que exista `datos-retiro`) |
+| Dirección | `direccion_retiro` (respaldo: `direccion_anonimizada` en filas antiguas) |
 | Latitud aprox. · Longitud aprox. (20 m) | `latitud_capturada` · `longitud_capturada`, llevadas a una grilla de 20 m (ver 2.2.1) |
 | Pago · Monto | `estado_pago` · `monto` |
 
-Cuando `datos-retiro` exista, se agregan dirección real, referencia y contacto. Mientras tanto la
-empresa recibe la dirección aproximada y las coordenadas.
+Desde 2026-10-16 la columna lleva la dirección real de retiro. Referencia y contacto se agregan
+cuando estén en `datos-retiro`.
 
 #### 2.2.1 Las coordenadas salen aproximadas
 
@@ -87,10 +87,7 @@ Dos propiedades que la implementación tiene que conservar:
 - **Estable:** el mismo lote descargado dos veces entrega el mismo punto. Si variara en cada
   descarga, promediar varias descargas devolvería la ubicación original.
 
-> **Pendiente asociado:** hoy la app del vecino **no envía dirección**, así que la columna
-> «Dirección» va vacía y estas coordenadas son el único dato de ubicación del Excel. Cuando exista
-> `datos-retiro`, la dirección real pasa a ser la referencia para la empresa y estas coordenadas
-> quedan como apoyo.
+> La dirección real es la referencia para la empresa; las coordenadas aproximadas quedan como apoyo.
 
 ### 2.3 API del panel (`apps/backend-admin`)
 
@@ -114,7 +111,7 @@ Dependencia nueva: `exceljs` en `apps/backend-admin` (decisión 3 del mapa).
 
 | Qué | Área | Nota |
 |---|---|---|
-| Dirección real, referencia y contacto en el Excel | Back ciudadano + BD (`datos-retiro`) | Sin eso la empresa solo recibe dirección aproximada y coordenadas |
+| Referencia y contacto en el Excel | Back ciudadano + BD (`datos-retiro`) | Dirección real ya integrada; contacto espera PR #105 |
 | Acuerdo de tratamiento de datos con la empresa | Municipalidad | Decisión 4 del mapa; el Excel no debería usarse con datos reales antes |
 | La app ciudadana puede mostrar «derivada a la empresa» | Front ciudadano | Solo lectura del estado, que ya existe |
 

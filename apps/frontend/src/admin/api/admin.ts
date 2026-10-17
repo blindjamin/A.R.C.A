@@ -52,6 +52,7 @@ export interface SolicitudRetiro {
   estadoPago: EstadoPago;
   monto: number | null;
   descripcion: string | null;
+  direccionRetiro?: string | null;
   direccionAnonimizada?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
@@ -533,7 +534,7 @@ export function descargarAuditoria(
 
 // --- Solicitudes pagadas (docs/specs/SPEC-listado-pagadas.md) ---
 
-/** Fila del listado; sin datos del vecino. `direccion` es la anonimizada hasta `datos-retiro`. */
+/** Fila del listado; sin datos del vecino. `direccion` es la dirección de retiro (o la anonimizada en filas antiguas). */
 export interface SolicitudPagada {
   id: number;
   fechaSolicitud: string;

@@ -213,7 +213,7 @@ usuario autenticado (mismo `ciudadanoId` que el Bearer).
 
 `residuoCatalogoId` tiene que ser un id real del catálogo vigente (`GET /api/residuos/catalogo`
 — los ids cambiaron con la migración de precios reales, no asumir valores fijos).
-Crear es `multipart/form-data`: obligatorios `direccionRetiro` y archivo `foto`; opcionales `descripcion`, coords, `emailContacto`. La dirección se copia también a `direccionAnonimizada` (puente temporal para panel/Excel).
+Crear es `multipart/form-data`: obligatorios `direccionRetiro` y archivo `foto`; opcionales `descripcion`, coords, `emailContacto`. La dirección se copia también a `direccionAnonimizada` (respaldo para filas antiguas; el panel lee `direccionRetiro`).
 
 ---
 

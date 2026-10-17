@@ -92,7 +92,7 @@ Todos cuelgan del prefijo `/api`.
 |---|---|---|
 | `GET` | `/api/health` | Health check |
 | `GET` | `/api/residuos/catalogo` | Catálogo de residuos (incluye `precio` real) |
-| `POST` | `/api/solicitudes-retiro` | Crear solicitud (`multipart/form-data`): `usuarioCiudadanoId`, `residuoCatalogoId`, `direccionRetiro` (obligatoria), `descripcion?`, `emailContacto?`, coords opcionales y archivo `foto` (JPG/PNG/WebP ≤5 MB, obligatorio). Copia `direccionRetiro` a `direccionAnonimizada` como puente para panel/Excel. Respuesta incluye `fotoUrl` |
+| `POST` | `/api/solicitudes-retiro` | Crear solicitud (`multipart/form-data`): `usuarioCiudadanoId`, `residuoCatalogoId`, `direccionRetiro` (obligatoria), `descripcion?`, `emailContacto?`, coords opcionales y archivo `foto` (JPG/PNG/WebP ≤5 MB, obligatorio). Copia `direccionRetiro` a `direccionAnonimizada` como respaldo para filas antiguas; el panel lee `direccionRetiro`. Respuesta incluye `fotoUrl` |
 | `GET` | `/api/solicitudes-retiro` | Listar solicitudes (filtrable por estado); cada ítem trae `direccionRetiro` y `fotoUrl` |
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle con `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`), `direccionRetiro` y `fotoUrl`. Nunca el revisor, el checklist ni las notas internas |
 | `GET` | `/api/solicitudes-retiro/:id/foto` | Foto `antes` del vecino; misma regla de acceso que el detalle (`404` si no hay) |

@@ -26,6 +26,7 @@ const fila = (
   estado: EstadoSolicitudRetiro.APROBADA,
   fechaSolicitud: new Date('2026-10-16T15:00:00Z'),
   fechaRevision: null,
+  direccionRetiro: null,
   direccionAnonimizada: null,
   latitudCapturada: null,
   longitudCapturada: null,
@@ -124,7 +125,11 @@ describe('PagadasAdminService', () => {
         usuarioCiudadanoId: 'uuid-vecino',
         descripcion: 'Dato del vecino',
       }),
-      fila({ id: 2, direccionAnonimizada: 'Calle X' }),
+      fila({
+        id: 2,
+        direccionRetiro: 'Pasaje Real 742',
+        direccionAnonimizada: 'Calle X',
+      }),
     ]);
 
     const [a, b] = await servicio.findAll();
@@ -139,7 +144,7 @@ describe('PagadasAdminService', () => {
       direccion: '',
       monto: 15000,
     });
-    expect(b.direccion).toBe('Calle X');
+    expect(b.direccion).toBe('Pasaje Real 742');
   });
 
   it('exportar usa los mismos filtros con el tope de la exportación', async () => {

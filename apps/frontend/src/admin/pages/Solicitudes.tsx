@@ -328,7 +328,11 @@ function DetalleSolicitud({
             }
           />
           <Dato label="Cierre" valor={formatoFecha(solicitud.fechaCierre)} />
-          <Dato label="Dirección" valor={solicitud.direccionAnonimizada} full />
+          <Dato
+            label="Dirección"
+            valor={solicitud.direccionRetiro || solicitud.direccionAnonimizada}
+            full
+          />
           <Dato label="Descripción" valor={solicitud.descripcion} full />
           {solicitud.razonRechazo && (
             <Dato label="Motivo" valor={solicitud.razonRechazo} full />

@@ -22,6 +22,7 @@ import {
   TipoActorAuditoria,
   validarRevision,
 } from '../../core';
+import { direccionDe } from '../comun/direccion-retiro';
 import {
   actorDe,
   comoHttp,
@@ -185,7 +186,7 @@ export class RevisionAdminService {
                 id: solicitud.id,
                 residuoNombre: solicitud.residuoCatalogo?.nombre,
                 categoria: solicitud.residuoCatalogo?.categoria,
-                direccion: solicitud.direccionAnonimizada,
+                direccion: direccionDe(solicitud) || null,
                 fechaSolicitud: solicitud.fechaSolicitud,
               },
               dto.decision,

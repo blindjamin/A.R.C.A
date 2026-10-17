@@ -195,9 +195,9 @@ corrección siguen desfasadas hasta que exista la migración de abajo.
 
 - [x] **`fotos-solicitud` (MVP Sprint 4):** subida al crear/reenviar (`foto_retiro`, tipo `antes`) y
   `GET /api/solicitudes-retiro/:id/foto` (dueño o municipal). Falta UI de galería en el panel (Benjamín).
-- [x] **`datos-retiro` (MVP Sprint 4):** `direccion_retiro` obligatoria al crear; puente a
-  `direccionAnonimizada` para Excel/panel. Pendiente: consentimiento/borrado al cerrar (municipalidad)
-  y que el panel/Excel lean `direccionRetiro` de forma explícita.
+- [x] **`datos-retiro` (MVP Sprint 4):** `direccion_retiro` obligatoria al crear; el panel, el Excel, las
+  pagadas y el correo de revisión ya la leen (respaldo: `direccionAnonimizada` en filas antiguas).
+  Pendiente: consentimiento/borrado al cerrar (municipalidad, PR #105).
 
 ---
 

@@ -4,6 +4,7 @@ import {
   type LoteDerivacion,
   type SolicitudRetiro,
 } from '../../core';
+import { direccionDe } from '../comun/direccion-retiro';
 import { aproximarCoordenadas } from './coordenadas-aproximadas';
 
 const ETIQUETA_PAGO: Record<EstadoPagoSolicitud, string> = {
@@ -24,8 +25,8 @@ const aHoraLocal = (fecha: Date | string | null): Date | null => {
  * Arma el Excel de un lote (spec `derivacion-excel` §2.2).
  *
  * Sin fotos y sin identificador del vecino: la empresa necesita saber qué
- * retirar y dónde, no quién lo pidió. Las columnas con datos personales nuevos
- * se agregan solo con `datos-retiro` y de forma deliberada.
+ * retirar y dónde, no quién lo pidió. Lleva la dirección real de retiro; el
+ * contacto se agrega solo con `datos-retiro` y de forma deliberada.
  *
  * Las coordenadas salen aproximadas a 20 metros
  * (ver `coordenadas-aproximadas.ts`): ubican la cuadra, no la vivienda.
@@ -88,7 +89,7 @@ export async function generarExcelLote(
       categoria: s.residuoCatalogo?.categoria ?? null,
       instrucciones: s.residuoCatalogo?.instruccionesRecogida ?? null,
       descripcion: s.descripcion,
-      direccion: s.direccionAnonimizada,
+      direccion: direccionDe(s),
       latitud: ubicacion.latitud,
       longitud: ubicacion.longitud,
       pago: ETIQUETA_PAGO[s.estadoPago],

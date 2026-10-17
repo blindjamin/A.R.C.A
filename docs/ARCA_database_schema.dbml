@@ -120,7 +120,7 @@ Table solicitudes_retiro {
   monto int [note: "CLP congelado al aprobar"]
   descripcion text
   direccion_retiro text [note: "Dirección real de retiro (Sprint 4). Obligatoria al crear."]
-  direccion_anonimizada varchar(255) [note: "Puente temporal / mapeos: hoy copia de direccion_retiro truncada; el panel y Excel aún la leen"]
+  direccion_anonimizada varchar(255) [note: "Respaldo legado: copia truncada de direccion_retiro; el panel la usa solo si direccion_retiro es NULL"]
   latitud_capturada decimal(10,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   longitud_capturada decimal(11,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   fecha_solicitud timestamp [not null]

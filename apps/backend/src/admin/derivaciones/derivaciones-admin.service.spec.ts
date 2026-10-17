@@ -33,6 +33,7 @@ const aprobada = (
     estadoPago: EstadoPagoSolicitud.NO_APLICA,
     monto: 0,
     descripcion: `Solicitud ${id}`,
+    direccionRetiro: null,
     direccionAnonimizada: 'Calle Uno, Santo Domingo',
     latitudCapturada: '-33.63000000',
     longitudCapturada: '-71.63000000',
@@ -164,7 +165,10 @@ describe('DerivacionesAdminService.crearLote', () => {
 
 describe('DerivacionesAdminService.excel', () => {
   it('arma una fila por solicitud, sin el id del vecino, y audita la descarga', async () => {
-    const { service, auditoria } = montar([aprobada(1), aprobada(2)]);
+    const { service, auditoria } = montar([
+      aprobada(1, { direccionRetiro: 'Pasaje Real 742, depto 3' }),
+      aprobada(2),
+    ]);
     await service.crearLote(FUNCIONARIO);
     auditoria.registrar.mockClear();
 
@@ -181,6 +185,9 @@ describe('DerivacionesAdminService.excel', () => {
     expect(encabezados).toContain('Dirección');
     expect(hoja.rowCount).toBe(3);
     expect(hoja.getRow(2).getCell(5).value).toBe('Sillón 3 cuerpos');
+    // Columna 9 = Dirección: la real, y el respaldo en filas antiguas.
+    expect(hoja.getRow(2).getCell(9).value).toBe('Pasaje Real 742, depto 3');
+    expect(hoja.getRow(3).getCell(9).value).toBe('Calle Uno, Santo Domingo');
 
     const todo = JSON.stringify(
       hoja.getSheetValues().map((fila) => fila ?? null),
