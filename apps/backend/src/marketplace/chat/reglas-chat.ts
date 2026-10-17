@@ -103,3 +103,16 @@ export function aArticuloDelChat(
         : null,
   };
 }
+
+/** 'mensaje': a remitente y destinatario, cada uno con su `esMio`. */
+export interface EventoMensaje {
+  articuloId: number;
+  conversacionId: number;
+  mensaje: MensajePublico;
+}
+
+/** 'leidos': al OTRO participante; significa "leyeron todo lo que enviaste en esta conversación". */
+export interface EventoLeidos {
+  articuloId: number;
+  conversacionId: number;
+}
