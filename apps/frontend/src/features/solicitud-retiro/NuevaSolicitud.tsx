@@ -86,6 +86,7 @@ export default function NuevaSolicitud() {
             residuoId: seleccionado.id,
             nombreResiduo: seleccionado.nombre,
             descripcion: descripcion.trim(),
+            direccionRetiro: direccionLimpia,
             foto,
             fotoPreview,
           },

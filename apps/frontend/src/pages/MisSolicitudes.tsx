@@ -22,12 +22,29 @@ import {
   IconRecycle,
   IconCheck,
   IconPencil,
+  IconCreditCard,
 } from '../components/ui';
+import { estaSolicitudPagada } from '../features/pago/pagosStorage';
 import { useSession } from '../auth/SessionContext';
 import { CampoFoto } from '../features/solicitud-retiro/CampoFoto';
 
 // Misma regla que ESTADOS_CANCELABLES_POR_VECINO en @arca/core: el vecino cancela
 // antes de la derivación y solo si no pagó. El backend la valida igual.
+
+const conEstadoPago = (s: SolicitudRetiro): SolicitudRetiro => {
+  if (estaSolicitudPagada(s.id)) {
+    return { ...s, estadoPago: 'pagado' };
+  }
+  if (s.estado === 'aprobada' && s.estadoPago !== 'pagado') {
+    return {
+      ...s,
+      estadoPago: 'pendiente',
+      monto: s.monto ?? s.residuoCatalogo?.precio ?? 5000,
+    };
+  }
+  return s;
+};
+
 const CANCELABLES: EstadoSolicitud[] = [
   'en_revision',
   'requiere_modificacion',
@@ -89,7 +106,7 @@ export default function MisSolicitudes() {
     });
     fetchMisSolicitudes(usuarioCiudadanoId)
       .then((data) => {
-        if (!cancelado) setItems(data);
+        if (!cancelado) setItems(data.map(conEstadoPago));
       })
       .catch((e: Error) => {
         if (!cancelado) setError(e.message);
@@ -108,9 +125,10 @@ export default function MisSolicitudes() {
   );
 
   const abrirDetalle = (s: SolicitudRetiro) => {
+    const conPago = conEstadoPago(s);
     setError(null);
     setMensajeExito(null);
-    setSeleccion(s);
+    setSeleccion(conPago);
     setEditandoCorreccion(false);
     setNuevaDescripcion(s.descripcion || '');
     setNuevoResiduoId(s.residuoCatalogoId);
@@ -119,9 +137,10 @@ export default function MisSolicitudes() {
     setNuevaFotoPreview(null);
 
     // Cargar detalle completo desde el backend con su última revisión municipal
-    fetchSolicitud(s.id)
+    fetchSolicitud(conPago.id)
       .then((det) => {
-        setSeleccion(det);
+        const detPago = conEstadoPago(det);
+        setSeleccion(detPago);
         setNuevaDescripcion(det.descripcion || '');
         setNuevoResiduoId(det.residuoCatalogoId);
         setNuevaDireccion(det.direccionRetiro || '');
@@ -369,6 +388,78 @@ export default function MisSolicitudes() {
           </section>
         )}
 
+        
+        {/* Banner HU: Pago pendiente */}
+        {seleccion.estadoPago === 'pendiente' && (
+          <section className="rounded-lg border-2 border-amber-300 bg-amber-50/90 p-5 space-y-3.5 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-200 text-amber-900 font-bold text-xs">
+                  $
+                </span>
+                <div>
+                  <h2 className="text-base font-bold text-amber-950">
+                    Pago de retiro pendiente
+                  </h2>
+                  <p className="text-xs text-amber-800 font-medium">
+                    Monto a pagar: {formatearPrecio(seleccion.monto ?? seleccion.residuoCatalogo?.precio ?? 5000)}
+                  </p>
+                </div>
+              </div>
+              <span className="pill bg-amber-200 text-amber-950 text-[11px] font-bold border border-amber-300">
+                Requiere pago
+              </span>
+            </div>
+
+            <p className="text-xs text-amber-900 leading-relaxed">
+              Tu solicitud fue aprobada por la municipalidad. Para que la cuadrilla de aseo pueda programar el retiro en tu domicilio, debes realizar el pago correspondiente de los derechos municipales.
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/pago/${seleccion.id}`, {
+                  state: { solicitud: seleccion },
+                })
+              }
+              className="btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
+            >
+              <IconCreditCard className="h-4 w-4" />
+              <span>Pagar retiro ({formatearPrecio(seleccion.monto ?? seleccion.residuoCatalogo?.precio ?? 5000)})</span>
+            </button>
+          </section>
+        )}
+
+        {/* Banner HU: Pago completado */}
+        {pagada && (
+          <section className="rounded-lg border border-emerald-300 bg-emerald-50/80 p-4 flex items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-200 text-emerald-800 shrink-0">
+                <IconCheck className="h-4 w-4 stroke-[2.5]" />
+              </span>
+              <div>
+                <p className="text-xs font-bold text-emerald-950">
+                  Derechos municipales pagados
+                </p>
+                <p className="text-[11px] text-emerald-800">
+                  Tu retiro está listo para ser programado por la cuadrilla.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/pago/${seleccion.id}`, {
+                  state: { solicitud: seleccion },
+                })
+              }
+              className="btn-outline border-emerald-300 text-emerald-900 bg-white py-1.5 px-3 text-xs font-semibold shrink-0 hover:bg-emerald-100"
+            >
+              Ver comprobante
+            </button>
+          </section>
+        )}
+
         {/* Tarjeta de Información General de la Solicitud */}
         <div className="card space-y-4 p-5">
           <div className="flex items-start justify-between gap-2">
@@ -384,7 +475,19 @@ export default function MisSolicitudes() {
                 </p>
               )}
             </div>
-            <EstadoPill estado={seleccion.estado} />
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <EstadoPill estado={seleccion.estado} />
+              {seleccion.estadoPago === 'pendiente' && (
+                <span className="pill border border-amber-300 bg-amber-50 text-amber-900 text-[11px] font-bold">
+                  Pago pendiente
+                </span>
+              )}
+              {seleccion.estadoPago === 'pagado' && (
+                <span className="pill border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-bold">
+                  Pagado
+                </span>
+              )}
+            </div>
           </div>
 
           {seleccion.fotoUrl && (
@@ -497,7 +600,21 @@ export default function MisSolicitudes() {
                 <ListItemCard
                   icon={<IconRecycle className="h-5 w-5 text-green-700" />}
                   title={s.residuoCatalogo?.nombre ?? `Residuo #${s.residuoCatalogoId}`}
-                  titleBadge={<EstadoPill estado={s.estado} />}
+                  titleBadge={
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <EstadoPill estado={s.estado} />
+                      {s.estadoPago === 'pendiente' && (
+                        <span className="pill border border-amber-300 bg-amber-50 text-amber-900 text-[11px] font-bold">
+                          Pago pendiente
+                        </span>
+                      )}
+                      {s.estadoPago === 'pagado' && (
+                        <span className="pill border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-bold">
+                          Pagado
+                        </span>
+                      )}
+                    </div>
+                  }
                   lines={[
                     <span className="text-ink-2">{`${categoria ? `${categoria} · ` : ''}${
                       s.residuoCatalogo ? formatearPrecio(s.residuoCatalogo.precio) : ''

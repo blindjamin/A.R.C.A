@@ -10,6 +10,7 @@ import AcercaDe from './pages/AcercaDe';
 import SeleccionInicio from './pages/SeleccionInicio';
 import Inicio from './pages/Inicio';
 import MisSolicitudes from './pages/MisSolicitudes';
+import PantallaPago from './pages/PantallaPago';
 import Proximamente from './pages/Proximamente';
 import Perfil from './pages/Perfil';
 import CircularCredits from './pages/CircularCredits';
@@ -53,6 +54,10 @@ export default function App() {
             <Route
               path="/mis-solicitudes"
               element={<Protected><MisSolicitudes /></Protected>}
+            />
+            <Route
+              path="/pago/:id"
+              element={<Protected><PantallaPago /></Protected>}
             />
 
             {/* Placeholders sin backend todavía */}

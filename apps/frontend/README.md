@@ -74,6 +74,7 @@ src/
 ├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
 ├── features/
 │   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones)
+│   ├── pago/                    # Persistencia local de pagos y comprobantes (pagosStorage.ts)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
 │       ├── CampoFoto · fotoSolicitud.ts  # Foto obligatoria de la solicitud (JPG/PNG/WebP, 5 MB)
@@ -81,7 +82,7 @@ src/
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
 │   ├── Login · SeleccionInicio · Inicio · Perfil · CircularCredits
-│   └── MisSolicitudes · Proximamente
+│   └── MisSolicitudes · PantallaPago · Proximamente
 ├── utils/                       # Utilidades transversales (perfilStorage.ts)
 ├── index.css                    # Tokens y clases utilitarias del UI Kit
 └── App.tsx                      # Router: arma las rutas y monta flujos
