@@ -46,7 +46,7 @@ export default function App() {
             <Route path="/circular-credits" element={<Protected><CircularCredits /></Protected>} />
             <Route path="/creditos" element={<Navigate to="/circular-credits" replace />} />
 
-            {/* Flujo Solicitar retiro: captura → IA → sugerencia → detalle → éxito
+            {/* Flujo Solicitar retiro: catálogo → nueva solicitud manual → confirmación
                 (definido en features/solicitud-retiro/routes.tsx) */}
             {solicitudRetiroRoutes}
 

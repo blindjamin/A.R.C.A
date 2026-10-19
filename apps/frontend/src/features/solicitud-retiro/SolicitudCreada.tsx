@@ -1,15 +1,47 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useSolicitudFlow } from './SolicitudFlowContext';
 import { IconCheck, IconRecycle } from '../../components/ui';
 
+interface SolicitudReciente {
+  id?: number;
+  residuoId: number;
+  nombreResiduo: string;
+  descripcion?: string;
+  foto?: File | null;
+  fotoPreview?: string | null;
+}
+
 export default function SolicitudCreada() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { reset } = useSolicitudFlow();
+
+  const solicitudReciente = (
+    location.state as { solicitud?: SolicitudReciente } | null
+  )?.solicitud;
 
   // Salir del flujo limpia la foto efímera.
   const irA = (ruta: string) => {
     reset();
     navigate(ruta);
+  };
+
+  const irMarketplace = () => {
+    reset();
+    navigate('/marketplace/subir', {
+      state: {
+        importarSolicitud: solicitudReciente
+          ? {
+              solicitudId: solicitudReciente.id,
+              titulo: solicitudReciente.nombreResiduo,
+              descripcion: solicitudReciente.descripcion,
+              residuoCatalogoId: solicitudReciente.residuoId,
+              fotoArchivo: solicitudReciente.foto,
+              fotoUrl: solicitudReciente.fotoPreview,
+            }
+          : undefined,
+      },
+    });
   };
 
   return (
@@ -37,7 +69,7 @@ export default function SolicitudCreada() {
           Registrar retiro municipal
         </button>
         <button
-          onClick={() => irA('/marketplace/subir')}
+          onClick={irMarketplace}
           className="btn-gold w-full py-3.5 flex items-center justify-center gap-2"
         >
           <IconRecycle className="h-4 w-4 text-ink" />

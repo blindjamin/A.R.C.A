@@ -160,7 +160,7 @@ function TabBar() {
 
             <div className="mt-3.5 space-y-2.5">
               <Link
-                to="/solicitar"
+                to="/nueva-solicitud"
                 onClick={() => setMenuAbierto(false)}
                 className="flex items-start gap-3 rounded-lg border border-line p-3 transition-colors hover:border-green-300 hover:bg-green-50/50"
               >
@@ -172,7 +172,7 @@ function TabBar() {
                     Solicitar un retiro
                   </p>
                   <p className="text-xs text-slate">
-                    Foto con IA para recolección de voluminosos
+                    Ingresa tus datos y foto para recolección de voluminosos
                   </p>
                 </div>
               </Link>

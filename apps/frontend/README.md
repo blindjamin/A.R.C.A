@@ -75,7 +75,6 @@ src/
 ├── features/
 │   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
-│       ├── CapturaResiduo · AnalizandoIA · SugerenciasIA
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
 │       ├── CampoFoto · fotoSolicitud.ts  # Foto obligatoria de la solicitud (JPG/PNG/WebP, 5 MB)
 │       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada y su archivo)

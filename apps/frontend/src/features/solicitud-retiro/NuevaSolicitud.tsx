@@ -38,10 +38,8 @@ export default function NuevaSolicitud() {
   const [direccionRetiro, setDireccionRetiro] = useState(
     () => obtenerPerfilVecino(usuarioCiudadanoId).direccion ?? '',
   );
-  const [foto, setFoto] = useState<File | null>(flujo.fotoArchivo);
-  const [fotoPreview, setFotoPreview] = useState<string | null>(
-    flujo.fotoArchivo ? flujo.fotoPreview : null,
-  );
+  const [foto, setFoto] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mostrarModalCorreo, setMostrarModalCorreo] = useState(false);
@@ -72,7 +70,7 @@ export default function NuevaSolicitud() {
         throw new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
       }
 
-      await crearSolicitudRetiro({
+      const creada = await crearSolicitudRetiro({
         usuarioCiudadanoId: ciudadanoIdValido,
         residuoCatalogoId: seleccionado.id,
         direccionRetiro: direccionLimpia,
@@ -81,7 +79,18 @@ export default function NuevaSolicitud() {
         emailContacto,
       });
       flujo.reset();
-      navigate('/solicitud/creada');
+      navigate('/solicitud/creada', {
+        state: {
+          solicitud: {
+            id: creada.id,
+            residuoId: seleccionado.id,
+            nombreResiduo: seleccionado.nombre,
+            descripcion: descripcion.trim(),
+            foto,
+            fotoPreview,
+          },
+        },
+      });
     } catch (err) {
       setError((err as Error).message);
       setSubmitting(false);

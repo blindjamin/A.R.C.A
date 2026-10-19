@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   cancelarSolicitud,
   fetchCatalogo,
@@ -53,6 +53,7 @@ const leerOcultas = (usuarioId: string): number[] => {
 };
 
 export default function MisSolicitudes() {
+  const navigate = useNavigate();
   const { sesion } = useSession();
   const usuarioCiudadanoId = sesion?.ciudadanoId ?? null;
   const [items, setItems] = useState<SolicitudRetiro[]>([]);
@@ -424,21 +425,45 @@ export default function MisSolicitudes() {
           </div>
         </div>
 
-        {puedeCancelar ? (
+        <div className="space-y-2.5 pt-2">
+          {/* Opción de publicar en Marketplace */}
           <button
-            onClick={() => cancelar(seleccion.id)}
-            disabled={procesando}
-            className="w-full rounded-pill border border-rose-300 bg-rose-50 py-3 text-sm font-medium text-rose-600 transition-colors hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:opacity-50"
+            type="button"
+            onClick={() => {
+              navigate('/marketplace/subir', {
+                state: {
+                  importarSolicitud: {
+                    solicitudId: seleccion.id,
+                    titulo: seleccion.residuoCatalogo?.nombre ?? '',
+                    descripcion: seleccion.descripcion ?? '',
+                    residuoCatalogoId: seleccion.residuoCatalogoId,
+                    fotoUrl: seleccion.fotoUrl,
+                  },
+                },
+              });
+            }}
+            className="btn-gold flex w-full items-center justify-center gap-2 py-3 text-sm font-bold shadow-sm"
           >
-            {procesando ? 'Cancelando…' : 'Cancelar solicitud'}
+            <IconRecycle className="h-4 w-4 text-ink" />
+            <span>Publicar este residuo en Marketplace</span>
           </button>
-        ) : (
-          <p className="text-center text-xs text-ink-2">
-            {pagada
-              ? 'Esta solicitud ya fue pagada y no se puede cancelar.'
-              : `Esta solicitud está en estado «${metaDeEstado(seleccion.estado).label}» y no se puede cancelar.`}
-          </p>
-        )}
+
+          {puedeCancelar ? (
+            <button
+              onClick={() => cancelar(seleccion.id)}
+              disabled={procesando}
+              className="w-full rounded-pill border border-rose-300 bg-rose-50 py-2.5 text-xs font-medium text-rose-600 transition-colors hover:border-rose-600 hover:bg-rose-600 hover:text-white disabled:opacity-50"
+            >
+              {procesando ? 'Cancelando…' : 'Cancelar solicitud'}
+            </button>
+          ) : (
+            <p className="text-center text-xs text-ink-2">
+              {pagada
+                ? 'Esta solicitud ya fue pagada y no se puede cancelar.'
+                : `Esta solicitud está en estado «${metaDeEstado(seleccion.estado).label}» y no se puede cancelar.`}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
@@ -458,7 +483,7 @@ export default function MisSolicitudes() {
           icon={<IconClipboard className="h-7 w-7 text-green-700" />}
           message={<span className="text-ink-2">Aún no tienes solicitudes registradas.</span>}
           action={
-            <Link to="/solicitar" className="btn-primary inline-flex">
+            <Link to="/nueva-solicitud" className="btn-primary inline-flex">
               Solicitar un retiro
             </Link>
           }
