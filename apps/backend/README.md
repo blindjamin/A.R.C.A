@@ -114,7 +114,7 @@ Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/api/marketplace/articulos` | Publica (`multipart/form-data`): `tipo`, `titulo`, `descripcion?`, `residuoCatalogoId`, `lat?`, `lon?` y `foto?` (JPG, PNG o WebP de hasta 5 MB, validada por su contenido, no por la extensión). La ubicación se guarda aproximada a 250 m. Vence a los 30 días. `404` si el residuo no existe |
+| `POST` | `/api/marketplace/articulos` | Publica (`multipart/form-data`): `tipo`, `titulo`, `descripcion?`, `residuoCatalogoId`, `lat?`, `lon?` y `foto?` (JPG, PNG o WebP de hasta 5 MB, validada por su contenido, no por la extensión, y guardada sin metadatos: ver más abajo). La ubicación se guarda aproximada a 250 m. Vence a los 30 días. `404` si el residuo no existe |
 | `GET` | `/api/marketplace/articulos` | Disponibles y vigentes, del más nuevo al más antiguo. Filtros: `tipo`, `categoria`, `texto` (título o descripción), `banda` y el origen `lat`/`lon`, que agrega la banda de distancia (`@LimiteUbicacion`) |
 | `GET` | `/api/marketplace/articulos/:id` | Detalle. Un artículo que no está disponible y vigente solo lo ven quien lo publicó y quien lo reservó; para el resto, `404` |
 | `GET` | `/api/marketplace/articulos/:id/foto` | La foto, con la misma regla de visibilidad que el detalle (`404` si no hay foto) |

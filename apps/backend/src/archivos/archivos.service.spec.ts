@@ -7,7 +7,11 @@ import {
   TAMANO_MAXIMO_IMAGEN_BYTES,
 } from './archivos.service';
 
-const JPEG_MINIMO = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+// SOI + APP0 (JFIF) + EOI: corto, pero con una estructura que se puede recorrer.
+const JPEG_MINIMO = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01,
+  0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
+]);
 const PNG_MINIMO = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
@@ -55,6 +59,16 @@ describe('ArchivosService', () => {
     const svg = Buffer.from('<svg></svg>');
     await expect(
       service.guardarImagen({ buffer: svg, size: svg.length }, 'marketplace'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rechaza una imagen dañada con 400', async () => {
+    const cortada = Buffer.from([0xff, 0xd8, 0xff, 0xe1, 0x00, 0x40, 0x45]);
+    await expect(
+      service.guardarImagen(
+        { buffer: cortada, size: cortada.length },
+        'marketplace',
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
