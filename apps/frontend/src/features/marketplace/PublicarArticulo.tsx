@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { fetchCatalogo, type ResiduoCatalogo } from '../../api/arca';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  apiFetch,
+  fetchCatalogo,
+  fetchMisSolicitudes,
+  type ResiduoCatalogo,
+  type SolicitudRetiro,
+} from '../../api/arca';
 import { publicarArticulo, type TipoArticulo } from '../../api/marketplace';
-import { BackButton, ScreenHeader, IconCamera } from '../../components/ui';
+import {
+  BackButton,
+  ScreenHeader,
+  IconCamera,
+  IconRecycle,
+} from '../../components/ui';
+import { useSession } from '../../auth/SessionContext';
 
 const TITULO_MIN = 3;
 const TITULO_MAX = 80;
@@ -43,16 +55,55 @@ const MensajeError = ({ mensaje }: { mensaje?: string }) =>
 
 export default function PublicarArticulo() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { sesion } = useSession();
+  const usuarioCiudadanoId = sesion?.ciudadanoId;
+
+  const importarParam = (
+    location.state as {
+      importarSolicitud?: {
+        solicitudId?: number;
+        titulo?: string;
+        descripcion?: string;
+        residuoCatalogoId?: number;
+        fotoArchivo?: File | null;
+        fotoUrl?: string | null;
+      };
+    } | null
+  )?.importarSolicitud;
 
   const [tipo, setTipo] = useState<TipoArticulo | null>(null);
-  const [titulo, setTitulo] = useState('');
-  const [descripcion, setDescripcion] = useState('');
-  const [residuoId, setResiduoId] = useState('');
-  const [foto, setFoto] = useState<Foto | null>(null);
+  const [titulo, setTitulo] = useState(() => importarParam?.titulo ?? '');
+  const [descripcion, setDescripcion] = useState(
+    () => importarParam?.descripcion ?? '',
+  );
+  const [residuoId, setResiduoId] = useState(
+    () =>
+      importarParam?.residuoCatalogoId
+        ? String(importarParam.residuoCatalogoId)
+        : '',
+  );
+  const [foto, setFoto] = useState<Foto | null>(() => {
+    if (importarParam?.fotoArchivo) {
+      return {
+        archivo: importarParam.fotoArchivo,
+        url:
+          importarParam.fotoUrl ||
+          URL.createObjectURL(importarParam.fotoArchivo),
+      };
+    }
+    return null;
+  });
   const [errorFoto, setErrorFoto] = useState<string | null>(null);
 
   const [catalogo, setCatalogo] = useState<ResiduoCatalogo[] | null>(null);
   const [errorCatalogo, setErrorCatalogo] = useState<string | null>(null);
+
+  const [solicitudesVecino, setSolicitudesVecino] = useState<SolicitudRetiro[]>([]);
+  const [solicitudOrigenId, setSolicitudOrigenId] = useState<number | null>(
+    () => importarParam?.solicitudId ?? null,
+  );
+  const [cargandoFotoRemota, setCargandoFotoRemota] = useState(false);
 
   const [intentado, setIntentado] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -80,6 +131,99 @@ export default function PublicarArticulo() {
     if (urlFotoRef.current) URL.revokeObjectURL(urlFotoRef.current);
     urlFotoRef.current = nueva?.url ?? null;
     setFoto(nueva);
+  };
+
+  const cargarFotoRemota = async (url: string, nombre: string) => {
+    setCargandoFotoRemota(true);
+    setErrorFoto(null);
+    try {
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const blob = await res.blob();
+        const file = new File(
+          [blob],
+          `${nombre.toLowerCase().replace(/[^a-z0-9]/gi, '-') || 'foto'}.jpg`,
+          { type: blob.type || 'image/jpeg' },
+        );
+        reemplazarFoto({ archivo: file, url: URL.createObjectURL(file) });
+      }
+    } catch (err) {
+      console.error('Error cargando foto de la solicitud:', err);
+    } finally {
+      setCargandoFotoRemota(false);
+    }
+  };
+
+  const fotoUrlParam = importarParam?.fotoUrl;
+  const tituloParam = importarParam?.titulo;
+  const tieneFotoArchivo = Boolean(importarParam?.fotoArchivo);
+
+  useEffect(() => {
+    if (!fotoUrlParam || tieneFotoArchivo) return;
+    let cancelado = false;
+    (async () => {
+      setCargandoFotoRemota(true);
+      setErrorFoto(null);
+      try {
+        const res = await apiFetch(fotoUrlParam);
+        if (res.ok && !cancelado) {
+          const blob = await res.blob();
+          const file = new File(
+            [blob],
+            `${(tituloParam || 'foto').toLowerCase().replace(/[^a-z0-9]/gi, '-')}.jpg`,
+            { type: blob.type || 'image/jpeg' },
+          );
+          if (!cancelado) {
+            reemplazarFoto({ archivo: file, url: URL.createObjectURL(file) });
+          }
+        }
+      } catch (err) {
+        if (!cancelado) {
+          console.error('Error cargando foto de la solicitud:', err);
+        }
+      } finally {
+        if (!cancelado) {
+          setCargandoFotoRemota(false);
+        }
+      }
+    })();
+    return () => {
+      cancelado = true;
+    };
+  }, [fotoUrlParam, tieneFotoArchivo, tituloParam]);
+
+  useEffect(() => {
+    if (!usuarioCiudadanoId) return;
+    fetchMisSolicitudes(usuarioCiudadanoId)
+      .then((res) => {
+        setSolicitudesVecino(res.filter((s) => s.estado !== 'cancelada'));
+      })
+      .catch(() => {});
+  }, [usuarioCiudadanoId]);
+
+  const aplicarSolicitud = (s: SolicitudRetiro) => {
+    setSolicitudOrigenId(s.id);
+    if (s.residuoCatalogo?.nombre) {
+      setTitulo(s.residuoCatalogo.nombre);
+    }
+    setResiduoId(String(s.residuoCatalogoId));
+    setDescripcion(s.descripcion ?? '');
+    if (s.fotoUrl) {
+      cargarFotoRemota(
+        s.fotoUrl,
+        s.residuoCatalogo?.nombre || `solicitud-${s.id}`,
+      );
+    } else {
+      reemplazarFoto(null);
+    }
+  };
+
+  const limpiarImportacion = () => {
+    setSolicitudOrigenId(null);
+    setTitulo('');
+    setResiduoId('');
+    setDescripcion('');
+    reemplazarFoto(null);
   };
 
   const elegirFoto = (archivo: File | undefined) => {
@@ -138,10 +282,84 @@ export default function PublicarArticulo() {
         subtitle="Dale una segunda vida: regálalo o intercámbialo con un vecino."
       />
 
+      {/* Opción de importar desde solicitudes de retiro municipal */}
+      {solicitudesVecino.length > 0 && (
+        <section className="card border-gold-300 bg-gold-50/60 p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-200 text-gold-800">
+              <IconRecycle className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-ink">
+                ¿Deseas publicar un residuo ya solicitado?
+              </p>
+              <p className="text-xs text-slate">
+                Selecciona una de tus solicitudes para completar los datos y la foto:
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {solicitudesVecino.map((s) => {
+              const activa = solicitudOrigenId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => aplicarSolicitud(s)}
+                  className={`pill text-xs font-semibold transition-colors flex items-center gap-1.5 py-1.5 px-3 border ${
+                    activa
+                      ? 'bg-gold-500 text-white border-gold-600 shadow-sm'
+                      : 'bg-white hover:bg-gold-100 text-ink border-gold-300'
+                  }`}
+                >
+                  <IconRecycle className="h-3 w-3" />
+                  <span>{s.residuoCatalogo?.nombre ?? `Solicitud #${s.id}`}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {solicitudOrigenId && (
+            <div className="flex items-center justify-between border-t border-gold-200 pt-2 text-xs text-gold-950">
+              <span>
+                Datos cargados. Puedes usarlos tal cual o modificarlos según necesites.
+              </span>
+              <button
+                type="button"
+                onClick={limpiarImportacion}
+                className="font-bold underline hover:text-black ml-2"
+              >
+                Escribir desde cero
+              </button>
+            </div>
+          )}
+        </section>
+      )}
+
+      {solicitudOrigenId && solicitudesVecino.length === 0 && (
+        <div className="flex items-center justify-between rounded-md bg-gold-50 border border-gold-300 px-4 py-3 text-xs text-gold-950">
+          <span>
+            Datos cargados desde tu solicitud de retiro. Puedes mantenerlos o modificarlos.
+          </span>
+          <button
+            type="button"
+            onClick={limpiarImportacion}
+            className="font-bold underline hover:text-black ml-2"
+          >
+            Escribir desde cero
+          </button>
+        </div>
+      )}
+
       {/* Foto */}
       <section className="space-y-2">
         <p className="text-sm font-semibold">Foto (opcional)</p>
-        {foto ? (
+        {cargandoFotoRemota ? (
+          <div className="card flex items-center justify-center p-8 text-xs text-slate">
+            Cargando foto de la solicitud…
+          </div>
+        ) : foto ? (
           <div className="card overflow-hidden">
             <img
               src={foto.url}
@@ -180,7 +398,9 @@ export default function PublicarArticulo() {
         )}
         {errorFoto && <p className="text-xs text-rose-600">{errorFoto}</p>}
         <p className="text-xs text-slate-2">
-          Por ahora la foto solo se ve en tu teléfono; se subirá cuando el servidor esté conectado.
+          {foto
+            ? 'Puedes conservar esta foto o cambiarla por una nueva.'
+            : 'Sube una foto clara para que tus vecinos puedan ver el estado del artículo.'}
         </p>
       </section>
 
