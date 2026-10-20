@@ -136,6 +136,13 @@ export default function Login() {
             >
               Acerca de A.R.C.A.
             </Link>
+            <span aria-hidden="true" className="mx-2 text-xs text-white/60">·</span>
+            <Link
+              to="/privacidad"
+              className="text-xs text-white/85 underline underline-offset-2 hover:text-white"
+            >
+              Política de privacidad
+            </Link>
           </p>
 
           {/* Accesos de desarrollo: solo en `npm run dev` (criterio 6). Simulan
