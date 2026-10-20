@@ -1,5 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { type AuthUser, SesionService } from '../core';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import {
+  AccionAuditoria,
+  AuditoriaService,
+  type AuthUser,
+  ContactoCiudadano,
+  type OrigenPeticion,
+  SesionService,
+  TipoActorAuditoria,
+} from '../core';
 import { MailService } from '../mail/mail.service';
 import { ActualizarPerfilDto } from './dto/actualizar-perfil.dto';
 
@@ -10,46 +20,86 @@ export interface PerfilRespuesta {
   direccion: string | null;
 }
 
+type CampoContacto = 'telefono' | 'direccion';
+
 @Injectable()
 export class PerfilService {
   constructor(
+    @InjectRepository(ContactoCiudadano)
+    private readonly contactos: Repository<ContactoCiudadano>,
     private readonly sesionService: SesionService,
     private readonly mailService: MailService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
 
   async obtener(user: AuthUser): Promise<PerfilRespuesta> {
-    const contacto = await this.sesionService.contactoSesionActiva(
-      user.ciudadanoId,
-    );
-    const emailMail = await this.mailService.obtenerCorreoCiudadano(
-      user.ciudadanoId,
-    );
+    const [contacto, nombre, email] = await Promise.all([
+      this.contactos.findOne({
+        where: { usuarioCiudadanoId: user.ciudadanoId },
+      }),
+      this.sesionService.nombreSesionActiva(user.ciudadanoId),
+      this.mailService.obtenerCorreoCiudadano(user.ciudadanoId),
+    ]);
 
     return {
-      nombre: contacto.nombre,
-      email: emailMail ?? contacto.email,
-      telefono: contacto.telefono,
-      direccion: contacto.direccion,
+      nombre,
+      email,
+      telefono: contacto?.telefono ?? null,
+      direccion: contacto?.direccion ?? null,
     };
   }
 
+  /**
+   * El contacto vive en `contacto_ciudadano` (decisión 016), no en la sesión:
+   * dura lo que la cuenta y hay una sola versión del dato.
+   */
   async actualizar(
     user: AuthUser,
     dto: ActualizarPerfilDto,
+    origen?: OrigenPeticion,
   ): Promise<PerfilRespuesta> {
-    const patch: { telefono?: string | null; direccion?: string | null } = {};
+    const contacto =
+      (await this.contactos.findOne({
+        where: { usuarioCiudadanoId: user.ciudadanoId },
+      })) ??
+      this.contactos.create({
+        usuarioCiudadanoId: user.ciudadanoId,
+        telefono: null,
+        direccion: null,
+      });
+    const cambiados: CampoContacto[] = [];
 
-    if (dto.telefono !== undefined) {
-      const telefono = dto.telefono.trim();
-      patch.telefono = telefono.length > 0 ? telefono : null;
+    for (const campo of ['telefono', 'direccion'] as const) {
+      if (dto[campo] === undefined) continue;
+      const valor = dto[campo].trim() || null;
+      if (valor !== contacto[campo]) {
+        contacto[campo] = valor;
+        cambiados.push(campo);
+      }
     }
 
-    if (dto.direccion !== undefined) {
-      const direccion = dto.direccion.trim();
-      patch.direccion = direccion.length > 0 ? direccion : null;
+    if (cambiados.length === 0) {
+      return this.obtener(user);
     }
 
-    await this.sesionService.actualizarContactoSesion(user.ciudadanoId, patch);
+    // Si el vecino borró todo, no queda una fila vacía.
+    if (contacto.telefono === null && contacto.direccion === null) {
+      await this.contactos.delete({ usuarioCiudadanoId: user.ciudadanoId });
+    } else {
+      await this.contactos.save(contacto);
+    }
+
+    // Solo qué campos cambiaron, nunca el valor: el teléfono y la dirección
+    // son datos personales y la auditoría se conserva.
+    await this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: user,
+      entidad: 'contacto_ciudadano',
+      accion: AccionAuditoria.UPDATE,
+      datosNuevos: { camposCambiados: cambiados },
+      origen,
+    });
+
     return this.obtener(user);
   }
 }

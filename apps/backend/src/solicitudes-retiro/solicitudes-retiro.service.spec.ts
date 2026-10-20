@@ -257,6 +257,15 @@ describe('SolicitudesRetiroService.cancelarPorCiudadano', () => {
     );
   });
 
+  it('al cancelar borra la dirección de retiro, que ya no tiene finalidad', async () => {
+    const { service, guardada } = montar(filaBase());
+
+    await service.cancelarPorCiudadano(7, {}, VECINO);
+
+    expect(guardada()?.direccionRetiro).toBeNull();
+    expect(guardada()?.direccionAnonimizada).toBeNull();
+  });
+
   it('cancelar una derivada responde 400 y no guarda', async () => {
     const { service, solicitudRepo } = montar(
       filaBase({ estado: EstadoSolicitudRetiro.DERIVADA }),

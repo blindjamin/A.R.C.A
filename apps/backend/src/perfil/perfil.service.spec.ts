@@ -1,4 +1,12 @@
-import type { AuthUser, SesionService } from '../core';
+import type { Repository } from 'typeorm';
+import {
+  AccionAuditoria,
+  type AuditoriaService,
+  type AuthUser,
+  type ContactoCiudadano,
+  type SesionService,
+  TipoActorAuditoria,
+} from '../core';
 import type { MailService } from '../mail/mail.service';
 import { PerfilService } from './perfil.service';
 
@@ -9,36 +17,50 @@ const VECINO: AuthUser = {
   rol: null,
 };
 
-describe('PerfilService', () => {
-  const sesionService = {
-    contactoSesionActiva: jest.fn(),
-    actualizarContactoSesion: jest.fn(() => Promise.resolve()),
-  };
+type Contacto = Pick<
+  ContactoCiudadano,
+  'usuarioCiudadanoId' | 'telefono' | 'direccion'
+>;
 
+describe('PerfilService', () => {
+  let guardado: Contacto | null;
+
+  const contactos = {
+    findOne: jest.fn(() => Promise.resolve(guardado ? { ...guardado } : null)),
+    create: jest.fn((c: Contacto) => ({ ...c })),
+    save: jest.fn((c: Contacto) => {
+      guardado = { ...c };
+      return Promise.resolve(c);
+    }),
+    delete: jest.fn(() => {
+      guardado = null;
+      return Promise.resolve();
+    }),
+  };
+  const sesionService = {
+    nombreSesionActiva: jest.fn(() => Promise.resolve('Ana')),
+  };
   const mailService = {
-    obtenerCorreoCiudadano: jest.fn(),
+    obtenerCorreoCiudadano: jest.fn(() => Promise.resolve('ana@ejemplo.cl')),
+  };
+  const auditoriaService = {
+    registrar: jest.fn(() => Promise.resolve()),
   };
 
   const service = new PerfilService(
+    contactos as unknown as Repository<ContactoCiudadano>,
     sesionService as unknown as SesionService,
     mailService as unknown as MailService,
+    auditoriaService as unknown as AuditoriaService,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
-    sesionService.contactoSesionActiva.mockResolvedValue({
-      nombre: 'Ana',
-      email: 'ana@ejemplo.cl',
-      telefono: null,
-      direccion: null,
-    });
-    mailService.obtenerCorreoCiudadano.mockResolvedValue('ana@ejemplo.cl');
+    guardado = null;
   });
 
-  it('GET combina sesión y correo del MailService', async () => {
-    const perfil = await service.obtener(VECINO);
-
-    expect(perfil).toEqual({
+  it('GET sin contacto guardado devuelve teléfono y dirección vacíos', async () => {
+    await expect(service.obtener(VECINO)).resolves.toEqual({
       nombre: 'Ana',
       email: 'ana@ejemplo.cl',
       telefono: null,
@@ -46,25 +68,61 @@ describe('PerfilService', () => {
     });
   });
 
-  it('PATCH actualiza teléfono y dirección y no toca el nombre', async () => {
-    sesionService.contactoSesionActiva.mockResolvedValue({
-      nombre: 'Ana',
-      email: 'ana@ejemplo.cl',
+  it('PATCH crea el contacto y audita qué campos cambiaron, sin los valores', async () => {
+    const perfil = await service.actualizar(
+      VECINO,
+      { telefono: ' +56911111111 ', direccion: ' Calle 1 ' },
+      { ip: '127.0.0.1', userAgent: 'jest' },
+    );
+
+    expect(guardado).toEqual({
+      usuarioCiudadanoId: VECINO.ciudadanoId,
       telefono: '+56911111111',
       direccion: 'Calle 1',
     });
-
-    const perfil = await service.actualizar(VECINO, {
-      telefono: ' +56911111111 ',
-      direccion: ' Calle 1 ',
+    expect(auditoriaService.registrar).toHaveBeenCalledWith({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: VECINO,
+      entidad: 'contacto_ciudadano',
+      accion: AccionAuditoria.UPDATE,
+      datosNuevos: { camposCambiados: ['telefono', 'direccion'] },
+      origen: { ip: '127.0.0.1', userAgent: 'jest' },
     });
-
-    expect(sesionService.actualizarContactoSesion).toHaveBeenCalledWith(
-      VECINO.ciudadanoId,
-      { telefono: '+56911111111', direccion: 'Calle 1' },
+    expect(JSON.stringify(auditoriaService.registrar.mock.calls)).not.toContain(
+      '56911111111',
     );
-    expect(perfil.nombre).toBe('Ana');
-    expect(perfil.telefono).toBe('+56911111111');
-    expect(perfil.direccion).toBe('Calle 1');
+    expect(perfil).toMatchObject({
+      nombre: 'Ana',
+      telefono: '+56911111111',
+      direccion: 'Calle 1',
+    });
+  });
+
+  it('si el vecino borra todo, no queda una fila vacía', async () => {
+    guardado = {
+      usuarioCiudadanoId: VECINO.ciudadanoId,
+      telefono: '+56911111111',
+      direccion: null,
+    };
+
+    await service.actualizar(VECINO, { telefono: '   ' });
+
+    expect(contactos.delete).toHaveBeenCalledWith({
+      usuarioCiudadanoId: VECINO.ciudadanoId,
+    });
+    expect(guardado).toBeNull();
+  });
+
+  it('si nada cambia, no guarda ni audita', async () => {
+    guardado = {
+      usuarioCiudadanoId: VECINO.ciudadanoId,
+      telefono: '+56911111111',
+      direccion: null,
+    };
+
+    await service.actualizar(VECINO, { telefono: '+56911111111' });
+
+    expect(contactos.save).not.toHaveBeenCalled();
+    expect(auditoriaService.registrar).not.toHaveBeenCalled();
   });
 });
