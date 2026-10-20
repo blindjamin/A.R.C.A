@@ -50,6 +50,7 @@ export interface SolicitudRetiro {
   estadoPago: EstadoPago;
   monto: number | null;
   descripcion: string | null;
+  direccionRetiro?: string | null;
   direccionAnonimizada?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
@@ -61,6 +62,8 @@ export interface SolicitudRetiro {
   updatedAt: string;
   // El GET incluye la relación anidada; en el POST puede no venir.
   residuoCatalogo?: ResiduoCatalogo;
+  // Ruta protegida de la foto (`/api/solicitudes-retiro/:id/foto`), o null.
+  fotoUrl?: string | null;
   // Detalle de la última revisión del funcionario municipal (para corregir)
   ultimaRevision?: RevisionVisible | null;
 }
@@ -68,8 +71,29 @@ export interface SolicitudRetiro {
 export interface CrearSolicitudInput {
   usuarioCiudadanoId: string;
   residuoCatalogoId: number;
+  direccionRetiro: string;
+  foto: File;
   descripcion?: string;
   emailContacto?: string;
+}
+
+export interface ReenviarSolicitudInput {
+  descripcion?: string;
+  residuoCatalogoId?: number;
+  direccionRetiro?: string;
+  foto?: File;
+}
+
+// El backend recibe la solicitud como multipart/form-data: la foto va como
+// archivo en el campo `foto` y el resto como texto. Sin `Content-Type` a
+// mano: el navegador lo arma con el separador del multipart.
+function aFormData(campos: Record<string, string | number | File | undefined>): FormData {
+  const form = new FormData();
+  for (const [clave, valor] of Object.entries(campos)) {
+    if (valor === undefined) continue;
+    form.append(clave, valor instanceof File ? valor : String(valor));
+  }
+  return form;
 }
 
 // --- Overlay visual ---------------------------------------------------------
@@ -126,8 +150,7 @@ export function crearSolicitudRetiro(
 ): Promise<SolicitudRetiro> {
   return apiFetch(`${API_URL}/solicitudes-retiro`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: aFormData({ ...data }),
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
@@ -160,12 +183,11 @@ export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
 
 export function reenviarSolicitud(
   id: number,
-  cambios: { descripcion?: string; residuoCatalogoId?: number },
+  cambios: ReenviarSolicitudInput,
 ): Promise<SolicitudRetiro> {
   return apiFetch(`${API_URL}/solicitudes-retiro/${id}/reenviar`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cambios),
+    body: aFormData({ ...cambios }),
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 

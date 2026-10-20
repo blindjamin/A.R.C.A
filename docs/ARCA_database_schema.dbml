@@ -33,6 +33,16 @@ Table usuarios_ciudadanos {
   Note: "Toda persona que entra con ClaveÚnica tiene fila aquí, sea o no funcionario. Sin nombre, email, teléfono ni ubicación persistente."
 }
 
+Table contacto_ciudadano {
+  usuario_ciudadano_id varchar(36) [primary key, note: "1 a 1 con usuarios_ciudadanos"]
+  telefono varchar(20)
+  direccion text
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  Note: "Contacto del vecino para coordinar el retiro (HU-37, decisión 016). Aparte de usuarios_ciudadanos para que la identidad siga sin datos personales. Si el vecino borra ambos datos, la fila se elimina. La baja (HU-38) debe borrarla."
+}
+
 Table sesiones_ciudadano {
   session_id varchar(36) [primary key]
   usuario_ciudadano_id varchar(36) [not null]
@@ -119,8 +129,8 @@ Table solicitudes_retiro {
   estado_pago enum('no_aplica', 'pendiente', 'pagado') [not null, default: 'no_aplica', note: "Pago maqueteado; se cobra después de aprobar"]
   monto int [note: "CLP congelado al aprobar"]
   descripcion text
-  direccion_retiro text [note: "Dirección real de retiro (Sprint 4). Obligatoria al crear."]
-  direccion_anonimizada varchar(255) [note: "Puente temporal / mapeos: hoy copia de direccion_retiro truncada; el panel y Excel aún la leen"]
+  direccion_retiro text [note: "Dirección real de retiro (Sprint 4). Obligatoria al crear. Se borra al cancelar y 30 días después de rechazada o retirada (decisión 016)."]
+  direccion_anonimizada varchar(255) [note: "Puente temporal / mapeos: hoy copia de direccion_retiro truncada; el panel y Excel aún la leen. Se borra junto con direccion_retiro"]
   latitud_capturada decimal(10,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   longitud_capturada decimal(11,8) [note: "Capturada en tiempo real, no persistida más de 90 días"]
   fecha_solicitud timestamp [not null]
@@ -417,6 +427,7 @@ Table preferencias_usuario {
 // ============================================
 
 // Identidad
+Ref: contacto_ciudadano.usuario_ciudadano_id - usuarios_ciudadanos.id [delete: cascade]
 Ref: sesiones_ciudadano.usuario_ciudadano_id > usuarios_ciudadanos.id [delete: cascade]
 Ref: usuarios_administradores.usuario_ciudadano_id > usuarios_ciudadanos.id [delete: restrict]
 Ref: sesiones_administrador.usuario_administrador_id > usuarios_administradores.id [delete: cascade]

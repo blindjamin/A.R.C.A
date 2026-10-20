@@ -97,17 +97,16 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/solicitudes-retiro/:id` | Detalle con `ultimaRevision` (`{ decision, motivo, comentario, fecha }` o `null`), `direccionRetiro` y `fotoUrl`. Nunca el revisor, el checklist ni las notas internas |
 | `GET` | `/api/solicitudes-retiro/:id/foto` | Foto `antes` del vecino; misma regla de acceso que el detalle (`404` si no hay) |
 | `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía en `requiere_modificacion` (vuelve a `en_revision`). `multipart` opcional: `{ descripcion?, residuoCatalogoId?, direccionRetiro? }` + archivo `foto?`. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre). La auditoría registra estado y categoría, nunca la descripción |
-| `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano) |
-| `GET` | `/api/perfil` | Perfil de contacto del vecino: `{ nombre, email, telefono, direccion }` desde la sesión activa (HU-37). `nombre` solo lectura |
-| `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en la sesión. El correo solo cambia vía `/api/mail` |
+| `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano). Borra la dirección de retiro: una cancelada no se reabre |
+| `GET` | `/api/perfil` | Perfil de contacto del vecino: `{ nombre, email, telefono, direccion }` (HU-37). Teléfono y dirección salen de `contacto_ciudadano`; `nombre` (de la sesión) solo lectura |
+| `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en `contacto_ciudadano` (un texto vacío borra el dato). Audita qué campos cambiaron, sin los valores. El correo solo cambia vía `/api/mail` |
 | `POST` | `/api/mail/enviar-codigo` | Solicitar código OTP (`{ email }`). El ciudadano se toma de la sesión, no del body |
 | `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y asociar correo a la sesión del vecino autenticado |
 
-**Fotos sin metadatos.** `ArchivosService.guardarImagen` (`src/archivos/quitar-metadatos.ts`) quita
-de cada foto, antes de guardarla, el EXIF (con la ubicación GPS donde se tomó), XMP, IPTC, comentarios
-y bloques de texto, sin volver a codificar la imagen. Del EXIF solo se conserva la orientación, para
-que las fotos de celular no se vean de lado. Una foto cuya estructura no se puede recorrer se rechaza
-con `400`: es preferible a guardarla con la ubicación. Aplica a solicitudes y Marketplace.
+**Plazo de la dirección de retiro (decisión 016).** `ConservacionDireccionesService` corre al arrancar
+y una vez al día: borra `direccion_retiro` (y la copia en `direccion_anonimizada`) de las solicitudes
+`rechazada` o `retirada` cerradas hace más de 30 días, y deja constancia en la auditoría como
+`sistema`, solo con la cantidad. Los 30 días dan margen a que un admin reabra la solicitud.
 
 ### Endpoints del marketplace (HU-04, HU-05, HU-15)
 
