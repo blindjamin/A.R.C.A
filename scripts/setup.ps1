@@ -1,5 +1,5 @@
 # setup.ps1 - Levanta A.R.C.A. en local (Windows / PowerShell)
-# Requiere: Git, Node.js 18+, Docker Desktop ya instalados y corriendo.
+# Requiere: Git, Node.js 22.12.0+ (recomendado 24.18.0), Docker Desktop ya instalados y corriendo.
 # Instala SOLO lo estrictamente necesario: deps declaradas en package.json,
 # infra MySQL via Docker, .env.local y migraciones. No instala nada global
 # ni dependencias "planificadas" que el codigo todavia no usa.
@@ -20,16 +20,17 @@ Assert-Command node   "Instalar (requiere admin): winget install OpenJS.NodeJS.L
 Assert-Command npm    "Viene con Node.js - reinstalar Node si falta."
 Assert-Command docker "Instalar (requiere admin + reinicio): winget install Docker.DockerDesktop"
 
-$nodeVersion = [int]((node -v) -replace 'v(\d+).*', '$1')
-if ($nodeVersion -lt 18) {
-    Write-Error "Node.js $nodeVersion detectado. Se requiere 18+."
+$nodeRaw = node -v
+$nodeVersion = [version]($nodeRaw -replace '^v(\d+\.\d+\.\d+).*', '$1')
+if ($nodeVersion -lt [version]'22.12.0') {
+    Write-Error "Node.js $nodeRaw detectado. Se requiere 22.12.0 o superior (recomendado 24.18.0, lo exige Vite 8). Instalar: winget install OpenJS.NodeJS.LTS"
     exit 1
 }
 
 try {
     docker info | Out-Null
 } catch {
-    Write-Error "Docker Desktop no esta corriendo. Abrilo y espera a que el icono quede en verde."
+    Write-Error "Docker Desktop no esta corriendo. Abrelo y espera a que el icono quede en verde."
     exit 1
 }
 Write-Host "OK: git, node $((node -v)), npm $((npm -v)), docker $((docker --version))" -ForegroundColor Green
@@ -66,13 +67,17 @@ function New-BackendEnvLocal($appPath, $port) {
     $envLocal = ".env.local"
     if (-not (Test-Path $envLocal)) {
         Copy-Item ".env.example" $envLocal
+        # ALLOW_DEV_LOGIN=true habilita los accesos de desarrollo de /login. Solo local:
+        # con NODE_ENV=production la API no arranca (verificarLoginDev en main.ts).
         (Get-Content $envLocal) `
             -replace '^DB_USERNAME=.*', 'DB_USERNAME=arca_user' `
-            -replace '^DB_PASSWORD=.*', 'DB_PASSWORD=arca_pass' |
+            -replace '^DB_PASSWORD=.*', 'DB_PASSWORD=arca_pass' `
+            -replace '^ALLOW_DEV_LOGIN=.*', 'ALLOW_DEV_LOGIN=true' |
             Set-Content $envLocal
-        Write-Host "Creado $appPath\.env.local con credenciales locales." -ForegroundColor Green
+        Write-Host "Creado $appPath\.env.local con credenciales locales y ALLOW_DEV_LOGIN=true (solo local, nunca en el servidor)." -ForegroundColor Green
     } else {
         Write-Host "$appPath\.env.local ya existe, no se modifica." -ForegroundColor Yellow
+        Write-Host "Para entrar en local sin ClaveUnica, ese archivo debe tener ALLOW_DEV_LOGIN=true." -ForegroundColor Yellow
     }
     Pop-Location
 }
@@ -86,7 +91,7 @@ Pop-Location
 
 Pop-Location
 
-Write-Host "`n== 4. Frontends (Vite + React, npm install independiente c/u) ==" -ForegroundColor Cyan
+Write-Host "`n== 4. Frontend (Vite + React, npm install propio) ==" -ForegroundColor Cyan
 
 function New-FrontendEnvLocal($appPath, $lines) {
     Push-Location $appPath
@@ -125,8 +130,8 @@ Write-Host "`n== Listo ==" -ForegroundColor Green
 Write-Host "Backend        -> http://localhost:3000  (ventana nueva)"
 Write-Host "Frontend       -> http://localhost:5173  (ventana nueva)"
 Write-Host "Panel admin    -> http://localhost:5173/admin  (mismo sitio, segun rol)"
-Write-Host "Cerra esas ventanas para detener los servidores."
-Write-Host "`nEsperando unos segundos antes de verificar los backends..."
+Write-Host "Cierra esas ventanas para detener los servidores."
+Write-Host "`nEsperando unos segundos antes de verificar el backend..."
 Start-Sleep -Seconds 5
 foreach ($check in @(
     @{ Name = "Backend"; Url = "http://localhost:3000/api/health" }
