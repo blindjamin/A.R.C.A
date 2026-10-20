@@ -5,8 +5,10 @@ import {
   type AuthUser,
   EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
+  type FotoRetiro,
   RolAdministrador,
   type SolicitudRetiro,
+  TipoFotoRetiro,
   type UsuarioAdministrador,
 } from '../../core';
 import type { Repository } from 'typeorm';
@@ -171,6 +173,37 @@ describe('SolicitudesAdminService.detalle', () => {
 
     expect(detalle.transicionesDisponibles).toEqual([]);
     expect(detalle.tomadaPor).toBeNull();
+  });
+
+  it('con foto: devuelve el endpoint protegido y no las filas de foto_retiro', async () => {
+    const { service, repositorio } = montar(
+      filaBase({
+        fotos: [
+          {
+            tipoFoto: TipoFotoRetiro.ANTES,
+            rutaArchivo: 'solicitudes/7/interna.jpg',
+            hashIntegridad: 'abc',
+          },
+        ] as FotoRetiro[],
+      }),
+    );
+
+    const detalle = await service.detalle(7, FUNCIONARIO);
+
+    expect(detalle.fotoUrl).toBe('/api/solicitudes-retiro/7/foto');
+    expect(detalle).not.toHaveProperty('fotos');
+    expect(JSON.stringify(detalle)).not.toContain('interna.jpg');
+    expect(repositorio.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        relations: expect.objectContaining({ fotos: true }) as unknown,
+      }),
+    );
+  });
+
+  it('sin foto: fotoUrl null', async () => {
+    const { service } = montar(filaBase({ fotos: [] }));
+
+    expect((await service.detalle(7, FUNCIONARIO)).fotoUrl).toBeNull();
   });
 
   it('aprobada sin cobro ofrece derivar', async () => {

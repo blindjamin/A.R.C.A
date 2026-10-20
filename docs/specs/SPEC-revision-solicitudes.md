@@ -2,7 +2,7 @@
 
 > **Estado:** BORRADOR — panel implementado; create/cancel del ciudadano listos (§2); reenvío y última revisión al vecino listos en el backend (2026-09-27); PWA pendiente ([PENDIENTES_EQUIPO.md](../PENDIENTES_EQUIPO.md)) · **Fecha:** 2026-09-17
 > **Autor:** Benjamín Paicil (con asistencia de IA)
-> **Módulo del mapa:** [`revision-solicitudes`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `ciclo-solicitud` (y, para las fotos, `fotos-solicitud`, que todavía no existe)
+> **Módulo del mapa:** [`revision-solicitudes`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `ciclo-solicitud` (y, para las fotos, `fotos-solicitud`: tabla `foto_retiro` y subida del #101)
 
 ## 1. Objetivo
 
@@ -93,7 +93,7 @@ Todos con roles `admin` y `funcionario`.
   - Lista de verificación; Aprobar se habilita solo con todo marcado.
   - Pedir modificación y Rechazar abren un formulario con motivo y comentario.
   - Selector para corregir la categoría.
-  - Espacio para las fotos, con el aviso «disponible con `fotos-solicitud`».
+  - La foto del vecino va en la tarjeta del detalle, en todos los estados: `GET /admin/solicitudes/:id` devuelve `fotoUrl` (el endpoint protegido `GET /solicitudes-retiro/:id/foto`, que admite admin y funcionario) y nunca las filas de `foto_retiro`. Se abre en tamaño completo con un clic.
 - **Historial de revisiones y notas internas** en el detalle.
 - **Otras transiciones** (derivar, cerrar, reabrir) siguen como botones.
 
@@ -122,4 +122,4 @@ Todos con roles `admin` y `funcionario`.
 
 1. **Duración de la toma:** 15 minutos. Se puede ajustar después en `configuracion-admin`.
 2. **Motivos:** la lista es una propuesta; la municipalidad puede ajustarla. Más adelante pasaría a `configuracion-admin`.
-3. **Fotos:** la lista de verificación incluye `foto_clara`, pero mientras no exista `fotos-solicitud` el funcionario no tiene imágenes que mirar.
+3. **Fotos:** resuelto. El detalle muestra la foto `antes` del vecino; `durante` y `despues` siguen reservadas.
