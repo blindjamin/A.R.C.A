@@ -4,14 +4,26 @@ import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 // Pública: se lee sin iniciar sesión (HU-12, Ley 21.719). Cada afirmación
 // describe lo que hace el código hoy; si cambia el tratamiento de un dato,
 // se actualiza este texto y sube la versión.
-export const VERSION_POLITICA = '1.0';
-const FECHA_POLITICA = '20 de octubre de 2026';
+// Las medidas de seguridad se describen en términos generales: el detalle
+// técnico va en docs/SEGURIDAD_ARQUITECTURA.md, no aquí.
+// <PorConfirmar> marca lo que debe definir la Municipalidad antes de producción.
+export const VERSION_POLITICA = '1.1';
+const FECHA_POLITICA = '21 de octubre de 2026';
+
+function PorConfirmar({ children }: { children: string }) {
+  return (
+    <span className="mt-1 block rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800">
+      Por confirmar con la Municipalidad: {children}
+    </span>
+  );
+}
 
 interface DatoTratado {
   dato: string;
   paraQue: string;
   cuantoTiempo: string;
   quienLoVe: string;
+  porConfirmar?: string;
 }
 
 const DATOS: DatoTratado[] = [
@@ -63,15 +75,16 @@ const DATOS: DatoTratado[] = [
       'Mostrar a qué distancia está un artículo del Marketplace, solo si das permiso de ubicación.',
     cuantoTiempo: 'La de tus publicaciones, mientras estén publicadas. La tuya al consultar no se guarda.',
     quienLoVe:
-      'Nadie ve tu punto exacto: se lleva a una cuadrícula de 250 m y los demás vecinos solo ven un rango, como «1 a 5 km».',
+      'Nadie ve tu ubicación exacta. Los demás vecinos solo ven un rango de distancia, como «1 a 5 km».',
   },
   {
     dato: 'Registro de actividad',
     paraQue:
       'Que la Municipalidad pueda responder por cada decisión: quién hizo qué y cuándo, con la dirección IP y el navegador.',
     cuantoTiempo:
-      'Se conserva, porque un registro que se puede borrar no sirve de respaldo. Por eso guarda solo qué cambió, nunca el contenido de tus datos.',
+      'Se conserva para que sirva de respaldo. Guarda solo qué cambió, nunca el contenido de tus datos.',
     quienLoVe: 'Solo los administradores municipales.',
+    porConfirmar: 'el plazo de conservación del registro de actividad.',
   },
 ];
 
@@ -127,6 +140,24 @@ export default function Privacidad() {
         </section>
 
         <section className="space-y-3">
+          <h2 className="text-lg font-bold text-ink">Por qué podemos tratar tus datos</h2>
+          <div className="card space-y-2 p-5 text-sm leading-relaxed text-ink-2">
+            <p>
+              El retiro de residuos voluminosos es parte de las funciones de aseo de la
+              Municipalidad. Para prestar ese servicio puede tratar tus datos sin pedirte un
+              consentimiento aparte, siempre dentro de lo que dice esta política.
+            </p>
+            <p>
+              El Marketplace y los Circular Credits son voluntarios: sus datos se usan solo si
+              decides participar.
+            </p>
+            <PorConfirmar>
+              la norma exacta que habilita el tratamiento y la base para el Marketplace y los créditos.
+            </PorConfirmar>
+          </div>
+        </section>
+
+        <section className="space-y-3">
           <h2 className="text-lg font-bold text-ink">Qué datos usamos</h2>
           <ul className="space-y-3">
             {DATOS.map((d) => (
@@ -139,7 +170,10 @@ export default function Privacidad() {
                   </div>
                   <div>
                     <dt className="text-xs font-semibold uppercase tracking-wide text-green-700">Cuánto tiempo</dt>
-                    <dd className="text-ink-2">{d.cuantoTiempo}</dd>
+                    <dd className="text-ink-2">
+                      {d.cuantoTiempo}
+                      {d.porConfirmar && <PorConfirmar>{d.porConfirmar}</PorConfirmar>}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs font-semibold uppercase tracking-wide text-green-700">Quién lo ve</dt>
@@ -164,12 +198,16 @@ export default function Privacidad() {
               ubicación aproximada. Nunca tu RUN ni tus datos de contacto.
             </li>
             <li>
-              <strong className="text-ink">El servicio de correo:</strong> envía los avisos a tu
-              correo.
-            </li>
-            <li>
               <strong className="text-ink">El pago:</strong> se hace en el sitio de Transbank
               (Webpay). A.R.C.A. nunca recibe ni guarda los datos de tu tarjeta.
+            </li>
+            <li>
+              <strong className="text-ink">Proveedores que trabajan por encargo de la
+              Municipalidad</strong>, como el alojamiento del sistema y el envío de correos: solo
+              pueden usar tus datos para prestar ese servicio.
+              <PorConfirmar>
+                los proveedores de alojamiento y de correo, y si alguno guarda datos fuera de Chile.
+              </PorConfirmar>
             </li>
           </ul>
           <p className="text-sm text-ink-2">
@@ -179,20 +217,25 @@ export default function Privacidad() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-bold text-ink">Cómo los protegemos</h2>
-          <ul className="card list-disc space-y-2 p-5 pl-9 text-sm leading-relaxed text-ink-2">
-            <li>Entras con ClaveÚnica; A.R.C.A. no maneja contraseñas.</li>
-            <li>
-              Tu sesión se guarda en una cookie que el código de la página no puede leer, y se
-              cierra sola cuando vence.
-            </li>
-            <li>
-              Cada funcionario ve solo lo que su rol permite, y todo lo que hace queda
-              registrado.
-            </li>
-            <li>
+          <div className="card space-y-2 p-5 text-sm leading-relaxed text-ink-2">
+            <p>
+              La Municipalidad aplica medidas técnicas y organizativas para proteger tus datos de
+              accesos no autorizados, pérdidas o cambios indebidos. Entre ellas: entras con
+              ClaveÚnica, por lo que A.R.C.A. no maneja contraseñas; cada funcionario accede solo
+              a lo que necesita para su trabajo, y sus acciones quedan registradas.
+            </p>
+            <p>
               En tu dispositivo solo se guardan preferencias de uso, como el tamaño de letra.
-            </li>
-          </ul>
+            </p>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-bold text-ink">Decisiones automatizadas</h2>
+          <p className="card p-5 text-sm leading-relaxed text-ink-2">
+            A.R.C.A. no toma decisiones automatizadas sobre ti ni elabora perfiles. Cada solicitud
+            de retiro la revisa una persona de la Municipalidad.
+          </p>
         </section>
 
         <section className="space-y-3">
@@ -208,7 +251,13 @@ export default function Privacidad() {
           <div className="card space-y-2 p-5 text-sm leading-relaxed text-ink-2">
             <p>
               Para ejercerlos, escribe a la Municipalidad de Santo Domingo por sus canales
-              oficiales de atención, indicando que tu solicitud es sobre A.R.C.A.
+              oficiales de atención, indicando que tu solicitud es sobre A.R.C.A. La Municipalidad
+              debe responderte dentro de 30 días corridos, plazo que puede extender una vez.
+            </p>
+            <PorConfirmar>el canal oficial (correo o formulario) para ejercer estos derechos.</PorConfirmar>
+            <p>
+              Si no te responden a tiempo o no estás de acuerdo con la respuesta, desde el 1 de
+              diciembre de 2026 puedes reclamar ante la Agencia de Protección de Datos Personales.
             </p>
             <p>
               <strong className="text-ink">Darte de baja no es lo mismo que borrar tus datos.</strong>{' '}
@@ -218,9 +267,17 @@ export default function Privacidad() {
           </div>
         </section>
 
-        <p className="pb-4 text-xs text-slate">
-          Si cambiamos cómo tratamos tus datos, actualizaremos esta página y su versión.
-        </p>
+        <section className="space-y-3 pb-4">
+          <h2 className="text-lg font-bold text-ink">Cambios a esta política</h2>
+          <div className="card space-y-2 p-5 text-sm leading-relaxed text-ink-2">
+            <p>
+              Revisamos esta política al menos una vez al año y cada vez que cambia la forma en
+              que tratamos tus datos. Cada versión queda con su número y su fecha; si el cambio es
+              importante, te lo informaremos en la aplicación.
+            </p>
+            <PorConfirmar>quién revisa y aprueba cada versión de la política.</PorConfirmar>
+          </div>
+        </section>
       </main>
     </div>
   );
