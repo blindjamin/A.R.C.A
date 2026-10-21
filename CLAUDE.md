@@ -157,9 +157,11 @@ Cuando `develop` tiene un hito estable, se sube a `master` (o `main`) **solo en 
 
 ## 🔄 Integración Continua
 
-> **Estado: parcial.** El único workflow es `.github/workflows/regla-a14-revisor.yml`, que
-> bloquea el merge a `develop` sin la aprobación del revisor declarado (regla A.14). Lint, tests
-> y build todavía se corren localmente antes de integrar.
+> **Estado: parcial.** Dos workflows verifican las reglas de IA en cada PR a `develop`:
+> `regla-a14-revisor.yml` (aprobación del revisor declarado, regla A.14) y
+> `regla-a13-commits.yml` (líneas `IA`/`HU`/`Revisor` en cada commit y nombre de rama A.8, por si
+> alguien no tiene el hook o lo saltó). El ruleset de `develop` los exige a los dos para integrar.
+> Lint, tests y build todavía se corren localmente antes de integrar.
 
 Cuando se configure, **GitHub Actions** debería ejecutar:
   - Linting (ESLint, Prettier)
@@ -221,7 +223,7 @@ Revisor: nombre | pendiente
 Las tres últimas líneas son **obligatorias** desde la regla
 [A.13 de `AGENTS.md`](AGENTS.md): declaran cómo se produjo el cambio (`IA`), qué historia de
 usuario avanza (`HU`) y quién responde por la revisión (`Revisor`). Un hook rechaza el commit
-si falta alguna.
+si falta alguna, y el check **A.13 trazabilidad de commits** lo vuelve a verificar en el PR.
 
 No hay que escribirlas de memoria: aparecen solas al abrir el editor de commit, después de
 correr una vez el instalador (ver [Trabajo con IA](#-trabajo-con-ia)).
