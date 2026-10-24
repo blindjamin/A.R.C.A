@@ -91,17 +91,22 @@ export class PushService {
       throw new ConflictException('Las notificaciones no están habilitadas');
     }
 
-    // Upsert atómico sobre el índice único de endpoint: si otro vecino usó el
+    // Alta atómica sobre el índice único de endpoint: si otro vecino usó el
     // dispositivo, se reasigna, y dos altas simultáneas no chocan.
-    await this.repo.upsert(
-      {
+    // updateEntity(false): TypeORM + MySQL no puede leer el id en la rama de
+    // actualización y lanza error.
+    await this.repo
+      .createQueryBuilder()
+      .insert()
+      .values({
         usuarioCiudadanoId: user.ciudadanoId,
         endpoint: dto.endpoint,
         p256dh: dto.keys.p256dh,
         auth: dto.keys.auth,
-      },
-      ['endpoint'],
-    );
+      })
+      .orUpdate(['usuario_ciudadano_id', 'p256dh', 'auth'], ['endpoint'])
+      .updateEntity(false)
+      .execute();
 
     const propias = await this.repo.find({
       where: { usuarioCiudadanoId: user.ciudadanoId },
