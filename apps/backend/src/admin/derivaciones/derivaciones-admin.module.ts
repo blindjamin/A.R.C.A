@@ -6,6 +6,7 @@ import {
   LoteDerivacion,
   SolicitudRetiro,
 } from '../../core';
+import { NotificacionesModule } from '../../notificaciones/notificaciones.module';
 import { DerivacionesAdminController } from './derivaciones-admin.controller';
 import { DerivacionesAdminService } from './derivaciones-admin.service';
 
@@ -14,6 +15,7 @@ import { DerivacionesAdminService } from './derivaciones-admin.service';
     TypeOrmModule.forFeature([SolicitudRetiro, LoteDerivacion]),
     AuthModule,
     AuditoriaModule,
+    NotificacionesModule,
   ],
   controllers: [DerivacionesAdminController],
   providers: [DerivacionesAdminService],

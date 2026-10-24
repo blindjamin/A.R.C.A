@@ -24,6 +24,8 @@ import {
   diferencias,
   fotografiar,
 } from './auditoria-solicitud';
+import { avisoDeSolicitud } from '../../notificaciones/avisos-solicitud';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { fotoUrlDe } from '../../solicitudes-retiro/solicitud-publica';
 import { FilterSolicitudesAdminDto } from './dto/filter-solicitudes-admin.dto';
 import { UpdateSolicitudAdminDto } from './dto/update-solicitud-admin.dto';
@@ -71,6 +73,7 @@ export class SolicitudesAdminService {
     @InjectRepository(UsuarioAdministrador)
     private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
     private readonly auditoriaService: AuditoriaService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   findAll(filtros: FilterSolicitudesAdminDto = {}): Promise<SolicitudRetiro[]> {
@@ -156,6 +159,7 @@ export class SolicitudesAdminService {
     }
 
     const antes = fotografiar(solicitud);
+    const estadoAnterior = solicitud.estado;
 
     try {
       aplicarTransicion(solicitud, dto.estado, {
@@ -192,6 +196,15 @@ export class SolicitudesAdminService {
         datosNuevos: cambios.nuevos,
         origen,
       });
+    }
+
+    // Campanita: solo si el estado cambió, ya persistido y auditado.
+    const aviso =
+      guardada.estado !== estadoAnterior
+        ? avisoDeSolicitud(guardada.id, guardada.estado)
+        : null;
+    if (aviso) {
+      void this.notificaciones.notificar(guardada.usuarioCiudadanoId, aviso);
     }
 
     return guardada;

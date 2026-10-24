@@ -13,6 +13,7 @@ import {
 } from '../../core';
 import type { Repository } from 'typeorm';
 import { SolicitudesAdminService } from './solicitudes-admin.service';
+import type { NotificacionesService } from '../../notificaciones/notificaciones.service';
 
 const FUNCIONARIO: AuthUser = {
   ciudadanoId: '00000000-0000-4000-8000-000000000002',
@@ -67,13 +68,22 @@ function montar(fila: SolicitudRetiro) {
     ),
   };
 
+  const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
+
   const service = new SolicitudesAdminService(
     repositorio as unknown as Repository<SolicitudRetiro>,
     funcionarios as unknown as Repository<UsuarioAdministrador>,
     auditoria as unknown as AuditoriaService,
+    notificaciones as unknown as NotificacionesService,
   );
 
-  return { service, repositorio, auditoria, guardada: () => guardada };
+  return {
+    service,
+    repositorio,
+    auditoria,
+    notificaciones,
+    guardada: () => guardada,
+  };
 }
 
 describe('SolicitudesAdminService.update', () => {
@@ -98,6 +108,41 @@ describe('SolicitudesAdminService.update', () => {
         datosNuevos: { estado: EstadoSolicitudRetiro.DERIVADA },
       }),
     );
+  });
+
+  it('avisa al vecino del cambio de estado en la campanita', async () => {
+    const { service, notificaciones } = montar(
+      filaBase({ estado: EstadoSolicitudRetiro.APROBADA }),
+    );
+
+    await service.update(
+      7,
+      { estado: EstadoSolicitudRetiro.DERIVADA },
+      FUNCIONARIO,
+    );
+
+    expect(notificaciones.notificar).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000001',
+      {
+        tipo: 'solicitud',
+        titulo: 'Solicitud de retiro',
+        cuerpo: 'Tu solicitud #7 fue derivada para el retiro',
+        url: '/mis-solicitudes',
+      },
+    );
+  });
+
+  it('una transición inválida no avisa', async () => {
+    const { service, notificaciones } = montar(filaBase());
+
+    await expect(
+      service.update(
+        7,
+        { estado: EstadoSolicitudRetiro.RETIRADA },
+        FUNCIONARIO,
+      ),
+    ).rejects.toBeDefined();
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
   });
 
   it('una decisión de revisión por PATCH responde 400 (va por POST /revision)', async () => {
