@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { EmptyState, IconMarketplace, ScreenHeader } from '../../../components/ui';
+import { BadgeNoLeidos, EmptyState, IconMarketplace, ScreenHeader } from '../../../components/ui';
 import { useNoLeidos } from './NoLeidosContext';
 
 const horaOFecha = (iso: string): string => {
@@ -63,11 +63,7 @@ export default function Bandeja() {
                     <span className="text-xs text-slate-2">
                       {horaOFecha(ultimoMensaje.fecha)}
                     </span>
-                    {noLeidos > 0 && (
-                      <span className="pill bg-green-700 px-2 py-0.5 text-white">
-                        {noLeidos > 9 ? '9+' : noLeidos}
-                      </span>
-                    )}
+                    <BadgeNoLeidos cantidad={noLeidos} />
                   </div>
                 </button>
               </li>
