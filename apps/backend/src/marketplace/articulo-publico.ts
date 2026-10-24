@@ -15,6 +15,11 @@ import type {
  */
 export const NOMBRE_PUBLICADOR_PROVISORIO = 'Vecino de Santo Domingo';
 
+/** Primer nombre de la sesión ClaveÚnica; sin sesión activa, el nombre provisorio. */
+export function primerNombre(nombreSesion: string | null): string {
+  return nombreSesion?.trim().split(/\s+/)[0] || NOMBRE_PUBLICADOR_PROVISORIO;
+}
+
 /** Días que un artículo queda publicado antes de vencer. */
 export const DIAS_VIGENCIA_ARTICULO = 30;
 

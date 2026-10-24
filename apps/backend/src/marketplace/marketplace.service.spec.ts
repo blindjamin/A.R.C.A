@@ -408,58 +408,6 @@ describe('MarketplaceService.retirar', () => {
   });
 });
 
-describe('MarketplaceService.solicitar', () => {
-  it('reserva para la sesión solo si sigue disponible y vigente', async () => {
-    const { service, articuloRepo } = montar({ encontrado: articulo() });
-
-    await service.solicitar(10, usuario(YO));
-
-    const [condicion, cambios] = articuloRepo.update.mock
-      .calls[0] as unknown as [
-      Record<string, unknown>,
-      Record<string, unknown>,
-    ];
-    expect(condicion).toMatchObject({
-      id: 10,
-      estado: EstadoArticuloMarketplace.DISPONIBLE,
-    });
-    expect((condicion.fechaExpiracion as FindOperator<Date>).type).toBe(
-      'moreThan',
-    );
-    expect(cambios).toEqual({
-      estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
-      usuarioCompradorId: YO,
-    });
-  });
-
-  it('403 si el artículo es propio', async () => {
-    const { service, articuloRepo } = montar({
-      encontrado: articulo({ usuarioPublicadorId: YO }),
-    });
-
-    await expect(service.solicitar(10, usuario(YO))).rejects.toBeInstanceOf(
-      ForbiddenException,
-    );
-    expect(articuloRepo.update).not.toHaveBeenCalled();
-  });
-
-  it('409 si otra persona lo reservó antes o venció', async () => {
-    const { service } = montar({ encontrado: articulo(), afectadas: 0 });
-
-    await expect(service.solicitar(10, usuario(YO))).rejects.toBeInstanceOf(
-      ConflictException,
-    );
-  });
-
-  it('404 si no existe', async () => {
-    const { service } = montar();
-
-    await expect(service.solicitar(10, usuario(YO))).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-  });
-});
-
 describe('MarketplaceService.liberar', () => {
   const reservado = () =>
     articulo({

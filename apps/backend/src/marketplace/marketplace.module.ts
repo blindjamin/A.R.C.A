@@ -3,8 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ArchivosModule } from '../archivos/archivos.module';
 import {
   ArticuloMarketplace,
+  AuditoriaModule,
   AuthModule,
   Calificacion,
+  InteresadoMarketplace,
   MensajeMarketplace,
 } from '../core';
 import { CreditosModule } from '../creditos/creditos.module';
@@ -22,9 +24,11 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
     TypeOrmModule.forFeature([
       ArticuloMarketplace,
       Calificacion,
+      InteresadoMarketplace,
       MensajeMarketplace,
     ]),
     AuthModule,
+    AuditoriaModule,
     PushModule,
     ResiduosModule,
     ArchivosModule,

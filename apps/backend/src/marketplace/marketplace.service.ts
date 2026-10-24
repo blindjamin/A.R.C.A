@@ -226,31 +226,6 @@ export class MarketplaceService {
     return this.obtener(id, {}, user);
   }
 
-  /** "Lo quiero": reserva el artículo para la sesión (spec §4). */
-  async solicitar(id: number, user: AuthUser): Promise<ArticuloPublico> {
-    const articulo = await this.articuloRepository.findOne({ where: { id } });
-    if (!articulo) {
-      throw new NotFoundException(`Artículo ${id} no encontrado`);
-    }
-    if (articulo.usuarioPublicadorId === user.ciudadanoId) {
-      throw new ForbiddenException('No puedes pedir tu propio artículo');
-    }
-
-    await this.transicionar(
-      id,
-      {
-        estado: EstadoArticuloMarketplace.DISPONIBLE,
-        fechaExpiracion: MoreThan(new Date()),
-      },
-      {
-        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
-        usuarioCompradorId: user.ciudadanoId,
-      },
-      'Este artículo ya no está disponible',
-    );
-    return this.obtener(id, {}, user);
-  }
-
   /** Quien publicó rechaza al interesado y el artículo vuelve a estar disponible. */
   async liberar(id: number, user: AuthUser): Promise<ArticuloPublico> {
     await this.buscarPropio(

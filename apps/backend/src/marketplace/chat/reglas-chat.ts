@@ -9,6 +9,10 @@ import { esVisiblePara, estaVencido } from '../articulo-publico';
 export const LARGO_MAXIMO_MENSAJE = 1000;
 /** Mensajes por página del historial. */
 export const MENSAJES_POR_PAGINA = 50;
+/** «Me interesa» nuevos por vecino en las últimas 24 horas (provisorio, lo confirma Miguel). */
+export const TOPE_INTERESES_POR_DIA = 20;
+/** Mensajes por vecino remitente en el último minuto (provisorio, lo confirma Miguel). */
+export const TOPE_MENSAJES_POR_MINUTO = 20;
 /** Caracteres del último mensaje en la bandeja. */
 export const LARGO_RESUMEN = 100;
 
@@ -51,9 +55,11 @@ export interface ArticuloDelChat {
 
 export interface HistorialChat {
   articulo: ArticuloDelChat;
-  /** null: el interesado todavía no escribe. */
+  /** null: el interesado todavía no dice que le interesa. */
   conversacionId: number | null;
   soyPublicador: boolean;
+  /** Primer nombre del otro participante. */
+  otroNombre: string;
   puedoEscribir: boolean;
   /** Ascendente por id. */
   mensajes: MensajePublico[];
@@ -67,6 +73,19 @@ export interface ConversacionResumen {
   /** `contenido` truncado a LARGO_RESUMEN. */
   ultimoMensaje: { contenido: string; fecha: Date; esMio: boolean };
   noLeidos: number;
+}
+
+/** Un interesado en un artículo propio (`GET articulos/:id/interesados`). */
+export interface InteresadoResumen {
+  conversacionId: number;
+  nombre: string;
+  calificacionPromedio: number | null;
+  cantidadCalificaciones: number;
+  /** Toda cuenta nace de ClaveÚnica. */
+  identidadVerificada: true;
+  noLeidos: number;
+  ultimoMensaje: { contenido: string; fecha: Date; esMio: boolean } | null;
+  reservado: boolean;
 }
 
 export interface MensajeEnviado {
