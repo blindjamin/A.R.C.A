@@ -49,6 +49,8 @@ spec lo respeta y agrega lo que falta para entregar, calificar y ver créditos (
 | 9 | **Artículo reservado o entregado:** lo ven solo quien lo publicó y quien lo reservó |
 | 10 | **Reputación:** es de la persona, no del artículo (PDF). El promedio se calcula sobre `ratings` al consultar; no se guarda |
 
+**Decisión 9 extendida para el chat (HU-06):** quien ya conversó por un artículo conserva el acceso a su historial en solo lectura aunque otro vecino lo reserve o lo reciba. Ese participante solo recibe `titulo`, `estado` y `puedoEscribir`; la foto va `null` si el artículo ya no le es visible por la regla de la decisión 9 y no hay detalle ni otros datos. El chat no reutiliza la búsqueda del detalle: usa `esVisiblePara` (`marketplace/articulo-publico.ts`) más "es participante de una conversación".
+
 ## 3. Base de datos (PR 1)
 
 Una migración nueva. Ninguna migración existente se edita.
@@ -85,7 +87,17 @@ calificación por intercambio, garantizada también por la base.
 
 ### 3.3 `mensajes_marketplace` — crear
 
-Igual que el DBML. Solo se usa si entra el chat (HU-06).
+Ya existía en la base. Para el chat (HU-06) la migración `1782164600000-chat-marketplace` agrega:
+
+- `interesado_id VARCHAR(36) NOT NULL`, FK a `usuarios_ciudadanos`. Una conversación es (`articulo_id`, `interesado_id`); el otro participante es siempre quien publicó. Las filas sembradas se completan con el remitente que no es el publicador, o con el comprador; las que no tienen interlocutor se borran.
+- Índices `idx_mensajes_conversacion (articulo_id, interesado_id, id)` e `idx_mensajes_interesado (interesado_id)`.
+- `leido` lo marca solo el destinatario.
+
+La conversación se identifica hacia afuera con un `conversacionId` opaco: el `MIN(id)` de sus mensajes. El id del interesado nunca sale del servidor.
+
+### 3.3.1 `suscripciones_push` — crear (chat)
+
+Una fila por navegador o dispositivo (Web Push): `id`, `usuario_ciudadano_id` (FK a `usuarios_ciudadanos`), `endpoint` (`VARCHAR(500)`, índice único `uq_suscripciones_endpoint`), `p256dh`, `auth`, `created_at`, `updated_at`. Índice `idx_suscripciones_usuario` por vecino.
 
 ### 3.4 `transacciones_circular_credits` — crear
 
@@ -161,6 +173,25 @@ Todos bajo `/api`, con sesión (`arca_sesion`). La identidad sale siempre de la 
 | `POST /marketplace/articulos/:id/calificacion` | Body `{ puntuacion: 1-5, comentario?: string }`. Otorga el bono por estrellas (§7) | 403 si no es quien recibió · 409 si no está `completado` o ya calificó |
 | `GET /creditos` | `{ saldo, movimientos[] }` de la sesión | — |
 
+**Chat (HU-06).** En `marketplace/chat/`. El parámetro `conversacion` (query) es el `conversacionId` opaco; solo lo indica quien publicó, porque el interesado tiene una sola conversación por artículo.
+
+| Método y ruta | Qué hace | Errores |
+|---|---|---|
+| `GET /marketplace/conversaciones` | Bandeja: las conversaciones de la sesión (hasta 100), la de actividad más reciente primero | — |
+| `GET /marketplace/articulos/:id/mensajes?conversacion=&antesDe=` | Historial, 50 por página, ascendente. `antesDe` es el id del mensaje más antiguo ya cargado | 400 si quien publica no indica `conversacion` · 404 si el artículo o la conversación no existen o no son visibles |
+| `POST /marketplace/articulos/:id/mensajes?conversacion=` | Body `{ contenido }` (máx. 1000 caracteres). `@LimiteChat()` (30 por minuto por IP) | 400 como arriba · 404 · 409 si la conversación es de solo lectura |
+| `PATCH /marketplace/articulos/:id/mensajes/leidos?conversacion=` | Marca como leído lo recibido; nunca lo propio | 400 · 404 |
+
+Se puede escribir si el artículo está `disponible` y vigente, o `en_negociacion` reservado por ese mismo interesado. En cualquier otro caso (retirado, completado, vencido o reservado por otro vecino) la conversación es de solo lectura para ambos.
+
+**Push (HU-06).** En `push/`. Los avisos son opcionales: sin claves VAPID el chat funciona igual.
+
+| Método y ruta | Qué hace | Errores |
+|---|---|---|
+| `GET /push/clave-publica` | `{ clavePublica }`; `null` si no hay claves VAPID | — |
+| `POST /push/suscripciones` | Body `{ endpoint, keys: { p256dh, auth } }`. Responde `{ suscrito: true }`. Si el `endpoint` ya existía se reasigna al vecino actual; tope de 5 por vecino (se borra la más antigua) | 400 si el servicio push no está en la lista blanca · 409 si no hay claves VAPID |
+| `DELETE /push/suscripciones` | Body `{ endpoint }`. Responde `{ eliminado: true }` | — |
+
 Las acciones que cambian el estado devuelven el `ArticuloMarketplace` actualizado.
 `calificacion` responde 201 con `{ puntuacion, comentario, fecha }`.
 
@@ -192,6 +223,29 @@ Movimiento de `GET /creditos`, más recientes primero:
   "fecha": "2026-09-30T15:04:00.000Z"
 }
 ```
+
+### 5.4 Chat: respuestas y eventos socket
+
+Ningún id de vecino sale del servidor: los mensajes llevan `esMio` en vez del remitente.
+
+```ts
+MensajePublico  { id, contenido, fecha, esMio, leido }
+ArticuloDelChat { id, titulo, estado, fotoUrl: string | null }
+HistorialChat   { articulo, conversacionId: number | null, soyPublicador, puedoEscribir, mensajes[], hayMas }
+ConversacionResumen { conversacionId, articulo, soyPublicador, ultimoMensaje: { contenido, fecha, esMio }, noLeidos }
+MensajeEnviado  { conversacionId, mensaje }   // respuesta del POST
+```
+
+`conversacionId` es `null` en el historial del interesado que todavía no escribe. `ultimoMensaje.contenido` se recorta a 100 caracteres. `fotoUrl` va `null` si el vecino no podría ver la foto (404).
+
+Tiempo real: socket.io en la ruta `/api/socket.io` (bajo `/api` para que viaje la cookie de sesión, que tiene `Path=/api`). El servidor solo empuja; enviar y marcar leídos van siempre por REST. Al conectar se valida la cookie y el `Origin`; cada vecino queda en la sala `usuario:<ciudadanoId>`.
+
+| Evento | Se emite a | Payload |
+|---|---|---|
+| `mensaje` | Remitente y destinatario, cada uno con su `esMio` | `{ articuloId, conversacionId, mensaje }` |
+| `leidos` | El otro participante: leyeron todo lo que enviaste | `{ articuloId, conversacionId }` |
+
+Si el destinatario no tiene ningún socket conectado, se le envía un aviso push (`titulo` del artículo, `cuerpo` con los primeros 80 caracteres, `url` de la conversación). El push nunca bloquea ni hace fallar el envío.
 
 ## 6. Foto
 
@@ -260,7 +314,6 @@ Los créditos por intercambios y regalos entre vecinos siguen las reglas de §7.
 |---|---|
 | Nombre real del vecino | Toca el núcleo y HU-38. Sprint 4 |
 | Disparador del 50 % por retiro pagado | Se conecta en la confirmación del pago con Webpay, HU-44 (§7.3) |
-| Chat (HU-06) | Solo si sobra tiempo; es lo primero que se corta |
 | Notificación al recibir créditos | HU-23 está fuera del sprint |
 | Fotos en las solicitudes de retiro | Sprint 4; reutilizan el servicio de §6 |
 | Migración de zona horaria | Va aparte: falta decidir columnas y fecha de corte (el cambio de horario de septiembre corre 4 h las filas anteriores y 3 h las posteriores) |
