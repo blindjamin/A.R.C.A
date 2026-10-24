@@ -84,6 +84,17 @@ export class ArticuloMarketplace {
   })
   usuarioCompradorId: string | null;
 
+  /** Código de 6 dígitos de la entrega; solo lo ve quien recibe. Se borra al liberar o entregar. */
+  @Column({ name: 'codigo_entrega', type: 'char', length: 6, nullable: true })
+  codigoEntrega: string | null;
+
+  /** Fallos al ingresar el código; a los 5 se bloquea hasta liberar y volver a reservar. */
+  @Column({ name: 'intentos_codigo', type: 'tinyint', default: 0 })
+  intentosCodigo: number;
+
+  @Column({ name: 'fecha_reserva', type: 'datetime', nullable: true })
+  fechaReserva: Date | null;
+
   /** Cuándo se entregó. */
   @Column({ name: 'fecha_transaccion', type: 'timestamp', nullable: true })
   fechaTransaccion: Date | null;
