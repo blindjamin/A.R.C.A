@@ -10,6 +10,7 @@ import {
   MensajeMarketplace,
 } from '../core';
 import { CreditosModule } from '../creditos/creditos.module';
+import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { PushModule } from '../push/push.module';
 import { TiempoRealModule } from '../tiempo-real/tiempo-real.module';
 import { ResiduosModule } from '../residuos/residuos.module';
@@ -32,6 +33,7 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
     AuditoriaModule,
     PushModule,
     TiempoRealModule,
+    NotificacionesModule,
     ResiduosModule,
     ArchivosModule,
     UbicacionMarketplaceModule,

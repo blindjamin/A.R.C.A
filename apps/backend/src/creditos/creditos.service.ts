@@ -17,6 +17,7 @@ import {
   inicioDeMesEnChile,
   type TopeAlcanzado,
 } from './reglas-creditos';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 
 export interface MovimientoCreditos {
   id: number;
@@ -68,7 +69,27 @@ export class CreditosService {
   constructor(
     @InjectRepository(TransaccionCircularCredits)
     private readonly transaccionRepository: Repository<TransaccionCircularCredits>,
+    private readonly notificaciones: NotificacionesService,
   ) {}
+
+  /**
+   * Aviso «Sumaste N CC por …». Lo dispara quien llamó a `otorgarPor*`, DESPUÉS
+   * de confirmar su transacción: así un rollback no deja un aviso falso.
+   * Si el tope dejó el monto en 0 no hay nada que avisar.
+   */
+  avisarAbono(movimiento: TransaccionCircularCredits): void {
+    if (movimiento.montoCreditos <= 0) return;
+    void this.notificaciones.notificar(movimiento.usuarioCiudadanoId, {
+      tipo: 'creditos',
+      titulo: 'Circular Credits',
+      cuerpo:
+        `Sumaste ${movimiento.montoCreditos} CC por ${movimiento.razon ?? 'tu actividad'}`.slice(
+          0,
+          200,
+        ),
+      url: '/circular-credits',
+    });
+  }
 
   /** Saldo y movimientos de la sesión, más recientes primero. */
   async resumen(ciudadanoId: string): Promise<ResumenCreditos> {

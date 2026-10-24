@@ -5,6 +5,7 @@ import {
   TransaccionCircularCredits,
   UsuarioCiudadano,
 } from '../core';
+import type { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { CreditosService } from './creditos.service';
 
 const REGALA = '00000000-0000-4000-8000-000000000003';
@@ -47,14 +48,17 @@ function montar({
   const repositorio = {
     find: jest.fn(() => Promise.resolve(historial)),
   };
+  const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
   const service = new CreditosService(
     repositorio as unknown as Repository<TransaccionCircularCredits>,
+    notificaciones as unknown as NotificacionesService,
   );
   return {
     service,
     manager,
     em: manager as unknown as EntityManager,
     repositorio,
+    notificaciones,
   };
 }
 
@@ -269,5 +273,36 @@ describe('CreditosService.resumen', () => {
       saldo: 0,
       movimientos: [],
     });
+  });
+});
+
+describe('CreditosService.avisarAbono', () => {
+  const movimiento = (cambios: Partial<TransaccionCircularCredits> = {}) =>
+    ({
+      usuarioCiudadanoId: REGALA,
+      montoCreditos: 100,
+      razon: 'Entrega de «Sofá»',
+      ...cambios,
+    }) as TransaccionCircularCredits;
+
+  it('avisa al beneficiario con el monto y el motivo', () => {
+    const { service, notificaciones } = montar();
+
+    service.avisarAbono(movimiento());
+
+    expect(notificaciones.notificar).toHaveBeenCalledWith(REGALA, {
+      tipo: 'creditos',
+      titulo: 'Circular Credits',
+      cuerpo: 'Sumaste 100 CC por Entrega de «Sofá»',
+      url: '/circular-credits',
+    });
+  });
+
+  it('si el tope dejó el monto en 0 no avisa', () => {
+    const { service, notificaciones } = montar();
+
+    service.avisarAbono(movimiento({ montoCreditos: 0 }));
+
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
   });
 });

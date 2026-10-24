@@ -17,6 +17,7 @@ import {
   type SesionService,
 } from '../../core';
 import type { PushService } from '../../push/push.service';
+import type { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import type { TiempoRealGateway } from '../../tiempo-real/tiempo-real.gateway';
 import { MarketplaceChatService } from './marketplace-chat.service';
 import { puedeEscribir } from './reglas-chat';
@@ -100,6 +101,7 @@ function montar({
     nombreSesionActiva: jest.fn(() => Promise.resolve('Ana María')),
   };
   const auditoriaService = { registrar: jest.fn(() => Promise.resolve()) };
+  const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
   const mensajeRepo = {
     count: jest.fn(() => Promise.resolve(enUltimoMinuto)),
     find: jest.fn(() => Promise.resolve(historial)),
@@ -123,6 +125,7 @@ function montar({
     pushService as unknown as PushService,
     sesionService as unknown as SesionService,
     auditoriaService as unknown as AuditoriaService,
+    notificaciones as unknown as NotificacionesService,
   );
   return {
     service,
@@ -131,6 +134,7 @@ function montar({
     gateway,
     pushService,
     auditoriaService,
+    notificaciones,
   };
 }
 
@@ -412,6 +416,27 @@ describe('MarketplaceChatService.registrarInteres', () => {
     expect(auditoriaService.registrar).toHaveBeenCalledWith(
       expect.objectContaining({ entidad: 'interesados_marketplace' }),
     );
+  });
+
+  it('avisa al publicador solo en el alta nueva, sin datos sensibles', async () => {
+    const { service, notificaciones } = montar({ primero: null });
+
+    await service.registrarInteres(10, usuario(YO));
+
+    expect(notificaciones.notificar).toHaveBeenCalledWith(VECINA, {
+      tipo: 'interes',
+      titulo: 'Nuevo interesado',
+      cuerpo: 'Ana quiere tu Sofá',
+      url: '/marketplace/10',
+    });
+  });
+
+  it('repetir el interés no avisa de nuevo', async () => {
+    const { service, notificaciones } = montar();
+
+    await service.registrarInteres(10, usuario(YO));
+
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
   });
 
   it('es idempotente: repetir no cuenta contra el tope ni audita', async () => {
