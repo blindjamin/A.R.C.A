@@ -10,6 +10,7 @@ import {
   type MensajeChat,
 } from '../../../api/chat';
 import { conectarSocket } from '../../../api/socket';
+import { activarPush, pedirPermisoEnGesto } from '../../../pwa/push';
 import {
   BackButton,
   EmptyState,
@@ -182,12 +183,16 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
       .finally(() => setCargandoMas(false));
   };
 
-  const transmitir = (temp: MensajeLocal) => {
+  const transmitir = (
+    temp: MensajeLocal,
+    permiso: Promise<NotificationPermission> | null = null,
+  ) => {
     setMensajes((previos) =>
       previos.map((m) => (m.id === temp.id ? { ...m, estado: 'enviando' } : m)),
     );
     enviarMensaje(id, temp.contenido, conversacionRuta)
       .then((r) => {
+        void activarPush(permiso);
         setCabecera((c) =>
           c && c.conversacionId === null ? { ...c, conversacionId: r.conversacionId } : c,
         );
@@ -213,6 +218,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
   const enviar = () => {
     const contenido = texto.trim();
     if (!contenido) return;
+    const permiso = pedirPermisoEnGesto();
     const temp: MensajeLocal = {
       id: siguienteTemp.current--,
       contenido,
@@ -224,7 +230,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
     pegarAbajo.current = true;
     setMensajes((previos) => [...previos, temp]);
     setTexto('');
-    transmitir(temp);
+    transmitir(temp, permiso);
   };
 
   const ajustarAltura = (el: HTMLTextAreaElement) => {
