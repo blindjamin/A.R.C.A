@@ -905,14 +905,14 @@ describe('MarketplaceService: avisos de la campanita', () => {
     expect(avisos[0][1]).toEqual({
       tipo: 'reserva',
       titulo: 'Te reservaron un artículo',
-      cuerpo: 'Ana te reservó el Sillón',
+      cuerpo: 'Ana te reservó «Sillón»',
       url: '/marketplace/10',
     });
     expect(avisos[1][0]).toBe(OTRO);
     expect(avisos[1][1]).toEqual({
       tipo: 'reserva_otro',
       titulo: 'Ya fue reservado',
-      cuerpo: 'El Sillón fue reservado por otro vecino',
+      cuerpo: 'Otro vecino reservó «Sillón»',
       url: '/marketplace/10/chat',
     });
   });
@@ -926,7 +926,7 @@ describe('MarketplaceService: avisos de la campanita', () => {
     await service.reservar(10, 4, usuario(YO));
 
     expect(llamadas(notificaciones)[0][1].cuerpo).toBe(
-      `Ana te reservó el ${'x'.repeat(40)}`,
+      `Ana te reservó «${'x'.repeat(40)}»`,
     );
   });
 
@@ -962,7 +962,7 @@ describe('MarketplaceService: avisos de la campanita', () => {
     expect(avisos[0][1]).toEqual({
       tipo: 'liberado',
       titulo: 'Volvió a estar disponible',
-      cuerpo: 'El Sillón está disponible otra vez',
+      cuerpo: '«Sillón» está disponible otra vez',
       url: '/marketplace/10',
     });
   });
@@ -985,7 +985,7 @@ describe('MarketplaceService: avisos de la campanita', () => {
         {
           tipo: 'entrega',
           titulo: 'Entrega confirmada',
-          cuerpo: 'Recibiste el Sillón',
+          cuerpo: 'Recibiste «Sillón»',
           url: '/marketplace/10',
         },
       ],
@@ -1030,7 +1030,7 @@ describe('MarketplaceService: avisos de la campanita', () => {
     expect(avisos[0][1]).toEqual({
       tipo: 'calificacion',
       titulo: 'Te calificaron',
-      cuerpo: 'Recibiste 5 estrellas por el Sillón',
+      cuerpo: 'Recibiste 5 estrellas por «Sillón»',
       url: '/marketplace/10',
     });
     expect(JSON.stringify(avisos)).not.toContain('12345');

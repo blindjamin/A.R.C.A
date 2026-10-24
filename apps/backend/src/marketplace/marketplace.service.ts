@@ -344,13 +344,13 @@ export class MarketplaceService {
       EstadoArticuloMarketplace.EN_NEGOCIACION,
       origen,
     );
-    const titulo = recortar(articulo.titulo, LARGO_TITULO_AVISO);
+    const titulo = `«${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`;
     const receptor = interesado.usuarioInteresadoId;
     this.avisar(
       receptor,
       'reserva',
       'Te reservaron un artículo',
-      `${await this.nombreDe(user.ciudadanoId)} te reservó el ${titulo}`,
+      `${await this.nombreDe(user.ciudadanoId)} te reservó ${titulo}`,
       id,
     );
     for (const otro of await this.interesadosDe(id, receptor)) {
@@ -358,7 +358,7 @@ export class MarketplaceService {
         otro,
         'reserva_otro',
         'Ya fue reservado',
-        `El ${titulo} fue reservado por otro vecino`,
+        `Otro vecino reservó ${titulo}`,
         id,
         '/chat',
       );
@@ -404,7 +404,7 @@ export class MarketplaceService {
         vecino,
         'liberado',
         'Volvió a estar disponible',
-        `El ${recortar(articulo.titulo, LARGO_TITULO_AVISO)} está disponible otra vez`,
+        `«${recortar(articulo.titulo, LARGO_TITULO_AVISO)}» está disponible otra vez`,
         id,
       );
     }
@@ -497,7 +497,7 @@ export class MarketplaceService {
       receptorId,
       'entrega',
       'Entrega confirmada',
-      `Recibiste el ${recortar(articulo.titulo, LARGO_TITULO_AVISO)}`,
+      `Recibiste «${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`,
       id,
     );
     this.creditosService.avisarAbono(abono);
@@ -562,7 +562,7 @@ export class MarketplaceService {
       articulo.usuarioPublicadorId,
       'calificacion',
       'Te calificaron',
-      `Recibiste ${dto.puntuacion} ${dto.puntuacion === 1 ? 'estrella' : 'estrellas'} por el ${recortar(articulo.titulo, LARGO_TITULO_AVISO)}`,
+      `Recibiste ${dto.puntuacion} ${dto.puntuacion === 1 ? 'estrella' : 'estrellas'} por «${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`,
       id,
     );
     if (guardada.abono) this.creditosService.avisarAbono(guardada.abono);

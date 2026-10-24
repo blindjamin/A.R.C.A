@@ -60,6 +60,10 @@ const ORIGENES_INTERCAMBIO = [
   OrigenMovimientoCreditos.ESTRELLAS,
 ];
 
+/** «por Entrega de…» queda mal: el motivo se inserta en una frase. */
+const minuscula = (texto: string): string =>
+  texto.charAt(0).toLowerCase() + texto.slice(1);
+
 /**
  * Circular Credits (spec `marketplace` §7). El saldo nunca se edita: cada
  * otorgamiento agrega un movimiento con el saldo anterior y el nuevo.
@@ -83,7 +87,7 @@ export class CreditosService {
       tipo: 'creditos',
       titulo: 'Circular Credits',
       cuerpo:
-        `Sumaste ${movimiento.montoCreditos} CC por ${movimiento.razon ?? 'tu actividad'}`.slice(
+        `Sumaste ${movimiento.montoCreditos} CC por ${minuscula(movimiento.razon ?? 'tu actividad')}`.slice(
           0,
           200,
         ),

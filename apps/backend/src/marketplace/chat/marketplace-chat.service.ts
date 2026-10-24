@@ -149,7 +149,7 @@ export class MarketplaceChatService {
       void this.notificaciones.notificar(articulo.usuarioPublicadorId, {
         tipo: 'interes',
         titulo: 'Nuevo interesado',
-        cuerpo: `${await this.nombreDe(yo)} quiere tu ${recortar(articulo.titulo, LARGO_TITULO_AVISO)}`,
+        cuerpo: `${await this.nombreDe(yo)} quiere «${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`,
         url: `/marketplace/${articuloId}`,
       });
     }

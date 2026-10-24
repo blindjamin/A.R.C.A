@@ -293,7 +293,7 @@ describe('CreditosService.avisarAbono', () => {
     expect(notificaciones.notificar).toHaveBeenCalledWith(REGALA, {
       tipo: 'creditos',
       titulo: 'Circular Credits',
-      cuerpo: 'Sumaste 100 CC por Entrega de «Sofá»',
+      cuerpo: 'Sumaste 100 CC por entrega de «Sofá»',
       url: '/circular-credits',
     });
   });

@@ -426,7 +426,7 @@ describe('MarketplaceChatService.registrarInteres', () => {
     expect(notificaciones.notificar).toHaveBeenCalledWith(VECINA, {
       tipo: 'interes',
       titulo: 'Nuevo interesado',
-      cuerpo: 'Ana quiere tu Sofá',
+      cuerpo: 'Ana quiere «Sofá»',
       url: '/marketplace/10',
     });
   });
