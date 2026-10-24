@@ -154,6 +154,18 @@ describe('MarketplaceChatService.enviar', () => {
     );
   });
 
+  it('el aviso push no parte un emoji al recortar', async () => {
+    const { service, gateway, pushService } = montar();
+    gateway.estaConectado.mockReturnValue(false);
+
+    await service.enviar(10, {}, 'a'.repeat(79) + '😀😀', usuario(YO));
+
+    expect(pushService.enviarA).toHaveBeenCalledWith(
+      VECINA,
+      expect.objectContaining({ cuerpo: 'a'.repeat(79) + '😀' }),
+    );
+  });
+
   it('con el destinatario conectado no manda push', async () => {
     const { service, gateway, pushService } = montar();
     gateway.estaConectado.mockReturnValue(true);

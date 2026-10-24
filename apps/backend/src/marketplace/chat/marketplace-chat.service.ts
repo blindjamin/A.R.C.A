@@ -26,6 +26,11 @@ import {
   puedeEscribir,
 } from './reglas-chat';
 
+/** Recorta por caracteres y no por unidades UTF-16: no parte emojis. */
+function recortar(texto: string, largo: number): string {
+  return Array.from(texto).slice(0, largo).join('');
+}
+
 interface Resolucion {
   articulo: ArticuloMarketplace;
   interesadoId: string;
@@ -169,7 +174,7 @@ export class MarketplaceChatService {
     if (!this.gateway.estaConectado(destinatario)) {
       void this.pushService.enviarA(destinatario, {
         titulo: articulo.titulo,
-        cuerpo: contenido.slice(0, 80),
+        cuerpo: recortar(contenido, 80),
         url: soyPublicador
           ? `/marketplace/${articulo.id}/chat`
           : `/marketplace/${articulo.id}/chat/${idConversacion}`,
@@ -259,7 +264,7 @@ export class MarketplaceChatService {
           articulo: aArticuloDelChat(articulo, yo, ahora),
           soyPublicador: articulo.usuarioPublicadorId === yo,
           ultimoMensaje: {
-            contenido: ultimo.contenido.slice(0, LARGO_RESUMEN),
+            contenido: recortar(ultimo.contenido, LARGO_RESUMEN),
             fecha: ultimo.fechaMensaje,
             esMio: ultimo.usuarioRemitenteId === yo,
           },

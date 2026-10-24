@@ -26,9 +26,7 @@ function montar(conClaves = true) {
   };
   const repo = {
     find: jest.fn(() => Promise.resolve([FILA])),
-    findOne: jest.fn(() => Promise.resolve(null as SuscripcionPush | null)),
-    save: jest.fn((f: unknown) => Promise.resolve(f)),
-    create: jest.fn((f: unknown) => f),
+    upsert: jest.fn(() => Promise.resolve({})),
     delete: jest.fn(() => Promise.resolve({})),
   };
   const service = new PushService(
@@ -86,19 +84,16 @@ describe('PushService', () => {
 
   it('reasigna al vecino actual un dispositivo ya registrado', async () => {
     const { service, repo } = montar();
-    repo.findOne.mockResolvedValue({
-      ...FILA,
-      usuarioCiudadanoId: 'otro-vecino',
-    });
-
     await service.suscribir(user, VALIDA);
 
-    expect(repo.save).toHaveBeenCalledWith(
+    expect(repo.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         usuarioCiudadanoId: YO,
+        endpoint: VALIDA.endpoint,
         p256dh: 'nueva',
         auth: 'nueva-auth',
       }),
+      ['endpoint'],
     );
   });
 

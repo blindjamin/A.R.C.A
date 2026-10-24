@@ -91,25 +91,17 @@ export class PushService {
       throw new ConflictException('Las notificaciones no están habilitadas');
     }
 
-    // Upsert por endpoint: si otro vecino usó el dispositivo, se reasigna.
-    const existente = await this.repo.findOne({
-      where: { endpoint: dto.endpoint },
-    });
-    if (existente) {
-      existente.usuarioCiudadanoId = user.ciudadanoId;
-      existente.p256dh = dto.keys.p256dh;
-      existente.auth = dto.keys.auth;
-      await this.repo.save(existente);
-    } else {
-      await this.repo.save(
-        this.repo.create({
-          usuarioCiudadanoId: user.ciudadanoId,
-          endpoint: dto.endpoint,
-          p256dh: dto.keys.p256dh,
-          auth: dto.keys.auth,
-        }),
-      );
-    }
+    // Upsert atómico sobre el índice único de endpoint: si otro vecino usó el
+    // dispositivo, se reasigna, y dos altas simultáneas no chocan.
+    await this.repo.upsert(
+      {
+        usuarioCiudadanoId: user.ciudadanoId,
+        endpoint: dto.endpoint,
+        p256dh: dto.keys.p256dh,
+        auth: dto.keys.auth,
+      },
+      ['endpoint'],
+    );
 
     const propias = await this.repo.find({
       where: { usuarioCiudadanoId: user.ciudadanoId },
