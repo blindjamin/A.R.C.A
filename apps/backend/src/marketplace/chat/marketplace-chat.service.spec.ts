@@ -17,7 +17,7 @@ import {
   type SesionService,
 } from '../../core';
 import type { PushService } from '../../push/push.service';
-import { MarketplaceChatGateway } from './marketplace-chat.gateway';
+import type { TiempoRealGateway } from '../../tiempo-real/tiempo-real.gateway';
 import { MarketplaceChatService } from './marketplace-chat.service';
 import { puedeEscribir } from './reglas-chat';
 
@@ -110,8 +110,7 @@ function montar({
     update: jest.fn(() => Promise.resolve({ affected: 2 })),
   };
   const gateway = {
-    emitirMensaje: jest.fn(),
-    emitirLeidos: jest.fn(),
+    emitir: jest.fn(),
     estaConectado: jest.fn(),
   };
   const pushService = { enviarA: jest.fn(() => Promise.resolve()) };
@@ -120,7 +119,7 @@ function montar({
     mensajeRepo as unknown as Repository<MensajeMarketplace>,
     interesadoRepo as unknown as Repository<InteresadoMarketplace>,
     calificacionRepo as unknown as Repository<Calificacion>,
-    gateway as unknown as MarketplaceChatGateway,
+    gateway as unknown as TiempoRealGateway,
     pushService as unknown as PushService,
     sesionService as unknown as SesionService,
     auditoriaService as unknown as AuditoriaService,
@@ -177,15 +176,16 @@ describe('MarketplaceChatService.enviar', () => {
 
     await service.enviar(10, {}, 'Hola', usuario(YO));
 
-    const emitidos = gateway.emitirMensaje.mock.calls.map(
-      ([vecino, evento]: [string, { mensaje: { esMio: boolean } }]) => [
-        vecino,
-        evento.mensaje.esMio,
-      ],
+    const emitidos = gateway.emitir.mock.calls.map(
+      ([vecino, nombre, evento]: [
+        string,
+        string,
+        { mensaje: { esMio: boolean } },
+      ]) => [vecino, nombre, evento.mensaje.esMio],
     );
     expect(emitidos).toEqual([
-      [YO, true],
-      [VECINA, false],
+      [YO, 'mensaje', true],
+      [VECINA, 'mensaje', false],
     ]);
   });
 
@@ -231,7 +231,7 @@ describe('MarketplaceChatService.enviar', () => {
 
     await service.marcarLeidos(10, {}, usuario(YO));
 
-    expect(gateway.emitirLeidos).toHaveBeenCalledWith(VECINA, {
+    expect(gateway.emitir).toHaveBeenCalledWith(VECINA, 'leidos', {
       articuloId: 10,
       conversacionId: 5,
     });

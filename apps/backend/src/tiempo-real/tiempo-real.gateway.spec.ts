@@ -1,11 +1,11 @@
 import type { Socket } from 'socket.io';
-import { COOKIE_SESION, type AuthUser, type SesionService } from '../../core';
-import { MarketplaceChatGateway } from './marketplace-chat.gateway';
+import { COOKIE_SESION, type AuthUser, type SesionService } from '../core';
+import { TiempoRealGateway } from './tiempo-real.gateway';
 
 const YO = '00000000-0000-4000-8000-000000000001';
 const ORIGEN = 'https://arca.santodomingo.cl';
 
-describe('MarketplaceChatGateway.handleConnection', () => {
+describe('TiempoRealGateway.handleConnection', () => {
   const urlAnterior = process.env.FRONTEND_URL;
   beforeAll(() => {
     process.env.FRONTEND_URL = ORIGEN;
@@ -23,7 +23,7 @@ describe('MarketplaceChatGateway.handleConnection', () => {
     const validar = jest.fn(() =>
       falla ? Promise.reject(new Error('db')) : Promise.resolve(sesion),
     );
-    const gateway = new MarketplaceChatGateway({
+    const gateway = new TiempoRealGateway({
       validar,
     } as unknown as SesionService);
     const cliente = {
@@ -33,7 +33,7 @@ describe('MarketplaceChatGateway.handleConnection', () => {
     };
     return { gateway, cliente, validar };
   }
-  const conectar = (g: MarketplaceChatGateway, c: unknown) =>
+  const conectar = (g: TiempoRealGateway, c: unknown) =>
     g.handleConnection(c as Socket);
   const usuario = { ciudadanoId: YO } as AuthUser;
   const cookie = `${COOKIE_SESION}=abc`;
