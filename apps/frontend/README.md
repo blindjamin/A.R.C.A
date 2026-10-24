@@ -115,6 +115,10 @@ src/
   registra la suscripción Web Push. El service worker muestra el aviso y, al tocarlo, abre solo
   rutas propias del sitio. Al cerrar sesión se borra la suscripción del servidor.
 
+### Campanita de avisos (HU-23)
+
+En la barra superior (`AppShell`), en el lugar del botón de perfil, que sigue en la pestaña «Perfil». Su contador suma los mensajes de chat sin leer y los avisos sin leer (`NoLeidosContext`); el badge de la pestaña Mercado se quitó. Lleva a `/avisos` (`pages/Avisos.tsx`, `api/notificaciones.ts`), que lista los mensajes sin leer y las novedades y marca los avisos como leídos al abrirla. Se actualiza en vivo con el evento socket `notificacion`.
+
 ### Interés, reserva y entrega con código
 
 `DetalleArticulo` (con `api/marketplace.ts`: `registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`):

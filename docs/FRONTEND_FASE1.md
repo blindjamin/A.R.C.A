@@ -214,6 +214,7 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo`; interés, reserva, liberar y entregar con código (`registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`) | datos de ejemplo + **backend** (HU-06) |
 | `PublicarArticulo` | `features/marketplace/` | `/marketplace/subir` | `publicarArticulo` + `GET /api/residuos/catalogo` | datos de ejemplo |
 | `MisPublicaciones` | `features/marketplace/` | `/marketplace/mis-publicaciones` | `listarMisPublicaciones` | datos de ejemplo |
+| `Avisos` | `pages/` | `/avisos` | `GET/PATCH /api/notificaciones` + mensajes sin leer del chat | **backend** (HU-23) |
 | `Bandeja` | `features/marketplace/chat/` | `/marketplace/mensajes` | `listarConversaciones` + eventos socket | **backend** (HU-06) |
 | `Chat` | `features/marketplace/chat/` | `/marketplace/:id/chat` · `/marketplace/:id/chat/:conversacionId` | `obtenerMensajes`, `enviarMensaje`, `marcarLeidos` + eventos socket; pantalla completa, sin Shell | **backend** (HU-06) |
 | `Proximamente` | `pages/` | `/retiro-municipal` | — | placeholder |
