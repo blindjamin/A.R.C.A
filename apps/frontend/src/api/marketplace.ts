@@ -77,6 +77,8 @@ export interface ArticuloMarketplace {
   publicador: PublicadorMarketplace;
   /** true si lo publicó la persona de la sesión. Lo calcula el backend. */
   esPropio: boolean;
+  /** La sesión lo reservó ("Lo quiero"). Lo calcula el backend. */
+  soyReceptor: boolean;
   fechaPublicacion: string;
 }
 
@@ -219,6 +221,7 @@ const articulo = (
   creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
   publicador: pub,
   esPropio: pub === YO,
+  soyReceptor: false,
   fechaPublicacion: new Date(Date.now() - diasAtras * 86_400_000).toISOString(),
   metros,
 });
@@ -307,6 +310,7 @@ async function ejemploPublicar(
     creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
     publicador: YO,
     esPropio: true,
+    soyReceptor: false,
     fechaPublicacion: new Date().toISOString(),
     metros: 0,
   };
