@@ -388,21 +388,20 @@ Table auditoria {
 }
 
 Table notificaciones {
-  id int [primary key, increment]
-  destinatario_ciudadano_id varchar(36) [note: "Lleno si el destinatario es ciudadano"]
-  destinatario_administrador_id varchar(36) [note: "Lleno si el destinatario es funcionario"]
-  tipo_destinatario enum('ciudadano', 'administrador') [not null]
-  tipo enum('retiro', 'marketplace', 'creditos', 'system') [not null]
-  asunto varchar(255)
-  contenido text
-  leida boolean [default: false]
-  fecha_lectura timestamp
-  enlace_referencia varchar(500)
-  fecha_notificacion timestamp [not null]
+  id int [primary key, increment, note: "Aviso de la campanita (HU-23)"]
+  usuario_ciudadano_id varchar(36) [not null]
+  tipo varchar(40) [not null]
+  titulo varchar(120) [not null]
+  cuerpo varchar(200) [not null, note: "Nunca el texto de un mensaje ni datos de contacto"]
+  url varchar(200) [not null, note: "Ruta del frontend"]
+  leida_en datetime
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
-  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
 
-  Note: "Solo uno de destinatario_ciudadano_id / destinatario_administrador_id debe estar lleno."
+  indexes {
+    (usuario_ciudadano_id, id)
+  }
+
+  Note: "Se conservan 90 días. Los mensajes de chat no crean filas."
 }
 
 // ============================================
@@ -516,12 +515,11 @@ Ref: transacciones_circular_credits.articulo_id > articulos_marketplace.id
 Ref: transacciones_circular_credits.solicitud_retiro_id > solicitudes_retiro.id
 Ref: transacciones_circular_credits.otorgado_por_administrador_id > usuarios_administradores.id
 
-// Auditoría y notificaciones (actor/destinatario dual)
+// Auditoría (actor dual) y notificaciones
 Ref: auditoria.actor_ciudadano_id > usuarios_ciudadanos.id
 Ref: auditoria.actor_administrador_id > usuarios_administradores.id
 
-Ref: notificaciones.destinatario_ciudadano_id > usuarios_ciudadanos.id
-Ref: notificaciones.destinatario_administrador_id > usuarios_administradores.id
+Ref: notificaciones.usuario_ciudadano_id > usuarios_ciudadanos.id [delete: cascade]
 
 // Soporte
 Ref: conversaciones_chatbot.usuario_ciudadano_id > usuarios_ciudadanos.id

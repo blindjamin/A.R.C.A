@@ -16,6 +16,7 @@ import { MensajeMarketplace } from './mensaje-marketplace.entity';
 import { InteresadoMarketplace } from './interesado-marketplace.entity';
 import { TransaccionCircularCredits } from './transaccion-circular-credits.entity';
 import { SuscripcionPush } from './suscripcion-push.entity';
+import { Notificacion } from './notificacion.entity';
 
 export { RolAdministrador } from './rol-administrador.enum';
 export { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -46,6 +47,7 @@ export { TipoMovimientoCreditos } from './tipo-movimiento-creditos.enum';
 export { OrigenMovimientoCreditos } from './origen-movimiento-creditos.enum';
 export { TransaccionCircularCredits } from './transaccion-circular-credits.entity';
 export { SuscripcionPush } from './suscripcion-push.entity';
+export { Notificacion } from './notificacion.entity';
 
 // Usado por apps/backend/src/database/data-source.ts: el glob __dirname +
 // '/../**/*.entity' que usaba antes de la migración no encuentra las
@@ -70,4 +72,5 @@ export const ENTIDADES = [
   InteresadoMarketplace,
   TransaccionCircularCredits,
   SuscripcionPush,
+  Notificacion,
 ];
