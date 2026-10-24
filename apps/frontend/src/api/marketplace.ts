@@ -79,7 +79,25 @@ export interface ArticuloMarketplace {
   esPropio: boolean;
   /** La sesión lo reservó ("Lo quiero"). Lo calcula el backend. */
   soyReceptor: boolean;
+  /** Código de 6 dígitos para dictárselo a quien publica. Solo lo ve quien recibe, reservado. */
+  codigoEntrega: string | null;
+  /** Sector aproximado del retiro. Solo los dos participantes, con el artículo reservado o completado. */
+  sector: string | null;
+  /** Nombre de quien recibe. Solo lo ve quien publica. */
+  reservadoPara: string | null;
   fechaPublicacion: string;
+}
+
+/** Vecino que dijo "Me interesa" (lo ve solo quien publica). */
+export interface Interesado {
+  conversacionId: number;
+  nombre: string;
+  calificacionPromedio: number | null;
+  cantidadCalificaciones: number;
+  identidadVerificada: boolean;
+  noLeidos: number;
+  ultimoMensaje: { contenido: string; fecha: string; esMio: boolean } | null;
+  reservado: boolean;
 }
 
 export interface FiltrosMarketplace {
@@ -171,6 +189,41 @@ export function retirarArticulo(id: number): Promise<ArticuloMarketplace> {
   }).then((r) => handle<ArticuloMarketplace>(r));
 }
 
+/** Registra el interés (idempotente) y devuelve la conversación con quien publica. */
+export function registrarInteres(id: number): Promise<{ conversacionId: number }> {
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/interes`, {
+    method: 'POST',
+  }).then((r) => handle<{ conversacionId: number }>(r));
+}
+
+export function listarInteresados(id: number): Promise<Interesado[]> {
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/interesados`).then((r) =>
+    handle<Interesado[]>(r),
+  );
+}
+
+export function reservar(id: number, conversacionId: number): Promise<ArticuloMarketplace> {
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/reservar`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversacionId }),
+  }).then((r) => handle<ArticuloMarketplace>(r));
+}
+
+export function liberar(id: number): Promise<ArticuloMarketplace> {
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/liberar`, {
+    method: 'PATCH',
+  }).then((r) => handle<ArticuloMarketplace>(r));
+}
+
+export function entregar(id: number, codigo: string): Promise<ArticuloMarketplace> {
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/entregar`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ codigo }),
+  }).then((r) => handle<ArticuloMarketplace>(r));
+}
+
 // --- Datos de ejemplo -------------------------------------------------------
 // Solo se usan con USAR_DATOS_DE_EJEMPLO = true. Imitan la semántica que
 // tendrá el backend (filtros, banda solo con origen, reglas de retiro) para
@@ -222,6 +275,9 @@ const articulo = (
   publicador: pub,
   esPropio: pub === YO,
   soyReceptor: false,
+  codigoEntrega: null,
+  sector: null,
+  reservadoPara: null,
   fechaPublicacion: new Date(Date.now() - diasAtras * 86_400_000).toISOString(),
   metros,
 });
@@ -311,6 +367,9 @@ async function ejemploPublicar(
     publicador: YO,
     esPropio: true,
     soyReceptor: false,
+    codigoEntrega: null,
+    sector: null,
+    reservadoPara: null,
     fechaPublicacion: new Date().toISOString(),
     metros: 0,
   };
