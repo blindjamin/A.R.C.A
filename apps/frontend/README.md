@@ -99,8 +99,8 @@ src/
 ### Chat del Marketplace (HU-06)
 
 - **`Chat`** (`/marketplace/:id/chat` y `/marketplace/:id/chat/:conversacionId`): pantalla completa, sin el
-  header ni la TabBar (`RequireSession` en vez de `Protected`). El interesado entra sin id de
-  conversación; quien publica entra con el `conversacionId` opaco. Envía por REST con el mensaje
+  header ni la TabBar (`RequireSession` en vez de `Protected`). La cabecera muestra el nombre del otro vecino; quien publica, con el artículo disponible, ve «Reservar» (`BotonReservar`). El interesado entra sin id de
+  conversación; quien publica entra con el `conversacionId` opaco (el id del interés). Envía por REST con el mensaje
   pendiente en pantalla, y recibe por socket. Si la conversación pasa a solo lectura, oculta el campo de texto.
 - **`Bandeja`** (`/marketplace/mensajes`): lista de conversaciones con el último mensaje y los no leídos.
 - **`NoLeidosContext`**: abre el socket con la sesión, carga `GET /marketplace/conversaciones` y la
@@ -114,6 +114,15 @@ src/
   dentro del gesto del botón (después de un `await` Safari lo rechaza) y, si se concede, se
   registra la suscripción Web Push. El service worker muestra el aviso y, al tocarlo, abre solo
   rutas propias del sitio. Al cerrar sesión se borra la suscripción del servidor.
+
+### Interés, reserva y entrega con código
+
+`DetalleArticulo` (con `api/marketplace.ts`: `registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`):
+
+- **Vecino, artículo disponible:** «Me interesa» (regalo) o «Quiero intercambiar» registra el interés y navega al chat; si ya tiene interés, dice «Ver conversación» con los no leídos.
+- **Quien publica, disponible:** lista «Interesados» (nombre, estrellas, «Identidad verificada», último mensaje) con «Chatear» y «Reservar»; reservar pide confirmar con el nombre.
+- **Quien publica, reservado:** «Reservado para {nombre}», el sector, «Liberar» y el formulario «Confirmar entrega» (código de 6 dígitos).
+- **Quien recibe, reservado:** tarjeta «Reservado para ti» con el sector y el código; se lo dicta a quien publicó.
 
 ### Criterio de organización
 

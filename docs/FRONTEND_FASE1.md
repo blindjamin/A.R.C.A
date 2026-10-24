@@ -154,7 +154,7 @@ esperados y las reglas de privacidad están en el comentario de cabecera del arc
 El chat (HU-06) tiene `src/api/chat.ts`, `src/api/push.ts` y `src/api/socket.ts`, contra el backend real
 (sin datos de ejemplo). `chat.ts` espeja los tipos de `apps/backend/src/marketplace/chat/reglas-chat.ts`
 (`listarConversaciones`, `obtenerMensajes`, `enviarMensaje`, `marcarLeidos`); la conversación se
-identifica con un `conversacionId` opaco, nunca con el id del otro vecino. `socket.ts` expone
+identifica con un `conversacionId` opaco (el id del interés), nunca con el id del otro vecino. El interés, la reserva y la entrega con código están en `api/marketplace.ts` (`registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`); «Lo quiero» ya no existe. `socket.ts` expone
 `conectarSocket()` y `desconectarSocket()` y solo recibe los eventos `mensaje` y `leidos`: enviar va por
 REST. `push.ts` llama a `/api/push/*`; la lógica de suscripción vive en `src/pwa/push.ts`.
 
@@ -211,7 +211,7 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `AdminSolicitudes` | `pages/` | `/admin` | `GET/PATCH /api/solicitudes-retiro` | **backend** + HU-08 |
 | `AdminAuditoria` | `pages/` | `/admin/auditoria` | Logs y estadísticas de auditoría | **admin** (HU-13) |
 | `Listado` | `features/marketplace/` | `/marketplace` | `listarArticulos` | datos de ejemplo |
-| `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo` | datos de ejemplo |
+| `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo`; interés, reserva, liberar y entregar con código (`registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`) | datos de ejemplo + **backend** (HU-06) |
 | `PublicarArticulo` | `features/marketplace/` | `/marketplace/subir` | `publicarArticulo` + `GET /api/residuos/catalogo` | datos de ejemplo |
 | `MisPublicaciones` | `features/marketplace/` | `/marketplace/mis-publicaciones` | `listarMisPublicaciones` | datos de ejemplo |
 | `Bandeja` | `features/marketplace/chat/` | `/marketplace/mensajes` | `listarConversaciones` + eventos socket | **backend** (HU-06) |

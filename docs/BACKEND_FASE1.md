@@ -80,7 +80,8 @@ A.R.C.A/
 | `1782163400000-create-solicitudes-retiro` | `solicitudes_retiro` + usuario dev de prueba |
 | `1782163500000-seed-operador-demo` | Usuario demo **doble rol** (ciudadano `…0002` + operador `…00A2`) |
 | `1782163600000-replace-catalogo-precios-reales` | Columna `precio` (CLP) en `residuos_catalogo`; catálogo reemplazado por los **26 ítems reales** de `costo retiro Voluminosos.xlsx` (Municipalidad de Santo Domingo). Borra las `solicitudes_retiro` existentes (datos de prueba dependientes del catálogo viejo por FK). |
-| `1782164600000-chat-marketplace` | `mensajes_marketplace.interesado_id` (NOT NULL, FK, índices) y `suscripciones_push` (una fila por dispositivo Web Push). Detalle: [spec `marketplace`](specs/SPEC-marketplace.md) §3.3. Las migraciones intermedias están en [`apps/backend/README.md`](../apps/backend/README.md#migraciones) |
+| `1782164800000-interes-reserva-marketplace` | Tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo`, `fecha_reserva` en `articulos_marketplace`. Detalle: [spec `marketplace`](specs/SPEC-marketplace.md) §3.3.2 |
+| `1782164700000-chat-marketplace` | `mensajes_marketplace.interesado_id` (NOT NULL, FK, índices) y `suscripciones_push` (una fila por dispositivo Web Push). Detalle: [spec `marketplace`](specs/SPEC-marketplace.md) §3.3. Las migraciones intermedias están en [`apps/backend/README.md`](../apps/backend/README.md#migraciones) |
 | `1782164000000-remove-rol-patrocinador` | Quita `patrocinador` de `usuarios_administradores.rol`: quedan `admin` y `operador`. Se detiene si alguna fila todavía usa ese valor. |
 
 **Comando:** `npm run migration:run` (desde `apps/backend/`)
@@ -123,9 +124,10 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `GET` | `/api/marketplace/articulos/{id}` · `…/{id}/foto` | **Marketplace:** detalle y foto (404 si la sesión no puede verlo) |
 | `PATCH` | `/api/marketplace/articulos/{id}/retirar` | **Marketplace:** quien publicó lo retira |
 | `GET` | `/api/marketplace/mis-articulos` | **Marketplace:** lo publicado por la sesión |
-| `POST` | `/api/marketplace/articulos/{id}/solicitar` | **Marketplace:** "Lo quiero" (reserva para la sesión) |
-| `PATCH` | `/api/marketplace/articulos/{id}/liberar` · `…/entregar` | **Marketplace:** quien publicó rechaza al interesado o cierra el intercambio |
+| `PATCH` | `/api/marketplace/articulos/{id}/reservar` | **Marketplace:** quien publicó elige a un interesado; genera el código de entrega (solo lo ve quien recibe) |
+| `PATCH` | `/api/marketplace/articulos/{id}/liberar` · `…/entregar` | **Marketplace:** quien publicó rechaza al interesado o cierra el intercambio (`entregar` exige el código de 6 dígitos) |
 | `POST` | `/api/marketplace/articulos/{id}/calificacion` | **Marketplace:** quien recibió califica de 1 a 5, una vez |
+| `POST` · `GET` | `/api/marketplace/articulos/{id}/interes` · `…/interesados` | **Interés (HU-06):** «Me interesa» abre el chat (tope de 20 por día); la lista de interesados es solo de quien publicó |
 | `GET` · `POST` · `PATCH` | `/api/marketplace/conversaciones` · `…/articulos/{id}/mensajes` · `…/mensajes/leidos` | **Chat (HU-06):** bandeja, historial, envío y marcar leídos. Tiempo real por socket.io en `/api/socket.io` |
 | `GET` · `POST` · `DELETE` | `/api/push/clave-publica` · `/api/push/suscripciones` | **Chat (HU-06):** avisos push (Web Push, claves `VAPID_*` opcionales) |
 | `GET` | `/api/creditos` | **Circular Credits:** saldo y movimientos de la sesión (entregar y calificar con 4 o 5 estrellas otorgan) |
@@ -133,7 +135,7 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 Detalle del marketplace: [`apps/backend/README.md`](../apps/backend/README.md#endpoints-del-marketplace-hu-04-hu-05-hu-15)
 y [spec `marketplace`](specs/SPEC-marketplace.md).
 
-**Chat (HU-06), dependencias nuevas:** `@nestjs/websockets`, `@nestjs/platform-socket.io` y `web-push`. Llevan el backend de 15 a 18 dependencias de producción. La migración `1782164600000-chat-marketplace` agrega `interesado_id` a `mensajes_marketplace` y crea `suscripciones_push`.
+**Chat (HU-06), dependencias nuevas:** `@nestjs/websockets`, `@nestjs/platform-socket.io` y `web-push`. Llevan el backend de 15 a 18 dependencias de producción. La migración `1782164700000-chat-marketplace` agrega `interesado_id` a `mensajes_marketplace` y crea `suscripciones_push`.
 
 > **Movido a `apps/backend-admin` (2026-09-01):** el cambio de estado municipal vive en
 > `PATCH /api/admin/solicitudes/{id}` y `POST …/revision` (puerto 3001).

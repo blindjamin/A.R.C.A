@@ -431,7 +431,7 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     boilerplate de NestJS y Vite)
   - `AGENTS.md` (reglas de IA: comportamiento del agente + política de uso del equipo)
 - **Marketplace (backend):** publicar con foto, buscar, detalle, mis artículos, retirar,
-  "Lo quiero", liberar, entregar y calificar (`src/marketplace/`,
+  mostrar interés (abre el chat), reservar, liberar, entregar con código y calificar (`src/marketplace/`,
   [spec](docs/specs/SPEC-marketplace.md)).
 - **Circular Credits (backend):** otorgamiento por entrega y por estrellas con topes, y
   `GET /api/creditos` (`src/creditos/`, valores de prueba). El 50 % por retiro municipal está
