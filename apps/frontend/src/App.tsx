@@ -15,6 +15,7 @@ import MisSolicitudes from './pages/MisSolicitudes';
 import PantallaPago from './pages/PantallaPago';
 import Proximamente from './pages/Proximamente';
 import Perfil from './pages/Perfil';
+import Avisos from './pages/Avisos';
 import CircularCredits from './pages/CircularCredits';
 import { IconTruck } from './components/ui/Icons';
 import { OfertaInstalacion } from './pwa/OfertaInstalacion';
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/" element={<Entrada />} />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
             <Route path="/perfil" element={<Protected><Perfil /></Protected>} />
+            <Route path="/avisos" element={<Protected><Avisos /></Protected>} />
             <Route path="/circular-credits" element={<Protected><CircularCredits /></Protected>} />
             <Route path="/creditos" element={<Navigate to="/circular-credits" replace />} />
 
