@@ -3,6 +3,7 @@ import {
   EstadoArticuloMarketplace,
   type TipoArticuloMarketplace,
 } from '../core';
+import { sectorMasCercano } from '../admin/mapa-calor/sectores.constants';
 import { creditosPorEntrega } from '../creditos/reglas-creditos';
 import type {
   BandaDistancia,
@@ -58,6 +59,12 @@ export interface ArticuloPublico {
   fechaExpiracion: Date;
   soyReceptor: boolean;
   puedoCalificar: boolean;
+  /** Solo para quien recibe y solo mientras está reservado. Nunca para quien publicó. */
+  codigoEntrega: string | null;
+  /** Solo para los dos participantes, reservado o entregado. */
+  sector: string | null;
+  /** Nombre de quien recibe; solo para quien publicó, mientras está reservado. */
+  reservadoPara: string | null;
 }
 
 export interface ContextoPresentacion {
@@ -66,6 +73,8 @@ export interface ContextoPresentacion {
   reputacion?: Reputacion;
   /** La sesión ya calificó este artículo. */
   yaCalifico?: boolean;
+  /** Primer nombre del receptor, ya resuelto por el servicio. */
+  reservadoPara?: string | null;
 }
 
 export function fechaExpiracionDesde(publicacion: Date): Date {
@@ -142,6 +151,10 @@ export function aArticuloPublico(
   contexto: ContextoPresentacion,
 ): ArticuloPublico {
   const soyReceptor = articulo.usuarioCompradorId === contexto.ciudadanoId;
+  const esPropio = articulo.usuarioPublicadorId === contexto.ciudadanoId;
+  const reservado =
+    articulo.estado === EstadoArticuloMarketplace.EN_NEGOCIACION;
+  const coordenadas = coordenadasDe(articulo);
 
   return {
     id: articulo.id,
@@ -160,7 +173,7 @@ export function aArticuloPublico(
       nombre: NOMBRE_PUBLICADOR_PROVISORIO,
       ...(contexto.reputacion ?? SIN_CALIFICACIONES),
     },
-    esPropio: articulo.usuarioPublicadorId === contexto.ciudadanoId,
+    esPropio,
     fechaPublicacion: articulo.fechaPublicacion,
     fechaExpiracion: articulo.fechaExpiracion,
     soyReceptor,
@@ -168,5 +181,14 @@ export function aArticuloPublico(
       soyReceptor &&
       articulo.estado === EstadoArticuloMarketplace.COMPLETADO &&
       !contexto.yaCalifico,
+    codigoEntrega: soyReceptor && reservado ? articulo.codigoEntrega : null,
+    sector:
+      (esPropio || soyReceptor) &&
+      (reservado || articulo.estado === EstadoArticuloMarketplace.COMPLETADO) &&
+      coordenadas
+        ? sectorMasCercano(coordenadas.latitud, coordenadas.longitud).nombre
+        : null,
+    reservadoPara:
+      esPropio && reservado ? (contexto.reservadoPara ?? null) : null,
   };
 }

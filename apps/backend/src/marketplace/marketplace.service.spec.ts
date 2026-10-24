@@ -8,9 +8,12 @@ import { FindOperator, Like, QueryFailedError, type Repository } from 'typeorm';
 import {
   type ArticuloMarketplace,
   type AuthUser,
+  type AuditoriaService,
   type Calificacion,
   EstadoArticuloMarketplace,
+  type InteresadoMarketplace,
   type ResiduoCatalogo,
+  type SesionService,
   TipoArticuloMarketplace,
 } from '../core';
 import type { ArchivosService } from '../archivos/archivos.service';
@@ -56,11 +59,20 @@ const articulo = (cambios: Partial<ArticuloMarketplace> = {}) =>
     ...cambios,
   }) as ArticuloMarketplace;
 
+interface QbIntentos {
+  update: () => QbIntentos;
+  set: (valores: unknown) => QbIntentos;
+  where: (condicion: string, parametros: unknown) => QbIntentos;
+  execute: () => Promise<{ affected: number }>;
+}
+
 function montar({
   encontrado = null as ArticuloMarketplace | null,
   lista = [] as ArticuloMarketplace[],
   calificaciones = [] as Partial<Calificacion>[],
   afectadas = 1,
+  interesado = null as Partial<InteresadoMarketplace> | null,
+  afectadasIntento = 1,
   errorAlCalificar = null as Error | null,
 } = {}) {
   const articuloRepo = {
@@ -71,7 +83,23 @@ function montar({
     find: jest.fn(() => Promise.resolve(lista)),
     findOne: jest.fn(() => Promise.resolve(encontrado)),
     update: jest.fn(() => Promise.resolve({ affected: afectadas })),
+    // Contador de intentos del código: UPDATE atómico.
+    createQueryBuilder: jest.fn(() => {
+      const qb = {} as QbIntentos;
+      qb.update = () => qb;
+      qb.set = () => qb;
+      qb.where = () => qb;
+      qb.execute = () => Promise.resolve({ affected: afectadasIntento });
+      return qb;
+    }),
   };
+  const interesadoRepo = {
+    findOne: jest.fn(() => Promise.resolve(interesado)),
+  };
+  const sesionService = {
+    nombreSesionActiva: jest.fn(() => Promise.resolve('Ana María')),
+  };
+  const auditoriaService = { registrar: jest.fn(() => Promise.resolve()) };
   const calificacionRepo = {
     find: jest.fn(() => Promise.resolve(calificaciones)),
     create: jest.fn((datos: Partial<Calificacion>) => ({ ...datos })),
@@ -113,6 +141,9 @@ function montar({
     archivos as unknown as ArchivosService,
     limiteOrigenes as unknown as LimiteOrigenesService,
     creditos as unknown as CreditosService,
+    interesadoRepo as unknown as Repository<InteresadoMarketplace>,
+    sesionService as unknown as SesionService,
+    auditoriaService as unknown as AuditoriaService,
   );
 
   return {
@@ -121,6 +152,8 @@ function montar({
     calificacionRepo,
     manager,
     creditos,
+    auditoriaService,
+    interesadoRepo,
     archivos,
     limiteOrigenes,
   };
@@ -426,6 +459,8 @@ describe('MarketplaceService.liberar', () => {
       {
         estado: EstadoArticuloMarketplace.DISPONIBLE,
         usuarioCompradorId: null,
+        codigoEntrega: null,
+        fechaReserva: null,
       },
     );
   });
@@ -456,30 +491,151 @@ describe('MarketplaceService.liberar', () => {
   });
 });
 
-describe('MarketplaceService.entregar', () => {
-  it('completa el intercambio con el mismo receptor y registra la fecha', async () => {
-    const { service, articuloRepo } = montar({
-      encontrado: articulo({
-        usuarioPublicadorId: YO,
-        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
-        usuarioCompradorId: VECINA,
-      }),
+describe('MarketplaceService.reservar', () => {
+  const INTERESADO = '00000000-0000-4000-8000-000000000003';
+  const propio = () => articulo({ usuarioPublicadorId: YO });
+
+  it('reserva con un código de 6 dígitos, la fecha y los intentos en cero', async () => {
+    const { service, articuloRepo, auditoriaService } = montar({
+      encontrado: propio(),
+      interesado: { id: 4, usuarioInteresadoId: INTERESADO },
     });
 
-    await service.entregar(10, usuario(YO));
+    await service.reservar(10, 4, usuario(YO));
 
     const [condicion, cambios] = articuloRepo.update.mock
       .calls[0] as unknown as [
       Record<string, unknown>,
       Record<string, unknown>,
     ];
-    expect(condicion).toEqual({
+    expect(condicion).toMatchObject({
+      id: 10,
+      estado: EstadoArticuloMarketplace.DISPONIBLE,
+    });
+    expect((condicion.fechaExpiracion as FindOperator<Date>).type).toBe(
+      'moreThan',
+    );
+    expect(cambios).toMatchObject({
+      estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+      usuarioCompradorId: INTERESADO,
+      intentosCodigo: 0,
+    });
+    expect(cambios.codigoEntrega).toMatch(/^\d{6}$/);
+    expect(cambios.fechaReserva).toBeInstanceOf(Date);
+    // La auditoría lleva el estado y nunca el código.
+    expect(JSON.stringify(auditoriaService.registrar.mock.calls)).not.toContain(
+      cambios.codigoEntrega as string,
+    );
+  });
+
+  it('403 si quien reserva no publicó el artículo', async () => {
+    const { service, articuloRepo } = montar({ encontrado: articulo() });
+
+    await expect(service.reservar(10, 4, usuario(YO))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(articuloRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('404 si el interesado no es de este artículo', async () => {
+    const { service, articuloRepo, interesadoRepo } = montar({
+      encontrado: propio(),
+      interesado: null,
+    });
+
+    await expect(service.reservar(10, 99, usuario(YO))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(interesadoRepo.findOne).toHaveBeenCalledWith({
+      where: { id: 99, articuloId: 10 },
+    });
+    expect(articuloRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('404 si el artículo no existe', async () => {
+    const { service } = montar();
+
+    await expect(service.reservar(10, 4, usuario(YO))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('409 si ya no está disponible', async () => {
+    const { service } = montar({
+      encontrado: propio(),
+      interesado: { id: 4, usuarioInteresadoId: INTERESADO },
+      afectadas: 0,
+    });
+
+    await expect(service.reservar(10, 4, usuario(YO))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+});
+
+describe('MarketplaceService.entregar', () => {
+  const reservado = (cambios: Partial<ArticuloMarketplace> = {}) =>
+    articulo({
+      usuarioPublicadorId: YO,
+      estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+      usuarioCompradorId: VECINA,
+      codigoEntrega: '123456',
+      intentosCodigo: 0,
+      ...cambios,
+    });
+
+  it('con el código correcto completa el intercambio, borra el código y registra la fecha', async () => {
+    const { service, articuloRepo } = montar({ encontrado: reservado() });
+
+    await service.entregar(10, '123456', usuario(YO));
+
+    const [condicion, cambios] = articuloRepo.update.mock
+      .calls[0] as unknown as [
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(condicion).toMatchObject({
       id: 10,
       estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
       usuarioCompradorId: VECINA,
     });
     expect(cambios.estado).toBe(EstadoArticuloMarketplace.COMPLETADO);
+    expect(cambios.codigoEntrega).toBeNull();
     expect(cambios.fechaTransaccion).toBeInstanceOf(Date);
+  });
+
+  it('código incorrecto: 400, suma un intento y no entrega ni da créditos', async () => {
+    const { service, articuloRepo, creditos } = montar({
+      encontrado: reservado({ intentosCodigo: 1 }),
+    });
+
+    await expect(
+      service.entregar(10, '000000', usuario(YO)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(articuloRepo.createQueryBuilder).toHaveBeenCalled();
+    expect(articuloRepo.update).not.toHaveBeenCalled();
+    expect(creditos.otorgarPorEntrega).not.toHaveBeenCalled();
+  });
+
+  it('el quinto intento fallido bloquea con 409', async () => {
+    const { service } = montar({
+      encontrado: reservado({ intentosCodigo: 4 }),
+    });
+
+    await expect(
+      service.entregar(10, '000000', usuario(YO)),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('bloqueado (5 intentos): 409 aunque el código sea correcto', async () => {
+    const { service, articuloRepo } = montar({
+      encontrado: reservado({ intentosCodigo: 5 }),
+    });
+
+    await expect(
+      service.entregar(10, '123456', usuario(YO)),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(articuloRepo.update).not.toHaveBeenCalled();
   });
 
   it('404 para un tercero que no puede ver el artículo reservado', async () => {
@@ -490,9 +646,9 @@ describe('MarketplaceService.entregar', () => {
       }),
     });
 
-    await expect(service.entregar(10, usuario(YO))).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    await expect(
+      service.entregar(10, '123456', usuario(YO)),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('409 si no está reservado, sin intentar el UPDATE', async () => {
@@ -500,38 +656,28 @@ describe('MarketplaceService.entregar', () => {
       encontrado: articulo({ usuarioPublicadorId: YO }),
     });
 
-    await expect(service.entregar(10, usuario(YO))).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.entregar(10, '123456', usuario(YO)),
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(articuloRepo.update).not.toHaveBeenCalled();
   });
 
   it('409 si entre la lectura y el UPDATE cambió el receptor o el estado, sin créditos', async () => {
     const { service, creditos } = montar({
-      encontrado: articulo({
-        usuarioPublicadorId: YO,
-        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
-        usuarioCompradorId: VECINA,
-      }),
+      encontrado: reservado(),
       afectadas: 0,
     });
 
-    await expect(service.entregar(10, usuario(YO))).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.entregar(10, '123456', usuario(YO)),
+    ).rejects.toBeInstanceOf(ConflictException);
     expect(creditos.otorgarPorEntrega).not.toHaveBeenCalled();
   });
 
   it('otorga los créditos de la entrega en la misma transacción', async () => {
-    const { service, manager, creditos } = montar({
-      encontrado: articulo({
-        usuarioPublicadorId: YO,
-        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
-        usuarioCompradorId: VECINA,
-      }),
-    });
+    const { service, manager, creditos } = montar({ encontrado: reservado() });
 
-    await service.entregar(10, usuario(YO));
+    await service.entregar(10, '123456', usuario(YO));
 
     expect(manager.getRepository).toHaveBeenCalled();
     expect(creditos.otorgarPorEntrega).toHaveBeenCalledWith(
