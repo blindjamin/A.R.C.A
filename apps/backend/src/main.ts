@@ -1,6 +1,7 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { urlencoded } from 'express';
 import {
   cabecerasDeSeguridad,
   configurarProxyConfiable,
@@ -25,6 +26,8 @@ async function bootstrap() {
   // Antes de las rutas: cabeceras en toda respuesta y CSRF por Origin.
   app.use(cabecerasDeSeguridad());
   app.use(verificarOrigen(allowedOrigins));
+  // La vuelta de Webpay llega como formulario, no como JSON.
+  app.use(urlencoded({ extended: false }));
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({

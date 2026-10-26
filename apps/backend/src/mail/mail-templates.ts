@@ -439,3 +439,59 @@ export function generarHtmlCambioEstado(
 </html>
 `;
 }
+
+/** Nombra el campo que cambió. No incluye el teléfono ni la dirección nuevos. */
+export function generarHtmlPerfilActualizado(
+  campos: readonly string[],
+): string {
+  const lista = campos.map((campo) => escaparHtml(campo));
+  const frase =
+    lista.length === 0
+      ? 'Actualizamos tus datos de contacto.'
+      : lista.length === 1
+        ? `Actualizamos tu ${lista[0]}.`
+        : `Actualizamos tu ${lista.slice(0, -1).join(', ')} y tu ${lista[lista.length - 1]}.`;
+
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Datos de contacto — A.R.C.A.</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F4F7F4; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0E1B13;">
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F4F7F4; padding: 24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; width: 100%; background-color: #FFFFFF; border-radius: 16px; overflow: hidden;">
+          <tr>
+            <td style="background-color: #0F6B45; padding: 28px 24px;">
+              ${LOGO_HEADER_HTML}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 28px 24px; font-family: 'Segoe UI', sans-serif; font-size: 16px; line-height: 1.5; color: #0E1B13;">
+              <p style="margin: 0 0 12px;">Hola.</p>
+              <p style="margin: 0 0 12px;">${frase}</p>
+              <p style="margin: 0;">Si no fuiste tú, entra a tu perfil en A.R.C.A. y revísalo.</p>
+            </td>
+          </tr>
+          <tr>
+            <td>${FOOTER_HTML}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+}
+
+function escaparHtml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}

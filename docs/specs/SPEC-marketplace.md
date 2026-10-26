@@ -329,10 +329,11 @@ El vecino recibe los créditos del retiro municipal **al momento del pago** de s
 del 13-10-2026; antes se pensó otorgarlos al llegar a `retirada`). Son 50 créditos al solicitante,
 sujetos al tope mensual.
 
-`CreditosService.otorgarPorPago(manager, solicitud)` está programada y probada. Falta el
-disparador: la confirmación del pago con Webpay (HU-44) debe llamarla **en la misma transacción**
-que deja `estado_pago = pagado`. Confirmar dos veces el mismo pago no otorga dos veces: la función
-devuelve el movimiento que ya existía, y el índice único `uq_creditos_solicitud` lo respalda.
+`CreditosService.otorgarPorPago(manager, solicitud)` la llama `PagosService` al confirmar Webpay
+(HU-44), **en la misma transacción** que deja `estado_pago = pagado`. Confirmar dos veces el mismo
+pago no otorga dos veces: la función devuelve el movimiento que ya existía, y el índice único
+`uq_creditos_solicitud` lo respalda. Si el monto o la orden que devuelve Transbank no coinciden,
+no se marca `pagado`, no se otorgan créditos y se pide la reversa.
 
 Los créditos por intercambios y regalos entre vecinos siguen las reglas de §7.2.
 

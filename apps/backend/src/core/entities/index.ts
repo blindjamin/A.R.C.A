@@ -17,6 +17,7 @@ import { InteresadoMarketplace } from './interesado-marketplace.entity';
 import { TransaccionCircularCredits } from './transaccion-circular-credits.entity';
 import { SuscripcionPush } from './suscripcion-push.entity';
 import { Notificacion } from './notificacion.entity';
+import { PagoWebpay } from './pago-webpay.entity';
 
 export { RolAdministrador } from './rol-administrador.enum';
 export { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -48,6 +49,8 @@ export { OrigenMovimientoCreditos } from './origen-movimiento-creditos.enum';
 export { TransaccionCircularCredits } from './transaccion-circular-credits.entity';
 export { SuscripcionPush } from './suscripcion-push.entity';
 export { Notificacion } from './notificacion.entity';
+export { EstadoIntentoPago } from './estado-intento-pago.enum';
+export { PagoWebpay } from './pago-webpay.entity';
 
 // Usado por apps/backend/src/database/data-source.ts: el glob __dirname +
 // '/../**/*.entity' que usaba antes de la migración no encuentra las
@@ -73,4 +76,5 @@ export const ENTIDADES = [
   TransaccionCircularCredits,
   SuscripcionPush,
   Notificacion,
+  PagoWebpay,
 ];
