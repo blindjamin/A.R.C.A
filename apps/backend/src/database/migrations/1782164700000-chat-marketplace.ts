@@ -13,8 +13,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * El `down` borra `suscripciones_push` y la columna `interesado_id`, con sus
  * datos.
  */
-export class ChatMarketplace1782164600000 implements MigrationInterface {
-  name = 'ChatMarketplace1782164600000';
+export class ChatMarketplace1782164700000 implements MigrationInterface {
+  name = 'ChatMarketplace1782164700000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Primero NULL: la tabla puede tener mensajes sembrados (seed:dev).
