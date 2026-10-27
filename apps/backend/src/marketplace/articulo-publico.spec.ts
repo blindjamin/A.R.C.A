@@ -195,4 +195,70 @@ describe('aArticuloPublico', () => {
       ).puedoCalificar,
     ).toBe(false);
   });
+
+  describe('código, sector y nombre del reservado', () => {
+    const reservado = articulo({
+      estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+      usuarioCompradorId: COMPRADOR,
+      codigoEntrega: '123456',
+    });
+
+    it('el código lo ve solo quien recibe, nunca quien publica ni un tercero', () => {
+      const ctx = { banda: null };
+      expect(
+        aArticuloPublico(reservado, { ...ctx, ciudadanoId: COMPRADOR })
+          .codigoEntrega,
+      ).toBe('123456');
+      const delPublicador = aArticuloPublico(reservado, {
+        ...ctx,
+        ciudadanoId: PUBLICADOR,
+      });
+      expect(delPublicador.codigoEntrega).toBeNull();
+      expect(JSON.stringify(delPublicador)).not.toContain('123456');
+      expect(
+        aArticuloPublico(reservado, { ...ctx, ciudadanoId: OTRO })
+          .codigoEntrega,
+      ).toBeNull();
+    });
+
+    it('sin reserva vigente no hay código, ni para el receptor', () => {
+      const entregado = articulo({
+        estado: EstadoArticuloMarketplace.COMPLETADO,
+        usuarioCompradorId: COMPRADOR,
+        codigoEntrega: '123456',
+      });
+      expect(
+        aArticuloPublico(entregado, { ciudadanoId: COMPRADOR, banda: null })
+          .codigoEntrega,
+      ).toBeNull();
+    });
+
+    it('el sector es solo de los dos participantes, reservado o entregado', () => {
+      const ctx = { banda: null };
+      const sector = (a: ArticuloMarketplace, id: string) =>
+        aArticuloPublico(a, { ...ctx, ciudadanoId: id }).sector;
+      expect(sector(reservado, PUBLICADOR)).toEqual(expect.any(String));
+      expect(sector(reservado, COMPRADOR)).toEqual(expect.any(String));
+      expect(sector(reservado, OTRO)).toBeNull();
+      expect(sector(articulo(), PUBLICADOR)).toBeNull();
+      expect(
+        sector(
+          articulo({ ...reservado, latitud: null, longitud: null }),
+          PUBLICADOR,
+        ),
+      ).toBeNull();
+    });
+
+    it('reservadoPara solo para quien publica', () => {
+      const ctx = { banda: null, reservadoPara: 'Ana' };
+      expect(
+        aArticuloPublico(reservado, { ...ctx, ciudadanoId: PUBLICADOR })
+          .reservadoPara,
+      ).toBe('Ana');
+      expect(
+        aArticuloPublico(reservado, { ...ctx, ciudadanoId: COMPRADOR })
+          .reservadoPara,
+      ).toBeNull();
+    });
+  });
 });

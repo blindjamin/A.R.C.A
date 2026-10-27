@@ -1,14 +1,17 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomInt, timingSafeEqual } from 'node:crypto';
 import {
   type EntityManager,
   FindOptionsWhere,
   In,
+  LessThan,
   Like,
   MoreThan,
   QueryFailedError,
@@ -16,10 +19,16 @@ import {
 } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
+  AccionAuditoria,
   ArticuloMarketplace,
+  AuditoriaService,
   type AuthUser,
   Calificacion,
   EstadoArticuloMarketplace,
+  InteresadoMarketplace,
+  type OrigenPeticion,
+  SesionService,
+  TipoActorAuditoria,
 } from '../core';
 import {
   type ArchivoParaEnviar,
@@ -35,6 +44,7 @@ import {
   coordenadasDe,
   esVisiblePara,
   fechaExpiracionDesde,
+  primerNombre,
 } from './articulo-publico';
 import type { CalificarArticuloDto } from './dto/calificar-articulo.dto';
 import type { FiltrarArticulosDto } from './dto/filtrar-articulos.dto';
@@ -46,6 +56,9 @@ import {
   type BandaDistancia,
   type Coordenadas,
 } from './ubicacion/ubicacion-marketplace';
+
+/** Fallos del código de entrega que bloquean la entrega hasta liberar y volver a reservar. */
+export const MAX_INTENTOS_CODIGO = 5;
 
 /** Subcarpeta de `UPLOADS_DIR` para las fotos de los artículos. */
 export const SUBCARPETA_FOTOS = 'marketplace';
@@ -88,7 +101,29 @@ export class MarketplaceService {
     private readonly archivosService: ArchivosService,
     private readonly limiteOrigenes: LimiteOrigenesService,
     private readonly creditosService: CreditosService,
+    @InjectRepository(InteresadoMarketplace)
+    private readonly interesadoRepository: Repository<InteresadoMarketplace>,
+    private readonly sesionService: SesionService,
+    private readonly auditoriaService: AuditoriaService,
   ) {}
+
+  /** Constancia del cambio de estado; solo el estado, nunca el código. */
+  private auditarEstado(
+    user: AuthUser,
+    id: number,
+    estado: EstadoArticuloMarketplace,
+    origen?: OrigenPeticion,
+  ): Promise<void> {
+    return this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: user,
+      entidad: 'articulos_marketplace',
+      entidadId: id,
+      accion: AccionAuditoria.UPDATE,
+      datosNuevos: { estado },
+      origen,
+    });
+  }
 
   async publicar(
     dto: PublicarArticuloDto,
@@ -226,8 +261,57 @@ export class MarketplaceService {
     return this.obtener(id, {}, user);
   }
 
+  /**
+   * Quien publicó elige a uno de los interesados: el artículo queda reservado
+   * y se genera el código de entrega, que solo verá quien recibe.
+   */
+  async reservar(
+    id: number,
+    conversacionId: number,
+    user: AuthUser,
+    origen?: OrigenPeticion,
+  ): Promise<ArticuloPublico> {
+    await this.buscarPropio(
+      id,
+      user,
+      'Solo puedes reservar tus propias publicaciones',
+    );
+    const interesado = await this.interesadoRepository.findOne({
+      where: { id: conversacionId, articuloId: id },
+    });
+    if (!interesado) throw new NotFoundException('Interesado no encontrado');
+
+    const ahora = new Date();
+    await this.transicionar(
+      id,
+      {
+        estado: EstadoArticuloMarketplace.DISPONIBLE,
+        fechaExpiracion: MoreThan(ahora),
+      },
+      {
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: interesado.usuarioInteresadoId,
+        fechaReserva: ahora,
+        codigoEntrega: String(randomInt(0, 1_000_000)).padStart(6, '0'),
+        intentosCodigo: 0,
+      },
+      'Este artículo ya no está disponible',
+    );
+    await this.auditarEstado(
+      user,
+      id,
+      EstadoArticuloMarketplace.EN_NEGOCIACION,
+      origen,
+    );
+    return this.obtener(id, {}, user);
+  }
+
   /** Quien publicó rechaza al interesado y el artículo vuelve a estar disponible. */
-  async liberar(id: number, user: AuthUser): Promise<ArticuloPublico> {
+  async liberar(
+    id: number,
+    user: AuthUser,
+    origen?: OrigenPeticion,
+  ): Promise<ArticuloPublico> {
     await this.buscarPropio(
       id,
       user,
@@ -239,18 +323,31 @@ export class MarketplaceService {
       {
         estado: EstadoArticuloMarketplace.DISPONIBLE,
         usuarioCompradorId: null,
+        codigoEntrega: null,
+        fechaReserva: null,
       },
       'Solo se puede liberar un artículo reservado',
+    );
+    await this.auditarEstado(
+      user,
+      id,
+      EstadoArticuloMarketplace.DISPONIBLE,
+      origen,
     );
     return this.obtener(id, {}, user);
   }
 
   /**
-   * Quien publicó cierra el intercambio con quien lo reservó y recibe los
-   * créditos de la entrega, en la misma transacción: o pasan las dos cosas o
-   * ninguna.
+   * Quien publicó cierra el intercambio con el código que le dicta quien
+   * recibe, y recibe los créditos de la entrega, en la misma transacción: o
+   * pasan las dos cosas o ninguna. 5 códigos errados bloquean la entrega.
    */
-  async entregar(id: number, user: AuthUser): Promise<ArticuloPublico> {
+  async entregar(
+    id: number,
+    codigo: string,
+    user: AuthUser,
+    origen?: OrigenPeticion,
+  ): Promise<ArticuloPublico> {
     const articulo = await this.buscarPropio(
       id,
       user,
@@ -259,9 +356,37 @@ export class MarketplaceService {
     const mensajeConflicto = 'Solo se puede entregar un artículo reservado';
     if (
       articulo.estado !== EstadoArticuloMarketplace.EN_NEGOCIACION ||
-      !articulo.usuarioCompradorId
+      !articulo.usuarioCompradorId ||
+      !articulo.codigoEntrega
     ) {
       throw new ConflictException(mensajeConflicto);
+    }
+    const mensajeBloqueado = 'Código bloqueado: libera y vuelve a reservar';
+    if (articulo.intentosCodigo >= MAX_INTENTOS_CODIGO) {
+      throw new ConflictException(mensajeBloqueado);
+    }
+
+    const esperado = Buffer.from(articulo.codigoEntrega);
+    const recibido = Buffer.from(codigo);
+    if (
+      esperado.length !== recibido.length ||
+      !timingSafeEqual(esperado, recibido)
+    ) {
+      // Atómico: dos intentos a la vez no se pisan el contador.
+      const { affected } = await this.articuloRepository
+        .createQueryBuilder()
+        .update(ArticuloMarketplace)
+        .set({ intentosCodigo: () => 'intentos_codigo + 1' })
+        .where('id = :id AND estado = :estado AND intentos_codigo < :max', {
+          id,
+          estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+          max: MAX_INTENTOS_CODIGO,
+        })
+        .execute();
+      if (!affected || articulo.intentosCodigo + 1 >= MAX_INTENTOS_CODIGO) {
+        throw new ConflictException(mensajeBloqueado);
+      }
+      throw new BadRequestException('Código incorrecto');
     }
 
     const receptorId = articulo.usuarioCompradorId;
@@ -273,16 +398,24 @@ export class MarketplaceService {
         {
           estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
           usuarioCompradorId: receptorId,
+          intentosCodigo: LessThan(MAX_INTENTOS_CODIGO),
         },
         {
           estado: EstadoArticuloMarketplace.COMPLETADO,
           fechaTransaccion: new Date(),
+          codigoEntrega: null,
         },
         mensajeConflicto,
         manager,
       );
       await this.creditosService.otorgarPorEntrega(manager, articulo);
     });
+    await this.auditarEstado(
+      user,
+      id,
+      EstadoArticuloMarketplace.COMPLETADO,
+      origen,
+    );
     return this.obtener(id, {}, user);
   }
 
@@ -463,12 +596,32 @@ export class MarketplaceService {
           ).map((c) => c.articuloId),
     );
 
+    // Solo quien publicó ve el nombre de a quién reservó.
+    const nombres = new Map<string, string>();
+    for (const { articulo } of items) {
+      const receptor = articulo.usuarioCompradorId;
+      if (
+        receptor &&
+        articulo.usuarioPublicadorId === user.ciudadanoId &&
+        articulo.estado === EstadoArticuloMarketplace.EN_NEGOCIACION &&
+        !nombres.has(receptor)
+      ) {
+        nombres.set(
+          receptor,
+          primerNombre(await this.sesionService.nombreSesionActiva(receptor)),
+        );
+      }
+    }
+
     return items.map(({ articulo, banda }) =>
       aArticuloPublico(articulo, {
         ciudadanoId: user.ciudadanoId,
         banda,
         reputacion: reputaciones.get(articulo.usuarioPublicadorId),
         yaCalifico: calificados.has(articulo.id),
+        reservadoPara: articulo.usuarioCompradorId
+          ? nombres.get(articulo.usuarioCompradorId)
+          : null,
       }),
     );
   }
