@@ -17,6 +17,7 @@ import {
   IconMarketplace,
   IconSearch,
 } from '../../../components/ui';
+import BotonReservar from '../BotonReservar';
 import { ESTADO_ARTICULO_META } from '../formato';
 import { useNoLeidos } from './NoLeidosContext';
 
@@ -261,7 +262,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
     return <p className="p-4 text-slate">Cargando conversación…</p>;
   }
 
-  const { articulo, soyPublicador: esPublicador, puedoEscribir, hayMas } = cabecera;
+  const { articulo, soyPublicador: esPublicador, otroNombre, puedoEscribir, hayMas } = cabecera;
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col bg-canvas">
@@ -283,10 +284,17 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-2">
-            {esPublicador ? 'Vecino interesado' : 'Vecino de Santo Domingo'}
-          </p>
+          <p className="truncate text-xs text-slate-2">{otroNombre}</p>
         </div>
+        {esPublicador && articulo.estado === 'disponible' && conversacionRuta && (
+          <BotonReservar
+            articuloId={id}
+            conversacionId={conversacionRuta}
+            nombre={otroNombre}
+            onReservado={() => cargar(false)}
+            className="btn-primary shrink-0 px-4 py-2"
+          />
+        )}
       </header>
 
       <div className="relative min-h-0 flex-1">

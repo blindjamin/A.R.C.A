@@ -31,3 +31,14 @@ export function haceCuanto(iso: string): string {
   if (dias < 30) return `hace ${dias} días`;
   return `el ${new Date(iso).toLocaleDateString('es-CL')}`;
 }
+
+/** El mensaje del backend dentro de "Error 400: {...}" (ver `handle`); si no hay, el texto tal cual. */
+export function mensajeDeError(e: unknown): string {
+  const texto = (e as Error).message.replace(/^Error \d+: /, '');
+  try {
+    const { message } = JSON.parse(texto) as { message?: string | string[] };
+    return [message].flat().join(' ') || texto;
+  } catch {
+    return texto;
+  }
+}

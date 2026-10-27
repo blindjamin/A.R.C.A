@@ -30,6 +30,8 @@ export interface HistorialChat {
   /** null: el interesado todavía no escribe. */
   conversacionId: number | null;
   soyPublicador: boolean;
+  /** Primer nombre del otro participante. */
+  otroNombre: string;
   puedoEscribir: boolean;
   /** Ascendente por id. */
   mensajes: MensajeChat[];
