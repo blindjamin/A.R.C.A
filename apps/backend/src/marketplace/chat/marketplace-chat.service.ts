@@ -13,6 +13,7 @@ import {
 } from '../../core';
 import { esVisiblePara } from '../articulo-publico';
 import type { ConversacionDto, HistorialDto } from '../dto/conversacion.dto';
+import { MarketplaceChatGateway } from './marketplace-chat.gateway';
 import {
   aArticuloDelChat,
   aMensajePublico,
@@ -39,6 +40,7 @@ export class MarketplaceChatService {
     private readonly articuloRepo: Repository<ArticuloMarketplace>,
     @InjectRepository(MensajeMarketplace)
     private readonly mensajeRepo: Repository<MensajeMarketplace>,
+    private readonly gateway: MarketplaceChatGateway,
   ) {}
 
   /**
@@ -133,11 +135,8 @@ export class MarketplaceChatService {
     user: AuthUser,
   ): Promise<MensajeEnviado> {
     const ahora = new Date();
-    const { articulo, interesadoId, conversacionId } = await this.resolver(
-      articuloId,
-      dto.conversacion,
-      user,
-    );
+    const { articulo, interesadoId, soyPublicador, conversacionId } =
+      await this.resolver(articuloId, dto.conversacion, user);
     if (!puedeEscribir(articulo, interesadoId, ahora)) {
       throw new ConflictException('Esta conversación es solo de lectura');
     }
@@ -152,8 +151,20 @@ export class MarketplaceChatService {
         leido: false,
       }),
     );
+    const idConversacion = conversacionId ?? guardado.id;
+    const destinatario = soyPublicador
+      ? interesadoId
+      : articulo.usuarioPublicadorId;
+    // Cada participante recibe el mensaje con su propio `esMio`.
+    for (const vecino of [user.ciudadanoId, destinatario]) {
+      this.gateway.emitirMensaje(vecino, {
+        articuloId,
+        conversacionId: idConversacion,
+        mensaje: aMensajePublico(guardado, vecino),
+      });
+    }
     return {
-      conversacionId: conversacionId ?? guardado.id,
+      conversacionId: idConversacion,
       mensaje: aMensajePublico(guardado, user.ciudadanoId),
     };
   }
@@ -164,11 +175,8 @@ export class MarketplaceChatService {
     dto: ConversacionDto,
     user: AuthUser,
   ): Promise<{ marcados: number }> {
-    const { interesadoId } = await this.resolver(
-      articuloId,
-      dto.conversacion,
-      user,
-    );
+    const { articulo, interesadoId, soyPublicador, conversacionId } =
+      await this.resolver(articuloId, dto.conversacion, user);
     const { affected } = await this.mensajeRepo.update(
       {
         articuloId,
@@ -178,7 +186,14 @@ export class MarketplaceChatService {
       },
       { leido: true },
     );
-    return { marcados: affected ?? 0 };
+    const marcados = affected ?? 0;
+    if (marcados > 0 && conversacionId !== null) {
+      this.gateway.emitirLeidos(
+        soyPublicador ? interesadoId : articulo.usuarioPublicadorId,
+        { articuloId, conversacionId },
+      );
+    }
+    return { marcados };
   }
 
   async conversaciones(user: AuthUser): Promise<ConversacionResumen[]> {

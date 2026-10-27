@@ -10,6 +10,7 @@ import {
   EstadoArticuloMarketplace,
   type MensajeMarketplace,
 } from '../../core';
+import { MarketplaceChatGateway } from './marketplace-chat.gateway';
 import { MarketplaceChatService } from './marketplace-chat.service';
 import { puedeEscribir } from './reglas-chat';
 
@@ -67,11 +68,17 @@ function montar({
     ),
     update: jest.fn(() => Promise.resolve({ affected: 2 })),
   };
+  const gateway = {
+    emitirMensaje: jest.fn(),
+    emitirLeidos: jest.fn(),
+    estaConectado: jest.fn(),
+  };
   const service = new MarketplaceChatService(
     articuloRepo as unknown as Repository<ArticuloMarketplace>,
     mensajeRepo as unknown as Repository<MensajeMarketplace>,
+    gateway as unknown as MarketplaceChatGateway,
   );
-  return { service, mensajeRepo };
+  return { service, mensajeRepo, gateway };
 }
 
 describe('MarketplaceChatService.enviar', () => {
@@ -110,6 +117,34 @@ describe('MarketplaceChatService.enviar', () => {
       }),
     );
     expect(r.conversacionId).toBe(9);
+  });
+
+  it('emite el mensaje a ambas salas, cada una con su esMio', async () => {
+    const { service, gateway } = montar();
+
+    await service.enviar(10, {}, 'Hola', usuario(YO));
+
+    const emitidos = gateway.emitirMensaje.mock.calls.map(
+      ([vecino, evento]: [string, { mensaje: { esMio: boolean } }]) => [
+        vecino,
+        evento.mensaje.esMio,
+      ],
+    );
+    expect(emitidos).toEqual([
+      [YO, true],
+      [VECINA, false],
+    ]);
+  });
+
+  it('avisa al otro participante al marcar leídos', async () => {
+    const { service, gateway } = montar({ primero: mensaje() });
+
+    await service.marcarLeidos(10, {}, usuario(YO));
+
+    expect(gateway.emitirLeidos).toHaveBeenCalledWith(VECINA, {
+      articuloId: 10,
+      conversacionId: 5,
+    });
   });
 
   it('el publicador sin conversación recibe 400', async () => {
