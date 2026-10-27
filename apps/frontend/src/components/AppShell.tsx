@@ -11,6 +11,7 @@ import {
   IconMarketplace,
   IconCircularCredits,
   IconUser,
+  IconBell,
   IconLogout,
   IconPlus,
   IconX,
@@ -62,7 +63,6 @@ const TABS_DERECHA: Tab[] = [
 
 function TabBar() {
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const { totalNoLeidos } = useNoLeidos();
 
   return (
     <>
@@ -85,11 +85,6 @@ function TabBar() {
                 >
                   <span className="relative">
                     <TabIcon className="h-5 w-5 md:h-5 md:w-5" />
-                    {tab.to === '/marketplace' && (
-                      <span className="absolute -right-2 -top-1.5">
-                        <BadgeNoLeidos cantidad={totalNoLeidos} />
-                      </span>
-                    )}
                   </span>
                   <span>{tab.label}</span>
                 </NavLink>
@@ -214,7 +209,8 @@ function TabBar() {
 
 
 function Shell({ children }: { children: ReactElement }) {
-  const { sesion, salir } = useSession();
+  const { salir } = useSession();
+  const { totalCampanita } = useNoLeidos();
   const pathname = useLocation().pathname;
   const usaTextoOscuro =
     pathname === '/inicio' ||
@@ -239,12 +235,15 @@ function Shell({ children }: { children: ReactElement }) {
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
               <MenuAccesibilidad />
               <Link
-                to="/perfil"
-                className="flex items-center gap-1.5 rounded-pill border border-line bg-white px-3 py-1 text-xs text-ink transition-colors hover:border-green-300 hover:shadow-sm"
+                to="/avisos"
+                aria-label={
+                  totalCampanita > 0 ? `Avisos, ${totalCampanita} sin leer` : 'Avisos'
+                }
+                className="relative flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/15"
               >
-                <IconUser className="h-3.5 w-3.5 text-green-700" />
-                <span className="max-w-[120px] truncate font-medium text-slate hover:text-ink sm:max-w-[180px]">
-                  {sesion?.nombre || 'Mi Perfil'}
+                <IconBell className="h-5 w-5" />
+                <span className="absolute right-0 top-0">
+                  <BadgeNoLeidos cantidad={totalCampanita} />
                 </span>
               </Link>
               {/* El texto se ve también en el celular: la certificación de
