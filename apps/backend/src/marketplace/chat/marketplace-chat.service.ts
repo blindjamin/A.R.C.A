@@ -22,13 +22,16 @@ import {
   SesionService,
   TipoActorAuditoria,
 } from '../../core';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { PushService } from '../../push/push.service';
 import { TiempoRealGateway } from '../../tiempo-real/tiempo-real.gateway';
 import {
   calcularReputaciones,
   esVisiblePara,
   estaVencido,
+  LARGO_TITULO_AVISO,
   primerNombre,
+  recortar,
 } from '../articulo-publico';
 import type { ConversacionDto, HistorialDto } from '../dto/conversacion.dto';
 import {
@@ -44,11 +47,6 @@ import {
   type MensajeEnviado,
   puedeEscribir,
 } from './reglas-chat';
-
-/** Recorta por caracteres y no por unidades UTF-16: no parte emojis. */
-function recortar(texto: string, largo: number): string {
-  return Array.from(texto).slice(0, largo).join('');
-}
 
 interface Resolucion {
   articulo: ArticuloMarketplace;
@@ -73,6 +71,7 @@ export class MarketplaceChatService {
     private readonly pushService: PushService,
     private readonly sesionService: SesionService,
     private readonly auditoriaService: AuditoriaService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   private async nombreDe(ciudadanoId: string): Promise<string> {
@@ -145,6 +144,13 @@ export class MarketplaceChatService {
         accion: AccionAuditoria.CREATE,
         datosNuevos: { articuloId },
         origen,
+      });
+      // Ya persistido y auditado; el aviso nunca bloquea ni hace fallar el alta.
+      void this.notificaciones.notificar(articulo.usuarioPublicadorId, {
+        tipo: 'interes',
+        titulo: 'Nuevo interesado',
+        cuerpo: `${await this.nombreDe(yo)} quiere «${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`,
+        url: `/marketplace/${articuloId}`,
       });
     }
     return { conversacionId: fila.id };

@@ -18,6 +18,7 @@ import {
 } from '../core';
 import type { ArchivosService } from '../archivos/archivos.service';
 import type { CreditosService } from '../creditos/creditos.service';
+import type { NotificacionesService } from '../notificaciones/notificaciones.service';
 import type { ResiduosService } from '../residuos/residuos.service';
 import { MarketplaceService, SUBCARPETA_FOTOS } from './marketplace.service';
 import type { LimiteOrigenesService } from './ubicacion/limite-origenes.service';
@@ -72,6 +73,7 @@ function montar({
   calificaciones = [] as Partial<Calificacion>[],
   afectadas = 1,
   interesado = null as Partial<InteresadoMarketplace> | null,
+  interesados = [] as Partial<InteresadoMarketplace>[],
   afectadasIntento = 1,
   errorAlCalificar = null as Error | null,
 } = {}) {
@@ -95,7 +97,9 @@ function montar({
   };
   const interesadoRepo = {
     findOne: jest.fn(() => Promise.resolve(interesado)),
+    find: jest.fn(() => Promise.resolve(interesados)),
   };
+  const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
   const sesionService = {
     nombreSesionActiva: jest.fn(() => Promise.resolve('Ana María')),
   };
@@ -119,6 +123,7 @@ function montar({
   const creditos = {
     otorgarPorEntrega: jest.fn(() => Promise.resolve({})),
     otorgarPorEstrellas: jest.fn(() => Promise.resolve(null)),
+    avisarAbono: jest.fn(),
   };
   const residuos = {
     findCatalogoById: jest.fn((id: number): Promise<ResiduoCatalogo | null> =>
@@ -144,6 +149,7 @@ function montar({
     interesadoRepo as unknown as Repository<InteresadoMarketplace>,
     sesionService as unknown as SesionService,
     auditoriaService as unknown as AuditoriaService,
+    notificaciones as unknown as NotificacionesService,
   );
 
   return {
@@ -153,6 +159,7 @@ function montar({
     manager,
     creditos,
     auditoriaService,
+    notificaciones,
     interesadoRepo,
     archivos,
     limiteOrigenes,
@@ -862,5 +869,170 @@ describe('MarketplaceService.misArticulos', () => {
     ).toEqual({ usuarioPublicadorId: YO });
     expect(unico.esPropio).toBe(true);
     expect(unico.banda).toBeNull();
+  });
+});
+
+describe('MarketplaceService: avisos de la campanita', () => {
+  const RECEPTOR = '00000000-0000-4000-8000-000000000003';
+  const OTRO = '00000000-0000-4000-8000-000000000004';
+  const propio = (cambios: Partial<ArticuloMarketplace> = {}) =>
+    articulo({
+      usuarioPublicadorId: YO,
+      titulo: 'Sillón',
+      ...cambios,
+    });
+  const llamadas = (n: { notificar: jest.Mock }) =>
+    n.notificar.mock.calls as unknown as [
+      string,
+      { tipo: string; titulo: string; cuerpo: string; url: string },
+    ][];
+
+  it('reservar avisa al elegido y a los demás interesados, no al elegido dos veces', async () => {
+    const { service, notificaciones } = montar({
+      encontrado: propio(),
+      interesado: { id: 4, usuarioInteresadoId: RECEPTOR },
+      interesados: [
+        { usuarioInteresadoId: RECEPTOR },
+        { usuarioInteresadoId: OTRO },
+      ],
+    });
+
+    await service.reservar(10, 4, usuario(YO));
+
+    const avisos = llamadas(notificaciones);
+    expect(avisos).toHaveLength(2);
+    expect(avisos[0][0]).toBe(RECEPTOR);
+    expect(avisos[0][1]).toEqual({
+      tipo: 'reserva',
+      titulo: 'Te reservaron un artículo',
+      cuerpo: 'Ana te reservó «Sillón»',
+      url: '/marketplace/10',
+    });
+    expect(avisos[1][0]).toBe(OTRO);
+    expect(avisos[1][1]).toEqual({
+      tipo: 'reserva_otro',
+      titulo: 'Ya fue reservado',
+      cuerpo: 'Otro vecino reservó «Sillón»',
+      url: '/marketplace/10/chat',
+    });
+  });
+
+  it('el título largo se recorta a 40 caracteres', async () => {
+    const { service, notificaciones } = montar({
+      encontrado: propio({ titulo: 'x'.repeat(100) }),
+      interesado: { id: 4, usuarioInteresadoId: RECEPTOR },
+    });
+
+    await service.reservar(10, 4, usuario(YO));
+
+    expect(llamadas(notificaciones)[0][1].cuerpo).toBe(
+      `Ana te reservó «${'x'.repeat(40)}»`,
+    );
+  });
+
+  it('un reservar que falla no avisa a nadie', async () => {
+    const { service, notificaciones } = montar({
+      encontrado: propio(),
+      interesado: { id: 4, usuarioInteresadoId: RECEPTOR },
+      afectadas: 0,
+    });
+
+    await expect(service.reservar(10, 4, usuario(YO))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
+  });
+
+  it('liberar avisa al ex receptor y a los demás, cada uno una vez', async () => {
+    const { service, notificaciones } = montar({
+      encontrado: propio({
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: RECEPTOR,
+      }),
+      interesados: [
+        { usuarioInteresadoId: RECEPTOR },
+        { usuarioInteresadoId: OTRO },
+      ],
+    });
+
+    await service.liberar(10, usuario(YO));
+
+    const avisos = llamadas(notificaciones);
+    expect(avisos.map((a) => a[0]).sort()).toEqual([OTRO, RECEPTOR].sort());
+    expect(avisos[0][1]).toEqual({
+      tipo: 'liberado',
+      titulo: 'Volvió a estar disponible',
+      cuerpo: '«Sillón» está disponible otra vez',
+      url: '/marketplace/10',
+    });
+  });
+
+  it('entregar avisa al receptor y el abono de créditos', async () => {
+    const { service, notificaciones, creditos } = montar({
+      encontrado: propio({
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: RECEPTOR,
+        codigoEntrega: '123456',
+        intentosCodigo: 0,
+      }),
+    });
+
+    await service.entregar(10, '123456', usuario(YO));
+
+    expect(llamadas(notificaciones)).toEqual([
+      [
+        RECEPTOR,
+        {
+          tipo: 'entrega',
+          titulo: 'Entrega confirmada',
+          cuerpo: 'Recibiste «Sillón»',
+          url: '/marketplace/10',
+        },
+      ],
+    ]);
+    expect(creditos.avisarAbono).toHaveBeenCalledTimes(1);
+  });
+
+  it('un código incorrecto no avisa ni abona', async () => {
+    const { service, notificaciones, creditos } = montar({
+      encontrado: propio({
+        estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+        usuarioCompradorId: RECEPTOR,
+        codigoEntrega: '123456',
+        intentosCodigo: 0,
+      }),
+    });
+
+    await expect(
+      service.entregar(10, '000000', usuario(YO)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
+    expect(creditos.avisarAbono).not.toHaveBeenCalled();
+  });
+
+  it('calificar avisa al publicador con las estrellas, sin el comentario', async () => {
+    const { service, notificaciones } = montar({
+      encontrado: articulo({
+        titulo: 'Sillón',
+        estado: EstadoArticuloMarketplace.COMPLETADO,
+        usuarioCompradorId: YO,
+      }),
+    });
+
+    await service.calificar(
+      10,
+      { puntuacion: 5, comentario: 'mi teléfono es 12345' },
+      usuario(YO),
+    );
+
+    const avisos = llamadas(notificaciones);
+    expect(avisos[0][0]).toBe(VECINA);
+    expect(avisos[0][1]).toEqual({
+      tipo: 'calificacion',
+      titulo: 'Te calificaron',
+      cuerpo: 'Recibiste 5 estrellas por «Sillón»',
+      url: '/marketplace/10',
+    });
+    expect(JSON.stringify(avisos)).not.toContain('12345');
   });
 });

@@ -16,6 +16,14 @@ import type {
  */
 export const NOMBRE_PUBLICADOR_PROVISORIO = 'Vecino de Santo Domingo';
 
+/** Recorta por caracteres y no por unidades UTF-16: no parte emojis. */
+export function recortar(texto: string, largo: number): string {
+  return Array.from(texto).slice(0, largo).join('');
+}
+
+/** Largo del título de un artículo dentro de un aviso. */
+export const LARGO_TITULO_AVISO = 40;
+
 /** Primer nombre de la sesión ClaveÚnica; sin sesión activa, el nombre provisorio. */
 export function primerNombre(nombreSesion: string | null): string {
   return nombreSesion?.trim().split(/\s+/)[0] || NOMBRE_PUBLICADOR_PROVISORIO;

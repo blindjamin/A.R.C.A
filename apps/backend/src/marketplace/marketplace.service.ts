@@ -29,6 +29,7 @@ import {
   type OrigenPeticion,
   SesionService,
   TipoActorAuditoria,
+  type TransaccionCircularCredits,
 } from '../core';
 import {
   type ArchivoParaEnviar,
@@ -36,6 +37,7 @@ import {
   ArchivosService,
 } from '../archivos/archivos.service';
 import { CreditosService } from '../creditos/creditos.service';
+import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { ResiduosService } from '../residuos/residuos.service';
 import {
   aArticuloPublico,
@@ -44,7 +46,9 @@ import {
   coordenadasDe,
   esVisiblePara,
   fechaExpiracionDesde,
+  LARGO_TITULO_AVISO,
   primerNombre,
+  recortar,
 } from './articulo-publico';
 import type { CalificarArticuloDto } from './dto/calificar-articulo.dto';
 import type { FiltrarArticulosDto } from './dto/filtrar-articulos.dto';
@@ -105,7 +109,44 @@ export class MarketplaceService {
     private readonly interesadoRepository: Repository<InteresadoMarketplace>,
     private readonly sesionService: SesionService,
     private readonly auditoriaService: AuditoriaService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
+
+  /** Aviso de la campanita; el servicio nunca lanza, así que no bloquea la operación. */
+  private avisar(
+    ciudadanoId: string,
+    tipo: string,
+    titulo: string,
+    cuerpo: string,
+    articuloId: number,
+    sufijoUrl = '',
+  ): void {
+    void this.notificaciones.notificar(ciudadanoId, {
+      tipo,
+      titulo,
+      cuerpo,
+      url: `/marketplace/${articuloId}${sufijoUrl}`,
+    });
+  }
+
+  private async nombreDe(ciudadanoId: string): Promise<string> {
+    return primerNombre(
+      await this.sesionService.nombreSesionActiva(ciudadanoId),
+    );
+  }
+
+  /** Los vecinos con interés en el artículo, salvo `excepto`. */
+  private async interesadosDe(
+    articuloId: number,
+    excepto?: string,
+  ): Promise<string[]> {
+    const filas = await this.interesadoRepository.find({
+      where: { articuloId },
+    });
+    return filas
+      .map((f) => f.usuarioInteresadoId)
+      .filter((id) => id !== excepto);
+  }
 
   /** Constancia del cambio de estado; solo el estado, nunca el código. */
   private auditarEstado(
@@ -271,7 +312,7 @@ export class MarketplaceService {
     user: AuthUser,
     origen?: OrigenPeticion,
   ): Promise<ArticuloPublico> {
-    await this.buscarPropio(
+    const articulo = await this.buscarPropio(
       id,
       user,
       'Solo puedes reservar tus propias publicaciones',
@@ -303,6 +344,25 @@ export class MarketplaceService {
       EstadoArticuloMarketplace.EN_NEGOCIACION,
       origen,
     );
+    const titulo = `«${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`;
+    const receptor = interesado.usuarioInteresadoId;
+    this.avisar(
+      receptor,
+      'reserva',
+      'Te reservaron un artículo',
+      `${await this.nombreDe(user.ciudadanoId)} te reservó ${titulo}`,
+      id,
+    );
+    for (const otro of await this.interesadosDe(id, receptor)) {
+      this.avisar(
+        otro,
+        'reserva_otro',
+        'Ya fue reservado',
+        `Otro vecino reservó ${titulo}`,
+        id,
+        '/chat',
+      );
+    }
     return this.obtener(id, {}, user);
   }
 
@@ -312,7 +372,7 @@ export class MarketplaceService {
     user: AuthUser,
     origen?: OrigenPeticion,
   ): Promise<ArticuloPublico> {
-    await this.buscarPropio(
+    const articulo = await this.buscarPropio(
       id,
       user,
       'Solo puedes liberar tus propias publicaciones',
@@ -334,6 +394,20 @@ export class MarketplaceService {
       EstadoArticuloMarketplace.DISPONIBLE,
       origen,
     );
+    // Quien tenía la reserva también es un interesado; el Set evita repetirlo.
+    const destinatarios = new Set([
+      ...(articulo.usuarioCompradorId ? [articulo.usuarioCompradorId] : []),
+      ...(await this.interesadosDe(id)),
+    ]);
+    for (const vecino of destinatarios) {
+      this.avisar(
+        vecino,
+        'liberado',
+        'Volvió a estar disponible',
+        `«${recortar(articulo.titulo, LARGO_TITULO_AVISO)}» está disponible otra vez`,
+        id,
+      );
+    }
     return this.obtener(id, {}, user);
   }
 
@@ -390,32 +464,43 @@ export class MarketplaceService {
     }
 
     const receptorId = articulo.usuarioCompradorId;
-    await this.articuloRepository.manager.transaction(async (manager) => {
-      // También con el mismo receptor: si entre la lectura y el UPDATE se liberó
-      // y lo reservó otra persona, no se le entrega a alguien que no se eligió.
-      await this.transicionar(
-        id,
-        {
-          estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
-          usuarioCompradorId: receptorId,
-          intentosCodigo: LessThan(MAX_INTENTOS_CODIGO),
-        },
-        {
-          estado: EstadoArticuloMarketplace.COMPLETADO,
-          fechaTransaccion: new Date(),
-          codigoEntrega: null,
-        },
-        mensajeConflicto,
-        manager,
-      );
-      await this.creditosService.otorgarPorEntrega(manager, articulo);
-    });
+    const abono = await this.articuloRepository.manager.transaction(
+      async (manager) => {
+        // También con el mismo receptor: si entre la lectura y el UPDATE se liberó
+        // y lo reservó otra persona, no se le entrega a alguien que no se eligió.
+        await this.transicionar(
+          id,
+          {
+            estado: EstadoArticuloMarketplace.EN_NEGOCIACION,
+            usuarioCompradorId: receptorId,
+            intentosCodigo: LessThan(MAX_INTENTOS_CODIGO),
+          },
+          {
+            estado: EstadoArticuloMarketplace.COMPLETADO,
+            fechaTransaccion: new Date(),
+            codigoEntrega: null,
+          },
+          mensajeConflicto,
+          manager,
+        );
+        return this.creditosService.otorgarPorEntrega(manager, articulo);
+      },
+    );
     await this.auditarEstado(
       user,
       id,
       EstadoArticuloMarketplace.COMPLETADO,
       origen,
     );
+    // Tras el commit: nada de esto bloquea ni deshace la entrega.
+    this.avisar(
+      receptorId,
+      'entrega',
+      'Entrega confirmada',
+      `Recibiste «${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`,
+      id,
+    );
+    this.creditosService.avisarAbono(abono);
     return this.obtener(id, {}, user);
   }
 
@@ -450,17 +535,20 @@ export class MarketplaceService {
       fechaCalificacion: new Date(),
     });
 
-    let guardada: Calificacion;
+    let guardada: {
+      nueva: Calificacion;
+      abono: TransaccionCircularCredits | null;
+    };
     try {
       guardada = await this.articuloRepository.manager.transaction(
         async (manager) => {
           const nueva = await manager.save(Calificacion, calificacion);
-          await this.creditosService.otorgarPorEstrellas(
+          const abono = await this.creditosService.otorgarPorEstrellas(
             manager,
             articulo,
             dto.puntuacion,
           );
-          return nueva;
+          return { nueva, abono };
         },
       );
     } catch (error) {
@@ -470,10 +558,19 @@ export class MarketplaceService {
       throw error;
     }
 
+    this.avisar(
+      articulo.usuarioPublicadorId,
+      'calificacion',
+      'Te calificaron',
+      `Recibiste ${dto.puntuacion} ${dto.puntuacion === 1 ? 'estrella' : 'estrellas'} por «${recortar(articulo.titulo, LARGO_TITULO_AVISO)}»`,
+      id,
+    );
+    if (guardada.abono) this.creditosService.avisarAbono(guardada.abono);
+
     return {
-      puntuacion: guardada.puntuacion,
-      comentario: guardada.comentario,
-      fecha: guardada.fechaCalificacion,
+      puntuacion: guardada.nueva.puntuacion,
+      comentario: guardada.nueva.comentario,
+      fecha: guardada.nueva.fechaCalificacion,
     };
   }
 
