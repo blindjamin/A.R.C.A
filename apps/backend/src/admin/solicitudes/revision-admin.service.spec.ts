@@ -16,6 +16,7 @@ import {
 } from '../../core';
 import type { Repository } from 'typeorm';
 import { RevisionAdminService } from './revision-admin.service';
+import type { NotificacionesService } from '../../notificaciones/notificaciones.service';
 
 const FUNCIONARIO: AuthUser = {
   ciudadanoId: '00000000-0000-4000-8000-000000000002',
@@ -91,6 +92,7 @@ function montar(fila: SolicitudRetiro) {
     }),
   };
   const auditoria = { registrar: jest.fn(() => Promise.resolve()) };
+  const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
 
   const service = new RevisionAdminService(
     solicitudes as unknown as Repository<SolicitudRetiro>,
@@ -98,12 +100,14 @@ function montar(fila: SolicitudRetiro) {
     revisionesRepo as never,
     notasRepo as never,
     auditoria as unknown as AuditoriaService,
+    notificaciones as unknown as NotificacionesService,
   );
 
   return {
     service,
     solicitudes,
     auditoria,
+    notificaciones,
     revisiones,
     notas,
     guardada: () => guardada,
@@ -200,6 +204,57 @@ describe('RevisionAdminService.revisar', () => {
         }) as unknown,
       }),
     );
+  });
+
+  it.each([
+    [
+      EstadoSolicitudRetiro.APROBADA,
+      'Tu solicitud #7 fue aprobada',
+      { checklist: checklistCompleto() },
+    ],
+    [
+      EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+      'Tu solicitud #7 necesita cambios',
+      { motivo: MotivoRevision.FOTO_INSUFICIENTE, comentario: 'nota interna' },
+    ],
+    [
+      EstadoSolicitudRetiro.RECHAZADA,
+      'Tu solicitud #7 fue rechazada',
+      { motivo: MotivoRevision.DUPLICADA, comentario: 'nota interna' },
+    ],
+  ])(
+    '%s avisa al vecino en la campanita, sin notas',
+    async (decision, texto, extra) => {
+      const { service, notificaciones } = montar(filaBase());
+
+      await service.revisar(7, { decision, ...extra }, FUNCIONARIO);
+
+      expect(notificaciones.notificar).toHaveBeenCalledWith(
+        '00000000-0000-4000-8000-000000000001',
+        {
+          tipo: 'solicitud',
+          titulo: 'Solicitud de retiro',
+          cuerpo: texto,
+          url: '/mis-solicitudes',
+        },
+      );
+      expect(JSON.stringify(notificaciones.notificar.mock.calls)).not.toContain(
+        'nota interna',
+      );
+    },
+  );
+
+  it('una revisión inválida no avisa', async () => {
+    const { service, notificaciones } = montar(filaBase());
+
+    await expect(
+      service.revisar(
+        7,
+        { decision: EstadoSolicitudRetiro.APROBADA, checklist: {} },
+        FUNCIONARIO,
+      ),
+    ).rejects.toBeDefined();
+    expect(notificaciones.notificar).not.toHaveBeenCalled();
   });
 
   it('pedir modificación guarda motivo y comentario, pero audita solo el motivo', async () => {

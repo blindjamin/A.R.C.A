@@ -6,6 +6,8 @@ import {
   Optional,
 } from '@nestjs/common';
 import { MailService } from '../../mail/mail.service';
+import { avisoDeSolicitud } from '../../notificaciones/avisos-solicitud';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -72,6 +74,7 @@ export class RevisionAdminService {
     @InjectRepository(NotaSolicitud)
     private readonly notaRepository: Repository<NotaSolicitud>,
     private readonly auditoriaService: AuditoriaService,
+    private readonly notificaciones: NotificacionesService,
     @Optional()
     private readonly mailService?: MailService,
   ) {}
@@ -172,6 +175,12 @@ export class RevisionAdminService {
       },
       origen,
     });
+
+    // Campanita: además del correo, ya con la decisión persistida y auditada.
+    const aviso = avisoDeSolicitud(id, dto.decision);
+    if (aviso) {
+      void this.notificaciones.notificar(solicitud.usuarioCiudadanoId, aviso);
+    }
 
     // Notificación por correo al vecino si tiene email verificado/registrado
     if (this.mailService) {

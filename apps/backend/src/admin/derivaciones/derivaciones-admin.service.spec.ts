@@ -11,6 +11,7 @@ import {
   type SolicitudRetiro,
 } from '../../core';
 import { DerivacionesAdminService } from './derivaciones-admin.service';
+import type { NotificacionesService } from '../../notificaciones/notificaciones.service';
 
 const FUNCIONARIO: AuthUser = {
   ciudadanoId: '00000000-0000-4000-8000-000000000002',
@@ -86,14 +87,16 @@ function montar(listas: SolicitudRetiro[]) {
     find: jest.fn(() => Promise.resolve([])),
   };
   const auditoria = { registrar: jest.fn(() => Promise.resolve()) };
+  const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
 
   const service = new DerivacionesAdminService(
     solicitudes as never,
     lotes as never,
     auditoria as unknown as AuditoriaService,
+    notificaciones as unknown as NotificacionesService,
   );
 
-  return { service, manager, guardadas, auditoria };
+  return { service, manager, guardadas, auditoria, notificaciones };
 }
 
 describe('DerivacionesAdminService.crearLote', () => {
@@ -113,6 +116,20 @@ describe('DerivacionesAdminService.crearLote', () => {
       expect.anything(),
       expect.objectContaining({ lock: { mode: 'pessimistic_write' } }),
     );
+  });
+
+  it('avisa al vecino de cada solicitud derivada', async () => {
+    const { service, notificaciones } = montar([aprobada(1), aprobada(2)]);
+
+    await service.crearLote(FUNCIONARIO);
+
+    expect(notificaciones.notificar).toHaveBeenCalledTimes(2);
+    expect(notificaciones.notificar).toHaveBeenCalledWith(VECINO_ID, {
+      tipo: 'solicitud',
+      titulo: 'Solicitud de retiro',
+      cuerpo: 'Tu solicitud #2 fue derivada para el retiro',
+      url: '/mis-solicitudes',
+    });
   });
 
   it('sin solicitudes listas responde 400 y no crea el lote', async () => {

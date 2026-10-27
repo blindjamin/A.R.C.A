@@ -3,6 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { avisoDeSolicitud } from '../../notificaciones/avisos-solicitud';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
@@ -57,6 +59,7 @@ export class DerivacionesAdminService {
     @InjectRepository(LoteDerivacion)
     private readonly loteRepository: Repository<LoteDerivacion>,
     private readonly auditoriaService: AuditoriaService,
+    private readonly notificaciones: NotificacionesService,
   ) {}
 
   async resumen(): Promise<ResumenDerivacion> {
@@ -131,6 +134,7 @@ export class DerivacionesAdminService {
           lote,
           cambios: solicitudes.map((s, i) => ({
             id: s.id,
+            vecinoId: s.usuarioCiudadanoId,
             ...diferencias(antes[i], fotografiar(s)),
           })),
         };
@@ -157,6 +161,9 @@ export class DerivacionesAdminService {
         datosNuevos: { ...cambio.nuevos, loteDerivacionId: lote.id },
         origen,
       });
+      // Campanita: un aviso por solicitud, con el lote ya persistido.
+      const aviso = avisoDeSolicitud(cambio.id, EstadoSolicitudRetiro.DERIVADA);
+      if (aviso) void this.notificaciones.notificar(cambio.vecinoId, aviso);
     }
 
     return lote;

@@ -10,6 +10,7 @@ import {
   UsuarioAdministrador,
 } from '../../core';
 import { MailModule } from '../../mail/mail.module';
+import { NotificacionesModule } from '../../notificaciones/notificaciones.module';
 import { RevisionAdminController } from './revision-admin.controller';
 import { RevisionAdminService } from './revision-admin.service';
 import { SolicitudesAdminController } from './solicitudes-admin.controller';
@@ -27,6 +28,7 @@ import { SolicitudesAdminService } from './solicitudes-admin.service';
     AuthModule,
     AuditoriaModule,
     MailModule,
+    NotificacionesModule,
   ],
   controllers: [SolicitudesAdminController, RevisionAdminController],
   providers: [SolicitudesAdminService, RevisionAdminService],
