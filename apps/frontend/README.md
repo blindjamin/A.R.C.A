@@ -62,6 +62,9 @@ backend comparten un único origen y no hace falta tocar CORS ni URLs absolutas 
 ```
 src/
 ├── api/arca.ts                  # Capa única de acceso a la API (fetch tipado)
+├── api/chat.ts · push.ts        # API del chat del Marketplace y de los avisos push (HU-06)
+├── api/socket.ts                # Cliente socket.io único de la app (/api/socket.io)
+├── pwa/                         # Instalación de la PWA y suscripción push (push.ts)
 ├── auth/SessionContext.tsx      # Identidad temporal (mock hasta ClaveÚnica real)
 ├── components/
 │   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected
@@ -74,6 +77,7 @@ src/
 ├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
 ├── features/
 │   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones)
+│   │   └── chat/                # Chat (HU-06): Chat, Bandeja y NoLeidosContext
 │   ├── pago/                    # Persistencia local de pagos y comprobantes (pagosStorage.ts)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
@@ -92,6 +96,25 @@ src/
 > (SPEC-frontend-unificado): no es otro origen ni necesita una variable de entorno propia.
 > El botón "Modo funcionario" de `SeleccionInicio.tsx` navega a `/admin` con el router de React.
 
+### Chat del Marketplace (HU-06)
+
+- **`Chat`** (`/marketplace/:id/chat` y `/marketplace/:id/chat/:conversacionId`): pantalla completa, sin el
+  header ni la TabBar (`RequireSession` en vez de `Protected`). El interesado entra sin id de
+  conversación; quien publica entra con el `conversacionId` opaco. Envía por REST con el mensaje
+  pendiente en pantalla, y recibe por socket. Si la conversación pasa a solo lectura, oculta el campo de texto.
+- **`Bandeja`** (`/marketplace/mensajes`): lista de conversaciones con el último mensaje y los no leídos.
+- **`NoLeidosContext`**: abre el socket con la sesión, carga `GET /marketplace/conversaciones` y la
+  vuelve a pedir ante cada evento (`mensaje`, `leidos`, `connect`). De ahí salen los avisos de
+  mensajes sin leer (`BadgeNoLeidos`) en la pestaña Mercado, en «Mensajes», en «Mis publicaciones» y
+  en el detalle del artículo.
+- **`api/socket.ts`**: un único cliente `socket.io-client` en `/api/socket.io`, mismo origen (la
+  cookie viaja sola). Solo recibe; enviar va por `api/chat.ts`. En desarrollo, `vite.config.ts` proxea
+  `/api` con `ws: true`; `API_PROXY_TARGET` cambia el destino si el 3000 está reservado.
+- **`pwa/push.ts`** y `public/sw.js`: al primer envío se pide el permiso de notificaciones
+  dentro del gesto del botón (después de un `await` Safari lo rechaza) y, si se concede, se
+  registra la suscripción Web Push. El service worker muestra el aviso y, al tocarlo, abre solo
+  rutas propias del sitio. Al cerrar sesión se borra la suscripción del servidor.
+
 ### Criterio de organización
 
 - **`features/`** — un módulo funcional completo (pantallas + estado + rutas) que se puede
@@ -106,7 +129,8 @@ src/
 - Componentes como funciones, props tipadas con TypeScript, hooks modernos.
 - Estilos con Tailwind + las clases utilitarias del UI Kit (`.card`, `.btn-primary`,
   `.btn-gold`, `.btn-outline`, `.btn-ghost`, `.pill`, `.field`, `.chip`).
-- **Todas** las llamadas HTTP pasan por `src/api/arca.ts`; ninguna pantalla hace `fetch` directo.
+- **Todas** las llamadas HTTP pasan por la capa `src/api/` (`arca.ts`, `marketplace.ts`, `chat.ts`,
+  `push.ts`, que reutilizan `apiFetch`); ninguna pantalla hace `fetch` directo.
 - Tokens de diseño (colores, radios, sombras, tipografías) en
   [`tailwind.config.js`](tailwind.config.js) e [`index.css`](src/index.css).
 

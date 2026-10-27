@@ -281,6 +281,25 @@ alcanza.
 **Al agregar una acción auditada nueva:** registrar estados, códigos, ids o cantidades; si hay texto
 libre o un dato de contacto, registrar solo que cambió. Sumar la fila a esta tabla.
 
+### 3.8 Superficie del chat del Marketplace (HU-06)
+
+El chat suma tres superficies. Las tres reutilizan los controles existentes en vez de crear otros.
+
+| Superficie | Cómo se protege | Qué no cubre |
+|---|---|---|
+| **REST** (`/api/marketplace/.../mensajes`, `/conversaciones`) | Sesión por cookie, `Origin` en las escrituras y validación global, como el resto de la API. El envío lleva `@LimiteChat()` (30 por minuto por IP; se cuenta por IP y varios vecinos pueden compartirla) | El límite es por IP, no por vecino |
+| **Socket** (`/api/socket.io`) | El handshake valida la **cookie de sesión** (`SesionService.validar`) y el **`Origin`** (se acepta ausente, como en `verificarOrigen`, o igual a `FRONTEND_URL`). El gateway no tiene `@SubscribeMessage`: solo empuja del servidor al cliente. Todo lo que se escribe pasa por REST, con sus guards. Cada vecino entra solo a su sala `usuario:<id>` | **Sin rate limit propio**: los guards globales (`AuthGuard`, `ThrottlerGuard`) son HTTP y fallarían con un contexto ws. Un socket abierto **no se revalida**: sigue en su sala aunque la sesión venza o se cierre en otra pestaña, y solo recibiría avisos del mismo vecino |
+| **Push** (`/api/push/...`) | `web-push` hace un POST al `endpoint` que manda el cliente, así que se exige `https:`, sin puerto ni credenciales en la URL, y un host de una **lista blanca** de servicios push (FCM, Mozilla, Apple, Windows): evita el SSRF. Tope de 5 suscripciones por vecino. El endpoint no se escribe en los logs (es una URL-capacidad) | La lista blanca hay que actualizarla si aparece otro servicio push |
+
+Otras decisiones de este módulo:
+
+- **Ids opacos.** El interesado de una conversación nunca sale del servidor: la conversación se identifica con `conversacionId` (el menor `id` de sus mensajes) y los mensajes llevan `esMio` en vez del remitente. El test de la lista blanca de la respuesta verifica que no aparece ningún UUID. Es la misma regla que ya cumple el artículo público (`marketplace/articulo-publico.ts`).
+- **Visibilidad.** Quien ya conversó puede leer su historial en solo lectura aunque otro vecino reserve el artículo (decisión 9 extendida, [spec](specs/SPEC-marketplace.md) §2). Solo recibe título, estado y si puede escribir, y la foto solo si el artículo le sigue siendo visible.
+- **Dispositivo compartido.** El alta de una suscripción reasigna el dispositivo al vecino que entra después (el `endpoint` es único), y al cerrar sesión el frontend la borra, para que el vecino siguiente no reciba avisos ajenos.
+- **Contenido en el aviso.** El aviso push incluye el título del artículo y los primeros 80 caracteres del mensaje, y pasa por el servicio push del navegador (Google, Mozilla, Apple o Microsoft), cifrado de extremo a extremo con las claves de la suscripción.
+- **Cookie y ruta.** La cookie de sesión tiene `Path=/api`; por eso el socket vive en `/api/socket.io` y no en `/socket.io`. Eso obliga a pedir al municipio la excepción de WAF para esa ruta ([`DEPLOY_CPANEL.md`](DEPLOY_CPANEL.md) §4.1).
+- **Un solo proceso.** Las salas viven en la memoria del proceso, igual que el límite de consultas.
+
 ## 4. Registro de cambios de este documento
 
 | Fecha | Cambio |
@@ -300,3 +319,4 @@ libre o un dato de contacto, registrar solo que cambió. Sumar la fila a esta ta
 | 2026-10-16 | Auditoría (Sprint 4): filtros por fecha y por funcionario, y **exportación a CSV y XLSX** (`GET /api/admin/auditoria/exportar`, solo rol `admin`). Cada exportación queda registrada como `ACCESO` con el formato, los filtros y la cantidad de filas, igual que la descarga del Excel de derivación: es una salida masiva de datos. El CSV neutraliza la **inyección de fórmulas** (celdas que empiezan con `=`, `+`, `-`, `@`, tabulación o retorno de carro llevan un apóstrofo delante, OWASP *CSV Injection*); el XLSX no la necesita porque los valores se escriben como texto. Los filtros se validan con DTO (fechas ISO, rango de 1 año como máximo, `actor` restringido a un id, `vecinos` o `sistema`, sin parámetros desconocidos) y la exportación tiene un tope de 50 000 filas. Los vecinos siguen sin nombre en el registro: se filtran como grupo, no uno por uno |
 | 2026-10-16 | Listado de solicitudes pagadas (Sprint 4): `GET /api/admin/pagadas`, `/sectores` y `/exportar` (admin y funcionario). Cada descarga queda registrada como `ACCESO` sobre `solicitudes_retiro` con el formato, los filtros y la cantidad de filas, sin copiar el contenido. Usa la misma protección contra **inyección de fórmulas** que la auditoría (`admin/comun/exportar-tabla.ts`). El listado no incluye nombre, RUN ni contacto del vecino. Los filtros se validan con DTO (rango de 1 año como máximo, sin parámetros desconocidos) y la exportación tiene un tope de 50 000 filas |
 | 2026-10-16 | §3.7: qué registra la auditoría y qué no, acción por acción (regla de minimización). Recupera el criterio que estaba en comentarios del código y se perdió al reordenar el service de solicitudes (#101). Incluye la auditoría del perfil y del plazo de la dirección de retiro (decisión 016) |
+| 2026-10-24 | §3.8: superficie del chat (HU-06). Handshake del socket con cookie y `Origin`, sin `@SubscribeMessage` ni rate limit propio (los guards globales son HTTP); push con lista blanca de hosts contra SSRF y tope de 5 suscripciones por vecino; `conversacionId` opaco para no exponer al interesado; suscripción push borrada al cerrar sesión. Residual: el socket abierto no se revalida |

@@ -46,6 +46,7 @@ ciudadano y administrativo de punta a punta:
 | Estilos | Tailwind CSS **v3** | tokens del UI Kit en `tailwind.config.js` |
 | Ruteo | react-router-dom | rutas protegidas por sesión y rol admin |
 | Estado/API | `fetch` nativo + Context | migrar a Redux Toolkit cuando crezca el estado |
+| Tiempo real | `socket.io-client` | Chat del Marketplace (HU-06): `src/api/socket.ts`, ruta `/api/socket.io` |
 
 ---
 
@@ -84,7 +85,11 @@ apps/frontend/
     ├── App.tsx                 # router: rutas propias, /admin, /admin/auditoria + features
     ├── index.css               # base + clases de componentes + animaciones (scan/success)
     ├── api/
-    │   └── arca.ts             # capa fetch tipada (catálogo, solicitudes, auditoría, robustez JSON)
+    │   ├── arca.ts             # capa fetch tipada (catálogo, solicitudes, auditoría, robustez JSON)
+    │   ├── chat.ts, push.ts    # chat del Marketplace y avisos push (HU-06)
+    │   └── socket.ts           # cliente socket.io único (/api/socket.io)
+    ├── pwa/
+    │   └── push.ts             # permiso de notificaciones y suscripción Web Push
     ├── auth/
     │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage y roles)
     ├── components/
@@ -104,6 +109,7 @@ apps/frontend/
     │   └── marketplace/
     │       ├── routes.tsx              # mismo patrón que solicitud-retiro
     │       ├── Listado.tsx, DetalleArticulo.tsx, PublicarArticulo.tsx, MisPublicaciones.tsx
+    │       ├── chat/                   # HU-06: Chat.tsx, Bandeja.tsx, NoLeidosContext.tsx
     │       ├── distancia.ts            # bandas, redondeo a 20 m y useOrigenAproximado()
     │       └── formato.ts              # etiquetas de estado/tipo y fecha relativa
     └── pages/
@@ -144,6 +150,13 @@ El Marketplace tiene su propia capa, `src/api/marketplace.ts`, que reutiliza `ap
 `publicarArticulo`, `listarMisPublicaciones`, `retirarArticulo`) y, hasta que existan los
 endpoints, responde con datos de ejemplo detrás de `USAR_DATOS_DE_EJEMPLO`. Los endpoints
 esperados y las reglas de privacidad están en el comentario de cabecera del archivo.
+
+El chat (HU-06) tiene `src/api/chat.ts`, `src/api/push.ts` y `src/api/socket.ts`, contra el backend real
+(sin datos de ejemplo). `chat.ts` espeja los tipos de `apps/backend/src/marketplace/chat/reglas-chat.ts`
+(`listarConversaciones`, `obtenerMensajes`, `enviarMensaje`, `marcarLeidos`); la conversación se
+identifica con un `conversacionId` opaco, nunca con el id del otro vecino. `socket.ts` expone
+`conectarSocket()` y `desconectarSocket()` y solo recibe los eventos `mensaje` y `leidos`: enviar va por
+REST. `push.ts` llama a `/api/push/*`; la lógica de suscripción vive en `src/pwa/push.ts`.
 
 `API_URL` es `/api` (ruta relativa) — Vite la proxea a `localhost:3000`. Todas las llamadas
 mandan el header `ngrok-skip-browser-warning` (inofensivo fuera de ngrok, necesario cuando
@@ -201,6 +214,8 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo` | datos de ejemplo |
 | `PublicarArticulo` | `features/marketplace/` | `/marketplace/subir` | `publicarArticulo` + `GET /api/residuos/catalogo` | datos de ejemplo |
 | `MisPublicaciones` | `features/marketplace/` | `/marketplace/mis-publicaciones` | `listarMisPublicaciones` | datos de ejemplo |
+| `Bandeja` | `features/marketplace/chat/` | `/marketplace/mensajes` | `listarConversaciones` + eventos socket | **backend** (HU-06) |
+| `Chat` | `features/marketplace/chat/` | `/marketplace/:id/chat` · `/marketplace/:id/chat/:conversacionId` | `obtenerMensajes`, `enviarMensaje`, `marcarLeidos` + eventos socket; pantalla completa, sin Shell | **backend** (HU-06) |
 | `Proximamente` | `pages/` | `/retiro-municipal` | — | placeholder |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
@@ -366,7 +381,7 @@ los endpoints correspondientes.
 | PWA | Service Worker (Workbox) + manifest para modo offline |
 | Auth real (EP-05) | Reemplazar login temporal por JWT/ClaveÚnica en `SessionContext` |
 | Redux Toolkit + RTK Query | Cuando crezca el estado (marketplace, credits, sesión) |
-| EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
+| EP-02 Marketplace | Listado/publicación y ratings. Chat en tiempo real (`socket.io-client`) ✅ HU-06 |
 | EP-04 Circular Credits | Saldo + historial en perfil |
 | EP-03 Dashboard municipal | ✅ En `apps/admin-web`: revisión de solicitudes, derivación en Excel, métricas, auditoría y mapa de calor con **Leaflet**. Falta reportes y configuración |
 | Programación con operadores | ❌ **Descartada** (replanteo 2026-09-17): los retiros los ejecuta una empresa externa. Ya eliminada del panel ([pendientes](PENDIENTES_EQUIPO.md)) |
