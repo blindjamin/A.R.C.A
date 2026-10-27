@@ -9,20 +9,20 @@ import {
   leerCookie,
   origenesPermitidos,
   SesionService,
-} from '../../core';
-import type { EventoLeidos, EventoMensaje } from './reglas-chat';
+} from '../core';
 
 /** Sala de socket.io de un vecino: todas sus pestañas y dispositivos. */
 export const salaDe = (ciudadanoId: string): string => `usuario:${ciudadanoId}`;
 
 /**
- * Tiempo real del chat (HU-06): solo empuja del servidor al cliente. Enviar y
- * marcar leídos van por REST, que ya tiene sesión, CSRF, validación y límite.
+ * Tiempo real (chat HU-06 y avisos HU-23): solo empuja del servidor al
+ * cliente. Enviar y marcar leídos van por REST, que ya tiene sesión, CSRF,
+ * validación y límite.
  * Sin @SubscribeMessage a propósito: los guards globales son HTTP.
  * Bajo /api para que viaje la cookie (Path=/api) y pase por la regla de cPanel.
  */
 @WebSocketGateway({ path: '/api/socket.io', serveClient: false })
-export class MarketplaceChatGateway implements OnGatewayConnection {
+export class TiempoRealGateway implements OnGatewayConnection {
   @WebSocketServer() private readonly server: Server;
   // Se lee al instanciar (ConfigModule ya cargó .env.local), no en el decorador.
   private readonly origenes = origenesPermitidos();
@@ -53,12 +53,9 @@ export class MarketplaceChatGateway implements OnGatewayConnection {
     }
   }
 
-  emitirMensaje(ciudadanoId: string, evento: EventoMensaje): void {
-    this.server.to(salaDe(ciudadanoId)).emit('mensaje', evento);
-  }
-
-  emitirLeidos(ciudadanoId: string, evento: EventoLeidos): void {
-    this.server.to(salaDe(ciudadanoId)).emit('leidos', evento);
+  /** Empuja un evento a todas las pestañas y dispositivos del vecino. */
+  emitir(ciudadanoId: string, evento: string, datos: unknown): void {
+    this.server.to(salaDe(ciudadanoId)).emit(evento, datos);
   }
 
   estaConectado(ciudadanoId: string): boolean {

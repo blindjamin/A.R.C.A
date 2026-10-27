@@ -23,6 +23,7 @@ import {
   TipoActorAuditoria,
 } from '../../core';
 import { PushService } from '../../push/push.service';
+import { TiempoRealGateway } from '../../tiempo-real/tiempo-real.gateway';
 import {
   calcularReputaciones,
   esVisiblePara,
@@ -30,7 +31,6 @@ import {
   primerNombre,
 } from '../articulo-publico';
 import type { ConversacionDto, HistorialDto } from '../dto/conversacion.dto';
-import { MarketplaceChatGateway } from './marketplace-chat.gateway';
 import {
   aArticuloDelChat,
   aMensajePublico,
@@ -69,7 +69,7 @@ export class MarketplaceChatService {
     private readonly interesadoRepo: Repository<InteresadoMarketplace>,
     @InjectRepository(Calificacion)
     private readonly calificacionRepo: Repository<Calificacion>,
-    private readonly gateway: MarketplaceChatGateway,
+    private readonly gateway: TiempoRealGateway,
     private readonly pushService: PushService,
     private readonly sesionService: SesionService,
     private readonly auditoriaService: AuditoriaService,
@@ -343,7 +343,7 @@ export class MarketplaceChatService {
       : articulo.usuarioPublicadorId;
     // Cada participante recibe el mensaje con su propio `esMio`.
     for (const vecino of [user.ciudadanoId, destinatario]) {
-      this.gateway.emitirMensaje(vecino, {
+      this.gateway.emitir(vecino, 'mensaje', {
         articuloId,
         conversacionId: idConversacion,
         mensaje: aMensajePublico(guardado, vecino),
@@ -387,8 +387,9 @@ export class MarketplaceChatService {
     );
     const marcados = affected ?? 0;
     if (marcados > 0 && conversacionId !== null) {
-      this.gateway.emitirLeidos(
+      this.gateway.emitir(
         soyPublicador ? interesadoId : articulo.usuarioPublicadorId,
+        'leidos',
         { articuloId, conversacionId },
       );
     }

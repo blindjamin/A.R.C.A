@@ -19,6 +19,7 @@ import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
 import { PagadasAdminModule } from './admin/pagadas/pagadas-admin.module';
 import { MailModule } from './mail/mail.module';
 import { PerfilModule } from './perfil/perfil.module';
+import { NotificacionesModule } from './notificaciones/notificaciones.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { PerfilModule } from './perfil/perfil.module';
     HealthModule,
     MailModule,
     PerfilModule,
+    NotificacionesModule,
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,

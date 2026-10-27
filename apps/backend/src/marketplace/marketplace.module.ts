@@ -11,10 +11,10 @@ import {
 } from '../core';
 import { CreditosModule } from '../creditos/creditos.module';
 import { PushModule } from '../push/push.module';
+import { TiempoRealModule } from '../tiempo-real/tiempo-real.module';
 import { ResiduosModule } from '../residuos/residuos.module';
 import { ConservacionChatService } from './chat/conservacion-chat.service';
 import { MarketplaceChatController } from './chat/marketplace-chat.controller';
-import { MarketplaceChatGateway } from './chat/marketplace-chat.gateway';
 import { MarketplaceChatService } from './chat/marketplace-chat.service';
 import { MarketplaceController } from './marketplace.controller';
 import { MarketplaceService } from './marketplace.service';
@@ -31,6 +31,7 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
     AuthModule,
     AuditoriaModule,
     PushModule,
+    TiempoRealModule,
     ResiduosModule,
     ArchivosModule,
     UbicacionMarketplaceModule,
@@ -40,7 +41,6 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
   providers: [
     MarketplaceService,
     MarketplaceChatService,
-    MarketplaceChatGateway,
     ConservacionChatService,
   ],
 })
