@@ -199,7 +199,7 @@ EP-05 está cerrada y cada épica e historia tiene su issue (columna «Issue» a
 | HU-02 | EP-02 | #7 | Clasificación automática por IA (sugerencia) | High | Back |
 | HU-03 | EP-02 | #8 | Seguir estado de solicitud de retiro | High | Front |
 | HU-17 | EP-02 | #55 | Feedback post-retiro detallado | Medium | Front + UX |
-| HU-23 | EP-02 | #59 | Recibir notificaciones de cambios de estado | Medium | Back |
+| HU-23 | EP-02 | #59 | Recibir notificaciones de cambios de estado | Medium | Back (canal in-app: campanita en la barra superior, además del correo) |
 | HU-39 | EP-02 | #65 | Ver preguntas frecuentes por categoría (estática) | Low | Front |
 | HU-04 | EP-03 | #9 | Publicar artículo en marketplace P2P | High | Front + Back |
 | HU-05 | EP-03 | #10 | Buscar y filtrar artículos en marketplace | Medium | Front |

@@ -248,13 +248,14 @@ npm run migration:run
 npm run migration:show
 ```
 
-Son **17** migraciones (la versión `2eb03dd` tenía 12; las nuevas crean las tablas del
-Marketplace y los Circular Credits, el contacto del vecino, el chat y la reserva con código). Si ya se habían corrido,
-`migration:run` solo aplica las que falten. `migration:show` debe mostrar las 17 con `[X]`.
+Son **18** migraciones (la versión `2eb03dd` tenía 12; las nuevas crean las tablas del
+Marketplace y los Circular Credits, el contacto del vecino, el chat, la reserva con código y los avisos). Si ya se habían corrido,
+`migration:run` solo aplica las que falten. `migration:show` debe mostrar las 18 con `[X]`.
 
 La del chat (`ChatMarketplace1782164700000`) agrega `interesado_id` a `mensajes_marketplace` y
 crea `suscripciones_push`. Completa las filas sembradas y borra las que no tienen interlocutor.
 La siguiente (`InteresReservaMarketplace1782164800000`) crea `interesados_marketplace` y agrega a los artículos el código de entrega, los intentos y la fecha de reserva; a las conversaciones que ya existían les crea su interés.
+La última (`Notificaciones1782164900000`) crea la tabla `notificaciones` de la campanita.
 
 **e) Iniciar.** Volver a "Setup Node.js App" y presionar **Start** (o **Restart**).
 

@@ -88,3 +88,38 @@ MAIL_FROM="A.R.C.A. Santo Domingo <soporte.arcaa@gmail.com>"
 - **Frontend:**
   - `npm run lint`: 0 errores.
   - `npm run build`: Compilación Vite + TypeScript exitosa.
+
+---
+
+## 6. Campanita de avisos dentro de la app (HU-23, canal in-app)
+
+Además del correo, el vecino tiene una **campanita** en la barra superior, en el lugar donde estaba el botón de perfil (el perfil sigue en la pestaña «Perfil»). Su contador suma los mensajes de chat sin leer y los avisos sin leer. El badge de la pestaña Mercado se quitó.
+
+**Canales.** El correo sigue **solo** para los cambios de estado de las solicitudes de retiro (`MailService.notificarCambioEstado`); nada del marketplace va por correo. La campanita avisa de las solicitudes y también del marketplace y de Circular Credits.
+
+**Cómo funciona** (`apps/backend/src/notificaciones/`):
+
+- Tabla `notificaciones` (migración `1782164900000-notificaciones`): vecino, `tipo`, `titulo`, `cuerpo`, `url`, `leida_en` y fecha, con un índice por vecino.
+- `NotificacionesService.notificar(ciudadanoId, { tipo, titulo, cuerpo, url })` guarda el aviso, lo emite por socket (evento `notificacion`, a la sala del vecino) y, si el vecino no tiene ninguna pestaña conectada, manda un push con `PushService`. Nunca lanza: un aviso fallido no rompe la operación que lo dispara.
+- `GET /api/notificaciones?antesDe=` (30 por página; devuelve `avisos`, `noLeidos` y `hayMas`) y `PATCH /api/notificaciones/leidas` (marca todos como leídos). La respuesta no incluye ningún id de vecino.
+- Los avisos se borran a los 90 días (`DIAS_CONSERVACION_AVISOS`, `ConservacionAvisosService`: al arrancar y cada 24 h, con constancia de auditoría de solo conteos).
+- Frontend: pantalla `/avisos` (`pages/Avisos.tsx`, `api/notificaciones.ts`). Muestra los mensajes de chat sin leer y las novedades, y marca los avisos como leídos al abrirla. El contador vive en `NoLeidosContext`.
+
+**Qué genera un aviso, y para quién**
+
+| Evento | Recibe |
+|---|---|
+| Alguien muestra interés en un artículo | Quien publicó |
+| Reserva | Quien recibe (que le reservaron) y los demás interesados (que ya fue reservado) |
+| Liberación de la reserva | Quien la tenía y los demás interesados |
+| Entrega confirmada | Quien recibe |
+| Calificación | Quien publicó |
+| Créditos abonados (entrega, estrellas) | El beneficiario |
+| Solicitud de retiro: revisión (aprobada, requiere cambios, rechazada), cambio de estado desde el panel y derivación por lote | El vecino de la solicitud |
+
+**Qué no hay**
+
+- Los **mensajes de chat no crean filas** de aviso: ya tienen sus no leídos y su push, y la campanita los cuenta desde los no leídos del chat.
+- Los avisos **no repiten el texto de un mensaje ni un comentario** y nunca llevan correo, teléfono, RUN ni dirección. De las solicitudes solo llevan el número y el estado. Los nombres son de pila y los títulos de artículo largos se recortan.
+- `CreditosService.otorgarPorPago` (créditos por retiro pagado) **todavía no tiene quien la llame**. Quien la conecte (la confirmación del pago, HU-44) debe llamar a `CreditosService.avisarAbono(movimiento)` **después del commit** de su transacción, para que un rollback no deje un aviso falso. Hoy `avisarAbono` solo se usa en la entrega y en la calificación.
+- La ruta de las solicitudes en el aviso es la lista `/mis-solicitudes`: no hay pantalla de detalle.

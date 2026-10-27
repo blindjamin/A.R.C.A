@@ -139,9 +139,20 @@ Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC
 | `POST` | `/api/marketplace/articulos/:id/mensajes` | Envía `{ contenido }` (hasta 1000 caracteres). `@LimiteChat()`: 30 por minuto por IP, y además 20 por minuto por vecino (`429`). Solo escribe quien tiene interés (`403`); quien publica puede iniciar la conversación con cualquier interesado. `409` si es de solo lectura |
 | `PATCH` | `/api/marketplace/articulos/:id/mensajes/leidos` | Marca como leído lo recibido |
 
-Tiempo real: `MarketplaceChatGateway` (socket.io en `/api/socket.io`) solo empuja los eventos `mensaje` y `leidos`; no define `@SubscribeMessage`, porque los guards globales son HTTP. En el handshake valida la cookie de sesión y el `Origin` y une al vecino a su sala. El gateway no tiene límite propio: la escritura pasa por el REST. Si el destinatario no tiene sockets conectados, `PushService` le manda un aviso con el título del artículo y «`<nombre> te escribió`», sin el texto del mensaje.
+Tiempo real: `TiempoRealGateway` (`src/tiempo-real/`, socket.io en `/api/socket.io`, compartido por el chat y los avisos) solo empuja los eventos `mensaje`, `leidos` y `notificacion`; no define `@SubscribeMessage`, porque los guards globales son HTTP. En el handshake valida la cookie de sesión y el `Origin` y une al vecino a su sala. El gateway no tiene límite propio: la escritura pasa por el REST. Si el destinatario no tiene sockets conectados, `PushService` le manda un aviso con el título del artículo y «`<nombre> te escribió`», sin el texto del mensaje.
 
 `ConservacionChatService` (`src/marketplace/chat/`) borra cada 24 h (y al arrancar) los mensajes e intereses de los artículos completados, retirados o vencidos hace más de 30 días, y deja una constancia de auditoría con los conteos.
+
+### Campanita de avisos (HU-23, módulo `src/notificaciones/`)
+
+Requieren sesión. Contrato y eventos: [`NOTIFICACIONES_CORREO.md`](../../docs/NOTIFICACIONES_CORREO.md) §6.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/notificaciones` | Avisos de la sesión, 30 por página (`antesDe`), con `noLeidos` y `hayMas` |
+| `PATCH` | `/api/notificaciones/leidas` | Marca todos como leídos |
+
+`NotificacionesService.notificar` guarda el aviso, lo emite por socket (`notificacion`) y, sin pestañas conectadas, manda push. Los mensajes de chat no crean avisos. Los avisos se borran a los 90 días (`ConservacionAvisosService`).
 
 ### Avisos push (módulo `src/push/`)
 
@@ -290,7 +301,9 @@ src/
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en src/core)
 ├── marketplace/                 # Artículos del marketplace (controller, service, DTOs)
 │   ├── ubicacion/               # Grilla de 250 m, bandas de distancia y límite de orígenes
-│   └── chat/                    # Chat (HU-06): controller REST, gateway socket.io y reglas
+│   └── chat/                    # Chat (HU-06): controller REST, servicios y reglas
+├── tiempo-real/                 # Gateway socket.io compartido (cookie + Origin, salas por vecino)
+├── notificaciones/              # Campanita (HU-23): avisos, endpoints y conservación de 90 días
 ├── push/                        # Suscripciones Web Push y envío de avisos (web-push)
 ├── archivos/                    # Guardado y lectura de fotos subidas (UPLOADS_DIR)
 ├── creditos/                    # Circular Credits: reglas (valores de prueba), otorgamiento y GET /creditos
@@ -392,6 +405,7 @@ siempre en una migración nueva.
 | `1782164500000` | `solicitud-direccion-fotos` — `direccion_retiro` en solicitudes + tabla `foto_retiro` (foto del vecino al solicitar) |
 | `1782164600000` | `contacto-ciudadano` — teléfono y dirección de contacto del vecino en su propia tabla |
 | `1782164700000` | `chat-marketplace` — `interesado_id` (NOT NULL, FK, dos índices) en `mensajes_marketplace` y tabla `suscripciones_push`. Completa las filas sembradas y borra las sin interlocutor |
+| `1782164900000` | `notificaciones` — tabla de avisos de la campanita (HU-23) |
 | `1782164800000` | `interes-reserva-marketplace` — tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo` y `fecha_reserva` en `articulos_marketplace` |
 
 ### Se escriben a mano — no usar `migration:generate`
