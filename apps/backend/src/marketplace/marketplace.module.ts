@@ -3,13 +3,16 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ArchivosModule } from '../archivos/archivos.module';
 import {
   ArticuloMarketplace,
+  AuditoriaModule,
   AuthModule,
   Calificacion,
+  InteresadoMarketplace,
   MensajeMarketplace,
 } from '../core';
 import { CreditosModule } from '../creditos/creditos.module';
 import { PushModule } from '../push/push.module';
 import { ResiduosModule } from '../residuos/residuos.module';
+import { ConservacionChatService } from './chat/conservacion-chat.service';
 import { MarketplaceChatController } from './chat/marketplace-chat.controller';
 import { MarketplaceChatGateway } from './chat/marketplace-chat.gateway';
 import { MarketplaceChatService } from './chat/marketplace-chat.service';
@@ -22,9 +25,11 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
     TypeOrmModule.forFeature([
       ArticuloMarketplace,
       Calificacion,
+      InteresadoMarketplace,
       MensajeMarketplace,
     ]),
     AuthModule,
+    AuditoriaModule,
     PushModule,
     ResiduosModule,
     ArchivosModule,
@@ -36,6 +41,7 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
     MarketplaceService,
     MarketplaceChatService,
     MarketplaceChatGateway,
+    ConservacionChatService,
   ],
 })
 export class MarketplaceModule {}

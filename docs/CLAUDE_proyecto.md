@@ -49,12 +49,13 @@ Todas las decisiones aquí registradas son **definitivas** y surgieron de restri
 
 ### 4.1 Frontend (PWA)
 
-**Instalado** — 3 dependencias de producción, 15 de desarrollo:
+**Instalado** — 6 dependencias de producción (incluida `socket.io-client`), 15 de desarrollo:
 
 | Tecnología | Versión | Uso |
 |---|---|---|
 | React + React DOM | 19.2.6 | UI |
 | React Router DOM | 7.18.0 | Navegación entre pantallas |
+| `socket.io-client` | 4.8.4 | Tiempo real del chat del Marketplace (HU-06), en `/api/socket.io` |
 | Vite | 8 | Compilador y servidor de desarrollo |
 | Tailwind CSS (+ PostCSS, Autoprefixer) | 3.4 | Estilos y tokens de diseño |
 | TypeScript | 6.0 | Tipado |
@@ -62,14 +63,14 @@ Todas las decisiones aquí registradas son **definitivas** y surgieron de restri
 
 **Previsto (segunda etapa), todavía no instalado:** Redux Toolkit (estado global), TensorFlow.js
 (clasificación en el navegador del usuario), Leaflet + OpenStreetMap (mapas, sin costo ni API key),
-Socket.io-client (tiempo real), Workbox (Service Worker / modo offline).
+Workbox (Service Worker / modo offline).
 
 > El estado hoy se maneja con React local + `SessionContext`. **No introducir Redux** hasta que el
 > estado local sea insuficiente y esté acordado con Maximiliano.
 
 ### 4.2 Backend
 
-**Instalado** — 12 dependencias de producción, 23 de desarrollo:
+**Instalado** — 18 dependencias de producción (las tres últimas son del chat, HU-06):
 
 | Tecnología | Versión | Uso |
 |---|---|---|
@@ -78,6 +79,8 @@ Socket.io-client (tiempo real), Workbox (Service Worker / modo offline).
 | `@nestjs/typeorm` + TypeORM | 11.0.2 / 1.0 | ORM y migraciones versionadas |
 | `mysql2` | 3.22.5 | Conector MySQL 8 / MariaDB 10.6+ |
 | `class-validator` + `class-transformer` | 0.15 / 0.5 | Validación y transformación de DTOs |
+| `@nestjs/websockets` + `@nestjs/platform-socket.io` | 11.2.7 | Tiempo real del chat (Socket.io) en `/api/socket.io` |
+| `web-push` | 3.6.7 | Avisos push del chat (Web Push, claves VAPID opcionales) |
 | Jest + Supertest | 30 / 7 | Tests |
 | TypeScript · ESLint · Prettier | 5.7 · 9.18 · 3.4 | Tipado, linting y formato |
 
@@ -85,8 +88,7 @@ Socket.io-client (tiempo real), Workbox (Service Worker / modo offline).
 `HttpOnly`, sin dependencias nuevas (`node:crypto`). No se usa JWT (decisión 1 de
 [`MAPA_UNIFICACION`](docs/specs/MAPA_UNIFICACION.md)).
 
-**Previsto (segunda etapa), todavía no instalado:** Socket.io vía Gateways de NestJS (tiempo real),
-Winston (logs).
+**Previsto (segunda etapa), todavía no instalado:** Winston (logs).
 
 **Runtime:** Node.js **24.18.0** (línea 24.x LTS), mínimo **22.12.0** — lo exige Vite 8. npm 11.x
 incluido. phpMyAdmin para administrar la BD, proporcionado por el municipio.
@@ -104,7 +106,8 @@ incluido. phpMyAdmin para administrar la BD, proporcionado por el municipio.
 **Ambiente en el servidor municipal** (solicitado el 14-08-2026): base `arca_db` vacía con usuario
 `arca_user` (`utf8mb4` / `utf8mb4_unicode_ci`), puerto interno **3000/TCP** en `127.0.0.1`
 (alternativa 3010), proxy inverso de `/api/` y `/socket.io/` desde el 443, y excepción en el WAF del
-dominio para WebSocket en `/socket.io/*` y `/ws/*`. El usuario de BD necesita privilegios DDL
+dominio para WebSocket en `/socket.io/*` y `/ws/*`. **La ruta real del socket es `/api/socket.io`**
+(la cookie de sesión tiene `Path=/api`), así que la excepción tiene que cubrir `/api/socket.io/*`. El usuario de BD necesita privilegios DDL
 (`SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES`) acotados solo a `arca_db`,
 porque las migraciones crean el esquema. Un solo proceso Node, 150–300 MB de RAM, <2 GB de disco
 inicial. **Sin Docker ni Redis en producción.**
@@ -264,8 +267,10 @@ la misma base. Además de las 6 anteriores:
 | `GET` `PATCH` | `/api/solicitudes-retiro/:id` | detalle y cambio de estado |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | cancelar solicitud |
 
-**WebSocket:** previsto en `/socket.io/*` y `/ws/*` para el chat y las notificaciones en tiempo real
-de la segunda etapa. Todavía no implementado; requiere la excepción en el WAF municipal (sección 4.3).
+**WebSocket:** instalado para el chat del Marketplace (HU-06): Socket.io en `/api/socket.io`, solo del
+servidor al cliente (enviar va por REST). Requiere un solo proceso de Node y la excepción en el WAF
+municipal para `/api/socket.io/*` (secciones 4.3 y 5.6; guía en `DEPLOY_CPANEL.md` §4.1). Sin la
+excepción, el chat funciona por REST pero sin tiempo real fiable.
 
 > El esquema completo y actualizado es `docs/ARCA_database_schema.dbml`. El archivo del Drive
 > `ARQUITECTURA_ARCA_PWA.md` está **desactualizado** (referencia PostgreSQL, Redis, Express y una tabla
@@ -426,7 +431,7 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
     boilerplate de NestJS y Vite)
   - `AGENTS.md` (reglas de IA: comportamiento del agente + política de uso del equipo)
 - **Marketplace (backend):** publicar con foto, buscar, detalle, mis artículos, retirar,
-  "Lo quiero", liberar, entregar y calificar (`src/marketplace/`,
+  mostrar interés (abre el chat), reservar, liberar, entregar con código y calificar (`src/marketplace/`,
   [spec](docs/specs/SPEC-marketplace.md)).
 - **Circular Credits (backend):** otorgamiento por entrega y por estrellas con topes, y
   `GET /api/creditos` (`src/creditos/`, valores de prueba). El 50 % por retiro municipal está

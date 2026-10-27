@@ -2,30 +2,36 @@ import {
   Body,
   Controller,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
   Post,
   Query,
+  Req,
   Res,
   StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { CurrentUser, LimiteUbicacion, type AuthUser } from '../core';
 import {
   type ArchivoSubido,
   TAMANO_MAXIMO_IMAGEN_BYTES,
 } from '../archivos/archivos.service';
+import { EntregarArticuloDto } from './dto/entregar-articulo.dto';
+import { ReservarArticuloDto } from './dto/reservar-articulo.dto';
 import { CalificarArticuloDto } from './dto/calificar-articulo.dto';
 import { FiltrarArticulosDto } from './dto/filtrar-articulos.dto';
 import { OrigenDto } from './dto/origen.dto';
 import { PublicarArticuloDto } from './dto/publicar-articulo.dto';
 import { MarketplaceService } from './marketplace.service';
+
+const origenDe = (req: Request) => ({
+  ip: req.ip ?? null,
+  userAgent: req.headers['user-agent'] ?? null,
+});
 
 @Controller('marketplace')
 export class MarketplaceController {
@@ -84,29 +90,43 @@ export class MarketplaceController {
     return this.marketplaceService.retirar(id, user);
   }
 
-  @Post('articulos/:id/solicitar')
-  @HttpCode(HttpStatus.OK)
-  solicitar(
+  @Patch('articulos/:id/reservar')
+  reservar(
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReservarArticuloDto,
     @CurrentUser() user: AuthUser,
+    @Req() req: Request,
   ) {
-    return this.marketplaceService.solicitar(id, user);
+    return this.marketplaceService.reservar(
+      id,
+      dto.conversacionId,
+      user,
+      origenDe(req),
+    );
   }
 
   @Patch('articulos/:id/liberar')
   liberar(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthUser,
+    @Req() req: Request,
   ) {
-    return this.marketplaceService.liberar(id, user);
+    return this.marketplaceService.liberar(id, user, origenDe(req));
   }
 
   @Patch('articulos/:id/entregar')
   entregar(
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: EntregarArticuloDto,
     @CurrentUser() user: AuthUser,
+    @Req() req: Request,
   ) {
-    return this.marketplaceService.entregar(id, user);
+    return this.marketplaceService.entregar(
+      id,
+      dto.codigo,
+      user,
+      origenDe(req),
+    );
   }
 
   @Post('articulos/:id/calificacion')

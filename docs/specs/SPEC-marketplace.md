@@ -12,7 +12,7 @@
 ## 1. Objetivo
 
 Dar al frontend los endpoints para demostrar la cadena completa del Sprint 3:
-**publicar → buscar → contactar ("Lo quiero") → marcar como entregado → calificar → ver los créditos.**
+**publicar → buscar → mostrar interés y conversar → reservar → entregar con código → calificar → ver los créditos.**
 
 El contrato que ya usan las pantallas está en `apps/frontend/src/api/marketplace.ts` (Miguel). Este
 spec lo respeta y agrega lo que falta para entregar, calificar y ver créditos (§5).
@@ -26,8 +26,9 @@ spec lo respeta y agrega lo que falta para entregar, calificar y ver créditos (
 2. El listado filtra por texto, categoría, tipo y banda de distancia, y **nunca** devuelve artículos
    vencidos, reservados, entregados ni retirados.
 3. La API nunca devuelve la coordenada de un artículo ni el id de ningún vecino.
-4. "Lo quiero" reserva el artículo para quien lo presiona; quien publicó puede liberarlo o marcarlo
-   como entregado. Entregar deja registrado quién lo recibió y cuándo.
+4. «Me interesa» registra el interés y abre el chat; quien publicó elige a un interesado con «Reservar»,
+   puede liberarlo o marcarlo como entregado con el código que le dicta quien recibe. Entregar deja
+   registrado quién lo recibió y cuándo.
 5. Solo quien recibió el artículo lo califica, de 1 a 5, una sola vez.
 6. Al entregar y al calificar con 4 o 5 estrellas se otorgan créditos a quien regaló, respetando los
    topes (§7). El saldo nunca se edita: solo se agregan movimientos.
@@ -38,7 +39,7 @@ spec lo respeta y agrega lo que falta para entregar, calificar y ver créditos (
 
 | # | Decisión |
 |---|---|
-| 1 | **Receptor:** se identifica con **"Lo quiero"**. El artículo pasa a `en_negociacion` y se guarda `usuario_comprador_id`. Sirve como paso "contactar" aunque no haya chat |
+| 1 | **Receptor:** *(reemplazada)* antes se identificaba con **"Lo quiero"**. Hoy lo elige quien publica con **«Reservar»** (§5.6): el artículo pasa a `en_negociacion` y se guarda `usuario_comprador_id` |
 | 2 | **DBML:** el PDF del Sprint 3 vale como acuerdo para los cambios de §3 |
 | 3 | **Créditos:** valores de prueba de §7, en un solo archivo de constantes |
 | 4 | **Distancia:** grilla de 250 m del backend (ya implementada). Los 20 m son el redondeo que hace el navegador sobre el punto de quien mira; no hay contradicción |
@@ -48,6 +49,8 @@ spec lo respeta y agrega lo que falta para entregar, calificar y ver créditos (
 | 8 | **Rutas nuevas:** las de §5.2 |
 | 9 | **Artículo reservado o entregado:** lo ven solo quien lo publicó y quien lo reservó |
 | 10 | **Reputación:** es de la persona, no del artículo (PDF). El promedio se calcula sobre `ratings` al consultar; no se guarda |
+
+**Decisión 9 extendida para el chat (HU-06):** quien ya conversó por un artículo conserva el acceso a su historial en solo lectura aunque otro vecino lo reserve o lo reciba. Ese participante solo recibe `titulo`, `estado` y `puedoEscribir`; la foto va `null` si el artículo ya no le es visible por la regla de la decisión 9 y no hay detalle ni otros datos. El chat no reutiliza la búsqueda del detalle: usa `esVisiblePara` (`marketplace/articulo-publico.ts`) más "es participante de una conversación".
 
 ## 3. Base de datos (PR 1)
 
@@ -71,7 +74,10 @@ La tabla está en el DBML pero **no existe en la base**: ninguna migración la c
 | `longitud` | decimal(11,8), null | **Nueva.** Ya aproximada a 250 m |
 | `fecha_publicacion` | timestamp, not null | |
 | `fecha_expiracion` | timestamp, not null | **Nueva.** Publicación + 30 días |
-| `usuario_comprador_id` | varchar(36), null, FK `usuarios_ciudadanos` | Quien presionó "Lo quiero" / quien recibió |
+| `usuario_comprador_id` | varchar(36), null, FK `usuarios_ciudadanos` | Interesado que eligió quien publicó (reservado) / quien recibió |
+| `codigo_entrega` | char(6), null | **Nueva (chat).** Código de 6 dígitos generado al reservar; se borra al liberar y al entregar |
+| `intentos_codigo` | tinyint, not null, default 0 | **Nueva (chat).** Códigos errados al entregar; con 5 se bloquea |
+| `fecha_reserva` | datetime, null | **Nueva (chat).** Cuándo se reservó |
 | `fecha_transaccion` | timestamp, null | Cuándo se entregó |
 | `created_at`, `updated_at` | timestamp | |
 
@@ -85,7 +91,21 @@ calificación por intercambio, garantizada también por la base.
 
 ### 3.3 `mensajes_marketplace` — crear
 
-Igual que el DBML. Solo se usa si entra el chat (HU-06).
+Ya existía en la base. Para el chat (HU-06) la migración `1782164700000-chat-marketplace` agrega:
+
+- `interesado_id VARCHAR(36) NOT NULL`, FK a `usuarios_ciudadanos`. Una conversación es (`articulo_id`, `interesado_id`); el otro participante es siempre quien publicó. Las filas sembradas se completan con el remitente que no es el publicador, o con el comprador; las que no tienen interlocutor se borran.
+- Índices `idx_mensajes_conversacion (articulo_id, interesado_id, id)` e `idx_mensajes_interesado (interesado_id)`.
+- `leido` lo marca solo el destinatario.
+
+La conversación se identifica hacia afuera con un `conversacionId` opaco: el `id` de la fila de interés (§3.3.2). El id del interesado nunca sale del servidor.
+
+### 3.3.1 `suscripciones_push` — crear (chat)
+
+Una fila por navegador o dispositivo (Web Push): `id`, `usuario_ciudadano_id` (FK a `usuarios_ciudadanos`), `endpoint` (`VARCHAR(500)`, índice único `uq_suscripciones_endpoint`), `p256dh`, `auth`, `created_at`, `updated_at`. Índice `idx_suscripciones_usuario` por vecino.
+
+### 3.3.2 `interesados_marketplace` — crear (interés)
+
+Migración `1782164800000-interes-reserva-marketplace`. Una fila por vecino interesado en un artículo: `id`, `articulo_id` (FK, `ON DELETE CASCADE`), `usuario_interesado_id` (FK a `usuarios_ciudadanos`), `created_at`. `UNIQUE (articulo_id, usuario_interesado_id)` e índice `(usuario_interesado_id, created_at)` para el tope diario. Se rellena con un interés por cada par (artículo, interesado) que ya tuviera mensajes. Su `id` es el `conversacionId`. La misma migración agrega a `articulos_marketplace` las columnas de §3.1. La dirección del vecino no se guarda en ninguna tabla del marketplace.
 
 ### 3.4 `transacciones_circular_credits` — crear
 
@@ -115,7 +135,7 @@ Nuevas entidades en `apps/backend/src/core/entities/` y alta en `ENTIDADES`
 ## 4. Estados del artículo
 
 ```
-disponible ──"Lo quiero"──▶ en_negociacion ──entregar──▶ completado
+disponible ──reservar──▶ en_negociacion ──entregar──▶ completado
     ▲  │                         │
     │  └──retirar──▶ retirado    │
     └──────────liberar───────────┘
@@ -123,13 +143,13 @@ disponible ──"Lo quiero"──▶ en_negociacion ──entregar──▶ com
 
 | Acción | Desde | Hacia | Quién |
 |---|---|---|---|
-| Lo quiero | `disponible`, no vencido | `en_negociacion` | Cualquier vecino, salvo quien publicó |
-| Liberar | `en_negociacion` | `disponible` (borra el comprador) | Quien publicó |
-| Entregar | `en_negociacion` | `completado` | Quien publicó |
+| Reservar | `disponible`, no vencido | `en_negociacion` (guarda el comprador y la fecha, genera el código) | Quien publicó, eligiendo a un interesado de ese artículo |
+| Liberar | `en_negociacion` | `disponible` (borra comprador, código y fecha de reserva) | Quien publicó |
+| Entregar | `en_negociacion` | `completado` (exige el código; lo borra) | Quien publicó |
 | Retirar | `disponible` | `retirado` | Quien publicó |
 
 Un artículo está **vencido** si `fecha_expiracion` ya pasó. No cambia de estado: simplemente deja de
-listarse y no admite "Lo quiero".
+listarse y no admite intereses ni reservas.
 
 **Quién ve cada artículo** (decisión 9):
 
@@ -155,11 +175,32 @@ Todos bajo `/api`, con sesión (`arca_sesion`). La identidad sale siempre de la 
 | Método y ruta | Qué hace | Errores |
 |---|---|---|
 | `GET /marketplace/articulos/:id/foto` | Devuelve la imagen. Misma visibilidad que el detalle | 404 si no hay foto o no se puede ver |
-| `POST /marketplace/articulos/:id/solicitar` | "Lo quiero" | 403 si es propio · 409 si no está `disponible` o está vencido |
-| `PATCH /marketplace/articulos/:id/liberar` | Rechaza al interesado | 403 si no es propio · 409 si no está `en_negociacion` |
-| `PATCH /marketplace/articulos/:id/entregar` | Cierra el intercambio y otorga los créditos de entrega (§7) | 403 si no es propio · 409 si no está `en_negociacion` |
+| `PATCH /marketplace/articulos/:id/reservar` | Body `{ conversacionId }`. Quien publicó elige a un interesado: `en_negociacion` y código de 6 dígitos (§5.5) | 403 si no es propio · 404 si el interesado no es de ese artículo · 409 si no está `disponible` o está vencido |
+| `PATCH /marketplace/articulos/:id/liberar` | Rechaza al interesado y borra código y reserva | 403 si no es propio · 409 si no está `en_negociacion` |
+| `PATCH /marketplace/articulos/:id/entregar` | Body `{ codigo }` (6 dígitos). Cierra el intercambio y otorga los créditos de entrega (§7) | 400 si el código es incorrecto · 403 si no es propio · 409 si no está `en_negociacion` o el código está bloqueado |
 | `POST /marketplace/articulos/:id/calificacion` | Body `{ puntuacion: 1-5, comentario?: string }`. Otorga el bono por estrellas (§7) | 403 si no es quien recibió · 409 si no está `completado` o ya calificó |
 | `GET /creditos` | `{ saldo, movimientos[] }` de la sesión | — |
+
+**Interés y chat (HU-06).** En `marketplace/chat/`. El parámetro `conversacion` (query) es el `conversacionId` opaco (el id del interés); solo lo indica quien publicó, porque el interesado tiene una sola conversación por artículo y se resuelve por la sesión. «Lo quiero» (`POST .../solicitar`) ya no existe.
+
+| Método y ruta | Qué hace | Errores |
+|---|---|---|
+| `POST /marketplace/articulos/:id/interes` | «Me interesa» / «Quiero intercambiar»: registra el interés y abre el chat. Idempotente. Responde `{ conversacionId }`. Tope de 20 intereses nuevos por vecino en 24 h (las repeticiones no cuentan) | 403 si es propio · 404 · 409 si no está `disponible` o venció · 429 al pasar el tope |
+| `GET /marketplace/articulos/:id/interesados` | Solo quien publicó. Por interesado: `conversacionId`, `nombre` (de pila), `calificacionPromedio`, `cantidadCalificaciones`, `identidadVerificada: true`, `noLeidos`, `ultimoMensaje` (o `null`), `reservado`. Lo más reciente primero | 403 si no es propio · 404 |
+| `GET /marketplace/conversaciones` | Bandeja: las conversaciones de la sesión (hasta 100), la de actividad más reciente primero | — |
+| `GET /marketplace/articulos/:id/mensajes?conversacion=&antesDe=` | Historial, 50 por página, ascendente. `antesDe` es el id del mensaje más antiguo ya cargado | 400 si quien publica no indica `conversacion` · 404 si el artículo o la conversación no existen o no son visibles. Incluye `otroNombre` |
+| `POST /marketplace/articulos/:id/mensajes?conversacion=` | Body `{ contenido }` (máx. 1000 caracteres). `@LimiteChat()` (30 por minuto por IP) y tope de 20 mensajes por minuto por vecino remitente. Solo escribe quien tiene interés; quien publica puede iniciar la conversación con cualquier interesado, aunque no haya mensajes | 400 como arriba · 403 si no mostró interés · 404 · 409 si la conversación es de solo lectura · 429 al pasar el tope |
+| `PATCH /marketplace/articulos/:id/mensajes/leidos?conversacion=` | Marca como leído lo recibido; nunca lo propio | 400 · 404 |
+
+Se puede escribir si el artículo está `disponible` y vigente, o `en_negociacion` reservado por ese mismo interesado. En cualquier otro caso (retirado, completado, vencido o reservado por otro vecino) la conversación es de solo lectura para ambos.
+
+**Push (HU-06).** En `push/`. Los avisos son opcionales: sin claves VAPID el chat funciona igual.
+
+| Método y ruta | Qué hace | Errores |
+|---|---|---|
+| `GET /push/clave-publica` | `{ clavePublica }`; `null` si no hay claves VAPID | — |
+| `POST /push/suscripciones` | Body `{ endpoint, keys: { p256dh, auth } }`. Responde `{ suscrito: true }`. Si el `endpoint` ya existía se reasigna al vecino actual; tope de 5 por vecino (se borra la más antigua) | 400 si el servicio push no está en la lista blanca · 409 si no hay claves VAPID |
+| `DELETE /push/suscripciones` | Body `{ endpoint }`. Responde `{ eliminado: true }` | — |
 
 Las acciones que cambian el estado devuelven el `ArticuloMarketplace` actualizado.
 `calificacion` responde 201 con `{ puntuacion, comentario, fecha }`.
@@ -192,6 +233,47 @@ Movimiento de `GET /creditos`, más recientes primero:
   "fecha": "2026-09-30T15:04:00.000Z"
 }
 ```
+
+### 5.4 Chat: respuestas y eventos socket
+
+Ningún id de vecino sale del servidor: los mensajes llevan `esMio` en vez del remitente.
+
+```ts
+MensajePublico  { id, contenido, fecha, esMio, leido }
+ArticuloDelChat { id, titulo, estado, fotoUrl: string | null }
+HistorialChat   { articulo, conversacionId: number | null, soyPublicador, puedoEscribir, mensajes[], hayMas }
+ConversacionResumen { conversacionId, articulo, soyPublicador, ultimoMensaje: { contenido, fecha, esMio }, noLeidos }
+MensajeEnviado  { conversacionId, mensaje }   // respuesta del POST
+```
+
+`conversacionId` es `null` en el historial del vecino que todavía no mostró interés. `otroNombre` es el nombre de pila del otro participante. `ultimoMensaje.contenido` se recorta a 100 caracteres. `fotoUrl` va `null` si el vecino no podría ver la foto (404).
+
+Tiempo real: socket.io en la ruta `/api/socket.io` (bajo `/api` para que viaje la cookie de sesión, que tiene `Path=/api`). El servidor solo empuja; enviar y marcar leídos van siempre por REST. Al conectar se valida la cookie y el `Origin`; cada vecino queda en la sala `usuario:<ciudadanoId>`.
+
+| Evento | Se emite a | Payload |
+|---|---|---|
+| `mensaje` | Remitente y destinatario, cada uno con su `esMio` | `{ articuloId, conversacionId, mensaje }` |
+| `leidos` | El otro participante: leyeron todo lo que enviaste | `{ articuloId, conversacionId }` |
+
+Si el destinatario no tiene ningún socket conectado, se le envía un aviso push (`titulo` del artículo, `cuerpo` «`<nombre> te escribió`», sin repetir el texto del mensaje, y `url` de la conversación). El push nunca bloquea ni hace fallar el envío.
+
+### 5.5 Reserva, código de entrega y datos que se muestran
+
+- **Nombre:** primer nombre de la sesión de ClaveÚnica activa más reciente (solo nombres, sin apellidos); sin sesión activa, el texto provisorio `NOMBRE_PUBLICADOR_PROVISORIO`. Se usa en la lista de interesados, en la cabecera del chat y en los avisos. El listado y el detalle del artículo siguen mostrando el nombre fijo de la decisión 5.
+- **Insignia:** toda cuenta nace de ClaveÚnica, así que `identidadVerificada` es `true` para todos.
+- **Código:** al reservar se genera con `crypto.randomInt`. `codigoEntrega` solo llega a quien recibió (`soyReceptor`) y solo mientras está `en_negociacion`; nunca a quien publicó. Quien recibe se lo dicta a quien publicó, que lo ingresa en «Confirmar entrega». Cada código errado suma un intento y con 5 la entrega se bloquea hasta liberar y volver a reservar.
+- **Sector:** `sector` (el sector más cercano a la ubicación aproximada) solo se entrega a quien publicó y a quien recibió, reservado o entregado; para el resto va `null`. `reservadoPara` (nombre de quien recibe) solo lo ve quien publicó.
+- **Al reservar,** los demás chats quedan de solo lectura (§5.2); si se libera, vuelven a poder escribir.
+- **Conservación:** `ConservacionChatService` borra los mensajes y los intereses de los artículos `completado` o `retirado` cuya última actualización tiene más de 30 días, y de los `disponible` vencidos hace más de 30 días (`DIAS_CONSERVACION_CHAT`). Corre al arrancar y cada 24 h, y deja una constancia de auditoría del sistema con los conteos.
+- **Auditoría:** el alta de interés (`CREATE` sobre `interesados_marketplace`) y la reserva, liberación y entrega (`UPDATE` sobre `articulos_marketplace`, solo con el estado). Nunca el texto de los mensajes ni el código.
+
+### 5.6 Acuerdo pendiente: chat antes de reservar
+
+> **PENDIENTE DE ACUERDO CON MIGUEL.** El PDF de Miguel del 21-10 («Chat entre vecinos») dice que «El chat solo existe si el publicador aceptó». Esta implementación **se aparta de esa regla**: «Me interesa» abre el chat de inmediato y varios interesados pueden conversar con quien publica antes de que este reserve. Lo decidió Benjamín (24-10) para no trabar el intercambio; hay que acordarlo con Miguel antes del PR.
+>
+> Mitigaciones del riesgo que la regla del PDF quería evitar (que se junten direcciones y datos personales): tope de 20 «Me interesa» por vecino al día; el sector solo se muestra tras reservar y solo a los dos participantes; la dirección nunca se guarda en tablas del marketplace; el aviso push no repite el texto; auditoría de interés, reserva, liberación y entrega; tope de 20 mensajes por minuto por vecino; los chats cerrados se borran a los 30 días.
+>
+> Los números (30 días, 20 intereses por día, 20 mensajes por minuto) son provisorios y los confirma Miguel.
 
 ## 6. Foto
 
@@ -258,9 +340,10 @@ Los créditos por intercambios y regalos entre vecinos siguen las reglas de §7.
 
 | Queda fuera | Por qué |
 |---|---|
-| Nombre real del vecino | Toca el núcleo y HU-38. Sprint 4 |
+| Nombre real del vecino | Toca el núcleo y HU-38. Sprint 4. El chat usa solo el nombre de pila de la sesión de ClaveÚnica (§5.5) |
+| Denuncia de incumplimiento (HU-16) | **No está implementada.** Pendiente de conversar con Miguel |
+| Intercambio con propuesta de artículo, perfil público y doble reserva | Segunda fase; por ahora el intercambio funciona igual que el regalo |
 | Disparador del 50 % por retiro pagado | Se conecta en la confirmación del pago con Webpay, HU-44 (§7.3) |
-| Chat (HU-06) | Solo si sobra tiempo; es lo primero que se corta |
 | Notificación al recibir créditos | HU-23 está fuera del sprint |
 | Fotos en las solicitudes de retiro | Sprint 4; reutilizan el servicio de §6 |
 | Migración de zona horaria | Va aparte: falta decidir columnas y fecha de corte (el cambio de horario de septiembre corre 4 h las filas anteriores y 3 h las posteriores) |

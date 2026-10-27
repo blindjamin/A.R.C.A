@@ -190,6 +190,13 @@ async function limpiar(db: QueryRunner): Promise<void> {
   await db.query(
     `DELETE FROM sesiones_ciudadano WHERE usuario_ciudadano_id IN (${vecinos})`,
   );
+  // Lo que dejaron los vecinos sembrados al usar la app en local.
+  await db.query(
+    `DELETE FROM auditoria WHERE actor_ciudadano_id IN (${vecinos})`,
+  );
+  await db.query(
+    `DELETE FROM suscripciones_push WHERE usuario_ciudadano_id IN (${vecinos})`,
+  );
   await db.query(
     `DELETE FROM usuarios_ciudadanos WHERE clave_unica_id LIKE '${PREFIJO_CLAVE_UNICA}%'`,
   );
@@ -527,8 +534,8 @@ async function sembrar(db: QueryRunner): Promise<Record<string, number>> {
     const { insertId: articulo } = (await db.query(
       `INSERT INTO articulos_marketplace (usuario_publicador_id, residuo_catalogo_id, tipo, titulo,
          descripcion, estado, latitud, longitud, fecha_publicacion, fecha_expiracion,
-         usuario_comprador_id, fecha_transaccion, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         usuario_comprador_id, fecha_transaccion, created_at, codigo_entrega, fecha_reserva)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         publicador,
         residuo.id,
@@ -540,13 +547,24 @@ async function sembrar(db: QueryRunner): Promise<Record<string, number>> {
         sector.lng + (azar() - 0.5) * 0.006,
         publicado,
         new Date(publicado.getTime() + 30 * DIA),
-        transaccion ? otro : null,
+        transaccion || estado === 'en_negociacion' ? otro : null,
         transaccion,
         publicado,
+        estado === 'en_negociacion'
+          ? String(entero(0, 999999)).padStart(6, '0')
+          : null,
+        estado === 'en_negociacion'
+          ? new Date(Math.min(publicado.getTime() + 2 * DIA, ahora - HORA))
+          : null,
       ],
     )) as { insertId: number };
 
     if (estado === 'en_negociacion' || estado === 'completado') {
+      await db.query(
+        `INSERT INTO interesados_marketplace (articulo_id, usuario_interesado_id, created_at)
+         VALUES (?, ?, ?)`,
+        [articulo, otro, publicado],
+      );
       const cantidad = entero(2, 6);
       for (let m = 0; m < cantidad; m++) {
         await db.query(

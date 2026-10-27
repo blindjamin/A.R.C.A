@@ -4,6 +4,7 @@ import { SessionProvider, useSession } from './auth/SessionContext';
 import { Cargando, Protected, RequireRol } from './components/AppShell';
 import { SolicitudFlowProvider } from './features/solicitud-retiro/SolicitudFlowContext';
 import solicitudRetiroRoutes from './features/solicitud-retiro/routes';
+import { NoLeidosProvider } from './features/marketplace/chat/NoLeidosContext';
 import marketplaceRoutes from './features/marketplace/routes';
 import Login from './pages/Login';
 import AcercaDe from './pages/AcercaDe';
@@ -37,6 +38,7 @@ export default function App() {
   return (
     <SessionProvider>
       <SolicitudFlowProvider>
+        <NoLeidosProvider>
         <BrowserRouter>
           <Routes>
             {/* Login diferido: ClaveÚnica primero, luego el gate decide */}
@@ -97,6 +99,7 @@ export default function App() {
           </Routes>
           <OfertaInstalacion />
         </BrowserRouter>
+        </NoLeidosProvider>
       </SolicitudFlowProvider>
     </SessionProvider>
   );

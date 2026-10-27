@@ -9,12 +9,14 @@ import {
 } from '../../api/marketplace';
 import {
   ArticuloCard,
+  BadgeNoLeidos,
   EmptyState,
   ScreenHeader,
   IconPlus,
   IconMapPin,
   IconRecycle,
 } from '../../components/ui';
+import { useNoLeidos } from './chat/NoLeidosContext';
 import { useOrigenAproximado } from './distancia';
 
 const TIPOS: { valor: TipoArticulo | null; etiqueta: string }[] = [
@@ -33,6 +35,7 @@ interface Resultado {
 
 export default function Listado() {
   const navigate = useNavigate();
+  const { totalNoLeidos } = useNoLeidos();
   const { origen, estado: estadoUbicacion } = useOrigenAproximado();
 
   const [tipo, setTipo] = useState<TipoArticulo | null>(null);
@@ -96,12 +99,21 @@ export default function Listado() {
             title="Marketplace"
             subtitle="Regala o intercambia con tus vecinos."
           />
-          <button
-            onClick={() => navigate('/marketplace/mis-publicaciones')}
-            className="mt-1 text-sm font-semibold text-green-700 hover:underline"
-          >
-            Mis publicaciones →
-          </button>
+          <div className="mt-1 flex items-center gap-4">
+            <button
+              onClick={() => navigate('/marketplace/mis-publicaciones')}
+              className="text-sm font-semibold text-green-700 hover:underline"
+            >
+              Mis publicaciones →
+            </button>
+            <button
+              onClick={() => navigate('/marketplace/mensajes')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-green-700 hover:underline"
+            >
+              Mensajes
+              <BadgeNoLeidos cantidad={totalNoLeidos} />
+            </button>
+          </div>
         </div>
         <button onClick={irAPublicar} className="btn-gold shrink-0 flex items-center gap-1.5">
           <IconPlus className="h-4 w-4" />

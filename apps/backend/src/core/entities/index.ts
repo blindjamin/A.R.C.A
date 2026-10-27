@@ -13,6 +13,7 @@ import { LoteDerivacion } from './lote-derivacion.entity';
 import { ArticuloMarketplace } from './articulo-marketplace.entity';
 import { Calificacion } from './calificacion.entity';
 import { MensajeMarketplace } from './mensaje-marketplace.entity';
+import { InteresadoMarketplace } from './interesado-marketplace.entity';
 import { TransaccionCircularCredits } from './transaccion-circular-credits.entity';
 import { SuscripcionPush } from './suscripcion-push.entity';
 
@@ -40,6 +41,7 @@ export { EstadoArticuloMarketplace } from './estado-articulo-marketplace.enum';
 export { ArticuloMarketplace } from './articulo-marketplace.entity';
 export { Calificacion } from './calificacion.entity';
 export { MensajeMarketplace } from './mensaje-marketplace.entity';
+export { InteresadoMarketplace } from './interesado-marketplace.entity';
 export { TipoMovimientoCreditos } from './tipo-movimiento-creditos.enum';
 export { OrigenMovimientoCreditos } from './origen-movimiento-creditos.enum';
 export { TransaccionCircularCredits } from './transaccion-circular-credits.entity';
@@ -65,6 +67,7 @@ export const ENTIDADES = [
   ArticuloMarketplace,
   Calificacion,
   MensajeMarketplace,
+  InteresadoMarketplace,
   TransaccionCircularCredits,
   SuscripcionPush,
 ];

@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { iconoPorCategoria } from '../../api/arca';
 import {
+  entregar,
+  liberar,
+  listarInteresados,
   obtenerArticulo,
+  registrarInteres,
   retirarArticulo,
   type ArticuloMarketplace,
+  type Interesado,
 } from '../../api/marketplace';
 import {
   BackButton,
+  BadgeNoLeidos,
   EmptyState,
   Estrellas,
   IconBadge,
@@ -15,8 +21,15 @@ import {
   IconCheck,
   IconMapPin,
 } from '../../components/ui';
+import BotonReservar from './BotonReservar';
+import { useNoLeidos } from './chat/NoLeidosContext';
 import { ETIQUETA_BANDA, useOrigenAproximado } from './distancia';
-import { ESTADO_ARTICULO_META, TIPO_ARTICULO_META, haceCuanto } from './formato';
+import {
+  ESTADO_ARTICULO_META,
+  TIPO_ARTICULO_META,
+  haceCuanto,
+  mensajeDeError,
+} from './formato';
 
 // Retirar pide confirmación en línea (segundo clic), sin window.confirm.
 function RetirarPublicacion({ id, onRetirado }: { id: number; onRetirado: () => void }) {
@@ -70,11 +83,138 @@ function RetirarPublicacion({ id, onRetirado }: { id: number; onRetirado: () => 
   );
 }
 
+// Sector y código de entrega: solo los ve quien corresponde (lo decide el backend).
+function PanelReservaPropia({
+  articulo,
+  onCambio,
+}: {
+  articulo: ArticuloMarketplace;
+  onCambio: () => void;
+}) {
+  const [codigo, setCodigo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const ejecutar = async (accion: () => Promise<unknown>) => {
+    setEnviando(true);
+    setError(null);
+    try {
+      await accion();
+      onCambio();
+    } catch (e) {
+      setError(mensajeDeError(e));
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <section className="card space-y-3 p-4 text-left">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">
+        Reservado para {articulo.reservadoPara ?? 'un vecino'}
+      </h2>
+      {articulo.sector && <p className="text-sm text-ink-2">Sector: {articulo.sector}</p>}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ejecutar(() => entregar(articulo.id, codigo));
+        }}
+        className="space-y-2"
+      >
+        <label htmlFor="codigo-entrega" className="text-sm font-semibold">
+          Confirmar entrega
+        </label>
+        <p className="text-xs text-slate">
+          Pide el código de 6 dígitos a quien recibe cuando le entregues el artículo.
+        </p>
+        <input
+          id="codigo-entrega"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={6}
+          value={codigo}
+          onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
+          placeholder="000000"
+          className="field text-center tracking-widest"
+        />
+        {error && <p className="text-xs text-rose-600">{error}</p>}
+        <button type="submit" disabled={enviando || codigo.length !== 6} className="btn-primary w-full">
+          Confirmar entrega
+        </button>
+      </form>
+      <button
+        onClick={() => void ejecutar(() => liberar(articulo.id))}
+        disabled={enviando}
+        className="btn-outline w-full"
+      >
+        Liberar
+      </button>
+    </section>
+  );
+}
+
+function ListaInteresados({
+  articuloId,
+  interesados,
+  onReservado,
+}: {
+  articuloId: number;
+  interesados: Interesado[];
+  onReservado: () => void;
+}) {
+  const navigate = useNavigate();
+  return (
+    <section className="card space-y-2 p-4 text-left">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">Interesados</h2>
+      {interesados.length === 0 ? (
+        <p className="text-sm text-slate">Todavía nadie ha dicho que le interesa.</p>
+      ) : (
+        interesados.map((i) => (
+          <div key={i.conversacionId} className="space-y-2 rounded-md border border-line p-3">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-bold">{i.nombre}</p>
+              <BadgeNoLeidos cantidad={i.noLeidos} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Estrellas valor={i.calificacionPromedio} cantidad={i.cantidadCalificaciones} />
+              {i.identidadVerificada && (
+                <span className="pill bg-green-100 text-green-700">Identidad verificada</span>
+              )}
+            </div>
+            {i.ultimoMensaje && (
+              <p className="truncate text-sm text-slate">
+                {i.ultimoMensaje.esMio && 'Tú: '}
+                {i.ultimoMensaje.contenido}
+              </p>
+            )}
+            <div className="flex flex-wrap items-start gap-2">
+              <button
+                onClick={() => navigate(`/marketplace/${articuloId}/chat/${i.conversacionId}`)}
+                className="btn-outline px-4 py-2"
+              >
+                Chatear
+              </button>
+              <BotonReservar
+                articuloId={articuloId}
+                conversacionId={i.conversacionId}
+                nombre={i.nombre}
+                onReservado={onReservado}
+              />
+            </div>
+          </div>
+        ))
+      )}
+    </section>
+  );
+}
+
 interface Resultado {
   clave: string;
   articulo: ArticuloMarketplace | null;
   error: string | null;
 }
+
+const articuloVigente = (r: Resultado | null, id: number): ArticuloMarketplace | null =>
+  r?.clave.startsWith(`${id}|`) ? r.articulo : null;
 
 export default function DetalleArticulo() {
   const { id: idParam } = useParams();
@@ -84,6 +224,11 @@ export default function DetalleArticulo() {
     (location.state as { recienPublicado?: boolean } | null)?.recienPublicado ?? false;
   const { origen } = useOrigenAproximado();
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const { conversaciones } = useNoLeidos();
+  const [version, setVersion] = useState(0);
+  const [interesados, setInteresados] = useState<Interesado[]>([]);
+  const [interesando, setInteresando] = useState(false);
+  const [errorInteres, setErrorInteres] = useState<string | null>(null);
 
   const id = Number(idParam);
   const idValido = Number.isInteger(id) && id > 0;
@@ -100,7 +245,24 @@ export default function DetalleArticulo() {
     return () => {
       vigente = false;
     };
-  }, [id, idValido, origen, clave]);
+  }, [id, idValido, origen, clave, version]);
+
+  // Quien publica ve a los interesados; se recarga con cada aviso del chat
+  // (`conversaciones` cambia) y tras reservar o liberar.
+  const actual = articuloVigente(resultado, id);
+  const verInteresados = !!actual?.esPropio && actual.estado === 'disponible';
+  useEffect(() => {
+    if (!verInteresados) return;
+    let vigente = true;
+    listarInteresados(id)
+      .then((lista) => vigente && setInteresados(lista))
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, [id, verInteresados, conversaciones, version]);
+
+  const recargar = () => setVersion((v) => v + 1);
 
   const volver = () => navigate('/marketplace');
 
@@ -142,7 +304,25 @@ export default function DetalleArticulo() {
     publicador,
     esPropio,
     fechaPublicacion,
+    soyReceptor,
+    codigoEntrega,
+    sector,
   } = articulo;
+
+  const delArticulo = conversaciones.filter((c) => c.articulo.id === articulo.id);
+  const propia = delArticulo.find((c) => !c.soyPublicador);
+
+  const mostrarInteres = async () => {
+    setInteresando(true);
+    setErrorInteres(null);
+    try {
+      await registrarInteres(articulo.id);
+      navigate(`/marketplace/${articulo.id}/chat`);
+    } catch (e) {
+      setErrorInteres(mensajeDeError(e));
+      setInteresando(false);
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4">
@@ -237,15 +417,55 @@ export default function DetalleArticulo() {
               onRetirado={() => navigate('/marketplace/mis-publicaciones')}
             />
           )}
+          {estado === 'disponible' && (
+            <ListaInteresados
+              articuloId={articulo.id}
+              interesados={interesados}
+              onReservado={recargar}
+            />
+          )}
+          {estado === 'en_negociacion' && (
+            <PanelReservaPropia articulo={articulo} onCambio={recargar} />
+          )}
         </div>
       ) : (
         <div className="space-y-2">
-          <button className="btn-primary w-full py-3.5" disabled>
-            {tipo === 'regalo' ? 'Me interesa' : 'Quiero intercambiar'}
-          </button>
-          <p className="text-center text-xs text-slate-2">
-            El contacto entre vecinos llega en la próxima entrega.
-          </p>
+          {soyReceptor && estado === 'en_negociacion' && (
+            <section className="card space-y-2 p-4 text-center">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">
+                Reservado para ti
+              </h2>
+              {sector && <p className="text-sm text-ink-2">Sector: {sector}</p>}
+              {codigoEntrega && (
+                <p className="font-display text-4xl font-extrabold tracking-widest text-green-700">
+                  {codigoEntrega}
+                </p>
+              )}
+              <p className="text-xs text-slate">
+                Díctale este código a quien publicó cuando te entregue el artículo.
+              </p>
+            </section>
+          )}
+          {propia ? (
+            <button
+              onClick={() => navigate(`/marketplace/${articulo.id}/chat`)}
+              className="btn-primary flex w-full items-center justify-center gap-2 py-3.5"
+            >
+              Ver conversación
+              <BadgeNoLeidos cantidad={propia.noLeidos} />
+            </button>
+          ) : (
+            estado === 'disponible' && (
+              <button
+                onClick={mostrarInteres}
+                disabled={interesando}
+                className="btn-primary w-full py-3.5"
+              >
+                {tipo === 'regalo' ? 'Me interesa' : 'Quiero intercambiar'}
+              </button>
+            )
+          )}
+          {errorInteres && <p className="text-center text-xs text-rose-600">{errorInteres}</p>}
         </div>
       )}
     </div>

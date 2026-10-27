@@ -197,6 +197,11 @@ CLAVE_UNICA_CLIENT_SECRET=<entregado por Gobierno Digital>
 CLAVE_UNICA_REDIRECT_URI=https://arca.santodomingo.cl/
 CLAVE_UNICA_LOGOUT_REDIRECT_URI=https://arca.santodomingo.cl/login
 CLAVE_UNICA_PEPPER=<ver abajo>
+
+# Opcionales: avisos push del chat (ver abajo)
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=mailto:<correo de contacto>
 ```
 
 - **No agregar `ALLOW_DEV_LOGIN`.** Si aparece con `NODE_ENV=production`, la API no arranca (§1).
@@ -217,6 +222,14 @@ CLAVE_UNICA_PEPPER=<ver abajo>
   `CLIENT_ID` y `CLIENT_SECRET` y se reinicia la aplicación; **el pepper no se cambia**.
 - Mientras no estén las credenciales de ClaveÚnica, `CLIENT_ID` y `CLIENT_SECRET` pueden quedar
   vacías: la API arranca igual, y solo el botón de ClaveÚnica responde error.
+- **Avisos push del chat (opcionales).** Sin las tres variables `VAPID_*` la API arranca igual y
+  el chat funciona, pero no llegan avisos al celular cuando la app está cerrada (el log dice
+  «Notificaciones push deshabilitadas»). Para activarlos, generar el par **una sola vez** con
+  `npx web-push generate-vapid-keys` (desde el repositorio, o en la Terminal de cPanel con
+  `npx` tras `npm install`), copiar la clave pública y la privada a `VAPID_PUBLIC_KEY` y
+  `VAPID_PRIVATE_KEY`, y poner en `VAPID_SUBJECT` un `mailto:` o una URL `https:` de contacto.
+  Si se cambian, todos los dispositivos dejan de recibir avisos hasta volver a suscribirse.
+  Respaldar la clave privada como el pepper.
 - **Fotos del Marketplace:** se guardan en `~/api/uploads/`, fuera de `public_html`, y solo se
   entregan por la API con sesión. No hace falta configurar nada (`UPLOADS_DIR` vacío).
 - Permisos del archivo: **600** (Administrador de archivos → Permisos).
@@ -235,9 +248,13 @@ npm run migration:run
 npm run migration:show
 ```
 
-Son **13** migraciones (la versión `2eb03dd` tenía 12; la nueva crea las tablas del
-Marketplace y los Circular Credits). Si ya se habían corrido, `migration:run` solo aplica las
-que falten. `migration:show` debe mostrar las 13 con `[X]`.
+Son **17** migraciones (la versión `2eb03dd` tenía 12; las nuevas crean las tablas del
+Marketplace y los Circular Credits, el contacto del vecino, el chat y la reserva con código). Si ya se habían corrido,
+`migration:run` solo aplica las que falten. `migration:show` debe mostrar las 17 con `[X]`.
+
+La del chat (`ChatMarketplace1782164700000`) agrega `interesado_id` a `mensajes_marketplace` y
+crea `suscripciones_push`. Completa las filas sembradas y borra las que no tienen interlocutor.
+La siguiente (`InteresReservaMarketplace1782164800000`) crea `interesados_marketplace` y agrega a los artículos el código de entrega, los intentos y la fecha de reserva; a las conversaciones que ya existían les crea su interés.
 
 **e) Iniciar.** Volver a "Setup Node.js App" y presionar **Start** (o **Restart**).
 
@@ -325,6 +342,20 @@ Antes de la unificación, el panel tenía su propio subdominio y su propia API. 
 
 ---
 
+### 4.1 Chat en tiempo real (WebSocket)
+
+El chat del Marketplace usa socket.io en la ruta **`/api/socket.io`** (bajo `/api` para que viaje
+la cookie de sesión). Para que los mensajes lleguen al instante:
+
+- **Un solo proceso de Node.** Los avisos se envían a los sockets conectados en el mismo
+  proceso, igual que el límite de consultas, que cuenta en memoria. Si Passenger levanta
+  varios procesos, un mensaje puede no llegar al otro participante hasta que recargue. El
+  número de procesos no se fija desde `.htaccess`: lo confirma TI municipal.
+- **WAF y Cloudflare.** La excepción pedida originalmente fue para `/socket.io/*` y `/ws/*`;
+  hace falta que cubra también **`/api/socket.io/*`** y que permita el *upgrade* a WebSocket.
+- **Si no se puede cumplir alguna de las dos,** el chat sigue funcionando por REST (enviar y leer
+  mensajes, y los contadores al recargar), pero sin tiempo real fiable.
+
 ## 5. Si algo no funciona
 
 Primero revisar el registro de la aplicación (`~/api/stderr.log`, o el archivo de log definido
@@ -346,6 +377,8 @@ revisar que no traiga contraseñas.**
 | Se inicia sesión con ClaveÚnica pero se vuelve al login | La cookie no se guarda: el sitio no está en HTTPS | Activar HTTPS en el dominio |
 | Error de CORS en la consola del navegador | `FRONTEND_URL` no coincide con el dominio | Debe ser `https://arca.santodomingo.cl` exacto, sin `/` al final |
 | `429 Demasiadas solicitudes` a muchas personas a la vez | El límite de consultas agrupa a todos en una IP | Ver §6, Cloudflare |
+| En el chat, los mensajes solo llegan al recargar | El WebSocket no conecta (WAF o Cloudflare lo bloquean en `/api/socket.io/*`) o Passenger corre más de un proceso | Ver 4.1. En las herramientas del navegador (Red), `/api/socket.io/` no debe quedar en rojo |
+| El chat funciona pero no llegan avisos al celular | Faltan las variables `VAPID_*` (2.2 c) o el navegador no dio permiso de notificaciones | Revisar el log: «Notificaciones push deshabilitadas» |
 | Botón ClaveÚnica responde error; en el log `Falta la variable de entorno CLAVE_UNICA_CLIENT_ID` | Faltan `CLAVE_UNICA_CLIENT_ID` / `CLIENT_SECRET` | Completarlas cuando lleguen las credenciales. El resto de la API sigue funcionando |
 
 ---

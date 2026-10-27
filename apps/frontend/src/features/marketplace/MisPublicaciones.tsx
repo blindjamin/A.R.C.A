@@ -7,16 +7,19 @@ import {
 } from '../../api/marketplace';
 import {
   BackButton,
+  BadgeNoLeidos,
   EmptyState,
   ListItemCard,
   ScreenHeader,
   IconPlus,
   IconRecycle,
 } from '../../components/ui';
+import { useNoLeidos } from './chat/NoLeidosContext';
 import { ESTADO_ARTICULO_META, TIPO_ARTICULO_META, haceCuanto } from './formato';
 
 export default function MisPublicaciones() {
   const navigate = useNavigate();
+  const { conversaciones } = useNoLeidos();
   const [articulos, setArticulos] = useState<ArticuloMarketplace[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,7 +75,16 @@ export default function MisPublicaciones() {
                 `${TIPO_ARTICULO_META[a.tipo].etiqueta} · ${a.categoria}`,
                 `Publicado ${haceCuanto(a.fechaPublicacion)}`,
               ]}
-              trailing={<span className="text-slate-2">›</span>}
+              trailing={
+                <>
+                  <BadgeNoLeidos
+                    cantidad={conversaciones
+                      .filter((c) => c.soyPublicador && c.articulo.id === a.id)
+                      .reduce((suma, c) => suma + c.noLeidos, 0)}
+                  />{' '}
+                  <span className="text-slate-2">›</span>
+                </>
+              }
               onClick={() => navigate(`/marketplace/${a.id}`)}
             />
           ))}

@@ -54,6 +54,7 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 | `NODE_ENV` | `development` | Entorno |
 | `FRONTEND_URL` | `http://localhost:5173` | Orígenes del frontend (separados por coma): CORS y únicos aceptados en POST/PUT/PATCH/DELETE (chequeo de `Origin`). En local con otro puerto o un túnel, agregarlo aquí |
 | `UPLOADS_DIR` | vacío (`./uploads`) | Carpeta de las fotos del marketplace. En el servidor, fuera de `public_html`: solo se entregan por la API |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | vacías | Avisos push del chat. Opcionales: vacías, el chat funciona sin avisos. Generar el par una vez con `npx web-push generate-vapid-keys`; `VAPID_SUBJECT` es un `mailto:` o `https:` de contacto |
 | `MAIL_HOST` | `smtp.gmail.com` | Servidor SMTP para envío de correos |
 | `MAIL_PORT` | `465` | Puerto SMTP (465 SSL o 587 TLS) |
 | `MAIL_USER` | `soporte.arcaa@gmail.com` | Cuenta de correo emisora |
@@ -120,14 +121,42 @@ Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC
 | `GET` | `/api/marketplace/articulos/:id/foto` | La foto, con la misma regla de visibilidad que el detalle (`404` si no hay foto) |
 | `PATCH` | `/api/marketplace/articulos/:id/retirar` | Quien publicó lo retira. `403` si no es suyo, `409` si no está disponible |
 | `GET` | `/api/marketplace/mis-articulos` | Lo publicado por la sesión, en cualquier estado |
-| `POST` | `/api/marketplace/articulos/:id/solicitar` | "Lo quiero": pasa a `en_negociacion` y reserva para la sesión. `403` si es propio, `409` si ya no está disponible o venció |
+| `PATCH` | `/api/marketplace/articulos/:id/reservar` | Quien publicó elige a un interesado (`{ conversacionId }`): pasa a `en_negociacion` y se genera el código de entrega de 6 dígitos, que solo ve quien recibe. `403` si no es suyo, `404` si el interesado no es de ese artículo, `409` si ya no está disponible o venció |
 | `PATCH` | `/api/marketplace/articulos/:id/liberar` | Quien publicó rechaza al interesado: vuelve a `disponible`. `403` si no es suyo, `409` si no está reservado |
 | `PATCH` | `/api/marketplace/articulos/:id/entregar` | Quien publicó cierra el intercambio: `completado`, con la fecha de entrega, y recibe los créditos de la entrega en la misma transacción. `403` si no es suyo, `409` si no está reservado |
 | `POST` | `/api/marketplace/articulos/:id/calificacion` | Quien recibió califica a quien publicó: `{ puntuacion: 1-5, comentario? }` (hasta 1000 caracteres). Con 4 o 5 estrellas, quien publicó recibe el bono en la misma transacción. Responde `201` con `{ puntuacion, comentario, fecha }`. `403` si no es quien recibió, `409` si no está entregado o ya calificó |
 
+### Chat del marketplace (HU-06)
+
+Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC-marketplace.md) §5.2 y §5.4. La conversación se identifica con un `conversacionId` opaco, el id de la fila de interés (`?conversacion=`, solo lo indica quien publicó): el id del otro vecino nunca sale del servidor.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `POST` | `/api/marketplace/articulos/:id/interes` | «Me interesa» / «Quiero intercambiar»: registra el interés, abre el chat y devuelve `{ conversacionId }`. Idempotente; tope de 20 intereses nuevos por vecino en 24 h (`429`) |
+| `GET` | `/api/marketplace/articulos/:id/interesados` | Solo quien publicó: nombre de pila, estrellas, `identidadVerificada`, no leídos, último mensaje y si está reservado |
+| `GET` | `/api/marketplace/conversaciones` | Bandeja de la sesión con el último mensaje y los no leídos |
+| `GET` | `/api/marketplace/articulos/:id/mensajes` | Historial paginado (50; `antesDe`). Quien ya conversó lo ve en solo lectura aunque otro reserve el artículo |
+| `POST` | `/api/marketplace/articulos/:id/mensajes` | Envía `{ contenido }` (hasta 1000 caracteres). `@LimiteChat()`: 30 por minuto por IP, y además 20 por minuto por vecino (`429`). Solo escribe quien tiene interés (`403`); quien publica puede iniciar la conversación con cualquier interesado. `409` si es de solo lectura |
+| `PATCH` | `/api/marketplace/articulos/:id/mensajes/leidos` | Marca como leído lo recibido |
+
+Tiempo real: `MarketplaceChatGateway` (socket.io en `/api/socket.io`) solo empuja los eventos `mensaje` y `leidos`; no define `@SubscribeMessage`, porque los guards globales son HTTP. En el handshake valida la cookie de sesión y el `Origin` y une al vecino a su sala. El gateway no tiene límite propio: la escritura pasa por el REST. Si el destinatario no tiene sockets conectados, `PushService` le manda un aviso con el título del artículo y «`<nombre> te escribió`», sin el texto del mensaje.
+
+`ConservacionChatService` (`src/marketplace/chat/`) borra cada 24 h (y al arrancar) los mensajes e intereses de los artículos completados, retirados o vencidos hace más de 30 días, y deja una constancia de auditoría con los conteos.
+
+### Avisos push (módulo `src/push/`)
+
+Requieren sesión. Sin claves `VAPID_*` el módulo queda deshabilitado (el log lo dice) y `clave-publica` devuelve `null`.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/push/clave-publica` | `{ clavePublica }` para suscribir el navegador |
+| `POST` | `/api/push/suscripciones` | `{ endpoint, keys: { p256dh, auth } }`. Upsert atómico sobre `endpoint` (reasigna el dispositivo al vecino actual); tope de 5 por vecino. `400` si el servicio push no es uno conocido, `409` si no hay claves |
+| `DELETE` | `/api/push/suscripciones` | `{ endpoint }`: borra la del vecino |
+
+El `endpoint` debe ser `https:` y de una lista blanca de servicios push (FCM, Mozilla, Apple, Windows): `web-push` hace un POST a esa dirección, y sin la lista un vecino podría usar el servidor para llamar a cualquier otra (SSRF). Una suscripción que responde `404` o `410` se borra sola.
+
 Cada cambio de estado es un solo `UPDATE` condicionado al estado esperado: si dos vecinos presionan
-"Lo quiero" a la vez, uno lo reserva y el otro recibe `409`. Entregar exige además que el receptor
-siga siendo el mismo que vio quien publicó.
+reservar a la vez, solo una pasa y la otra recibe `409`. Entregar exige el `codigo` de 6 dígitos (`400` si es incorrecto; con 5 errados, `409` hasta liberar y volver a reservar) y que el receptor siga siendo el mismo.
 
 La respuesta nunca incluye la ubicación ni el id del publicador: solo `banda`, `esPropio` y un
 nombre fijo ("Vecino de Santo Domingo"). `creditos` es el valor de prueba de
@@ -238,6 +267,7 @@ siempre la ciudadana y el perfil municipal es una extensión sobre ella.
 | `GET /health`, `GET /residuos/catalogo` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/reenviar`, `PATCH …/cancelar` | Ciudadano autenticado (solo propias) |
 | `GET/POST marketplace/…` | Ciudadano autenticado. Retirar, liberar y entregar: solo quien publicó. Calificar: solo quien recibió |
+| `marketplace/conversaciones`, `…/mensajes`, `push/…` | Ciudadano autenticado. Chat: solo los dos participantes de la conversación |
 | `GET creditos` | Ciudadano autenticado (solo los propios) |
 
 > **El cambio de estado municipal** (`admin`/`funcionario`) vive en `src/admin/`
@@ -259,7 +289,9 @@ src/
 ├── residuos/                    # Catálogo de residuos (entidad en src/core)
 ├── solicitudes-retiro/          # Solicitudes de retiro (controller, service, DTOs; entidad en src/core)
 ├── marketplace/                 # Artículos del marketplace (controller, service, DTOs)
-│   └── ubicacion/               # Grilla de 250 m, bandas de distancia y límite de orígenes
+│   ├── ubicacion/               # Grilla de 250 m, bandas de distancia y límite de orígenes
+│   └── chat/                    # Chat (HU-06): controller REST, gateway socket.io y reglas
+├── push/                        # Suscripciones Web Push y envío de avisos (web-push)
 ├── archivos/                    # Guardado y lectura de fotos subidas (UPLOADS_DIR)
 ├── creditos/                    # Circular Credits: reglas (valores de prueba), otorgamiento y GET /creditos
 ├── users/                       # UsersService/Controller/Module — entidades en src/core;
@@ -358,6 +390,9 @@ siempre en una migración nueva.
 | `1782164300000` | `lotes-derivacion` — lotes Excel hacia la empresa operadora |
 | `1782164400000` | `marketplace-circular-credits` — artículos, calificaciones, mensajes y movimientos de créditos; `creditos` en el catálogo ([spec](../../docs/specs/SPEC-marketplace.md) §3) |
 | `1782164500000` | `solicitud-direccion-fotos` — `direccion_retiro` en solicitudes + tabla `foto_retiro` (foto del vecino al solicitar) |
+| `1782164600000` | `contacto-ciudadano` — teléfono y dirección de contacto del vecino en su propia tabla |
+| `1782164700000` | `chat-marketplace` — `interesado_id` (NOT NULL, FK, dos índices) en `mensajes_marketplace` y tabla `suscripciones_push`. Completa las filas sembradas y borra las sin interlocutor |
+| `1782164800000` | `interes-reserva-marketplace` — tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo` y `fecha_reserva` en `articulos_marketplace` |
 
 ### Se escriben a mano — no usar `migration:generate`
 
