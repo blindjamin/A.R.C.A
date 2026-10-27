@@ -8,6 +8,7 @@ import {
 } from '../../api/marketplace';
 import {
   BackButton,
+  BadgeNoLeidos,
   EmptyState,
   Estrellas,
   IconBadge,
@@ -15,6 +16,7 @@ import {
   IconCheck,
   IconMapPin,
 } from '../../components/ui';
+import { useNoLeidos } from './chat/NoLeidosContext';
 import { ETIQUETA_BANDA, useOrigenAproximado } from './distancia';
 import { ESTADO_ARTICULO_META, TIPO_ARTICULO_META, haceCuanto } from './formato';
 
@@ -84,6 +86,7 @@ export default function DetalleArticulo() {
     (location.state as { recienPublicado?: boolean } | null)?.recienPublicado ?? false;
   const { origen } = useOrigenAproximado();
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const { conversaciones } = useNoLeidos();
 
   const id = Number(idParam);
   const idValido = Number.isInteger(id) && id > 0;
@@ -142,7 +145,12 @@ export default function DetalleArticulo() {
     publicador,
     esPropio,
     fechaPublicacion,
+    soyReceptor,
   } = articulo;
+
+  const delArticulo = conversaciones.filter((c) => c.articulo.id === articulo.id);
+  const propia = delArticulo.find((c) => !c.soyPublicador);
+  const delPublicador = delArticulo.filter((c) => c.soyPublicador);
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4">
@@ -237,15 +245,48 @@ export default function DetalleArticulo() {
               onRetirado={() => navigate('/marketplace/mis-publicaciones')}
             />
           )}
+          <section className="card space-y-2 p-4 text-left">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">
+              Conversaciones
+            </h2>
+            {delPublicador.length === 0 ? (
+              <p className="text-sm text-slate">
+                Todavía nadie ha preguntado por este artículo.
+              </p>
+            ) : (
+              delPublicador.map((c) => (
+                <button
+                  key={c.conversacionId}
+                  onClick={() => navigate(`/marketplace/${articulo.id}/chat/${c.conversacionId}`)}
+                  className="flex w-full items-center gap-3 rounded-md border border-line p-3 text-left"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">Vecino interesado</p>
+                    <p className="truncate text-sm text-slate">
+                      {c.ultimoMensaje.esMio && 'Tú: '}
+                      {c.ultimoMensaje.contenido}
+                    </p>
+                  </div>
+                  <BadgeNoLeidos cantidad={c.noLeidos} />
+                </button>
+              ))
+            )}
+          </section>
         </div>
       ) : (
         <div className="space-y-2">
           <button className="btn-primary w-full py-3.5" disabled>
             {tipo === 'regalo' ? 'Me interesa' : 'Quiero intercambiar'}
           </button>
-          <p className="text-center text-xs text-slate-2">
-            El contacto entre vecinos llega en la próxima entrega.
-          </p>
+          {(estado === 'disponible' || soyReceptor || propia) && (
+            <button
+              onClick={() => navigate(`/marketplace/${articulo.id}/chat`)}
+              className="btn-outline flex w-full items-center justify-center gap-2"
+            >
+              {propia ? 'Ver conversación' : 'Preguntar al vecino'}
+              {propia && <BadgeNoLeidos cantidad={propia.noLeidos} />}
+            </button>
+          )}
         </div>
       )}
     </div>

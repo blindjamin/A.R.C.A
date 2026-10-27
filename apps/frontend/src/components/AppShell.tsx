@@ -3,6 +3,8 @@ import { Navigate, NavLink, Link, useLocation } from 'react-router-dom';
 import type { ComponentType, ReactElement } from 'react';
 import { MenuAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 import { useSession, type Rol } from '../auth/SessionContext';
+import { useNoLeidos } from '../features/marketplace/chat/NoLeidosContext';
+import BadgeNoLeidos from './ui/BadgeNoLeidos';
 import {
   IconHome,
   IconCamera,
@@ -60,6 +62,7 @@ const TABS_DERECHA: Tab[] = [
 
 function TabBar() {
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const { totalNoLeidos } = useNoLeidos();
 
   return (
     <>
@@ -80,7 +83,14 @@ function TabBar() {
                     }`
                   }
                 >
-                  <TabIcon className="h-5 w-5 md:h-5 md:w-5" />
+                  <span className="relative">
+                    <TabIcon className="h-5 w-5 md:h-5 md:w-5" />
+                    {tab.to === '/marketplace' && (
+                      <span className="absolute -right-2 -top-1.5">
+                        <BadgeNoLeidos cantidad={totalNoLeidos} />
+                      </span>
+                    )}
+                  </span>
                   <span>{tab.label}</span>
                 </NavLink>
               </li>
