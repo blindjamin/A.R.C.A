@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { apiFetch, onUnauthorized } from '../api/apiFetch';
+import { desactivarPush } from '../pwa/push';
 
 export type Rol = 'vecino' | 'funcionario' | 'admin';
 
@@ -82,6 +83,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const salir = useCallback(async () => {
+    // Dispositivo compartido: que el próximo vecino no reciba avisos ajenos.
+    await desactivarPush().catch(() => {});
     // Criterio 7: devLogin cierra con el endpoint mock; ClaveÚnica necesita una
     // navegación completa (cierra también la sesión en ClaveÚnica).
     if (sesion?.devLogin) {
