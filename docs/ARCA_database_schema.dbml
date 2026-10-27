@@ -253,10 +253,26 @@ Table articulos_marketplace {
 Table mensajes_marketplace {
   id int [primary key, increment]
   articulo_id int [not null]
+  interesado_id varchar(36) [not null, note: "Vecino que pregunta; conversación = (articulo_id, interesado_id)"]
   usuario_remitente_id varchar(36) [not null]
   contenido text [not null]
   fecha_mensaje timestamp [not null]
   leido boolean [default: false]
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [default: 'CURRENT_TIMESTAMP']
+
+  indexes {
+    (articulo_id, interesado_id, id)
+    interesado_id
+  }
+}
+
+Table suscripciones_push {
+  id int [primary key, increment, note: "Una fila por navegador/dispositivo (Web Push)"]
+  usuario_ciudadano_id varchar(36) [not null]
+  endpoint varchar(500) [not null, unique]
+  p256dh varchar(255) [not null]
+  auth varchar(255) [not null]
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
 }
@@ -462,6 +478,8 @@ Ref: articulos_marketplace.residuo_catalogo_id > residuos_catalogo.id
 
 Ref: mensajes_marketplace.articulo_id > articulos_marketplace.id
 Ref: mensajes_marketplace.usuario_remitente_id > usuarios_ciudadanos.id
+Ref: mensajes_marketplace.interesado_id > usuarios_ciudadanos.id
+Ref: suscripciones_push.usuario_ciudadano_id > usuarios_ciudadanos.id
 
 Ref: ratings.usuario_calificador_id > usuarios_ciudadanos.id
 Ref: ratings.usuario_calificado_id > usuarios_ciudadanos.id

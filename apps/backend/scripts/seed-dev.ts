@@ -19,7 +19,7 @@ import { SECTORES_PROVISIONALES } from '../src/admin/mapa-calor/sectores.constan
 import {
   bonoPorEstrellas,
   creditosPorEntrega,
-  creditosPorRetirada,
+  creditosPorRetiro,
 } from '../src/creditos/reglas-creditos';
 
 const VECINOS = 30;
@@ -464,7 +464,7 @@ async function sembrar(db: QueryRunner): Promise<Record<string, number>> {
         vecino,
         articulo: null,
         solicitud: id,
-        monto: creditosPorRetirada(),
+        monto: creditosPorRetiro(),
         origen: 'retirada',
         razon: `Retiro municipal de «${residuo.nombre}»`,
         fecha: cierre,
@@ -550,10 +550,11 @@ async function sembrar(db: QueryRunner): Promise<Record<string, number>> {
       const cantidad = entero(2, 6);
       for (let m = 0; m < cantidad; m++) {
         await db.query(
-          `INSERT INTO mensajes_marketplace (articulo_id, usuario_remitente_id, contenido, fecha_mensaje, leido)
-           VALUES (?, ?, ?, ?, ?)`,
+          `INSERT INTO mensajes_marketplace (articulo_id, interesado_id, usuario_remitente_id, contenido, fecha_mensaje, leido)
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
             articulo,
+            otro,
             m % 2 === 0 ? otro : publicador,
             MENSAJES[m % MENSAJES.length],
             new Date(Math.min(publicado.getTime() + (m + 1) * 3 * HORA, ahora)),
