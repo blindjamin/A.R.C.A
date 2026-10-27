@@ -2,8 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
   ParseIntPipe,
   Patch,
@@ -82,15 +80,6 @@ export class MarketplaceController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.marketplaceService.retirar(id, user);
-  }
-
-  @Post('articulos/:id/solicitar')
-  @HttpCode(HttpStatus.OK)
-  solicitar(
-    @Param('id', ParseIntPipe) id: number,
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.marketplaceService.solicitar(id, user);
   }
 
   @Patch('articulos/:id/liberar')
