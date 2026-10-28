@@ -10,6 +10,7 @@ import {
   EstadoSolicitudRetiro,
   PagoWebpay,
   SolicitudRetiro,
+  type AuditoriaService,
   type AuthUser,
 } from '../core';
 import type { CreditosService } from '../creditos/creditos.service';
@@ -65,13 +66,23 @@ describe('PagosService', () => {
   const pagos: PagoWebpay[] = [];
   let guardada: SolicitudRetiro;
   const frontend = process.env.FRONTEND_URL;
+  let fallarAlGuardarSolicitud = false;
 
   const crear = jest.fn<ClienteWebpay['crear']>();
   const confirmar = jest.fn<ClienteWebpay['confirmar']>();
+  const consultarEstado = jest.fn<ClienteWebpay['consultarEstado']>();
   const reversar = jest.fn<ClienteWebpay['reversar']>();
-  const cliente: ClienteWebpay = { crear, confirmar, reversar };
+  const cliente: ClienteWebpay = {
+    crear,
+    confirmar,
+    consultarEstado,
+    reversar,
+  };
   const creditos = {
     otorgarPorPago: jest.fn(() => Promise.resolve({})),
+  };
+  const auditoria = {
+    registrar: jest.fn(() => Promise.resolve()),
   };
 
   const solicitudes = {
@@ -86,6 +97,7 @@ describe('PagosService', () => {
     findOne: jest.fn((opts: { where: Partial<PagoWebpay> }) =>
       Promise.resolve(buscar(pagos, opts.where)),
     ),
+    find: jest.fn(() => Promise.resolve([])),
   };
   const manager = {
     findOne: jest.fn(
@@ -98,7 +110,16 @@ describe('PagosService', () => {
         return Promise.resolve(null);
       },
     ),
-    save: jest.fn((entidad: object) => Promise.resolve(entidad)),
+    save: jest.fn((entidad: object) => {
+      if (
+        fallarAlGuardarSolicitud &&
+        entidad === guardada &&
+        guardada.estadoPago === EstadoPagoSolicitud.PAGADO
+      ) {
+        return Promise.reject(new Error('BD caida'));
+      }
+      return Promise.resolve(entidad);
+    }),
   };
   const dataSource = {
     transaction: jest.fn((fn: (m: typeof manager) => Promise<unknown>) =>
@@ -111,12 +132,14 @@ describe('PagosService', () => {
     pagosRepo as unknown as Repository<PagoWebpay>,
     dataSource as unknown as DataSource,
     creditos as unknown as CreditosService,
+    auditoria as unknown as AuditoriaService,
     cliente,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
     pagos.length = 0;
+    fallarAlGuardarSolicitud = false;
     guardada = solicitud();
     process.env.FRONTEND_URL = 'http://localhost:5173';
     crear.mockResolvedValue({
@@ -124,6 +147,13 @@ describe('PagosService', () => {
       url: 'https://webpay3gint.transbank.cl/pagar',
     });
     confirmar.mockImplementation(() =>
+      Promise.resolve(
+        confirmada({
+          buyOrder: pagos[pagos.length - 1]?.buyOrder ?? 'orden',
+        }),
+      ),
+    );
+    consultarEstado.mockImplementation(() =>
       Promise.resolve(
         confirmada({
           buyOrder: pagos[pagos.length - 1]?.buyOrder ?? 'orden',
@@ -195,6 +225,56 @@ describe('PagosService', () => {
     expect(confirmar).toHaveBeenCalledTimes(1);
     expect(creditos.otorgarPorPago).toHaveBeenCalledTimes(1);
     expect(creditos.otorgarPorPago).toHaveBeenCalledWith(manager, guardada);
+    const llamada = auditoria.registrar.mock.calls.find(
+      (args) =>
+        (args[0] as { entidadId?: number }).entidadId === 7 &&
+        (args[0] as { datosNuevos?: { resultado?: string } }).datosNuevos
+          ?.resultado === 'aprobado',
+    );
+    expect(llamada).toBeDefined();
+    expect(llamada?.[0]).toMatchObject({
+      entidad: 'solicitudes_retiro',
+      entidadId: 7,
+      datosNuevos: {
+        estadoPago: EstadoPagoSolicitud.PAGADO,
+        resultado: 'aprobado',
+      },
+    });
+    expect(JSON.stringify(auditoria.registrar.mock.calls)).not.toContain(
+      'token-1',
+    );
+  });
+
+  it('si Transbank autoriza y la base falla, un reintento cierra con status', async () => {
+    await service.iniciar(VECINO, 7, RETORNO);
+    fallarAlGuardarSolicitud = true;
+
+    await expect(
+      service.procesarRetorno({ token_ws: 'token-1' }),
+    ).rejects.toBeDefined();
+    expect(creditos.otorgarPorPago).not.toHaveBeenCalled();
+    expect(manager.save).toHaveBeenCalled();
+
+    // El mock muta el objeto en memoria; en una BD real el rollback dejaría
+    // el intento en iniciado y el pago pendiente.
+    guardada.estadoPago = EstadoPagoSolicitud.PENDIENTE;
+    pagos[0].estado = EstadoIntentoPago.INICIADO;
+    pagos[0].codigoAutorizacion = null;
+    pagos[0].fechaTransaccion = null;
+    fallarAlGuardarSolicitud = false;
+    confirmar.mockRejectedValueOnce(new Error('token ya usado'));
+    consultarEstado.mockResolvedValueOnce(
+      confirmada({ buyOrder: pagos[0].buyOrder }),
+    );
+
+    await expect(
+      service.procesarRetorno({ token_ws: 'token-1' }),
+    ).resolves.toBe('http://localhost:5173/pago/7?resultado=aprobado');
+
+    expect(consultarEstado).toHaveBeenCalledWith('token-1');
+    expect(guardada.estadoPago).toBe(EstadoPagoSolicitud.PAGADO);
+    expect(pagos[0].estado).toBe(EstadoIntentoPago.AUTORIZADO);
+    expect(creditos.otorgarPorPago).toHaveBeenCalledTimes(1);
   });
 
   it('si el monto no coincide, no marca pagado, no otorga créditos y reversa', async () => {

@@ -1,7 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { urlencoded } from 'express';
 import {
   cabecerasDeSeguridad,
   configurarProxyConfiable,
@@ -10,11 +9,15 @@ import {
   verificarOrigen,
 } from './core';
 import { AppModule } from './app.module';
+import { verificarWebpayEnv } from './pagos/verificar-webpay-env';
 
 async function bootstrap() {
   // Antes que nada: un ALLOW_DEV_LOGIN=true copiado de un .env de desarrollo
   // no debe pasar inadvertido en producción (SPEC-sesion-unica §2.5).
   verificarLoginDev(process.env);
+  // En producción WEBPAY_ENV tiene que estar declarado: sin eso se cobraría
+  // con las credenciales públicas de prueba.
+  verificarWebpayEnv(process.env);
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   // IP real del cliente tras el proxy de cPanel, para el rate limiting.
@@ -24,10 +27,9 @@ async function bootstrap() {
     origin: allowedOrigins,
   });
   // Antes de las rutas: cabeceras en toda respuesta y CSRF por Origin.
+  // Nest ya registra urlencoded para formularios (vuelta POST de Webpay).
   app.use(cabecerasDeSeguridad());
   app.use(verificarOrigen(allowedOrigins));
-  // La vuelta de Webpay llega como formulario, no como JSON.
-  app.use(urlencoded({ extended: false }));
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({

@@ -6,11 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as nodemailer from 'nodemailer';
 import { SesionCiudadano } from '../core/entities/sesion-ciudadano.entity';
-import {
-  generarHtmlCodigo,
-  generarHtmlCambioEstado,
-  generarHtmlPerfilActualizado,
-} from './mail-templates';
+import { generarHtmlCodigo, generarHtmlCambioEstado } from './mail-templates';
 
 interface OtpData {
   codigo: string;
@@ -317,48 +313,6 @@ export class MailService {
     } catch (err) {
       this.logger.error(
         `Error al enviar correo de cambio de estado a ${normalizado}:`,
-        err,
-      );
-      return false;
-    }
-  }
-
-  /**
-   * Avisa que cambió el teléfono o la dirección de contacto. El cuerpo nombra
-   * el campo, no el valor nuevo.
-   */
-  async notificarPerfilActualizado(
-    email: string,
-    campos: ReadonlyArray<'telefono' | 'direccion'>,
-  ): Promise<boolean> {
-    const normalizado = email.trim().toLowerCase();
-    const etiquetas = campos.map((campo) =>
-      campo === 'telefono' ? 'teléfono' : 'dirección',
-    );
-    const html = generarHtmlPerfilActualizado(etiquetas);
-    const from =
-      this.configService.get<string>('MAIL_FROM') ||
-      'A.R.C.A. Santo Domingo <soporte.arcaa@gmail.com>';
-
-    if (!this.transporter) {
-      this.logger.log(
-        `[MAIL DEV] Aviso de perfil (${etiquetas.join(', ')}) a ${normalizado}`,
-      );
-      return true;
-    }
-
-    try {
-      await this.transporter.sendMail({
-        from,
-        to: normalizado,
-        subject: 'Actualizamos tus datos de contacto — A.R.C.A. Santo Domingo',
-        html,
-        attachments: this.obtenerAdjuntosLogo(),
-      });
-      return true;
-    } catch (err) {
-      this.logger.error(
-        `Error al avisar el cambio de perfil a ${normalizado}:`,
         err,
       );
       return false;

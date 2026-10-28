@@ -100,7 +100,7 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/solicitudes-retiro/:id/reenviar` | El dueño reenvía en `requiere_modificacion` (vuelve a `en_revision`). `multipart` opcional: `{ descripcion?, residuoCatalogoId?, direccionRetiro? }` + archivo `foto?`. `400` desde otro estado, `403` si no es suya (o si está `rechazada`: solo un admin la reabre). La auditoría registra estado y categoría, nunca la descripción |
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano). Borra la dirección de retiro: una cancelada no se reabre |
 | `GET` | `/api/perfil` | Perfil de contacto del vecino: `{ nombre, email, telefono, direccion }` (HU-37). Teléfono y dirección salen de `contacto_ciudadano`; `nombre` (de la sesión) solo lectura |
-| `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en `contacto_ciudadano` (un texto vacío borra el dato). Audita qué campos cambiaron, sin los valores. Si hay correo verificado y algún dato cambió, avisa qué campo cambió, tampoco con el valor. El correo solo cambia vía `/api/mail` |
+| `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en `contacto_ciudadano` (un texto vacío borra el dato). Audita qué campos cambiaron, sin los valores. El correo solo cambia vía `/api/mail` |
 | `POST` | `/api/mail/enviar-codigo` | Solicitar código OTP (`{ email }`). El ciudadano se toma de la sesión, no del body |
 | `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y asociar correo a la sesión del vecino autenticado |
 | `POST` | `/api/pagos/solicitudes/:id` | Inicia Webpay Plus (HU-44) si la solicitud es del vecino, está `aprobada`, `estadoPago` es `pendiente` y `monto` > 0. Responde `{ url, token }`. El navegador debe enviar un formulario `POST` a `url` con el campo `token_ws` = `token`. `403` si no es suya, `404` si no existe, `409` si no hay cobro pendiente o ya está pagada |
@@ -195,12 +195,17 @@ Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts
   (`CreditosService.otorgarPorPago`). Lo llama la confirmación de Webpay (HU-44), en la misma
   transacción que deja el pago en `pagado`. Confirmar dos veces no otorga dos veces.
 
-La pantalla `/pago/:id` sigue en el frontend. Hoy no lee `resultado` ni el comprobante de
-`GET /api/pagos/solicitudes/:id`: el listado de pagadas del panel sigue filtrando por
-`fecha_solicitud`, aunque la fecha del cobro ya está en `pagos_webpay.fecha_transaccion`.
-Sin `WEBPAY_COMMERCE_CODE` ni `WEBPAY_API_KEY`, y con `WEBPAY_ENV` vacío o `integration`, se usan
-las credenciales públicas de prueba del SDK. En producción hacen falta esas dos variables y
-`WEBPAY_RETURN_URL`.
+La pantalla `/pago/:id` del frontend todavía es maqueta: no llama a estos endpoints. Sin el PR
+de front enlazado a #136, HU-44 no se prueba de punta a punta. El listado de pagadas del panel
+sigue filtrando por `fecha_solicitud`, aunque la fecha del cobro ya está en
+`pagos_webpay.fecha_transaccion`.
+
+`WEBPAY_ENV`: en desarrollo, vacío equivale a `integration` (credenciales públicas del SDK si
+faltan código y llave). En producción es **obligatorio** (`integration` o `production`): sin él
+la app no arranca. `production` exige `WEBPAY_COMMERCE_CODE` y `WEBPAY_API_KEY`.
+`WEBPAY_RETURN_URL` es obligatoria en producción y debe ser `https`. Si el `commit` de Transbank
+falla después de cobrar, se consulta `status` y se cierra el intento; una tarea concilia los
+`iniciado` de más de 15 minutos.
 
 ### Endpoints de sesión
 

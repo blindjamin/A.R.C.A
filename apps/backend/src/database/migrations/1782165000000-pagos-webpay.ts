@@ -6,7 +6,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Cada intento tiene su propia orden: anular o agotar el tiempo no impide
  * volver a pagar, y confirmar dos veces el mismo token no crea otro cobro.
  * El timestamp 1782165000000 queda después de contacto-ciudadano (…460) y de
- * los 1782164700000–490 que usan los PR de chat todavía abiertos.
+ * las migraciones del chat, interés/reserva y avisos (…470–490), ya integradas.
  */
 export class PagosWebpay1782165000000 implements MigrationInterface {
   name = 'PagosWebpay1782165000000';

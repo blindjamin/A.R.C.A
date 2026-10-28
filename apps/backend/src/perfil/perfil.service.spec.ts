@@ -42,7 +42,6 @@ describe('PerfilService', () => {
   };
   const mailService = {
     obtenerCorreoCiudadano: jest.fn(() => Promise.resolve('ana@ejemplo.cl')),
-    notificarPerfilActualizado: jest.fn(() => Promise.resolve(true)),
   };
   const auditoriaService = {
     registrar: jest.fn(() => Promise.resolve()),
@@ -92,13 +91,6 @@ describe('PerfilService', () => {
     expect(JSON.stringify(auditoriaService.registrar.mock.calls)).not.toContain(
       '56911111111',
     );
-    expect(mailService.notificarPerfilActualizado).toHaveBeenCalledWith(
-      'ana@ejemplo.cl',
-      ['telefono', 'direccion'],
-    );
-    expect(
-      JSON.stringify(mailService.notificarPerfilActualizado.mock.calls),
-    ).not.toContain('56911111111');
     expect(perfil).toMatchObject({
       nombre: 'Ana',
       telefono: '+56911111111',
@@ -132,15 +124,5 @@ describe('PerfilService', () => {
 
     expect(contactos.save).not.toHaveBeenCalled();
     expect(auditoriaService.registrar).not.toHaveBeenCalled();
-    expect(mailService.notificarPerfilActualizado).not.toHaveBeenCalled();
-  });
-
-  it('si no hay correo verificado, el cambio igual queda guardado', async () => {
-    mailService.obtenerCorreoCiudadano.mockResolvedValueOnce(null);
-
-    await service.actualizar(VECINO, { telefono: '+56911111111' });
-
-    expect(contactos.save).toHaveBeenCalled();
-    expect(mailService.notificarPerfilActualizado).not.toHaveBeenCalled();
   });
 });

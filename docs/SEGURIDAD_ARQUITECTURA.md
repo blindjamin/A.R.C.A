@@ -268,6 +268,7 @@ alcanza.
 | Descargas (Excel de derivación, pagadas, exportar auditoría, consultar auditoría) | `ACCESO` con formato, filtros y cantidad de filas | Las filas descargadas |
 | Inicio de sesión | `LOGIN` con el origen (`clave_unica` o `dev`) | RUN, nombre, cookie |
 | Plazo de la dirección de retiro (tarea diaria) | `UPDATE` como `sistema` con la cantidad borrada y el plazo | Ids y direcciones |
+| Confirmación o rechazo del pago Webpay (HU-44) | `UPDATE` como `sistema` sobre `solicitudes_retiro` con `estadoPago` (si pasó a `pagado`) y `resultado` (`aprobado`, `rechazado`, `anulado`, `agotado`) | Token, orden de compra y código de autorización |
 
 **Cómo se aplica en el código:**
 - Los campos de la solicitud que se auditan son una **lista explícita**, no la fila completa.

@@ -15,6 +15,9 @@ import { PagosService } from './pagos.service';
 /**
  * Cobro del vecino (HU-44). La vuelta es pública: Transbank no manda la cookie.
  * El pago se reconoce por el token, no por la sesión.
+ *
+ * GET y POST van en métodos separados: Nest se queda con un solo decorador
+ * HTTP si se apilan sobre el mismo handler.
  */
 @Controller('pagos')
 export class PagosController {
@@ -39,8 +42,17 @@ export class PagosController {
 
   @Public()
   @Get('retorno')
+  retornoGet(@Req() req: Request, @Res() res: Response): Promise<void> {
+    return this.responderRetorno(req, res);
+  }
+
+  @Public()
   @Post('retorno')
-  async retorno(@Req() req: Request, @Res() res: Response): Promise<void> {
+  retornoPost(@Req() req: Request, @Res() res: Response): Promise<void> {
+    return this.responderRetorno(req, res);
+  }
+
+  private async responderRetorno(req: Request, res: Response): Promise<void> {
     try {
       const destino = await this.pagos.procesarRetorno(parametrosDe(req));
       if (!destino) {

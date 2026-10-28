@@ -27,6 +27,12 @@ export interface ClienteWebpay {
 
   confirmar(token: string): Promise<TransaccionConfirmada>;
 
+  /**
+   * Estado en Transbank sin consumir el token otra vez. Sirve cuando el
+   * `commit` ya cobró y falló nuestra base, o para conciliar intentos viejos.
+   */
+  consultarEstado(token: string): Promise<TransaccionConfirmada>;
+
   /** Reversa el cobro cuando el monto o la orden no son los de la solicitud. */
   reversar(token: string, monto: number): Promise<void>;
 }

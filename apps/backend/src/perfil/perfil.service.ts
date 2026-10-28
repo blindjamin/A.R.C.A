@@ -100,24 +100,6 @@ export class PerfilService {
       origen,
     });
 
-    await this.avisarCambioDeContacto(user.ciudadanoId, cambiados);
     return this.obtener(user);
-  }
-
-  /**
-   * Avisa qué dato cambió, nunca el valor. Si no hay correo o el envío falla,
-   * el cambio del perfil igual queda guardado.
-   */
-  private async avisarCambioDeContacto(
-    ciudadanoId: string,
-    campos: CampoContacto[],
-  ): Promise<void> {
-    try {
-      const email = await this.mailService.obtenerCorreoCiudadano(ciudadanoId);
-      if (!email) return;
-      await this.mailService.notificarPerfilActualizado(email, campos);
-    } catch {
-      // El perfil ya quedó guardado.
-    }
   }
 }
