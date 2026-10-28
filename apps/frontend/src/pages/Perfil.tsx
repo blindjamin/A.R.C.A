@@ -665,6 +665,17 @@ export default function Perfil() {
         </button>
       </section>
 
+      {sesion?.rol === 'vecino' && (
+        <p className="text-center">
+          <Link
+            to="/perfil/baja"
+            className="text-xs text-slate underline underline-offset-2 hover:text-rose-700"
+          >
+            Darme de baja de A.R.C.A.
+          </Link>
+        </p>
+      )}
+
       {/* Modal / Formulario de Edición de Datos */}
       {editando && (
         <div
