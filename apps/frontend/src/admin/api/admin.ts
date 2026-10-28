@@ -47,7 +47,8 @@ export interface FuncionarioResumen {
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
   estado: EstadoSolicitud;
   estadoPago: EstadoPago;
   monto: number | null;
@@ -63,7 +64,7 @@ export interface SolicitudRetiro {
   createdAt: string;
   updatedAt: string;
   // El GET incluye la relación anidada; en el POST puede no venir.
-  residuoCatalogo?: ResiduoCatalogo;
+  residuoCatalogo?: ResiduoCatalogo | null;
 }
 
 /** Lo que devuelve `GET /admin/solicitudes/:id`. */
@@ -75,6 +76,14 @@ export interface SolicitudDetalle extends SolicitudRetiro {
   transicionesDisponibles: EstadoSolicitud[];
   /** Endpoint protegido de la foto del vecino (`/api/solicitudes-retiro/:id/foto`), o null. */
   fotoUrl: string | null;
+  /** Publicación activa del mismo vecino en Marketplace que podría coincidir con este residuo. */
+  coincidenciaMarketplace?: {
+    id: number;
+    titulo: string;
+    estado: string;
+    tipo: string;
+    fechaPublicacion: string;
+  } | null;
 }
 
 export interface ActualizarSolicitudInput {
@@ -219,6 +228,8 @@ export interface RevisarSolicitudInput {
   motivo?: MotivoRevision;
   comentario?: string;
   checklist?: Record<string, boolean>;
+  /** Presupuesto/monto final en CLP asignado por el funcionario al aprobar. */
+  montoFinal?: number;
 }
 
 export interface RevisionHistorial {
@@ -579,3 +590,51 @@ export function descargarPagadas(
     `arca-pagadas.${formato}`,
   );
 }
+
+// --- Moderación de Marketplace ---
+
+export interface ArticuloModeracion {
+  id: number;
+  titulo: string;
+  descripcion: string | null;
+  tipo: string;
+  estado: string;
+  nombreResiduo: string;
+  nombreResiduoOtro: string | null;
+  publicador: {
+    id: string;
+    claveUnicaId: string;
+  };
+  fotoUrl: string | null;
+  fechaPublicacion: string;
+  motivoRechazo: string | null;
+}
+
+export function fetchArticulosPendientes(): Promise<ArticuloModeracion[]> {
+  return apiFetch(`${API_URL}/admin/marketplace/pendientes`).then((r) =>
+    handle<ArticuloModeracion[]>(r),
+  );
+}
+
+export function fetchConteoMarketplacePendientes(): Promise<{ pendientes: number }> {
+  return apiFetch(`${API_URL}/admin/marketplace/conteo-pendientes`).then((r) =>
+    handle<{ pendientes: number }>(r),
+  );
+}
+
+export function aprobarArticuloMarketplace(id: number): Promise<void> {
+  return apiFetch(`${API_URL}/admin/marketplace/${id}/aprobar`, {
+    method: 'POST',
+  }).then(handleVacio);
+}
+
+export function rechazarArticuloMarketplace(
+  id: number,
+  motivo: string,
+): Promise<void> {
+  return apiFetch(
+    `${API_URL}/admin/marketplace/${id}/rechazar`,
+    jsonInit('POST', { motivo }),
+  ).then(handleVacio);
+}
+

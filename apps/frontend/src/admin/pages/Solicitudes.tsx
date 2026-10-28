@@ -162,11 +162,16 @@ export default function Solicitudes() {
           {items.map((s) => (
             <li key={s.id}>
               <ListItemCard
-                icon="♻️"
+                icon="🚛"
                 title={
                   <>
+                    <span className="pill bg-emerald-100 text-emerald-800 text-[10px] font-bold py-0.5 px-1.5 mr-1.5">
+                      Retiro
+                    </span>
                     #{s.id} ·{' '}
-                    {s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`}
+                    {s.nombreResiduoOtro
+                      ? `Otro: ${s.nombreResiduoOtro}`
+                      : (s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`)}
                   </>
                 }
                 titleBadge={<EstadoPill estado={s.estado} />}
@@ -294,19 +299,50 @@ function DetalleSolicitud({
       <div className="card space-y-3 p-5">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
+            <div className="flex items-center gap-2">
+              <span className="pill bg-emerald-100 text-emerald-800 text-xs font-bold py-0.5 px-2">
+                🚛 Retiro Municipal
+              </span>
+              <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
+            </div>
             <p className="text-sm text-slate">
-              {solicitud.residuoCatalogo?.nombre ??
-                `Residuo ${solicitud.residuoCatalogoId}`}
+              {solicitud.nombreResiduoOtro
+                ? `Otro: ${solicitud.nombreResiduoOtro} (Personalizado)`
+                : (solicitud.residuoCatalogo?.nombre ?? `Residuo ${solicitud.residuoCatalogoId}`)}
             </p>
           </div>
           <EstadoPill estado={solicitud.estado} />
         </div>
 
+        {solicitud.coincidenciaMarketplace && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs space-y-1.5">
+            <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
+              <span className="text-base">💡</span>
+              <span>Coincidencia detectada con publicación en Marketplace</span>
+            </div>
+            <p className="text-xs text-amber-900 leading-relaxed">
+              El mismo vecino tiene una publicación activa o en revisión en el Marketplace:{' '}
+              <strong>«{solicitud.coincidenciaMarketplace.titulo}»</strong> (Art. #{solicitud.coincidenciaMarketplace.id}, estado:{' '}
+              <span className="font-semibold underline uppercase text-[11px]">{solicitud.coincidenciaMarketplace.estado}</span>),
+              publicada el {new Date(solicitud.coincidenciaMarketplace.fechaPublicacion).toLocaleDateString('es-CL')}.
+            </p>
+            <p className="text-[11px] text-amber-800">
+              Verifica si corresponde al mismo artículo para coordinar con el vecino si prefiere retiro municipal o publicación en Marketplace.
+            </p>
+          </div>
+        )}
+
         <FotoSolicitud solicitud={solicitud} />
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <Dato label="Categoría" valor={solicitud.residuoCatalogo?.categoria} />
+          <Dato
+            label="Categoría"
+            valor={
+              solicitud.nombreResiduoOtro
+                ? `Otro (${solicitud.nombreResiduoOtro})`
+                : (solicitud.residuoCatalogo?.categoria ?? '—')
+            }
+          />
           {/* Referencia seudónima, igual que en la auditoría: el panel no necesita saber quién es. */}
           <Dato
             label="Vecino"

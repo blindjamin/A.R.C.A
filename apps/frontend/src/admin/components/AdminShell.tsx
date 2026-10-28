@@ -6,6 +6,7 @@ import { IconMenu, IconX } from '../../components/ui/Icons';
 
 const NAV = [
   { to: '/admin', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
+  { to: '/admin/marketplace', label: 'Marketplace', icon: '🛍️', end: false, reqAdmin: false },
   { to: '/admin/metricas', label: 'Métricas', icon: '📊', end: false, reqAdmin: false },
   { to: '/admin/derivacion', label: 'Derivación', icon: '📦', end: false, reqAdmin: false },
   { to: '/admin/pagadas', label: 'Pagadas', icon: '💳', end: false, reqAdmin: false },
