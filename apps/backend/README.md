@@ -103,6 +103,9 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en `contacto_ciudadano` (un texto vacío borra el dato). Audita qué campos cambiaron, sin los valores. El correo solo cambia vía `/api/mail` |
 | `POST` | `/api/mail/enviar-codigo` | Solicitar código OTP (`{ email }`). El ciudadano se toma de la sesión, no del body |
 | `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y asociar correo a la sesión del vecino autenticado |
+| `POST` | `/api/pagos/solicitudes/:id` | Inicia Webpay Plus (HU-44) si la solicitud es del vecino, está `aprobada`, `estadoPago` es `pendiente` y `monto` > 0. Responde `{ url, token }`. El navegador debe enviar un formulario `POST` a `url` con el campo `token_ws` = `token`. `403` si no es suya, `404` si no existe, `409` si no hay cobro pendiente o ya está pagada |
+| `GET` | `/api/pagos/solicitudes/:id` | Comprobante del dueño: `{ estadoPago, monto, orden, codigoAutorizacion, fecha, resultado }`. `resultado` es `aprobado`, `anulado`, `agotado`, `rechazado` o `null` |
+| `GET`/`POST` | `/api/pagos/retorno` | Vuelta de Transbank, pública y exenta del chequeo de `Origin`. No usa la cookie: reconoce el intento por `token_ws`. Solo confirma si viene `token_ws` sin `TBK_TOKEN`. Anulación y tiempo agotado no confirman. Si el monto, la orden o el código no coinciden, no deja `pagado`, no otorga créditos y pide la reversa. Responde `302` a `{FRONTEND_URL}/pago/:id?resultado=aprobado\|anulado\|agotado\|rechazado` |
 
 **Plazo de la dirección de retiro (decisión 016).** `ConservacionDireccionesService` corre al arrancar
 y una vez al día: borra `direccion_retiro` (y la copia en `direccion_anonimizada`) de las solicitudes
@@ -189,9 +192,20 @@ Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts
   filas de los dos vecinos (siempre en el mismo orden) antes de leer el saldo y los topes, así dos
   otorgamientos simultáneos no leen el mismo saldo.
 - El 50 % por un retiro municipal se otorga **al pagarse la solicitud**
-  (`CreditosService.otorgarPorPago`). Está programado y probado pero **sin disparador**: lo llama
-  la confirmación del pago con Webpay (HU-44), en la misma transacción que deja el pago en
-  `pagado`. Confirmar dos veces no otorga dos veces.
+  (`CreditosService.otorgarPorPago`). Lo llama la confirmación de Webpay (HU-44), en la misma
+  transacción que deja el pago en `pagado`. Confirmar dos veces no otorga dos veces.
+
+La pantalla `/pago/:id` del frontend todavía es maqueta: no llama a estos endpoints. Sin el PR
+de front enlazado a #136, HU-44 no se prueba de punta a punta. El listado de pagadas del panel
+sigue filtrando por `fecha_solicitud`, aunque la fecha del cobro ya está en
+`pagos_webpay.fecha_transaccion`.
+
+`WEBPAY_ENV`: en desarrollo, vacío equivale a `integration` (credenciales públicas del SDK si
+faltan código y llave). En producción es **obligatorio** (`integration` o `production`): sin él
+la app no arranca. `production` exige `WEBPAY_COMMERCE_CODE` y `WEBPAY_API_KEY`.
+`WEBPAY_RETURN_URL` es obligatoria en producción y debe ser `https`. Si el `commit` de Transbank
+falla después de cobrar, se consulta `status` y se cierra el intento; una tarea concilia los
+`iniciado` de más de 15 minutos.
 
 ### Endpoints de sesión
 

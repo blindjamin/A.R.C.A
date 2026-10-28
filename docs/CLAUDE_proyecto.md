@@ -433,9 +433,8 @@ Tres reglas que conviene tener presentes porque cambian cómo se trabaja:
 - **Marketplace (backend):** publicar con foto, buscar, detalle, mis artículos, retirar,
   mostrar interés (abre el chat), reservar, liberar, entregar con código y calificar (`src/marketplace/`,
   [spec](docs/specs/SPEC-marketplace.md)).
-- **Circular Credits (backend):** otorgamiento por entrega y por estrellas con topes, y
-  `GET /api/creditos` (`src/creditos/`, valores de prueba). El 50 % por retiro municipal está
-  programado sin disparador.
+- **Circular Credits (backend):** otorgamiento por entrega, por estrellas y por retiro pagado
+  con Webpay (HU-44), con topes, y `GET /api/creditos` (`src/creditos/`, valores de prueba).
 - **Pendiente:** resto de migraciones del DBML (horarios, dashboard, etc.),
   prueba de ClaveÚnica con las credenciales del municipio, y confirmación de acceso SSH al
   servidor municipal para despliegue.
