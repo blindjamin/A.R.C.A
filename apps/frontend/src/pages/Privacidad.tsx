@@ -7,8 +7,8 @@ import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 // Las medidas de seguridad se describen en términos generales: el detalle
 // técnico va en docs/SEGURIDAD_ARQUITECTURA.md, no aquí.
 // <PorConfirmar> marca lo que debe definir la Municipalidad antes de producción.
-export const VERSION_POLITICA = '1.1';
-const FECHA_POLITICA = '21 de octubre de 2026';
+export const VERSION_POLITICA = '1.2';
+const FECHA_POLITICA = '27 de octubre de 2026';
 
 function PorConfirmar({ children }: { children: string }) {
   return (
@@ -39,7 +39,7 @@ const DATOS: DatoTratado[] = [
     paraQue: 'Saludarte y saber a nombre de quién está una solicitud. Viene de ClaveÚnica y no se edita.',
     cuantoTiempo: 'Se guarda con tu sesión de ingreso; no se copia a tu cuenta.',
     quienLoVe:
-      'Tú y los funcionarios municipales. Si publicas en el Marketplace, los demás vecinos ven tu nombre junto a tu publicación.',
+      'Tú y los funcionarios municipales. En el Marketplace tus publicaciones aparecen como «Vecino de Santo Domingo»: solo tu primer nombre, sin apellidos, lo ve el vecino con quien conversas en el chat.',
   },
   {
     dato: 'Correo electrónico',
@@ -85,6 +85,35 @@ const DATOS: DatoTratado[] = [
       'Se conserva para que sirva de respaldo. Guarda solo qué cambió, nunca el contenido de tus datos.',
     quienLoVe: 'Solo los administradores municipales.',
     porConfirmar: 'el plazo de conservación del registro de actividad.',
+  },
+  {
+    dato: 'Mensajes del chat del Marketplace',
+    paraQue:
+      'Coordinar un regalo o un intercambio con otro vecino. Te recomendamos no compartir tu dirección ni tu teléfono hasta que el artículo esté reservado.',
+    cuantoTiempo:
+      'Se borran 30 días después de que el artículo se entrega, se retira del Marketplace o vence sin reservarse.',
+    quienLoVe:
+      'Solo tú y el vecino con quien conversas. Los funcionarios no leen los mensajes, y el registro de actividad no guarda su contenido.',
+  },
+  {
+    dato: 'Interés en un artículo («Me interesa»)',
+    paraQue: 'Avisar a quien publica que quieres el artículo y abrir la conversación con esa persona.',
+    cuantoTiempo: 'Se borra junto con los mensajes del chat de ese artículo.',
+    quienLoVe: 'Quien publica el artículo, que ve tu primer nombre en la lista de interesados.',
+  },
+  {
+    dato: 'Avisos de la aplicación',
+    paraQue:
+      'Avisarte dentro de A.R.C.A. de mensajes nuevos, interesados, reservas, el estado de tus solicitudes y tus Circular Credits.',
+    cuantoTiempo: 'Se borran a los 90 días.',
+    quienLoVe: 'Solo tú.',
+  },
+  {
+    dato: 'Notificaciones en tu teléfono',
+    paraQue:
+      'Avisarte de un mensaje nuevo cuando no tienes la aplicación abierta. Solo si das permiso de notificaciones. Se guarda la dirección técnica que tu navegador entrega para recibirlas, no tu número de teléfono.',
+    cuantoTiempo: 'Hasta que cierras sesión en ese dispositivo.',
+    quienLoVe: 'Nadie. El aviso dice quién te escribió, nunca el texto del mensaje.',
   },
 ];
 
@@ -200,6 +229,11 @@ export default function Privacidad() {
             <li>
               <strong className="text-ink">El pago:</strong> se hace en el sitio de Transbank
               (Webpay). A.R.C.A. nunca recibe ni guarda los datos de tu tarjeta.
+            </li>
+            <li>
+              <strong className="text-ink">El servicio de notificaciones de tu navegador</strong>{' '}
+              (Google, Apple o Mozilla, según tu teléfono), solo si activas las notificaciones: lleva
+              el aviso cifrado hasta tu dispositivo.
             </li>
             <li>
               <strong className="text-ink">Proveedores que trabajan por encargo de la
