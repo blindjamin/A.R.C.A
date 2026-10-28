@@ -8,11 +8,14 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * desactivada por la Municipalidad (`activo = 0` sin fecha, que no vuelve sola).
  * Al volver se limpia.
  *
+ * El timestamp va después de pagos-webpay (…5000000, PR #136), que tomó el
+ * mismo número antes.
+ *
  * El `down` borra la columna: una baja en curso queda como desactivación
  * municipal y el vecino ya no puede volver solo.
  */
-export class BajaCiudadano1782165000000 implements MigrationInterface {
-  name = 'BajaCiudadano1782165000000';
+export class BajaCiudadano1782165100000 implements MigrationInterface {
+  name = 'BajaCiudadano1782165100000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
