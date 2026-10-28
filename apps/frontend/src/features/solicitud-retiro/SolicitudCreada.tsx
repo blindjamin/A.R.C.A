@@ -21,9 +21,13 @@ export default function SolicitudCreada() {
   const location = useLocation();
   const { reset } = useSolicitudFlow();
 
-  const solicitudReciente = (
-    location.state as { solicitud?: SolicitudReciente } | null
-  )?.solicitud;
+  const locationState = location.state as {
+    solicitud?: SolicitudReciente;
+    publicadoMarketplace?: boolean;
+  } | null;
+
+  const solicitudReciente = locationState?.solicitud;
+  const publicadoMarketplace = locationState?.publicadoMarketplace;
 
   // Salir del flujo limpia la foto efímera.
   const irA = (ruta: string) => {
@@ -65,6 +69,20 @@ export default function SolicitudCreada() {
         </span>
         <span className="font-semibold text-forest-700">A.R.C.A.</span>
       </div>
+
+      {publicadoMarketplace && (
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50/90 p-3.5 text-xs text-emerald-950 flex items-start gap-3 shadow-xs">
+          <span className="text-xl shrink-0 mt-0.5">🛍️</span>
+          <div className="space-y-0.5">
+            <p className="font-bold text-emerald-950">
+              ¡También publicado en el Marketplace comunitario!
+            </p>
+            <p className="text-[11px] text-emerald-800 leading-relaxed">
+              Generamos una publicación con la misma información. Quedará pendiente de aprobación por el equipo municipal antes de quedar visible a tus vecinos.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Encabezado minimalista horizontal: icono + título en una sola fila */}
       <div className="flex items-center gap-3">

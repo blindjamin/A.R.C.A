@@ -7,10 +7,18 @@ export const ESTADO_ARTICULO_META: Record<
   EstadoArticulo,
   { etiqueta: string; clase: string }
 > = {
+  pendiente_aprobacion: {
+    etiqueta: 'En revisión municipal',
+    clase: 'bg-amber-100 text-amber-800 border border-amber-300',
+  },
   disponible: { etiqueta: 'Disponible', clase: 'bg-green-100 text-green-700' },
   en_negociacion: { etiqueta: 'En negociación', clase: 'bg-sky-100 text-sky-600' },
   retirado: { etiqueta: 'Retirado', clase: 'bg-line-2 text-slate' },
   completado: { etiqueta: 'Completado', clase: 'bg-gold-100 text-gold-600' },
+  rechazado: {
+    etiqueta: 'Rechazado por moderación',
+    clase: 'bg-rose-100 text-rose-700 border border-rose-300',
+  },
 };
 
 export const TIPO_ARTICULO_META: Record<

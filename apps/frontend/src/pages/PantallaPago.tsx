@@ -346,6 +346,40 @@ export default function PantallaPago() {
           </div>
         </section>
 
+        {/* Alternativa: Enviar a Marketplace sin costo */}
+        <section className="rounded-xl border border-gold-300 bg-gold-50/90 p-4 space-y-2.5 shadow-xs">
+          <div className="flex items-center gap-2 text-ink">
+            <span className="text-lg">🛍️</span>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gold-950">
+              ¿No te acomoda el valor del presupuesto?
+            </h3>
+          </div>
+          <p className="text-xs text-slate-700 leading-relaxed">
+            Puedes ofrecer este artículo <strong>gratis a tus vecinos en el Marketplace</strong>. Reutilizaremos automáticamente la foto y los datos ingresados para que no tengas que escribirlos de nuevo.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              navigate('/marketplace/subir', {
+                state: {
+                  importarSolicitud: {
+                    solicitudId: solicitud.id,
+                    titulo: solicitud.nombreResiduoOtro || solicitud.residuoCatalogo?.nombre || '',
+                    descripcion: solicitud.descripcion ?? '',
+                    residuoCatalogoId: solicitud.residuoCatalogoId,
+                    nombreResiduoOtro: solicitud.nombreResiduoOtro,
+                    fotoUrl: solicitud.fotoUrl,
+                  },
+                },
+              });
+            }}
+            className="btn-gold w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2"
+          >
+            <span>Publicar gratis en el Marketplace</span>
+            <span>→</span>
+          </button>
+        </section>
+
         {/* Acciones principales visibles sin scroll */}
         <div className="space-y-2 pt-1">
           <button
@@ -472,6 +506,29 @@ export default function PantallaPago() {
           >
             Simular pago anulado / cancelado
           </button>
+
+          <div className="pt-2 border-t border-line text-center">
+            <button
+              type="button"
+              onClick={() => {
+                navigate('/marketplace/subir', {
+                  state: {
+                    importarSolicitud: {
+                      solicitudId: solicitud.id,
+                      titulo: solicitud.nombreResiduoOtro || solicitud.residuoCatalogo?.nombre || '',
+                      descripcion: solicitud.descripcion ?? '',
+                      residuoCatalogoId: solicitud.residuoCatalogoId,
+                      nombreResiduoOtro: solicitud.nombreResiduoOtro,
+                      fotoUrl: solicitud.fotoUrl,
+                    },
+                  },
+                });
+              }}
+              className="text-xs font-semibold text-gold-800 hover:text-gold-950 underline"
+            >
+              ¿El precio no te acomoda? Publicar gratis en Marketplace
+            </button>
+          </div>
         </div>
       </section>
     </div>
