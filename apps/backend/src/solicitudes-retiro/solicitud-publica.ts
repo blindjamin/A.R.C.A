@@ -20,7 +20,8 @@ export interface RevisionVisible {
 export interface SolicitudPublica {
   id: number;
   usuarioCiudadanoId: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
   estado: SolicitudRetiro['estado'];
   estadoPago: SolicitudRetiro['estadoPago'];
   monto: number | null;
@@ -66,6 +67,7 @@ export function aSolicitudPublica(
     id: solicitud.id,
     usuarioCiudadanoId: solicitud.usuarioCiudadanoId,
     residuoCatalogoId: solicitud.residuoCatalogoId,
+    nombreResiduoOtro: solicitud.nombreResiduoOtro,
     estado: solicitud.estado,
     estadoPago: solicitud.estadoPago,
     monto: solicitud.monto,

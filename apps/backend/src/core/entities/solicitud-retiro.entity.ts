@@ -23,8 +23,16 @@ export class SolicitudRetiro {
   @Column({ name: 'usuario_ciudadano_id', type: 'varchar', length: 36 })
   usuarioCiudadanoId: string;
 
-  @Column({ name: 'residuo_catalogo_id', type: 'int' })
-  residuoCatalogoId: number;
+  @Column({ name: 'residuo_catalogo_id', type: 'int', nullable: true })
+  residuoCatalogoId: number | null;
+
+  @Column({
+    name: 'nombre_residuo_otro',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  nombreResiduoOtro: string | null;
 
   @Column({
     type: 'enum',
@@ -136,9 +144,11 @@ export class SolicitudRetiro {
   @JoinColumn({ name: 'usuario_ciudadano_id' })
   usuarioCiudadano: UsuarioCiudadano;
 
-  @ManyToOne(() => ResiduoCatalogo, (residuo) => residuo.solicitudes)
+  @ManyToOne(() => ResiduoCatalogo, (residuo) => residuo.solicitudes, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'residuo_catalogo_id' })
-  residuoCatalogo: ResiduoCatalogo;
+  residuoCatalogo: ResiduoCatalogo | null;
 
   @ManyToOne(() => UsuarioAdministrador, { nullable: true })
   @JoinColumn({ name: 'revisado_por_id' })
