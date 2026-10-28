@@ -29,6 +29,9 @@ export const CLAVE_UNICA_LOGOUT_URL =
  */
 export const ERROR_INGRESO_CLAVE_UNICA = 'clave-unica';
 
+/** `?error=` de vuelta al login cuando el vecino se dio de baja hace menos de 48 h. */
+export const ERROR_BAJA_RECIENTE = 'baja-reciente';
+
 /** Scope exigido por la certificación. No modificar. */
 export const CLAVE_UNICA_SCOPE = 'openid run name';
 
