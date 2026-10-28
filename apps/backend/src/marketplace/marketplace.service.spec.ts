@@ -190,14 +190,16 @@ describe('MarketplaceService.publicar', () => {
     expect(guardado.latitud).not.toBe(String(dto.lat));
   });
 
-  it('queda disponible, a nombre de la sesión, con vencimiento a 30 días', async () => {
+  it('queda en pendiente_aprobacion, a nombre de la sesión, con vencimiento a 30 días', async () => {
     const { service, articuloRepo } = montar();
 
     const publico = await service.publicar(dto, undefined, usuario(YO));
 
     const guardado = articuloRepo.create.mock.calls[0][0];
     expect(guardado.usuarioPublicadorId).toBe(YO);
-    expect(guardado.estado).toBe(EstadoArticuloMarketplace.DISPONIBLE);
+    expect(guardado.estado).toBe(
+      EstadoArticuloMarketplace.PENDIENTE_APROBACION,
+    );
     expect(guardado.titulo).toBe('Sofá de 3 cuerpos');
     const dias =
       (guardado.fechaExpiracion!.getTime() -

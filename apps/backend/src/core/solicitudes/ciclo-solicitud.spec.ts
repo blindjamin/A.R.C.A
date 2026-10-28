@@ -285,6 +285,19 @@ describe('aplicarTransicion', () => {
     expect(s.monto).toBe(0);
   });
 
+  it('aprobar con montoFinal sobreescribe el precio del catálogo', () => {
+    const s = solicitud();
+    aplicarTransicion(s, APROBADA, {
+      actor: 'funcionario',
+      administradorId: REVISOR,
+      precioCatalogo: 10000,
+      montoFinal: 18500,
+      ahora: AHORA,
+    });
+    expect(s.estadoPago).toBe(PENDIENTE);
+    expect(s.monto).toBe(18500);
+  });
+
   it('aprobar exige el precio del catálogo', () => {
     const s = solicitud();
     expect(() =>

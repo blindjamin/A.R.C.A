@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import {
   AccionAuditoria,
+  type ArticuloMarketplace,
   type AuditoriaService,
   type AuthUser,
   EstadoPagoSolicitud,
@@ -69,10 +70,12 @@ function montar(fila: SolicitudRetiro) {
   };
 
   const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
+  const articulosMarketplace = { find: jest.fn(() => Promise.resolve([])) };
 
   const service = new SolicitudesAdminService(
     repositorio as unknown as Repository<SolicitudRetiro>,
     funcionarios as unknown as Repository<UsuarioAdministrador>,
+    articulosMarketplace as unknown as Repository<ArticuloMarketplace>,
     auditoria as unknown as AuditoriaService,
     notificaciones as unknown as NotificacionesService,
   );

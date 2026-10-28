@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
+  ArticuloMarketplace,
   AuditoriaModule,
   AuthModule,
   NotaSolicitud,
@@ -24,6 +25,7 @@ import { SolicitudesAdminService } from './solicitudes-admin.service';
       ResiduoCatalogo,
       RevisionSolicitud,
       NotaSolicitud,
+      ArticuloMarketplace,
     ]),
     AuthModule,
     AuditoriaModule,
