@@ -176,7 +176,7 @@ export default function Listado() {
                 Publicar un artículo
               </Link>
               <Link
-                to="/mis-publicaciones"
+                to="/marketplace/mis-publicaciones"
                 className="btn-outline text-xs sm:text-sm"
               >
                 Ver mis publicaciones

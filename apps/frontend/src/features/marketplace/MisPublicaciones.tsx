@@ -20,7 +20,13 @@ import {
 } from './formato';
 import { MarketplaceHeader } from './MarketplaceNav';
 
-type FiltroEstadoMisPub = 'todos' | 'disponible' | 'en_negociacion' | 'rechazado' | 'finalizados';
+type FiltroEstadoMisPub =
+  | 'todos'
+  | 'pendiente_aprobacion'
+  | 'disponible'
+  | 'en_negociacion'
+  | 'rechazado'
+  | 'finalizados';
 
 export default function MisPublicaciones() {
   const navigate = useNavigate();
@@ -38,10 +44,20 @@ export default function MisPublicaciones() {
   // Conteos por estado para los indicadores táctiles
   const conteos = useMemo(() => {
     if (!articulos) {
-      return { todos: 0, disponible: 0, en_negociacion: 0, rechazado: 0, finalizados: 0 };
+      return {
+        todos: 0,
+        pendiente_aprobacion: 0,
+        disponible: 0,
+        en_negociacion: 0,
+        rechazado: 0,
+        finalizados: 0,
+      };
     }
     return {
       todos: articulos.length,
+      pendiente_aprobacion: articulos.filter(
+        (a) => a.estado === 'pendiente_aprobacion',
+      ).length,
       disponible: articulos.filter((a) => a.estado === 'disponible').length,
       en_negociacion: articulos.filter((a) => a.estado === 'en_negociacion').length,
       rechazado: articulos.filter((a) => a.estado === 'rechazado').length,
@@ -54,6 +70,9 @@ export default function MisPublicaciones() {
   // Filtrado según la pestaña activa
   const articulosFiltrados = useMemo(() => {
     if (!articulos) return [];
+    if (filtro === 'pendiente_aprobacion') {
+      return articulos.filter((a) => a.estado === 'pendiente_aprobacion');
+    }
     if (filtro === 'disponible') {
       return articulos.filter((a) => a.estado === 'disponible');
     }
@@ -121,6 +140,21 @@ export default function MisPublicaciones() {
               }`}
             >
               Todos ({conteos.todos})
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={filtro === 'pendiente_aprobacion'}
+              onClick={() => setFiltro('pendiente_aprobacion')}
+              className={`rounded-full px-3.5 py-1.5 font-medium transition-all shrink-0 flex items-center gap-1 active:scale-95 ${
+                filtro === 'pendiente_aprobacion'
+                  ? 'bg-amber-700 text-white font-bold shadow-xs'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200/70'
+              }`}
+            >
+              <span>En revisión</span>
+              <span className="opacity-75">({conteos.pendiente_aprobacion})</span>
             </button>
 
             <button
@@ -238,6 +272,18 @@ export default function MisPublicaciones() {
                         Publicado {haceCuanto(a.fechaPublicacion)}
                       </span>
                     </div>
+
+                    {/* Aviso si está pendiente de aprobación por moderación */}
+                    {a.estado === 'pendiente_aprobacion' && (
+                      <div className="rounded-xl bg-amber-50 border border-amber-200/80 p-2.5 text-xs text-amber-900 space-y-0.5">
+                        <p className="font-bold flex items-center gap-1 text-amber-950">
+                          <span>⏳ En revisión técnica</span>
+                        </p>
+                        <p className="text-[11px] text-amber-800">
+                          Tu publicación está siendo validada por el equipo municipal antes de estar visible para los vecinos.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Aviso si fue rechazado por moderación */}
                     {a.estado === 'rechazado' && (

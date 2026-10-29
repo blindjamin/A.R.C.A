@@ -17,7 +17,6 @@ import {
   EmptyState,
   Estrellas,
   IconBadge,
-  IconCheck,
   IconMapPin,
   IconSearch,
   IconUser,
@@ -330,16 +329,22 @@ export default function DetalleArticulo() {
       <BackButton onClick={volver} />
 
       {recienPublicado && (
-        <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700 flex items-center gap-2">
-          <IconCheck className="h-5 w-5 shrink-0 text-green-700" />
-          <div>
-            ¡Tu artículo ya está publicado! Tus vecinos ya pueden verlo.{' '}
-            <button
-              onClick={() => navigate('/mis-publicaciones')}
-              className="font-semibold underline"
-            >
-              Ver mis publicaciones
-            </button>
+        <div className="rounded-xl border border-amber-300 bg-amber-50/90 px-4 py-3 text-sm font-medium text-amber-950 flex items-start gap-2.5 shadow-xs">
+          <span className="text-xl shrink-0">⏳</span>
+          <div className="space-y-0.5">
+            <p className="font-bold text-amber-950">
+              ¡Tu artículo fue enviado para validación!
+            </p>
+            <p className="text-xs text-amber-800">
+              Estará visible para tus vecinos una vez que el equipo municipal lo apruebe.{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/marketplace/mis-publicaciones')}
+                className="font-bold underline text-amber-950 hover:text-amber-900"
+              >
+                Ver mis publicaciones
+              </button>
+            </p>
           </div>
         </div>
       )}
@@ -425,10 +430,21 @@ export default function DetalleArticulo() {
               Esta es tu publicación en el Marketplace
             </span>
           </div>
+          {estado === 'pendiente_aprobacion' && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-950 space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <span>⏳</span>
+                <span>Publicación en revisión técnica</span>
+              </p>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                El equipo municipal está validando los datos y fotografía del artículo. Cuando sea aprobado, se activará automáticamente y los vecinos podrán solicitarlo.
+              </p>
+            </div>
+          )}
           {estado === 'disponible' && (
             <RetirarPublicacion
               id={articulo.id}
-              onRetirado={() => navigate('/mis-publicaciones')}
+              onRetirado={() => navigate('/marketplace/mis-publicaciones')}
             />
           )}
           {estado === 'disponible' && (

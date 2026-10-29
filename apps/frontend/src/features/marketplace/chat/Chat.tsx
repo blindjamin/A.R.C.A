@@ -33,8 +33,7 @@ const AVISO_SOLO_LECTURA: Record<string, string> = {
   completado: 'Este intercambio ya se completó.',
   disponible: 'Esta publicación venció.',
   rechazado: 'Esta publicación no fue aprobada por moderación.',
-  en_revision: 'Esta publicación está en revisión.',
-  pendiente_moderacion: 'Esta publicación está en revisión.',
+  pendiente_aprobacion: 'Esta publicación está en revisión.',
 };
 
 const hora = (iso: string): string =>

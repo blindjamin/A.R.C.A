@@ -7,22 +7,21 @@ export const ESTADO_ARTICULO_META: Record<
   EstadoArticulo,
   { etiqueta: string; clase: string }
 > = {
+  pendiente_aprobacion: { etiqueta: 'En revisión', clase: 'bg-amber-100 text-amber-800' },
   disponible: { etiqueta: 'Disponible', clase: 'bg-emerald-100 text-emerald-800' },
   en_negociacion: { etiqueta: 'En negociación', clase: 'bg-sky-100 text-sky-800' },
   retirado: { etiqueta: 'Retirado', clase: 'bg-stone-100 text-stone-600' },
   completado: { etiqueta: 'Completado', clase: 'bg-gold-100 text-gold-700' },
   rechazado: { etiqueta: 'Rechazado', clase: 'bg-rose-100 text-rose-700' },
-  en_revision: { etiqueta: 'En revisión', clase: 'bg-amber-100 text-amber-800' },
-  pendiente_moderacion: { etiqueta: 'En revisión', clase: 'bg-amber-100 text-amber-800' },
 };
 
-export function metaDeEstadoArticulo(estado: string): { etiqueta: string; clase: string } {
-  const meta = ESTADO_ARTICULO_META[estado as EstadoArticulo];
-  if (meta) return meta;
-  return {
-    etiqueta: estado ? estado.replace(/_/g, ' ') : 'Desconocido',
-    clase: 'bg-stone-100 text-stone-700',
-  };
+export function metaDeEstadoArticulo(estado: EstadoArticulo): { etiqueta: string; clase: string } {
+  return (
+    ESTADO_ARTICULO_META[estado] ?? {
+      etiqueta: estado ? String(estado).replace(/_/g, ' ') : 'Desconocido',
+      clase: 'bg-stone-100 text-stone-700',
+    }
+  );
 }
 
 export const TIPO_ARTICULO_META: Record<

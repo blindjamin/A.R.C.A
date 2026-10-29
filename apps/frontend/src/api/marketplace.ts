@@ -47,13 +47,12 @@ export type TipoArticulo = 'regalo' | 'intercambio';
 
 // Alineado con `articulos_marketplace.estado` en ARCA_database_schema.dbml.
 export type EstadoArticulo =
+  | 'pendiente_aprobacion'
   | 'disponible'
   | 'en_negociacion'
   | 'retirado'
   | 'completado'
-  | 'rechazado'
-  | 'en_revision'
-  | 'pendiente_moderacion';
+  | 'rechazado';
 
 export interface PublicadorMarketplace {
   /** Nombre real entregado por ClaveÚnica (decisión de producto). */
@@ -297,6 +296,7 @@ const articulosEjemplo: ArticuloEjemplo[] = [
   articulo(8, 'regalo', 'Colchón de 2 plazas', 'Limpio, sin manchas. Retirar en el día.', 'Otros', 8, PEDRO, 9_100, 10),
   articulo(9, 'regalo', 'Silla de escritorio', 'Con ruedas, el respaldo se reclina.', 'Muebles', 9, YO, 0, 7),
   articulo(10, 'intercambio', 'Horno eléctrico', 'Lo cambié por una estufa.', 'Línea Blanca', 10, YO, 0, 20, 'completado'),
+  articulo(11, 'regalo', 'Estante de pino 4 niveles', 'En revisión por moderación municipal.', 'Muebles', 11, YO, 0, 1, 'pendiente_aprobacion'),
 ];
 
 let siguienteIdEjemplo = articulosEjemplo.length + 1;
@@ -362,7 +362,7 @@ async function ejemploPublicar(
     tipo: input.tipo,
     titulo: input.titulo,
     descripcion: input.descripcion ?? null,
-    estado: 'disponible',
+    estado: 'pendiente_aprobacion',
     residuoCatalogoId: input.residuoCatalogoId,
     categoria: categoria ?? 'Otros',
     // URL propia (no la de la vista previa, que la pantalla libera al salir).

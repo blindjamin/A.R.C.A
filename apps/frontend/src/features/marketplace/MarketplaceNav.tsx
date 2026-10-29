@@ -35,7 +35,7 @@ export default function MarketplaceNav({ tabActiva }: MarketplaceNavProps) {
 
         {/* 2. Mis publicaciones */}
         <Link
-          to="/mis-publicaciones"
+          to="/marketplace/mis-publicaciones"
           className={`flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl py-2 px-1 text-xs sm:text-sm transition-all select-none touch-manipulation active:scale-95 ${
             tabActiva === 'mis-publicaciones'
               ? 'bg-emerald-700 text-white font-bold shadow-xs'
