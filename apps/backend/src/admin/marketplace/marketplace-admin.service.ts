@@ -45,14 +45,8 @@ export class MarketplaceAdminService {
     private readonly notificaciones: NotificacionesService,
   ) {}
 
-  async findPendientes(): Promise<ArticuloModeracionDetalle[]> {
-    const articulos = await this.articuloRepository.find({
-      where: { estado: EstadoArticuloMarketplace.PENDIENTE_APROBACION },
-      relations: { residuoCatalogo: true },
-      order: { fechaPublicacion: 'ASC' },
-    });
-
-    return articulos.map((a) => ({
+  private aDetalle(a: ArticuloMarketplace): ArticuloModeracionDetalle {
+    return {
       id: a.id,
       titulo: a.titulo,
       descripcion: a.descripcion,
@@ -68,7 +62,17 @@ export class MarketplaceAdminService {
       fechaPublicacion: a.fechaPublicacion,
       motivoRechazo: a.motivoRechazo,
       creditosSugeridos: creditosPorEntrega(),
-    }));
+    };
+  }
+
+  async findPendientes(): Promise<ArticuloModeracionDetalle[]> {
+    const articulos = await this.articuloRepository.find({
+      where: { estado: EstadoArticuloMarketplace.PENDIENTE_APROBACION },
+      relations: { residuoCatalogo: true },
+      order: { fechaPublicacion: 'ASC' },
+    });
+
+    return articulos.map((a) => this.aDetalle(a));
   }
 
   async conteoPendientes(): Promise<{ pendientes: number }> {
@@ -83,9 +87,10 @@ export class MarketplaceAdminService {
     dto: AprobarArticuloDto,
     user: AuthUser,
     origen?: OrigenPeticion,
-  ): Promise<ArticuloMarketplace> {
+  ): Promise<ArticuloModeracionDetalle> {
     const articulo = await this.articuloRepository.findOne({
       where: { id },
+      relations: { residuoCatalogo: true },
     });
 
     if (!articulo) {
@@ -130,7 +135,7 @@ export class MarketplaceAdminService {
       url: `/marketplace/${articulo.id}`,
     });
 
-    return guardado;
+    return this.aDetalle(guardado);
   }
 
   async rechazar(
@@ -138,9 +143,10 @@ export class MarketplaceAdminService {
     dto: RechazarArticuloDto,
     user: AuthUser,
     origen?: OrigenPeticion,
-  ): Promise<ArticuloMarketplace> {
+  ): Promise<ArticuloModeracionDetalle> {
     const articulo = await this.articuloRepository.findOne({
       where: { id },
+      relations: { residuoCatalogo: true },
     });
 
     if (!articulo) {
@@ -170,7 +176,6 @@ export class MarketplaceAdminService {
       datosAnteriores: { estado: estadoAnterior },
       datosNuevos: {
         estado: EstadoArticuloMarketplace.RECHAZADO,
-        motivoRechazo: dto.motivo.trim(),
         moderadoPorId: user.administradorId,
       },
       origen,
@@ -184,6 +189,6 @@ export class MarketplaceAdminService {
       url: `/marketplace/mis-publicaciones`,
     });
 
-    return guardado;
+    return this.aDetalle(guardado);
   }
 }
