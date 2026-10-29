@@ -17,6 +17,7 @@ import {
   Roles,
   RolesGuard,
 } from '../../core';
+import { AprobarArticuloDto } from './dto/aprobar-articulo.dto';
 import { RechazarArticuloDto } from './dto/rechazar-articulo.dto';
 import { MarketplaceAdminService } from './marketplace-admin.service';
 
@@ -46,10 +47,11 @@ export class MarketplaceAdminController {
   @Post(':id/aprobar')
   aprobar(
     @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AprobarArticuloDto,
     @CurrentUser() user: AuthUser,
     @Req() req: Request,
   ) {
-    return this.marketplaceAdminService.aprobar(id, user, origenDe(req));
+    return this.marketplaceAdminService.aprobar(id, dto, user, origenDe(req));
   }
 
   @Post(':id/rechazar')

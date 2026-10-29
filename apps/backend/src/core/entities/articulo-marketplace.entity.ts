@@ -68,6 +68,10 @@ export class ArticuloMarketplace {
   })
   estado: EstadoArticuloMarketplace;
 
+  /** Circular Credits asignados por el funcionario municipal al aprobar. */
+  @Column({ type: 'int', nullable: true })
+  creditos: number | null;
+
   /** Relativa a la carpeta de subidas. Nunca una URL pública. */
   @Column({ name: 'foto_path', type: 'varchar', length: 500, nullable: true })
   fotoPath: string | null;

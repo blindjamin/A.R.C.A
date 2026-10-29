@@ -15,6 +15,7 @@ import {
   TipoActorAuditoria,
 } from '../../core';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
+import { AprobarArticuloDto } from './dto/aprobar-articulo.dto';
 import { RechazarArticuloDto } from './dto/rechazar-articulo.dto';
 
 export interface ArticuloModeracionDetalle {
@@ -32,6 +33,7 @@ export interface ArticuloModeracionDetalle {
   fotoUrl: string | null;
   fechaPublicacion: Date;
   motivoRechazo: string | null;
+  creditosSugeridos: number;
 }
 
 @Injectable()
@@ -66,6 +68,7 @@ export class MarketplaceAdminService {
       fotoUrl: a.fotoPath ? `/api/marketplace/articulos/${a.id}/foto` : null,
       fechaPublicacion: a.fechaPublicacion,
       motivoRechazo: a.motivoRechazo,
+      creditosSugeridos: 100,
     }));
   }
 
@@ -78,6 +81,7 @@ export class MarketplaceAdminService {
 
   async aprobar(
     id: number,
+    dto: AprobarArticuloDto,
     user: AuthUser,
     origen?: OrigenPeticion,
   ): Promise<ArticuloMarketplace> {
@@ -98,6 +102,7 @@ export class MarketplaceAdminService {
 
     const estadoAnterior = articulo.estado;
     articulo.estado = EstadoArticuloMarketplace.DISPONIBLE;
+    articulo.creditos = dto.creditos;
     articulo.moderadoPorId = user.administradorId ?? null;
     articulo.fechaModeracion = new Date();
     articulo.motivoRechazo = null;
@@ -113,6 +118,7 @@ export class MarketplaceAdminService {
       datosAnteriores: { estado: estadoAnterior },
       datosNuevos: {
         estado: EstadoArticuloMarketplace.DISPONIBLE,
+        creditos: dto.creditos,
         moderadoPorId: user.administradorId,
       },
       origen,
@@ -122,7 +128,7 @@ export class MarketplaceAdminService {
     void this.notificaciones.notificar(articulo.usuarioPublicadorId, {
       tipo: 'marketplace_aprobado',
       titulo: 'Publicación aprobada',
-      cuerpo: `Tu publicación «${articulo.titulo}» fue aprobada y ya está disponible en el Marketplace.`,
+      cuerpo: `Tu publicación «${articulo.titulo}» fue aprobada con ${dto.creditos} Circular Credits y ya está disponible en el Marketplace.`,
       url: `/marketplace/${articulo.id}`,
     });
 

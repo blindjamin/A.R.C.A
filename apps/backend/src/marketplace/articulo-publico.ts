@@ -177,7 +177,7 @@ export function aArticuloPublico(
     fotoUrl: articulo.fotoPath
       ? `/api/marketplace/articulos/${articulo.id}/foto`
       : null,
-    creditos: creditosPorEntrega(),
+    creditos: articulo.creditos ?? creditosPorEntrega(),
     banda: contexto.banda,
     publicador: {
       nombre: NOMBRE_PUBLICADOR_PROVISORIO,
