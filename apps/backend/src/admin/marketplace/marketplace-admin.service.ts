@@ -28,7 +28,7 @@ export interface ArticuloModeracionDetalle {
   nombreResiduoOtro: string | null;
   publicador: {
     id: string;
-    claveUnicaId: string;
+    nombre: string;
   };
   fotoUrl: string | null;
   fechaPublicacion: Date;
@@ -63,7 +63,7 @@ export class MarketplaceAdminService {
       nombreResiduoOtro: a.nombreResiduoOtro,
       publicador: {
         id: a.usuarioPublicadorId,
-        claveUnicaId: a.usuarioPublicador?.claveUnicaId ?? 'desconocido',
+        nombre: 'Vecino de Santo Domingo',
       },
       fotoUrl: a.fotoPath ? `/api/marketplace/articulos/${a.id}/foto` : null,
       fechaPublicacion: a.fechaPublicacion,
@@ -100,9 +100,10 @@ export class MarketplaceAdminService {
       );
     }
 
+    const creditosFinales = dto.creditos ?? 100;
     const estadoAnterior = articulo.estado;
     articulo.estado = EstadoArticuloMarketplace.DISPONIBLE;
-    articulo.creditos = dto.creditos;
+    articulo.creditos = creditosFinales;
     articulo.moderadoPorId = user.administradorId ?? null;
     articulo.fechaModeracion = new Date();
     articulo.motivoRechazo = null;
@@ -118,7 +119,7 @@ export class MarketplaceAdminService {
       datosAnteriores: { estado: estadoAnterior },
       datosNuevos: {
         estado: EstadoArticuloMarketplace.DISPONIBLE,
-        creditos: dto.creditos,
+        creditos: creditosFinales,
         moderadoPorId: user.administradorId,
       },
       origen,
@@ -128,7 +129,7 @@ export class MarketplaceAdminService {
     void this.notificaciones.notificar(articulo.usuarioPublicadorId, {
       tipo: 'marketplace_aprobado',
       titulo: 'Publicación aprobada',
-      cuerpo: `Tu publicación «${articulo.titulo}» fue aprobada con ${dto.creditos} Circular Credits y ya está disponible en el Marketplace.`,
+      cuerpo: `Tu publicación «${articulo.titulo}» fue aprobada con ${creditosFinales} Circular Credits y ya está disponible en el Marketplace.`,
       url: `/marketplace/${articulo.id}`,
     });
 

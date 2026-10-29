@@ -319,6 +319,7 @@ src/
     ├── auditoria/
     ├── derivaciones/
     ├── mapa-calor/
+    ├── marketplace/
     ├── metricas/
     ├── residuos/
     └── solicitudes/
@@ -413,6 +414,8 @@ siempre en una migración nueva.
 | `1782164700000` | `chat-marketplace` — `interesado_id` (NOT NULL, FK, dos índices) en `mensajes_marketplace` y tabla `suscripciones_push`. Completa las filas sembradas y borra las sin interlocutor |
 | `1782164900000` | `notificaciones` — tabla de avisos de la campanita (HU-23) |
 | `1782164800000` | `interes-reserva-marketplace` — tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo` y `fecha_reserva` en `articulos_marketplace` |
+| `1782165200000` | `moderacion-market-residuo-otro` — estados `pendiente_aprobacion` y `rechazado`, moderación municipal y residuo libre en solicitudes y marketplace |
+| `1782165300000` | `creditos-articulos-marketplace` — columna `creditos` en `articulos_marketplace` para asignación de Circular Credits |
 
 ### Se escriben a mano — no usar `migration:generate`
 

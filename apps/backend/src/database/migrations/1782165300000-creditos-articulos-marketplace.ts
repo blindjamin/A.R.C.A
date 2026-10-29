@@ -5,10 +5,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * el valor en Circular Credits asignado por el funcionario al momento
  * de aprobar la publicación en el Marketplace.
  */
-export class CreditosArticulosMarketplace1782165100000
+export class CreditosArticulosMarketplace1782165300000
   implements MigrationInterface
 {
-  name = 'CreditosArticulosMarketplace1782165100000';
+  name = 'CreditosArticulosMarketplace1782165300000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
