@@ -79,6 +79,8 @@ export interface ArticuloMarketplace {
   esPropio: boolean;
   /** La sesión lo reservó ("Lo quiero"). Lo calcula el backend. */
   soyReceptor: boolean;
+  /** La sesión recibió el artículo, está completado y todavía no lo calificó. */
+  puedoCalificar: boolean;
   /** Código de 6 dígitos para dictárselo a quien publica. Solo lo ve quien recibe, reservado. */
   codigoEntrega: string | null;
   /** Sector aproximado del retiro. Solo los dos participantes, con el artículo reservado o completado. */
@@ -86,6 +88,8 @@ export interface ArticuloMarketplace {
   /** Nombre de quien recibe. Solo lo ve quien publica. */
   reservadoPara: string | null;
   fechaPublicacion: string;
+  /** Vence a los 30 días de publicarse (ISO). */
+  fechaExpiracion: string;
 }
 
 /** Vecino que dijo "Me interesa" (lo ve solo quien publica). */
@@ -224,6 +228,32 @@ export function entregar(id: number, codigo: string): Promise<ArticuloMarketplac
   }).then((r) => handle<ArticuloMarketplace>(r));
 }
 
+export interface CalificarInput {
+  /** 1 a 5 estrellas. */
+  puntuacion: number;
+  /** Hasta 1000 caracteres. */
+  comentario?: string;
+}
+
+/** Respuesta de `POST /marketplace/articulos/:id/calificacion` (HU-15). */
+export interface CalificacionPublica {
+  puntuacion: number;
+  comentario: string | null;
+  fecha: string;
+}
+
+/** Solo quien recibió el artículo, una vez entregado y una sola vez. */
+export function calificar(
+  id: number,
+  input: CalificarInput,
+): Promise<CalificacionPublica> {
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/calificacion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  }).then((r) => handle<CalificacionPublica>(r));
+}
+
 // --- Datos de ejemplo -------------------------------------------------------
 // Solo se usan con USAR_DATOS_DE_EJEMPLO = true. Imitan la semántica que
 // tendrá el backend (filtros, banda solo con origen, reglas de retiro) para
@@ -262,25 +292,34 @@ const articulo = (
   metros: number,
   diasAtras: number,
   estado: EstadoArticulo = 'disponible',
-): ArticuloEjemplo => ({
-  id,
-  tipo,
-  titulo,
-  descripcion,
-  estado,
-  residuoCatalogoId,
-  categoria,
-  fotoUrl: null,
-  creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
-  publicador: pub,
-  esPropio: pub === YO,
-  soyReceptor: false,
-  codigoEntrega: null,
-  sector: null,
-  reservadoPara: null,
-  fechaPublicacion: new Date(Date.now() - diasAtras * 86_400_000).toISOString(),
-  metros,
-});
+): ArticuloEjemplo => {
+  const fechaPublicacion = new Date(
+    Date.now() - diasAtras * 86_400_000,
+  ).toISOString();
+  return {
+    id,
+    tipo,
+    titulo,
+    descripcion,
+    estado,
+    residuoCatalogoId,
+    categoria,
+    fotoUrl: null,
+    creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
+    publicador: pub,
+    esPropio: pub === YO,
+    soyReceptor: false,
+    puedoCalificar: false,
+    codigoEntrega: null,
+    sector: null,
+    reservadoPara: null,
+    fechaPublicacion,
+    fechaExpiracion: new Date(
+      new Date(fechaPublicacion).getTime() + 30 * 86_400_000,
+    ).toISOString(),
+    metros,
+  };
+};
 
 const articulosEjemplo: ArticuloEjemplo[] = [
   articulo(1, 'regalo', 'Sofá de 3 cuerpos', 'Tela gris, un cojín algo gastado. Hay que retirarlo.', 'Muebles', 1, CAMILA, 650, 1),
@@ -367,10 +406,12 @@ async function ejemploPublicar(
     publicador: YO,
     esPropio: true,
     soyReceptor: false,
+    puedoCalificar: false,
     codigoEntrega: null,
     sector: null,
     reservadoPara: null,
     fechaPublicacion: new Date().toISOString(),
+    fechaExpiracion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
     metros: 0,
   };
   articulosEjemplo.unshift(nuevo);
