@@ -1,5 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
-import { origenesPermitidos, verificarOrigen } from './origen';
+import {
+  RUTAS_SIN_CHEQUEO_DE_ORIGEN,
+  origenesPermitidos,
+  verificarOrigen,
+} from './origen';
 
 const FRONTEND = 'https://arca.santodomingo.cl';
 
@@ -7,7 +11,7 @@ function probar(
   metodo: string,
   origen?: string,
   ruta = '/api/solicitudes-retiro',
-  exentas: string[] = [],
+  exentas: readonly string[] = RUTAS_SIN_CHEQUEO_DE_ORIGEN,
 ) {
   const req = {
     method: metodo,
@@ -48,10 +52,9 @@ describe('verificarOrigen', () => {
     expect(probar('POST').next).toHaveBeenCalled();
   });
 
-  it('deja pasar una ruta exenta aunque venga de otro sitio', () => {
-    const ruta = '/api/pagos/retorno';
+  it('deja pasar la vuelta de Webpay aunque venga de Transbank', () => {
     expect(
-      probar('POST', 'https://webpay.cl', ruta, [ruta]).next,
+      probar('POST', 'https://webpay.cl', '/api/pagos/retorno').next,
     ).toHaveBeenCalled();
   });
 });
