@@ -608,6 +608,7 @@ export interface ArticuloModeracion {
   fotoUrl: string | null;
   fechaPublicacion: string;
   motivoRechazo: string | null;
+  creditosSugeridos?: number;
 }
 
 export function fetchArticulosPendientes(): Promise<ArticuloModeracion[]> {
@@ -622,10 +623,14 @@ export function fetchConteoMarketplacePendientes(): Promise<{ pendientes: number
   );
 }
 
-export function aprobarArticuloMarketplace(id: number): Promise<void> {
-  return apiFetch(`${API_URL}/admin/marketplace/${id}/aprobar`, {
-    method: 'POST',
-  }).then(handleVacio);
+export function aprobarArticuloMarketplace(
+  id: number,
+  creditos: number,
+): Promise<void> {
+  return apiFetch(
+    `${API_URL}/admin/marketplace/${id}/aprobar`,
+    jsonInit('POST', { creditos }),
+  ).then(handleVacio);
 }
 
 export function rechazarArticuloMarketplace(

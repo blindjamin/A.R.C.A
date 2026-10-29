@@ -22,6 +22,7 @@ import {
   HistorialYNotas,
   TarjetaRevision,
 } from '../components/RevisionSolicitud';
+import { IconMarketplace, IconTruck } from '../../components/ui/Icons';
 
 const FILTROS: { value: EstadoSolicitud | 'todas'; label: string }[] = [
   { value: 'todas', label: 'Todas' },
@@ -162,7 +163,7 @@ export default function Solicitudes() {
           {items.map((s) => (
             <li key={s.id}>
               <ListItemCard
-                icon="🚛"
+                icon={<IconTruck className="h-5 w-5 text-emerald-700" />}
                 title={
                   <>
                     <span className="pill bg-emerald-100 text-emerald-800 text-[10px] font-bold py-0.5 px-1.5 mr-1.5">
@@ -300,8 +301,8 @@ function DetalleSolicitud({
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <span className="pill bg-emerald-100 text-emerald-800 text-xs font-bold py-0.5 px-2">
-                🚛 Retiro Municipal
+              <span className="pill bg-emerald-100 text-emerald-800 text-xs font-bold py-0.5 px-2 flex items-center gap-1">
+                <IconTruck className="h-3.5 w-3.5" /> Retiro Municipal
               </span>
               <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
             </div>
@@ -317,7 +318,7 @@ function DetalleSolicitud({
         {solicitud.coincidenciaMarketplace && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs space-y-1.5">
             <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
-              <span className="text-base">💡</span>
+              <IconMarketplace className="h-4 w-4 text-amber-700" />
               <span>Coincidencia detectada con publicación en Marketplace</span>
             </div>
             <p className="text-xs text-amber-900 leading-relaxed">
