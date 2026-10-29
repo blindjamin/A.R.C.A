@@ -18,7 +18,7 @@ import {
   IconSearch,
 } from '../../../components/ui';
 import BotonReservar from '../BotonReservar';
-import { ESTADO_ARTICULO_META } from '../formato';
+import { metaDeEstadoArticulo } from '../formato';
 import { useNoLeidos } from './NoLeidosContext';
 
 type MensajeLocal = MensajeChat & { estado?: 'enviando' | 'error' };
@@ -27,12 +27,15 @@ type Cabecera = Omit<HistorialChat, 'mensajes'>;
 
 const MAX_LINEAS_INPUT = 4;
 
-const AVISO_SOLO_LECTURA = {
+const AVISO_SOLO_LECTURA: Record<string, string> = {
   en_negociacion: 'Este artículo fue reservado por otro vecino.',
   retirado: 'Quien publicó retiró este artículo.',
   completado: 'Este intercambio ya se completó.',
   disponible: 'Esta publicación venció.',
-} as const;
+  rechazado: 'Esta publicación no fue aprobada por moderación.',
+  en_revision: 'Esta publicación está en revisión.',
+  pendiente_moderacion: 'Esta publicación está en revisión.',
+};
 
 const hora = (iso: string): string =>
   new Date(iso).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
@@ -279,8 +282,8 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
           <div className="flex items-center gap-2">
             <h1 className="truncate text-base font-bold">{articulo.titulo}</h1>
             {articulo.estado !== 'disponible' && (
-              <span className={`pill shrink-0 ${ESTADO_ARTICULO_META[articulo.estado].clase}`}>
-                {ESTADO_ARTICULO_META[articulo.estado].etiqueta}
+              <span className={`pill shrink-0 ${metaDeEstadoArticulo(articulo.estado).clase}`}>
+                {metaDeEstadoArticulo(articulo.estado).etiqueta}
               </span>
             )}
           </div>
@@ -392,7 +395,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
         </form>
       ) : (
         <p className="border-t border-line bg-card p-4 text-center text-sm text-slate">
-          {AVISO_SOLO_LECTURA[articulo.estado]}
+          {AVISO_SOLO_LECTURA[articulo.estado] ?? 'Esta conversación está en modo solo lectura.'}
         </p>
       )}
     </div>

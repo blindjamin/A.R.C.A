@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchCatalogo,
-  iconoPorCategoria,
   type ResiduoCatalogo,
 } from '../../api/arca';
-import { IconBadge, PriceTag, ScreenHeader } from '../../components/ui';
+import { IconBadge, IconoCategoria, PriceTag, ScreenHeader } from '../../components/ui';
 
 export default function Catalogo() {
   const [items, setItems] = useState<ResiduoCatalogo[]>([]);
@@ -69,8 +68,8 @@ export default function Catalogo() {
         {filtrados.map((item) => (
           <div key={item.id} className="card flex items-center justify-between gap-3 p-3">
             <IconBadge
-              icon={iconoPorCategoria(item.categoria)}
-              className="h-14 w-14 text-2xl"
+              icon={<IconoCategoria categoria={item.categoria} className="h-6 w-6 text-emerald-800" />}
+              className="h-12 w-12 bg-emerald-50 border border-emerald-100/80"
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">

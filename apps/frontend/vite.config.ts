@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Expone el servidor a la red local (0.0.0.0) para probar en celulares
+    host: true,
     // Permite acceder al dev server via tunel ngrok (host publico != localhost)
     allowedHosts: true,
     proxy: {

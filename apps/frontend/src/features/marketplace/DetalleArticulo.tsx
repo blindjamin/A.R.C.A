@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { iconoPorCategoria } from '../../api/arca';
 import {
   entregar,
   liberar,
@@ -14,19 +13,21 @@ import {
 import {
   BackButton,
   BadgeNoLeidos,
+  CategoriaPlaceholder,
   EmptyState,
   Estrellas,
   IconBadge,
-  IconSearch,
   IconCheck,
   IconMapPin,
+  IconSearch,
+  IconUser,
 } from '../../components/ui';
 import BotonReservar from './BotonReservar';
 import { useNoLeidos } from './chat/NoLeidosContext';
 import { ETIQUETA_BANDA, useOrigenAproximado } from './distancia';
 import {
-  ESTADO_ARTICULO_META,
-  TIPO_ARTICULO_META,
+  metaDeEstadoArticulo,
+  metaDeTipoArticulo,
   haceCuanto,
   mensajeDeError,
 } from './formato';
@@ -334,7 +335,7 @@ export default function DetalleArticulo() {
           <div>
             ¡Tu artículo ya está publicado! Tus vecinos ya pueden verlo.{' '}
             <button
-              onClick={() => navigate('/marketplace/mis-publicaciones')}
+              onClick={() => navigate('/mis-publicaciones')}
               className="font-semibold underline"
             >
               Ver mis publicaciones
@@ -344,27 +345,35 @@ export default function DetalleArticulo() {
       )}
 
       <div className="card overflow-hidden">
-        <div className="relative flex aspect-[4/3] w-full items-center justify-center bg-green-50 sm:aspect-[16/9]">
+        <div className="relative flex aspect-[4/3] w-full items-center justify-center bg-stone-100 sm:aspect-[16/9] overflow-hidden">
           {fotoUrl ? (
             <img src={fotoUrl} alt={titulo} className="h-full w-full object-cover" />
           ) : (
-            <span className="text-7xl" aria-hidden="true">
-              {iconoPorCategoria(categoria)}
-            </span>
+            <CategoriaPlaceholder categoria={categoria} />
           )}
           <span
-            className={`pill absolute left-3 top-3 font-semibold ${TIPO_ARTICULO_META[tipo].clase}`}
+            className={`pill absolute left-3 top-3 font-semibold shadow-xs ${metaDeTipoArticulo(tipo).clase}`}
           >
-            {TIPO_ARTICULO_META[tipo].etiqueta}
+            {metaDeTipoArticulo(tipo).etiqueta}
           </span>
+          {esPropio ? (
+            <span className="pill absolute right-3 top-3 bg-emerald-800 text-white font-semibold text-xs shadow-xs flex items-center gap-1">
+              <IconUser className="h-3.5 w-3.5" />
+              <span>Tu publicación</span>
+            </span>
+          ) : (
+            <span className="pill absolute right-3 top-3 bg-white/95 text-stone-700 backdrop-blur-xs font-medium text-xs shadow-xs">
+              De un vecino
+            </span>
+          )}
         </div>
 
         <div className="space-y-2 p-5">
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-extrabold text-ink">{titulo}</h1>
             {estado !== 'disponible' && (
-              <span className={`pill shrink-0 ${ESTADO_ARTICULO_META[estado].clase}`}>
-                {ESTADO_ARTICULO_META[estado].etiqueta}
+              <span className={`pill shrink-0 ${metaDeEstadoArticulo(estado).clase}`}>
+                {metaDeEstadoArticulo(estado).etiqueta}
               </span>
             )}
           </div>
@@ -409,12 +418,17 @@ export default function DetalleArticulo() {
       </section>
 
       {esPropio ? (
-        <div className="space-y-3 text-center">
-          <span className="pill bg-green-100 text-green-700">Es tu publicación</span>
+        <div className="space-y-3">
+          <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/80 p-3 text-center shadow-xs">
+            <span className="inline-flex items-center gap-1.5 font-bold text-xs text-emerald-800">
+              <IconUser className="h-4 w-4 shrink-0" />
+              Esta es tu publicación en el Marketplace
+            </span>
+          </div>
           {estado === 'disponible' && (
             <RetirarPublicacion
               id={articulo.id}
-              onRetirado={() => navigate('/marketplace/mis-publicaciones')}
+              onRetirado={() => navigate('/mis-publicaciones')}
             />
           )}
           {estado === 'disponible' && (

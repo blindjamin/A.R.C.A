@@ -5,10 +5,9 @@ import {
   crearSolicitudRetiro,
   fetchCatalogo,
   formatearPrecio,
-  iconoPorCategoria,
   type ResiduoCatalogo,
 } from '../../api/arca';
-import { PriceTag, ScreenHeader } from '../../components/ui';
+import { IconoCategoria, PriceTag, ScreenHeader } from '../../components/ui';
 import { useSession } from '../../auth/SessionContext';
 import {
   obtenerPerfilVecino,
@@ -174,7 +173,7 @@ export default function NuevaSolicitud() {
         {seleccionado && (
           <div className="flex items-center justify-between rounded-md bg-green-50 px-4 py-3">
             <span className="flex items-center gap-2 text-sm font-medium">
-              <span className="text-xl">{iconoPorCategoria(seleccionado.categoria)}</span>
+              <IconoCategoria categoria={seleccionado.categoria} className="h-5 w-5 text-emerald-800" />
               {seleccionado.nombre}
             </span>
             <PriceTag amount={seleccionado.precio} className="text-lg" />

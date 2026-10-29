@@ -1,4 +1,4 @@
-import { Route } from 'react-router-dom';
+import { Navigate, Route } from 'react-router-dom';
 import { Protected, RequireSession } from '../../components/AppShell';
 import Listado from './Listado';
 import DetalleArticulo from './DetalleArticulo';
@@ -26,6 +26,10 @@ const marketplaceRoutes = (
     <Route
       path="/marketplace/mis-publicaciones"
       element={<Protected><MisPublicaciones /></Protected>}
+    />
+    <Route
+      path="/marketplace/mis-solicitudes"
+      element={<Navigate to="/marketplace/mis-publicaciones" replace />}
     />
     <Route
       path="/marketplace/mensajes"

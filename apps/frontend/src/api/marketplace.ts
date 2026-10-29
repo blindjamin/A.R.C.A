@@ -50,7 +50,10 @@ export type EstadoArticulo =
   | 'disponible'
   | 'en_negociacion'
   | 'retirado'
-  | 'completado';
+  | 'completado'
+  | 'rechazado'
+  | 'en_revision'
+  | 'pendiente_moderacion';
 
 export interface PublicadorMarketplace {
   /** Nombre real entregado por ClaveÚnica (decisión de producto). */
@@ -86,6 +89,7 @@ export interface ArticuloMarketplace {
   /** Nombre de quien recibe. Solo lo ve quien publica. */
   reservadoPara: string | null;
   fechaPublicacion: string;
+  motivoRechazo?: string | null;
 }
 
 /** Vecino que dijo "Me interesa" (lo ve solo quien publica). */

@@ -70,13 +70,13 @@ src/
 │   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected
 │   └── ui/                      # UI Kit — primitivos reutilizables
 │       ├── Icons.tsx            # Sistema de íconos vectoriales SVG sobrios
-│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader
+│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader · IconoCategoria
 │       ├── EmptyState · BackButton · PriceTag · BotonClaveUnica · Estrellas
 │       ├── estadoMeta.ts        # Metadata (label/color) por estado de solicitud
 │       └── index.ts             # Punto de import único: import { ScreenHeader, IconUser } from '../../components/ui'
 ├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
 ├── features/
-│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones)
+│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones, MarketplaceNav)
 │   │   └── chat/                # Chat (HU-06): Chat, Bandeja y NoLeidosContext
 │   ├── pago/                    # Persistencia local de pagos y comprobantes (pagosStorage.ts)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)

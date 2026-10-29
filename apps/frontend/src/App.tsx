@@ -12,6 +12,7 @@ import Privacidad from './pages/Privacidad';
 import SeleccionInicio from './pages/SeleccionInicio';
 import Inicio from './pages/Inicio';
 import MisSolicitudes from './pages/MisSolicitudes';
+import MisPublicaciones from './features/marketplace/MisPublicaciones';
 import PantallaPago from './pages/PantallaPago';
 import Proximamente from './pages/Proximamente';
 import Perfil from './pages/Perfil';
@@ -60,6 +61,14 @@ export default function App() {
             <Route
               path="/mis-solicitudes"
               element={<Protected><MisSolicitudes /></Protected>}
+            />
+            <Route
+              path="/mis-publicaciones"
+              element={<Protected><MisPublicaciones /></Protected>}
+            />
+            <Route
+              path="/marketplace/mis-publicaciones"
+              element={<Protected><MisPublicaciones /></Protected>}
             />
             <Route
               path="/pago/:id"

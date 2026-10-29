@@ -7,11 +7,23 @@ export const ESTADO_ARTICULO_META: Record<
   EstadoArticulo,
   { etiqueta: string; clase: string }
 > = {
-  disponible: { etiqueta: 'Disponible', clase: 'bg-green-100 text-green-700' },
-  en_negociacion: { etiqueta: 'En negociación', clase: 'bg-sky-100 text-sky-600' },
-  retirado: { etiqueta: 'Retirado', clase: 'bg-line-2 text-slate' },
-  completado: { etiqueta: 'Completado', clase: 'bg-gold-100 text-gold-600' },
+  disponible: { etiqueta: 'Disponible', clase: 'bg-emerald-100 text-emerald-800' },
+  en_negociacion: { etiqueta: 'En negociación', clase: 'bg-sky-100 text-sky-800' },
+  retirado: { etiqueta: 'Retirado', clase: 'bg-stone-100 text-stone-600' },
+  completado: { etiqueta: 'Completado', clase: 'bg-gold-100 text-gold-700' },
+  rechazado: { etiqueta: 'Rechazado', clase: 'bg-rose-100 text-rose-700' },
+  en_revision: { etiqueta: 'En revisión', clase: 'bg-amber-100 text-amber-800' },
+  pendiente_moderacion: { etiqueta: 'En revisión', clase: 'bg-amber-100 text-amber-800' },
 };
+
+export function metaDeEstadoArticulo(estado: string): { etiqueta: string; clase: string } {
+  const meta = ESTADO_ARTICULO_META[estado as EstadoArticulo];
+  if (meta) return meta;
+  return {
+    etiqueta: estado ? estado.replace(/_/g, ' ') : 'Desconocido',
+    clase: 'bg-stone-100 text-stone-700',
+  };
+}
 
 export const TIPO_ARTICULO_META: Record<
   TipoArticulo,
@@ -20,6 +32,15 @@ export const TIPO_ARTICULO_META: Record<
   regalo: { etiqueta: 'Regalo', clase: 'bg-gold-100 text-gold-700' },
   intercambio: { etiqueta: 'Intercambio', clase: 'bg-green-100 text-green-700' },
 };
+
+export function metaDeTipoArticulo(tipo: string): { etiqueta: string; clase: string } {
+  const meta = TIPO_ARTICULO_META[tipo as TipoArticulo];
+  if (meta) return meta;
+  return {
+    etiqueta: tipo ?? 'Artículo',
+    clase: 'bg-stone-100 text-stone-700',
+  };
+}
 
 const DIA_MS = 86_400_000;
 
