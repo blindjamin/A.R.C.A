@@ -30,9 +30,15 @@ export class PublicarArticuloDto {
   @MaxLength(5000)
   descripcion?: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  residuoCatalogoId: number;
+  residuoCatalogoId?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  nombreResiduoOtro?: string;
 
   /** Punto de quien publica. Se guarda aproximado a la grilla de 250 m. */
   @IsOptional()

@@ -27,6 +27,7 @@ import {
   EstadoArticuloMarketplace,
   InteresadoMarketplace,
   type OrigenPeticion,
+  ResiduoCatalogo,
   SesionService,
   TipoActorAuditoria,
   type TransaccionCircularCredits,
@@ -171,12 +172,19 @@ export class MarketplaceService {
     foto: ArchivoSubido | undefined,
     user: AuthUser,
   ): Promise<ArticuloPublico> {
-    const residuo = await this.residuosService.findCatalogoById(
-      dto.residuoCatalogoId,
-    );
-    if (!residuo) {
-      throw new NotFoundException(
-        `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
+    let residuo: ResiduoCatalogo | null = null;
+    if (dto.residuoCatalogoId) {
+      residuo = await this.residuosService.findCatalogoById(
+        dto.residuoCatalogoId,
+      );
+      if (!residuo) {
+        throw new NotFoundException(
+          `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
+        );
+      }
+    } else if (!dto.nombreResiduoOtro?.trim()) {
+      throw new BadRequestException(
+        'Debes indicar qué tipo de objeto es o seleccionar uno del catálogo.',
       );
     }
 
@@ -191,11 +199,12 @@ export class MarketplaceService {
     const ahora = new Date();
     const articulo = this.articuloRepository.create({
       usuarioPublicadorId: user.ciudadanoId,
-      residuoCatalogoId: residuo.id,
+      residuoCatalogoId: residuo?.id ?? null,
+      nombreResiduoOtro: residuo ? null : dto.nombreResiduoOtro?.trim() || null,
       tipo: dto.tipo,
       titulo: dto.titulo.trim(),
       descripcion: dto.descripcion?.trim() || null,
-      estado: EstadoArticuloMarketplace.DISPONIBLE,
+      estado: EstadoArticuloMarketplace.PENDIENTE_APROBACION,
       fotoPath,
       latitud: punto ? String(punto.latitud) : null,
       longitud: punto ? String(punto.longitud) : null,

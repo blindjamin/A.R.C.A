@@ -17,6 +17,7 @@ import { ResiduosAdminModule } from './admin/residuos/residuos-admin.module';
 import { DerivacionesAdminModule } from './admin/derivaciones/derivaciones-admin.module';
 import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
 import { PagadasAdminModule } from './admin/pagadas/pagadas-admin.module';
+import { MarketplaceAdminModule } from './admin/marketplace/marketplace-admin.module';
 import { MailModule } from './mail/mail.module';
 import { PerfilModule } from './perfil/perfil.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
@@ -71,6 +72,7 @@ import { NotificacionesModule } from './notificaciones/notificaciones.module';
     DerivacionesAdminModule,
     MetricasAdminModule,
     PagadasAdminModule,
+    MarketplaceAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

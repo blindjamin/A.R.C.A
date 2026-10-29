@@ -132,6 +132,7 @@ export class RevisionAdminService {
         actor: actorDe(user),
         administradorId: user.administradorId,
         precioCatalogo: solicitud.residuoCatalogo?.precio,
+        montoFinal: dto.montoFinal,
         ahora,
       });
     } catch (error) {
@@ -172,6 +173,7 @@ export class RevisionAdminService {
         ...cambios.nuevos,
         decision: dto.decision,
         ...(dto.motivo ? { motivo: dto.motivo } : {}),
+        ...(dto.montoFinal !== undefined ? { montoFinal: dto.montoFinal } : {}),
       },
       origen,
     });

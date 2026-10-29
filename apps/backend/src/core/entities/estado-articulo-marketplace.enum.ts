@@ -5,6 +5,8 @@
  * pasada simplemente deja de listarse.
  */
 export enum EstadoArticuloMarketplace {
+  /** Esperando aprobación del funcionario municipal antes de publicarse. */
+  PENDIENTE_APROBACION = 'pendiente_aprobacion',
   DISPONIBLE = 'disponible',
   /** Un vecino presionó "Lo quiero"; queda en `usuario_comprador_id`. */
   EN_NEGOCIACION = 'en_negociacion',
@@ -12,4 +14,6 @@ export enum EstadoArticuloMarketplace {
   RETIRADO = 'retirado',
   /** Entregado a quien lo reservó. */
   COMPLETADO = 'completado',
+  /** Rechazado por el moderador municipal. */
+  RECHAZADO = 'rechazado',
 }
