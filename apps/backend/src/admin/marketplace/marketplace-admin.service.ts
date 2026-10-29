@@ -15,6 +15,7 @@ import {
   TipoActorAuditoria,
 } from '../../core';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
+import { creditosPorEntrega } from '../../creditos/reglas-creditos';
 import { AprobarArticuloDto } from './dto/aprobar-articulo.dto';
 import { RechazarArticuloDto } from './dto/rechazar-articulo.dto';
 
@@ -68,7 +69,7 @@ export class MarketplaceAdminService {
       fotoUrl: a.fotoPath ? `/api/marketplace/articulos/${a.id}/foto` : null,
       fechaPublicacion: a.fechaPublicacion,
       motivoRechazo: a.motivoRechazo,
-      creditosSugeridos: 100,
+      creditosSugeridos: creditosPorEntrega(),
     }));
   }
 
@@ -100,7 +101,7 @@ export class MarketplaceAdminService {
       );
     }
 
-    const creditosFinales = dto.creditos ?? 100;
+    const creditosFinales = dto.creditos ?? creditosPorEntrega();
     const estadoAnterior = articulo.estado;
     articulo.estado = EstadoArticuloMarketplace.DISPONIBLE;
     articulo.creditos = creditosFinales;

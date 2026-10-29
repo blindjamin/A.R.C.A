@@ -55,6 +55,20 @@ const ETIQUETA_PAGO: Record<EstadoPago, string> = {
   pagado: 'Pagado',
 };
 
+const ETIQUETAS_ESTADO_MARKETPLACE: Record<string, string> = {
+  pendiente_aprobacion: 'Pendiente de aprobación',
+  disponible: 'Disponible',
+  en_negociacion: 'En negociación',
+  retirado: 'Retirado',
+  completado: 'Completado',
+  rechazado: 'Rechazado',
+};
+
+const formatoEstadoMarketplace = (estado: string): string => {
+  const clave = estado.toLowerCase();
+  return ETIQUETAS_ESTADO_MARKETPLACE[clave] ?? estado;
+};
+
 // Plazo tras el cual una solicitud en revisión se marca como atrasada.
 const HORAS_ATRASO = 48;
 
@@ -170,9 +184,10 @@ export default function Solicitudes() {
                       Retiro
                     </span>
                     #{s.id} ·{' '}
-                    {s.nombreResiduoOtro
-                      ? `Otro: ${s.nombreResiduoOtro}`
-                      : (s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`)}
+                    {s.residuoCatalogo?.nombre ??
+                      (s.nombreResiduoOtro
+                        ? `Otro: ${s.nombreResiduoOtro}`
+                        : `Residuo ${s.residuoCatalogoId}`)}
                   </>
                 }
                 titleBadge={<EstadoPill estado={s.estado} />}
@@ -307,9 +322,10 @@ function DetalleSolicitud({
               <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
             </div>
             <p className="text-sm text-slate">
-              {solicitud.nombreResiduoOtro
-                ? `Otro: ${solicitud.nombreResiduoOtro} (Personalizado)`
-                : (solicitud.residuoCatalogo?.nombre ?? `Residuo ${solicitud.residuoCatalogoId}`)}
+              {solicitud.residuoCatalogo?.nombre ??
+                (solicitud.nombreResiduoOtro
+                  ? `Otro: ${solicitud.nombreResiduoOtro} (Personalizado)`
+                  : `Residuo ${solicitud.residuoCatalogoId}`)}
             </p>
           </div>
           <EstadoPill estado={solicitud.estado} />
@@ -324,7 +340,9 @@ function DetalleSolicitud({
             <p className="text-xs text-amber-900 leading-relaxed">
               El mismo vecino tiene una publicación activa o en revisión en el Marketplace:{' '}
               <strong>«{solicitud.coincidenciaMarketplace.titulo}»</strong> (Art. #{solicitud.coincidenciaMarketplace.id}, estado:{' '}
-              <span className="font-semibold underline uppercase text-[11px]">{solicitud.coincidenciaMarketplace.estado}</span>),
+              <span className="font-semibold text-[11px] text-amber-950 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                {formatoEstadoMarketplace(solicitud.coincidenciaMarketplace.estado)}
+              </span>),
               publicada el {new Date(solicitud.coincidenciaMarketplace.fechaPublicacion).toLocaleDateString('es-CL')}.
             </p>
             <p className="text-[11px] text-amber-800">
@@ -339,9 +357,10 @@ function DetalleSolicitud({
           <Dato
             label="Categoría"
             valor={
-              solicitud.nombreResiduoOtro
+              solicitud.residuoCatalogo?.categoria ??
+              (solicitud.nombreResiduoOtro
                 ? `Otro (${solicitud.nombreResiduoOtro})`
-                : (solicitud.residuoCatalogo?.categoria ?? '—')
+                : '—')
             }
           />
           {/* Referencia seudónima, igual que en la auditoría: el panel no necesita saber quién es. */}

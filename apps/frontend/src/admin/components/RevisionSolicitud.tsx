@@ -76,6 +76,9 @@ export function TarjetaRevision({
   const checklistCompleto = ITEMS_CHECKLIST_APROBACION.every(
     (i) => checklist[i.id],
   );
+  const requiereMontoManual = !solicitud.residuoCatalogoId;
+  const faltaMontoObligatorio =
+    requiereMontoManual && (montoFinal === '' || Number(montoFinal) <= 0);
   const exigeComentario =
     formulario === 'requiere_modificacion' || motivo === 'otro';
   const formularioValido =
@@ -127,7 +130,7 @@ export function TarjetaRevision({
     <div className="card space-y-4 p-5">
       <h2 className="font-bold">Revisión</h2>
 
-      {solicitud.nombreResiduoOtro && (
+      {solicitud.nombreResiduoOtro && !solicitud.residuoCatalogoId && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <span className="font-semibold">Residuo fuera de catálogo:</span> el vecino ingresó «{solicitud.nombreResiduoOtro}». Puedes clasificarlo en el catálogo a continuación si corresponde, o dejarlo y fijar su tarifa.
         </div>
@@ -228,7 +231,8 @@ export function TarjetaRevision({
               <span className="text-sm font-bold text-slate">$</span>
               <input
                 type="number"
-                min="0"
+                min="1"
+                max="5000000"
                 step="500"
                 className="field flex-1"
                 placeholder={
@@ -240,14 +244,14 @@ export function TarjetaRevision({
                 disabled={deshabilitado}
                 onChange={(e) =>
                   setMontoFinal(
-                    e.target.value === '' ? '' : Math.max(0, Number(e.target.value)),
+                    e.target.value === '' ? '' : Math.max(1, Number(e.target.value)),
                   )
                 }
               />
             </div>
             <p className="text-[11px] text-slate">
-              {solicitud.nombreResiduoOtro
-                ? '⚠️ Residuo no tipificado en catálogo: fija aquí el valor definitivo para el vecino.'
+              {requiereMontoManual
+                ? '⚠️ Residuo no tipificado en catálogo: es obligatorio fijar un valor definitivo (> $0) para el vecino antes de aprobar.'
                 : `Precio sugerido por catálogo: $${(solicitud.residuoCatalogo?.precio ?? 0).toLocaleString('es-CL')}. Puedes modificarlo antes de aprobar.`}
             </p>
           </div>
@@ -274,8 +278,13 @@ export function TarjetaRevision({
             <button
               type="button"
               className="btn-primary"
-              disabled={deshabilitado || !checklistCompleto}
+              disabled={deshabilitado || !checklistCompleto || faltaMontoObligatorio}
               onClick={aprobar}
+              title={
+                faltaMontoObligatorio
+                  ? 'Debes fijar un presupuesto (> $0) para aprobar un residuo fuera de catálogo'
+                  : undefined
+              }
             >
               Aprobar
             </button>

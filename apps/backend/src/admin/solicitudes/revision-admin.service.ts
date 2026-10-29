@@ -243,6 +243,7 @@ export class RevisionAdminService {
     // volvería a escribir el residuo anterior en la columna.
     await this.solicitudRetiroRepository.update(id, {
       residuoCatalogoId: dto.residuoCatalogoId,
+      nombreResiduoOtro: null,
     });
 
     await this.auditoriaService.registrar({

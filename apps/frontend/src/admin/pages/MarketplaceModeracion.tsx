@@ -220,7 +220,9 @@ export default function MarketplaceModeracion() {
                     <div className="text-[11px] text-slate space-y-0.5 pt-1 border-t border-slate-100">
                       <p>
                         <strong className="text-slate-700">Vecino:</strong>{' '}
-                        {art.publicador.nombre}
+                        {art.publicador.id
+                          ? `Vecino · ${art.publicador.id.slice(0, 8)}`
+                          : art.publicador.nombre}
                       </p>
                       <p>
                         <strong className="text-slate-700">Ingreso:</strong>{' '}
