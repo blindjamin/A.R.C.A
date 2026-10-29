@@ -101,6 +101,8 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano). Borra la dirección de retiro: una cancelada no se reabre |
 | `GET` | `/api/perfil` | Perfil de contacto del vecino: `{ nombre, email, telefono, direccion }` (HU-37). Teléfono y dirección salen de `contacto_ciudadano`; `nombre` (de la sesión) solo lectura |
 | `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en `contacto_ciudadano` (un texto vacío borra el dato). Audita qué campos cambiaron, sin los valores. El correo solo cambia vía `/api/mail` |
+| `GET` | `/api/perfil/baja` | Antes de darse de baja (HU-38): `{ puedeDarseDeBaja, solicitudesQueBloquean, articulosQueBloquean, solicitudesQueSeCancelan, horasParaVolver }` |
+| `POST` | `/api/perfil/baja` | Body `{ confirmo: true }`. Desactiva la cuenta con `fecha_baja`, cancela las solicitudes abiertas sin pagar, borra el contacto y el push, revoca las sesiones y borra la cookie. 409 si hay solicitudes pagadas o en retiro o intercambios reservados; 403 si es funcionario. Volver: entrar de nuevo pasadas 48 h |
 | `POST` | `/api/mail/enviar-codigo` | Solicitar código OTP (`{ email }`). El ciudadano se toma de la sesión, no del body |
 | `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y asociar correo a la sesión del vecino autenticado |
 | `POST` | `/api/pagos/solicitudes/:id` | Inicia Webpay Plus (HU-44) si la solicitud es del vecino, está `aprobada`, `estadoPago` es `pendiente` y `monto` > 0. Responde `{ url, token }`. El navegador debe enviar un formulario `POST` a `url` con el campo `token_ws` = `token`. `403` si no es suya, `404` si no existe, `409` si no hay cobro pendiente o ya está pagada |
