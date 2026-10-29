@@ -2,15 +2,26 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { BarraAccesibilidad, MenuAccesibilidad } from '../../accesibilidad/BarraAccesibilidad';
 import { useSession } from '../../auth/SessionContext';
-import { IconMenu, IconX } from '../../components/ui/Icons';
+import {
+  IconChart,
+  IconClipboard,
+  IconCreditCard,
+  IconMap,
+  IconMarketplace,
+  IconMenu,
+  IconShield,
+  IconTruck,
+  IconX,
+} from '../../components/ui/Icons';
 
 const NAV = [
-  { to: '/admin', label: 'Solicitudes', icon: '📋', end: true, reqAdmin: false },
-  { to: '/admin/metricas', label: 'Métricas', icon: '📊', end: false, reqAdmin: false },
-  { to: '/admin/derivacion', label: 'Derivación', icon: '📦', end: false, reqAdmin: false },
-  { to: '/admin/pagadas', label: 'Pagadas', icon: '💳', end: false, reqAdmin: false },
-  { to: '/admin/mapa-calor', label: 'Mapa de calor', icon: '🗺️', end: false, reqAdmin: false },
-  { to: '/admin/auditoria', label: 'Auditoría', icon: '🛡️', end: false, reqAdmin: true },
+  { to: '/admin', label: 'Solicitudes', icon: IconClipboard, end: true, reqAdmin: false },
+  { to: '/admin/marketplace', label: 'Marketplace', icon: IconMarketplace, end: false, reqAdmin: false },
+  { to: '/admin/metricas', label: 'Métricas', icon: IconChart, end: false, reqAdmin: false },
+  { to: '/admin/derivacion', label: 'Derivación', icon: IconTruck, end: false, reqAdmin: false },
+  { to: '/admin/pagadas', label: 'Pagadas', icon: IconCreditCard, end: false, reqAdmin: false },
+  { to: '/admin/mapa-calor', label: 'Mapa de calor', icon: IconMap, end: false, reqAdmin: false },
+  { to: '/admin/auditoria', label: 'Auditoría', icon: IconShield, end: false, reqAdmin: true },
 ];
 
 // Layout del panel: barra lateral + contenido. Desde `lg` la barra queda fija;
@@ -85,24 +96,27 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
         </div>
         <nav className="flex flex-col gap-1 p-3">
-          {visibleNav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              onClick={() => setMenuAbierto(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-2 rounded-md px-3 py-3 text-sm font-medium transition-colors lg:py-2 ${
-                  isActive
-                    ? 'bg-white/20 text-white'
-                    : 'text-white/90 hover:bg-white/10 hover:text-white'
-                }`
-              }
-            >
-              <span className="text-base leading-none">{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
+          {visibleNav.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={() => setMenuAbierto(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium transition-colors lg:py-2 ${
+                    isActive
+                      ? 'bg-white/20 text-white shadow-xs'
+                      : 'text-white/85 hover:bg-white/10 hover:text-white'
+                  }`
+                }
+              >
+                <Icon className="h-4 w-4 shrink-0 text-white/90" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
         </nav>
         <div className="mt-auto hidden border-t border-white/20 px-5 py-3 lg:block">
           <BarraAccesibilidad />

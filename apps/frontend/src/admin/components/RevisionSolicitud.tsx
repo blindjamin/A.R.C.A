@@ -52,6 +52,9 @@ export function TarjetaRevision({
   );
   const [motivo, setMotivo] = useState<MotivoRevision | ''>('');
   const [comentario, setComentario] = useState('');
+  const [montoFinal, setMontoFinal] = useState<number | ''>(
+    solicitud.monto ?? solicitud.residuoCatalogo?.precio ?? '',
+  );
   const [residuos, setResiduos] = useState<ResiduoResumen[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +76,9 @@ export function TarjetaRevision({
   const checklistCompleto = ITEMS_CHECKLIST_APROBACION.every(
     (i) => checklist[i.id],
   );
+  const requiereMontoManual = !solicitud.residuoCatalogoId;
+  const faltaMontoObligatorio =
+    requiereMontoManual && (montoFinal === '' || Number(montoFinal) <= 0);
   const exigeComentario =
     formulario === 'requiere_modificacion' || motivo === 'otro';
   const formularioValido =
@@ -93,7 +99,11 @@ export function TarjetaRevision({
 
   const aprobar = () =>
     ejecutar(() =>
-      revisarSolicitud(solicitud.id, { decision: 'aprobada', checklist }),
+      revisarSolicitud(solicitud.id, {
+        decision: 'aprobada',
+        checklist,
+        montoFinal: montoFinal === '' ? undefined : Number(montoFinal),
+      }),
     );
 
   const enviarFormulario = () => {
@@ -120,22 +130,32 @@ export function TarjetaRevision({
     <div className="card space-y-4 p-5">
       <h2 className="font-bold">Revisión</h2>
 
+      {solicitud.nombreResiduoOtro && !solicitud.residuoCatalogoId && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <span className="font-semibold">Residuo fuera de catálogo:</span> el vecino ingresó «{solicitud.nombreResiduoOtro}». Puedes clasificarlo en el catálogo a continuación si corresponde, o dejarlo y fijar su tarifa.
+        </div>
+      )}
+
       <label className="block space-y-1 text-sm">
         <span className="text-xs uppercase tracking-wide text-slate-2">
           Categoría del residuo
         </span>
         <select
           className="field w-full"
-          value={solicitud.residuoCatalogoId}
+          value={solicitud.residuoCatalogoId ?? ''}
           disabled={deshabilitado || residuos.length === 0}
-          onChange={(e) =>
-            ejecutar(() =>
-              corregirCategoria(solicitud.id, Number(e.target.value)),
-            )
-          }
+          onChange={(e) => {
+            const val = Number(e.target.value);
+            if (val > 0) {
+              ejecutar(() => corregirCategoria(solicitud.id, val));
+            }
+          }}
         >
+          {solicitud.nombreResiduoOtro && !solicitud.residuoCatalogoId && (
+            <option value="">(Sin catalogar · {solicitud.nombreResiduoOtro})</option>
+          )}
           {residuos.length === 0 && (
-            <option value={solicitud.residuoCatalogoId}>
+            <option value={solicitud.residuoCatalogoId ?? ''}>
               {solicitud.residuoCatalogo?.nombre ?? 'Cargando catálogo…'}
             </option>
           )}
@@ -203,6 +223,39 @@ export function TarjetaRevision({
         </div>
       ) : (
         <>
+          <div className="rounded-lg border border-line bg-canvas p-3.5 space-y-1.5">
+            <label className="block text-xs uppercase tracking-wide text-slate-2 font-bold">
+              Presupuesto / Valor a cobrar al vecino ($ CLP)
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-slate">$</span>
+              <input
+                type="number"
+                min="1"
+                max="5000000"
+                step="500"
+                className="field flex-1"
+                placeholder={
+                  solicitud.residuoCatalogo?.precio !== undefined
+                    ? String(solicitud.residuoCatalogo.precio)
+                    : 'Ej: 5000'
+                }
+                value={montoFinal}
+                disabled={deshabilitado}
+                onChange={(e) =>
+                  setMontoFinal(
+                    e.target.value === '' ? '' : Math.max(1, Number(e.target.value)),
+                  )
+                }
+              />
+            </div>
+            <p className="text-[11px] text-slate">
+              {requiereMontoManual
+                ? '⚠️ Residuo no tipificado en catálogo: es obligatorio fijar un valor definitivo (> $0) para el vecino antes de aprobar.'
+                : `Precio sugerido por catálogo: $${(solicitud.residuoCatalogo?.precio ?? 0).toLocaleString('es-CL')}. Puedes modificarlo antes de aprobar.`}
+            </p>
+          </div>
+
           <fieldset className="space-y-2" disabled={deshabilitado}>
             <legend className="mb-1 text-xs uppercase tracking-wide text-slate-2">
               Lista de verificación para aprobar
@@ -225,8 +278,13 @@ export function TarjetaRevision({
             <button
               type="button"
               className="btn-primary"
-              disabled={deshabilitado || !checklistCompleto}
+              disabled={deshabilitado || !checklistCompleto || faltaMontoObligatorio}
               onClick={aprobar}
+              title={
+                faltaMontoObligatorio
+                  ? 'Debes fijar un presupuesto (> $0) para aprobar un residuo fuera de catálogo'
+                  : undefined
+              }
             >
               Aprobar
             </button>

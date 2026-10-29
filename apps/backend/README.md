@@ -243,7 +243,7 @@ corren en este mismo proceso, puerto 3000, código en `src/admin/`.
 | `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos |
 | `GET` | `/api/admin/marketplace/pendientes` | Listado de artículos de marketplace pendientes de moderación municipal |
 | `POST` | `/api/admin/marketplace/:id/aprobar` | Aprueba la publicación de un artículo en el marketplace (`disponible`) |
-| `POST` | `/api/admin/marketplace/:id/rechazar` | Rechaza un artículo (`rechazado`) con `{ motivo? }` opcional |
+| `POST` | `/api/admin/marketplace/:id/rechazar` | Rechaza un artículo (`rechazado`) con `{ motivo }` obligatorio |
 
 > En `POST /api/admin/solicitudes/:id/revision`, la aprobación permite fijar un presupuesto final (`montoFinal`), que reemplaza el estimado del catálogo y se cobra al vecino.
 > En `GET /api/admin/solicitudes/:id`, la respuesta incluye `coincidenciaMarketplace` con alerta si el mismo vecino tiene un artículo publicado o pendiente con título o categoría similar.
@@ -335,6 +335,7 @@ src/
     ├── auditoria/
     ├── derivaciones/
     ├── mapa-calor/
+    ├── marketplace/
     ├── metricas/
     ├── residuos/
     └── solicitudes/
@@ -429,6 +430,8 @@ siempre en una migración nueva.
 | `1782164700000` | `chat-marketplace` — `interesado_id` (NOT NULL, FK, dos índices) en `mensajes_marketplace` y tabla `suscripciones_push`. Completa las filas sembradas y borra las sin interlocutor |
 | `1782164900000` | `notificaciones` — tabla de avisos de la campanita (HU-23) |
 | `1782164800000` | `interes-reserva-marketplace` — tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo` y `fecha_reserva` en `articulos_marketplace` |
+| `1782165200000` | `moderacion-market-residuo-otro` — estados `pendiente_aprobacion` y `rechazado`, moderación municipal y residuo libre en solicitudes y marketplace |
+| `1782165300000` | `creditos-articulos-marketplace` — columna `creditos` en `articulos_marketplace` para asignación de Circular Credits |
 
 ### Se escriben a mano — no usar `migration:generate`
 
