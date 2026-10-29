@@ -241,8 +241,10 @@ export class RevisionAdminService {
 
     // `update` y no `save`: con la relación `residuoCatalogo` cargada, TypeORM
     // volvería a escribir el residuo anterior en la columna.
+    // Además se limpia nombreResiduoOtro para que la solicitud deje de figurar como fuera de catálogo.
     await this.solicitudRetiroRepository.update(id, {
       residuoCatalogoId: dto.residuoCatalogoId,
+      nombreResiduoOtro: null,
     });
 
     await this.auditoriaService.registrar({
@@ -251,8 +253,14 @@ export class RevisionAdminService {
       entidad: 'solicitudes_retiro',
       entidadId: id,
       accion: AccionAuditoria.UPDATE,
-      datosAnteriores: { residuoCatalogoId: solicitud.residuoCatalogoId },
-      datosNuevos: { residuoCatalogoId: dto.residuoCatalogoId },
+      datosAnteriores: {
+        residuoCatalogoId: solicitud.residuoCatalogoId,
+        nombreResiduoOtro: solicitud.nombreResiduoOtro,
+      },
+      datosNuevos: {
+        residuoCatalogoId: dto.residuoCatalogoId,
+        nombreResiduoOtro: null,
+      },
       origen,
     });
   }

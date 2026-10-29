@@ -1,4 +1,4 @@
-import { IsInt, Min } from 'class-validator';
+import { IsInt, Max, Min } from 'class-validator';
 
 export class AprobarArticuloDto {
   /**
@@ -7,5 +7,8 @@ export class AprobarArticuloDto {
    */
   @IsInt({ message: 'Los créditos deben ser un número entero' })
   @Min(1, { message: 'El intercambio debe valer al menos 1 Circular Credit' })
+  @Max(5000, {
+    message: 'El intercambio no puede superar los 5.000 Circular Credits',
+  })
   creditos: number;
 }

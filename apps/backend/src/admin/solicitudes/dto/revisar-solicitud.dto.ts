@@ -5,6 +5,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -39,6 +40,7 @@ export class RevisarSolicitudDto {
   /** Presupuesto/monto final en CLP asignado por el funcionario al aprobar. */
   @IsOptional()
   @IsInt()
-  @Min(0)
+  @Min(1, { message: 'El presupuesto mínimo es $1' })
+  @Max(5000000, { message: 'El presupuesto no puede superar $5.000.000' })
   montoFinal?: number;
 }

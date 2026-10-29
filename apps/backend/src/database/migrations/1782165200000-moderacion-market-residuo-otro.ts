@@ -13,10 +13,10 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *    - `nombre_residuo_otro`: texto libre del artículo cuando no es de catálogo.
  *    - `motivo_rechazo`, `moderado_por_id`, `fecha_moderacion` para la trazabilidad municipal.
  */
-export class ModeracionMarketResiduoOtro1782165000000
+export class ModeracionMarketResiduoOtro1782165200000
   implements MigrationInterface
 {
-  name = 'ModeracionMarketResiduoOtro1782165000000';
+  name = 'ModeracionMarketResiduoOtro1782165200000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

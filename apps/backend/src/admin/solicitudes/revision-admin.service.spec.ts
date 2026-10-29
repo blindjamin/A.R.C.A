@@ -32,6 +32,7 @@ const filaBase = (cambios: Partial<SolicitudRetiro> = {}): SolicitudRetiro =>
     id: 7,
     usuarioCiudadanoId: '00000000-0000-4000-8000-000000000001',
     residuoCatalogoId: 1,
+    nombreResiduoOtro: null,
     estado: EstadoSolicitudRetiro.EN_REVISION,
     estadoPago: EstadoPagoSolicitud.NO_APLICA,
     monto: null,
@@ -318,10 +319,11 @@ describe('RevisionAdminService.corregirCategoria', () => {
     await service.corregirCategoria(7, { residuoCatalogoId: 3 }, FUNCIONARIO);
 
     expect(guardada().residuoCatalogoId).toBe(3);
+    expect(guardada().nombreResiduoOtro).toBeNull();
     expect(auditoria.registrar).toHaveBeenCalledWith(
       expect.objectContaining({
-        datosAnteriores: { residuoCatalogoId: 1 },
-        datosNuevos: { residuoCatalogoId: 3 },
+        datosAnteriores: { residuoCatalogoId: 1, nombreResiduoOtro: null },
+        datosNuevos: { residuoCatalogoId: 3, nombreResiduoOtro: null },
       }),
     );
   });

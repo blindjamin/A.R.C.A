@@ -14,6 +14,7 @@ import {
   type OrigenPeticion,
   TipoActorAuditoria,
 } from '../../core';
+import { creditosPorEntrega } from '../../creditos/reglas-creditos';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { AprobarArticuloDto } from './dto/aprobar-articulo.dto';
 import { RechazarArticuloDto } from './dto/rechazar-articulo.dto';
@@ -28,7 +29,6 @@ export interface ArticuloModeracionDetalle {
   nombreResiduoOtro: string | null;
   publicador: {
     id: string;
-    claveUnicaId: string;
   };
   fotoUrl: string | null;
   fechaPublicacion: Date;
@@ -48,7 +48,7 @@ export class MarketplaceAdminService {
   async findPendientes(): Promise<ArticuloModeracionDetalle[]> {
     const articulos = await this.articuloRepository.find({
       where: { estado: EstadoArticuloMarketplace.PENDIENTE_APROBACION },
-      relations: { residuoCatalogo: true, usuarioPublicador: true },
+      relations: { residuoCatalogo: true },
       order: { fechaPublicacion: 'ASC' },
     });
 
@@ -63,12 +63,11 @@ export class MarketplaceAdminService {
       nombreResiduoOtro: a.nombreResiduoOtro,
       publicador: {
         id: a.usuarioPublicadorId,
-        claveUnicaId: a.usuarioPublicador?.claveUnicaId ?? 'desconocido',
       },
       fotoUrl: a.fotoPath ? `/api/marketplace/articulos/${a.id}/foto` : null,
       fechaPublicacion: a.fechaPublicacion,
       motivoRechazo: a.motivoRechazo,
-      creditosSugeridos: 100,
+      creditosSugeridos: creditosPorEntrega(),
     }));
   }
 
@@ -87,7 +86,6 @@ export class MarketplaceAdminService {
   ): Promise<ArticuloMarketplace> {
     const articulo = await this.articuloRepository.findOne({
       where: { id },
-      relations: { usuarioPublicador: true },
     });
 
     if (!articulo) {
@@ -143,7 +141,6 @@ export class MarketplaceAdminService {
   ): Promise<ArticuloMarketplace> {
     const articulo = await this.articuloRepository.findOne({
       where: { id },
-      relations: { usuarioPublicador: true },
     });
 
     if (!articulo) {
@@ -184,7 +181,7 @@ export class MarketplaceAdminService {
       tipo: 'marketplace_rechazado',
       titulo: 'Publicación no aprobada',
       cuerpo: `Tu publicación «${articulo.titulo}» no fue aprobada: ${dto.motivo.trim()}`,
-      url: `/mis-publicaciones`,
+      url: `/marketplace/mis-publicaciones`,
     });
 
     return guardado;
