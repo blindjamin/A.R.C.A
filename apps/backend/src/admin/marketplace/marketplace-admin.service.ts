@@ -14,8 +14,8 @@ import {
   type OrigenPeticion,
   TipoActorAuditoria,
 } from '../../core';
-import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { creditosPorEntrega } from '../../creditos/reglas-creditos';
+import { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import { AprobarArticuloDto } from './dto/aprobar-articulo.dto';
 import { RechazarArticuloDto } from './dto/rechazar-articulo.dto';
 
@@ -29,7 +29,6 @@ export interface ArticuloModeracionDetalle {
   nombreResiduoOtro: string | null;
   publicador: {
     id: string;
-    nombre: string;
   };
   fotoUrl: string | null;
   fechaPublicacion: Date;
@@ -46,14 +45,8 @@ export class MarketplaceAdminService {
     private readonly notificaciones: NotificacionesService,
   ) {}
 
-  async findPendientes(): Promise<ArticuloModeracionDetalle[]> {
-    const articulos = await this.articuloRepository.find({
-      where: { estado: EstadoArticuloMarketplace.PENDIENTE_APROBACION },
-      relations: { residuoCatalogo: true, usuarioPublicador: true },
-      order: { fechaPublicacion: 'ASC' },
-    });
-
-    return articulos.map((a) => ({
+  private aDetalle(a: ArticuloMarketplace): ArticuloModeracionDetalle {
+    return {
       id: a.id,
       titulo: a.titulo,
       descripcion: a.descripcion,
@@ -64,13 +57,22 @@ export class MarketplaceAdminService {
       nombreResiduoOtro: a.nombreResiduoOtro,
       publicador: {
         id: a.usuarioPublicadorId,
-        nombre: 'Vecino de Santo Domingo',
       },
       fotoUrl: a.fotoPath ? `/api/marketplace/articulos/${a.id}/foto` : null,
       fechaPublicacion: a.fechaPublicacion,
       motivoRechazo: a.motivoRechazo,
       creditosSugeridos: creditosPorEntrega(),
-    }));
+    };
+  }
+
+  async findPendientes(): Promise<ArticuloModeracionDetalle[]> {
+    const articulos = await this.articuloRepository.find({
+      where: { estado: EstadoArticuloMarketplace.PENDIENTE_APROBACION },
+      relations: { residuoCatalogo: true },
+      order: { fechaPublicacion: 'ASC' },
+    });
+
+    return articulos.map((a) => this.aDetalle(a));
   }
 
   async conteoPendientes(): Promise<{ pendientes: number }> {
@@ -85,10 +87,10 @@ export class MarketplaceAdminService {
     dto: AprobarArticuloDto,
     user: AuthUser,
     origen?: OrigenPeticion,
-  ): Promise<ArticuloMarketplace> {
+  ): Promise<ArticuloModeracionDetalle> {
     const articulo = await this.articuloRepository.findOne({
       where: { id },
-      relations: { usuarioPublicador: true },
+      relations: { residuoCatalogo: true },
     });
 
     if (!articulo) {
@@ -101,10 +103,9 @@ export class MarketplaceAdminService {
       );
     }
 
-    const creditosFinales = dto.creditos ?? creditosPorEntrega();
     const estadoAnterior = articulo.estado;
     articulo.estado = EstadoArticuloMarketplace.DISPONIBLE;
-    articulo.creditos = creditosFinales;
+    articulo.creditos = dto.creditos;
     articulo.moderadoPorId = user.administradorId ?? null;
     articulo.fechaModeracion = new Date();
     articulo.motivoRechazo = null;
@@ -120,7 +121,7 @@ export class MarketplaceAdminService {
       datosAnteriores: { estado: estadoAnterior },
       datosNuevos: {
         estado: EstadoArticuloMarketplace.DISPONIBLE,
-        creditos: creditosFinales,
+        creditos: dto.creditos,
         moderadoPorId: user.administradorId,
       },
       origen,
@@ -130,11 +131,11 @@ export class MarketplaceAdminService {
     void this.notificaciones.notificar(articulo.usuarioPublicadorId, {
       tipo: 'marketplace_aprobado',
       titulo: 'Publicación aprobada',
-      cuerpo: `Tu publicación «${articulo.titulo}» fue aprobada con ${creditosFinales} Circular Credits y ya está disponible en el Marketplace.`,
+      cuerpo: `Tu publicación «${articulo.titulo}» fue aprobada con ${dto.creditos} Circular Credits y ya está disponible en el Marketplace.`,
       url: `/marketplace/${articulo.id}`,
     });
 
-    return guardado;
+    return this.aDetalle(guardado);
   }
 
   async rechazar(
@@ -142,10 +143,10 @@ export class MarketplaceAdminService {
     dto: RechazarArticuloDto,
     user: AuthUser,
     origen?: OrigenPeticion,
-  ): Promise<ArticuloMarketplace> {
+  ): Promise<ArticuloModeracionDetalle> {
     const articulo = await this.articuloRepository.findOne({
       where: { id },
-      relations: { usuarioPublicador: true },
+      relations: { residuoCatalogo: true },
     });
 
     if (!articulo) {
@@ -175,7 +176,6 @@ export class MarketplaceAdminService {
       datosAnteriores: { estado: estadoAnterior },
       datosNuevos: {
         estado: EstadoArticuloMarketplace.RECHAZADO,
-        motivoRechazo: dto.motivo.trim(),
         moderadoPorId: user.administradorId,
       },
       origen,
@@ -186,9 +186,9 @@ export class MarketplaceAdminService {
       tipo: 'marketplace_rechazado',
       titulo: 'Publicación no aprobada',
       cuerpo: `Tu publicación «${articulo.titulo}» no fue aprobada: ${dto.motivo.trim()}`,
-      url: `/mis-publicaciones`,
+      url: `/marketplace/mis-publicaciones`,
     });
 
-    return guardado;
+    return this.aDetalle(guardado);
   }
 }

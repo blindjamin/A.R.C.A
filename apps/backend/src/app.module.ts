@@ -21,6 +21,7 @@ import { MarketplaceAdminModule } from './admin/marketplace/marketplace-admin.mo
 import { MailModule } from './mail/mail.module';
 import { PerfilModule } from './perfil/perfil.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
+import { PagosModule } from './pagos/pagos.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { NotificacionesModule } from './notificaciones/notificaciones.module';
     MailModule,
     PerfilModule,
     NotificacionesModule,
+    PagosModule,
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,

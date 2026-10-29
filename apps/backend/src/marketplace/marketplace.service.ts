@@ -238,6 +238,9 @@ export class MarketplaceService {
     const base: FindOptionsWhere<ArticuloMarketplace> = {
       estado: EstadoArticuloMarketplace.DISPONIBLE,
       fechaExpiracion: MoreThan(new Date()),
+      // Las de un vecino dado de baja se ocultan sin cambiar su estado, para
+      // que reaparezcan si vuelve (decisión 011).
+      usuarioPublicador: { activo: true },
     };
     if (filtros.tipo) base.tipo = filtros.tipo;
     if (filtros.categoria)
@@ -603,9 +606,13 @@ export class MarketplaceService {
   ): Promise<ArticuloMarketplace> {
     const articulo = await this.articuloRepository.findOne({
       where: { id },
-      relations: { residuoCatalogo: conResiduo },
+      relations: { residuoCatalogo: conResiduo, usuarioPublicador: true },
     });
-    if (!articulo || !esVisiblePara(articulo, user.ciudadanoId, new Date())) {
+    if (
+      !articulo ||
+      !articulo.usuarioPublicador?.activo ||
+      !esVisiblePara(articulo, user.ciudadanoId, new Date())
+    ) {
       throw new NotFoundException(`Artículo ${id} no encontrado`);
     }
     return articulo;

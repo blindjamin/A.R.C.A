@@ -2,7 +2,7 @@
 
 > **Estado:** BORRADOR — en implementación · **Fecha:** 2026-10-16
 > **Autor:** Benjamín Paicil (con asistencia de IA)
-> **Módulo del mapa:** [`listado-pagadas`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `ciclo-solicitud` (`estado_pago`, `monto`) · **Espera:** `datos-retiro` (dirección real, PR de Javier) y el comprobante de Webpay (HU-44)
+> **Módulo del mapa:** [`listado-pagadas`](MAPA_PANEL_MUNICIPAL.md#4-módulos) · **Depende de:** `ciclo-solicitud` (`estado_pago`, `monto`) · **Espera:** el filtro de fecha sigue en `fecha_solicitud`. El comprobante (HU-44) ya guarda `pagos_webpay.fecha_transaccion`; usarla en el listado es del panel.
 > **Origen:** Repartición Sprint 4, Benjamín semana 1: «Listado de solicitudes pagadas con filtros por estado, fecha y sector, exportable a CSV o XLSX, con la dirección de retiro».
 
 ## 1. Objetivo
@@ -16,12 +16,12 @@ existe el Excel por lote de `derivacion-excel`, que no filtra ni muestra lo ya d
 ### Supuestos
 
 1. **«Pagada» = `estado_pago = 'pagado'`.** El estado del pago es independiente del ciclo
-   (`estado`). Cuando entre Webpay (HU-44), el pago confirmado seguirá dejando `pagado`.
+   (`estado`). La confirmación de Webpay (HU-44) deja `pagado`.
 2. **«Estado» del filtro es el `estado` del ciclo** (`aprobada`, `derivada`, `retirada`,
    `no_realizada`, etc.). Una pagada puede estar en cualquiera de esos estados.
-3. **«Fecha» filtra `fecha_solicitud`**, igual que métricas y el resto del panel. Todavía no
-   existe la fecha de pago. Cuando el comprobante de Webpay la guarde, se cambia el campo en un
-   solo lugar (decisión abierta 1).
+3. **«Fecha» filtra `fecha_solicitud`**, igual que métricas y el resto del panel. La fecha del
+   comprobante ya está en `pagos_webpay.fecha_transaccion` (HU-44). El listado todavía no la usa
+   (decisión abierta 1).
 4. **«Sector» es el sector provisional más cercano** a las coordenadas capturadas, el mismo
    cálculo que usa el mapa de calor (`sectores.constants.ts`). Las que no tienen coordenadas van a
    «Sin ubicación».
@@ -147,7 +147,7 @@ exportación y su helper de descarga:
 
 ## 7. Decisiones abiertas
 
-1. **Fecha de pago:** cuando el comprobante de Webpay la guarde, ¿el filtro «fecha» pasa a ser la
-   fecha de pago? (propuesta: sí).
+1. **Fecha de pago:** el comprobante ya guarda `pagos_webpay.fecha_transaccion`. ¿El filtro
+   «fecha» del listado pasa a ser esa fecha? (propuesta: sí). El cambio es del panel.
 2. **Dirección real:** al integrarse `datos-retiro`, cambiar `direccionDe`. Si la dirección es de
    un tercero, la decisión del PO sobre el Excel de la empresa aplica también aquí.

@@ -40,9 +40,7 @@ export class RevisarSolicitudDto {
   /** Presupuesto/monto final en CLP asignado por el funcionario al aprobar. */
   @IsOptional()
   @IsInt()
-  @Min(1, { message: 'El monto final debe ser de al menos $1 CLP' })
-  @Max(5000000, {
-    message: 'El monto final no puede superar los $5.000.000 CLP',
-  })
+  @Min(1, { message: 'El presupuesto mínimo es $1' })
+  @Max(5000000, { message: 'El presupuesto no puede superar $5.000.000' })
   montoFinal?: number;
 }

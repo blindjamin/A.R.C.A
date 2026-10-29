@@ -603,7 +603,6 @@ export interface ArticuloModeracion {
   nombreResiduoOtro: string | null;
   publicador: {
     id: string;
-    nombre: string;
   };
   fotoUrl: string | null;
   fechaPublicacion: string;

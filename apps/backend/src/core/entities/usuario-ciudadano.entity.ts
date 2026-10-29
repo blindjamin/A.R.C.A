@@ -32,6 +32,14 @@ export class UsuarioCiudadano {
   @Column({ type: 'boolean', default: true })
   activo: boolean;
 
+  /**
+   * Cuándo se dio de baja el vecino (HU-38). Con fecha, la cuenta vuelve sola
+   * tras `ESPERA_VUELTA_MS`; `activo = false` sin fecha es una desactivación
+   * municipal, que no vuelve sola.
+   */
+  @Column({ name: 'fecha_baja', type: 'datetime', nullable: true })
+  fechaBaja: Date | null;
+
   @Column({
     name: 'ip_primera_login',
     type: 'varchar',

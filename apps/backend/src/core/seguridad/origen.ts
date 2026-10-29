@@ -17,10 +17,12 @@ const METODOS_QUE_MODIFICAN = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /**
  * Rutas que reciben un POST desde otro sitio a propósito y no dependen de la
- * cookie. Hoy ninguna. La vuelta de Webpay (HU-44) llegará desde Transbank y
- * habrá que agregarla aquí, reconociendo el pago por su token, no por la sesión.
+ * cookie. La vuelta de Webpay llega desde Transbank: el pago se reconoce por
+ * su token, no por la sesión.
  */
-export const RUTAS_SIN_CHEQUEO_DE_ORIGEN: readonly string[] = [];
+export const RUTAS_SIN_CHEQUEO_DE_ORIGEN: readonly string[] = [
+  '/api/pagos/retorno',
+];
 
 /** Orígenes del frontend, separados por coma en `FRONTEND_URL` (también los usa CORS). */
 export function origenesPermitidos(

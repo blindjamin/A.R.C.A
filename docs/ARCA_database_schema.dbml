@@ -126,7 +126,7 @@ Table solicitudes_retiro {
   usuario_ciudadano_id varchar(36) [not null, note: "Quién solicita el retiro"]
   residuo_catalogo_id int [not null]
   estado enum('en_revision', 'requiere_modificacion', 'aprobada', 'rechazada', 'derivada', 'retirada', 'no_realizada', 'cancelada') [default: 'en_revision', note: "Transiciones en @arca/core (ciclo-solicitud)"]
-  estado_pago enum('no_aplica', 'pendiente', 'pagado') [not null, default: 'no_aplica', note: "Pago maqueteado; se cobra después de aprobar"]
+  estado_pago enum('no_aplica', 'pendiente', 'pagado') [not null, default: 'no_aplica', note: "Se cobra con Webpay Plus después de aprobar. El comprobante está en pagos_webpay"]
   monto int [note: "CLP congelado al aprobar"]
   descripcion text
   direccion_retiro text [note: "Dirección real de retiro (Sprint 4). Obligatoria al crear. Se borra al cancelar y 30 días después de rechazada o retirada (decisión 016)."]
@@ -145,6 +145,22 @@ Table solicitudes_retiro {
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
 
   Note: "El retiro lo ejecuta una empresa externa: el municipio revisa y deriva, no asigna operadores."
+}
+
+Table pagos_webpay {
+  id int [primary key, increment]
+  solicitud_retiro_id int [not null]
+  buy_order varchar(26) [unique, not null, note: "Orden del intento. Transbank acepta hasta 26 alfanuméricos"]
+  session_id varchar(61) [not null, note: "La devuelve Transbank al anular. No es la cookie arca_sesion"]
+  token varchar(64) [unique, not null, note: "Identifica la vuelta: Transbank no manda la cookie"]
+  monto int [not null, note: "CLP, el mismo congelado en la solicitud"]
+  estado enum('iniciado', 'autorizado', 'anulado', 'agotado', 'rechazado') [not null]
+  codigo_autorizacion varchar(6) [note: "Comprobante, solo si quedó autorizado"]
+  fecha_transaccion timestamp [note: "Fecha que informa Transbank al confirmar"]
+  created_at timestamp [not null, default: 'CURRENT_TIMESTAMP']
+  updated_at timestamp [not null, default: 'CURRENT_TIMESTAMP']
+
+  Note: "Un intento de Webpay Plus (HU-44). La solicitud sigue pendiente hasta un intento autorizado."
 }
 
 Table revisiones_solicitud {
@@ -463,6 +479,7 @@ Ref: usuarios_administradores.usuario_ciudadano_id > usuarios_ciudadanos.id [del
 Ref: sesiones_administrador.usuario_administrador_id > usuarios_administradores.id [delete: cascade]
 
 // Retiros
+Ref: pagos_webpay.solicitud_retiro_id > solicitudes_retiro.id [delete: restrict]
 Ref: solicitudes_retiro.usuario_ciudadano_id > usuarios_ciudadanos.id
 Ref: solicitudes_retiro.residuo_catalogo_id > residuos_catalogo.id
 Ref: solicitudes_retiro.revisado_por_id > usuarios_administradores.id
