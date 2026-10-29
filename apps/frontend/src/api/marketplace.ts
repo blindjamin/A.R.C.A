@@ -368,7 +368,7 @@ async function ejemploPublicar(
     tipo: input.tipo,
     titulo: input.titulo,
     descripcion: input.descripcion ?? null,
-    estado: 'disponible',
+    estado: 'pendiente_aprobacion',
     residuoCatalogoId: input.residuoCatalogoId ?? null,
     categoria: categoria ?? 'Otros',
     // URL propia (no la de la vista previa, que la pantalla libera al salir).

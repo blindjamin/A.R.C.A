@@ -31,7 +31,9 @@ export default function NuevaSolicitud() {
   const [residuoId, setResiduoId] = useState<number | null>(
     searchParams.get('residuo') ? Number(searchParams.get('residuo')) : null,
   );
-  const [nombreResiduoOtro, setNombreResiduoOtro] = useState('');
+  const [nombreResiduoOtro, setNombreResiduoOtro] = useState(
+    () => searchParams.get('otro') ?? '',
+  );
   const [publicarEnMarketplace, setPublicarEnMarketplace] = useState(false);
   const [descripcion, setDescripcion] = useState('');
   // Por defecto, la dirección del perfil; el vecino puede cambiarla (por
@@ -85,6 +87,7 @@ export default function NuevaSolicitud() {
       });
 
       let publicadoEnMarket = false;
+      let errorMarketplace: string | null = null;
       if (publicarEnMarketplace) {
         try {
           await publicarArticulo({
@@ -98,6 +101,9 @@ export default function NuevaSolicitud() {
           publicadoEnMarket = true;
         } catch (errMarket) {
           console.error('Error publicando paralelamente en Marketplace:', errMarket);
+          errorMarketplace =
+            (errMarket as Error).message ||
+            'No se pudo generar la publicación comunitaria';
         }
       }
 
@@ -114,6 +120,7 @@ export default function NuevaSolicitud() {
             fotoPreview,
           },
           publicadoMarketplace: publicadoEnMarket,
+          errorMarketplace,
         },
       });
     } catch (err) {

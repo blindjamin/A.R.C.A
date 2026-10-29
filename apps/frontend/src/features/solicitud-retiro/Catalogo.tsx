@@ -100,7 +100,11 @@ export default function Catalogo() {
             {query.trim() && (
               <button
                 type="button"
-                onClick={() => navigate('/nueva-solicitud')}
+                onClick={() =>
+                  navigate(
+                    `/nueva-solicitud?otro=${encodeURIComponent(query.trim())}`,
+                  )
+                }
                 className="btn-outline text-xs px-4 py-2 inline-flex items-center gap-1.5"
               >
                 <span>➕ Solicitar retiro de «{query.trim()}» fuera de catálogo</span>

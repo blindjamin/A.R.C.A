@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
 import {
+  cancelarSolicitud,
   fetchSolicitud,
   formatearPrecio,
   type SolicitudRetiro,
@@ -73,6 +74,8 @@ export default function PantallaPago() {
     }
     return 'formulario';
   });
+
+  const [traspasando, setTraspasando] = useState(false);
 
   // Cargar solicitud si no viene por location.state
   useEffect(() => {
@@ -157,6 +160,45 @@ export default function PantallaPago() {
     setTimeout(() => {
       setEstadoFlujo('anulado');
     }, 800);
+  };
+
+  const handleTraspasoMarketplace = async () => {
+    if (!solicitud) return;
+    const confirmar = window.confirm(
+      'Al publicar este residuo en el Marketplace, tu solicitud de retiro municipal será cancelada. ¿Deseas continuar?',
+    );
+    if (!confirmar) return;
+
+    setTraspasando(true);
+    try {
+      const usuarioId = sesion?.ciudadanoId ?? 'anonimo';
+      await cancelarSolicitud(
+        solicitud.id,
+        usuarioId,
+        'Cancelada por traspaso a Marketplace',
+      );
+      navigate('/marketplace/subir', {
+        state: {
+          importarSolicitud: {
+            solicitudId: solicitud.id,
+            titulo:
+              solicitud.nombreResiduoOtro ||
+              solicitud.residuoCatalogo?.nombre ||
+              '',
+            descripcion: solicitud.descripcion ?? '',
+            residuoCatalogoId: solicitud.residuoCatalogoId,
+            nombreResiduoOtro: solicitud.nombreResiduoOtro,
+            fotoUrl: solicitud.fotoUrl,
+          },
+        },
+      });
+    } catch (err) {
+      alert(
+        'No se pudo cancelar la solicitud para el traspaso: ' +
+          (err as Error).message,
+      );
+      setTraspasando(false);
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -359,24 +401,16 @@ export default function PantallaPago() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              navigate('/marketplace/subir', {
-                state: {
-                  importarSolicitud: {
-                    solicitudId: solicitud.id,
-                    titulo: solicitud.nombreResiduoOtro || solicitud.residuoCatalogo?.nombre || '',
-                    descripcion: solicitud.descripcion ?? '',
-                    residuoCatalogoId: solicitud.residuoCatalogoId,
-                    nombreResiduoOtro: solicitud.nombreResiduoOtro,
-                    fotoUrl: solicitud.fotoUrl,
-                  },
-                },
-              });
-            }}
-            className="btn-gold w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2"
+            onClick={handleTraspasoMarketplace}
+            disabled={traspasando}
+            className="btn-gold w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <span>Publicar gratis en el Marketplace</span>
-            <span>→</span>
+            <span>
+              {traspasando
+                ? 'Cancelando solicitud y traspasando…'
+                : 'Publicar gratis en el Marketplace'}
+            </span>
+            {!traspasando && <span>→</span>}
           </button>
         </section>
 
@@ -506,29 +540,6 @@ export default function PantallaPago() {
           >
             Simular pago anulado / cancelado
           </button>
-
-          <div className="pt-2 border-t border-line text-center">
-            <button
-              type="button"
-              onClick={() => {
-                navigate('/marketplace/subir', {
-                  state: {
-                    importarSolicitud: {
-                      solicitudId: solicitud.id,
-                      titulo: solicitud.nombreResiduoOtro || solicitud.residuoCatalogo?.nombre || '',
-                      descripcion: solicitud.descripcion ?? '',
-                      residuoCatalogoId: solicitud.residuoCatalogoId,
-                      nombreResiduoOtro: solicitud.nombreResiduoOtro,
-                      fotoUrl: solicitud.fotoUrl,
-                    },
-                  },
-                });
-              }}
-              className="text-xs font-semibold text-gold-800 hover:text-gold-950 underline"
-            >
-              ¿El precio no te acomoda? Publicar gratis en Marketplace
-            </button>
-          </div>
         </div>
       </section>
     </div>

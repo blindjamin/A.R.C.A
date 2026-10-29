@@ -47,25 +47,32 @@ export default function ComboboxResiduo({
     return () => document.removeEventListener('mousedown', clickAfuera);
   }, []);
 
-  const textoLimpio = busqueda.trim().toLowerCase();
+  const normalizar = (s: string) =>
+    s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
 
-  // Filtrar catálogo por nombre o categoría
+  const textoLimpio = normalizar(busqueda);
+
+  // Filtrar catálogo por nombre o categoría normalizada
   const coincidencias = catalogo.filter((item) => {
     if (!textoLimpio) return true;
-    const n = item.nombre.toLowerCase();
-    const c = item.categoria.toLowerCase();
+    const n = normalizar(item.nombre);
+    const c = normalizar(item.categoria);
     return n.includes(textoLimpio) || c.includes(textoLimpio);
   });
 
-  // Coincidencia exacta de catálogo
+  // Opciones visibles en el menú: máximo 15
+  const coincidenciasVisibles = coincidencias.slice(0, 15);
+
+  // Coincidencia exacta de catálogo (normalizada)
   const coincidenciaExacta = catalogo.find(
-    (item) => item.nombre.toLowerCase() === textoLimpio,
+    (item) => normalizar(item.nombre) === textoLimpio,
   );
 
   const elegirCatalogo = (item: ResiduoCatalogo) => {
     setBusqueda(item.nombre);
     onSeleccionar(item, '');
     setAbierto(false);
+    setIndiceFoco(-1);
   };
 
   const elegirPersonalizado = (texto: string) => {
@@ -74,14 +81,20 @@ export default function ComboboxResiduo({
     setBusqueda(t);
     onSeleccionar(null, t);
     setAbierto(false);
+    setIndiceFoco(-1);
   };
 
   const limpiar = () => {
     setBusqueda('');
     onSeleccionar(null, '');
     setAbierto(false);
+    setIndiceFoco(-1);
     inputRef.current?.focus();
   };
+
+  const tieneOpcionPersonalizada = Boolean(textoLimpio && !coincidenciaExacta);
+  const totalOpciones =
+    coincidenciasVisibles.length + (tieneOpcionPersonalizada ? 1 : 0);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!abierto) {
@@ -91,8 +104,6 @@ export default function ComboboxResiduo({
       return;
     }
 
-    const totalOpciones = coincidencias.length + (textoLimpio && !coincidenciaExacta ? 1 : 0);
-
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setIndiceFoco((prev) => (prev + 1 < totalOpciones ? prev + 1 : 0));
@@ -101,13 +112,19 @@ export default function ComboboxResiduo({
       setIndiceFoco((prev) => (prev - 1 >= 0 ? prev - 1 : totalOpciones - 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (indiceFoco >= 0 && indiceFoco < coincidencias.length) {
-        elegirCatalogo(coincidencias[indiceFoco]);
-      } else if (textoLimpio) {
+      if (indiceFoco >= 0 && indiceFoco < coincidenciasVisibles.length) {
+        elegirCatalogo(coincidenciasVisibles[indiceFoco]);
+      } else if (
+        tieneOpcionPersonalizada &&
+        (indiceFoco === coincidenciasVisibles.length || indiceFoco === -1)
+      ) {
         elegirPersonalizado(busqueda);
+      } else if (coincidenciaExacta && indiceFoco === -1) {
+        elegirCatalogo(coincidenciaExacta);
       }
     } else if (e.key === 'Escape') {
       setAbierto(false);
+      setIndiceFoco(-1);
     }
   };
 
@@ -117,6 +134,13 @@ export default function ComboboxResiduo({
         <input
           ref={inputRef}
           type="text"
+          role="combobox"
+          aria-expanded={abierto}
+          aria-autocomplete="list"
+          aria-controls="combobox-residuos-opciones"
+          aria-activedescendant={
+            indiceFoco >= 0 ? `combobox-opcion-${indiceFoco}` : undefined
+          }
           disabled={disabled}
           value={busqueda}
           placeholder="Escribe o busca el tipo de residuo (ej: Colchón, Sillón, Lavadora…)"
@@ -127,17 +151,7 @@ export default function ComboboxResiduo({
             setBusqueda(val);
             setAbierto(true);
             setIndiceFoco(-1);
-
-            // Si coincide exactamente con un elemento del catálogo, asociarlo
-            const exacto = catalogo.find(
-              (c) => c.nombre.toLowerCase() === val.trim().toLowerCase(),
-            );
-            if (exacto) {
-              onSeleccionar(exacto, '');
-            } else if (val.trim()) {
-              // Entrada libre preliminar
-              onSeleccionar(null, val.trim());
-            } else {
+            if (!val.trim()) {
               onSeleccionar(null, '');
             }
           }}
@@ -164,17 +178,25 @@ export default function ComboboxResiduo({
 
       {/* Menú desplegable predictivo */}
       {abierto && !disabled && (
-        <div className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-lg py-1.5 text-sm">
-          {coincidencias.length > 0 ? (
+        <div
+          id="combobox-residuos-opciones"
+          role="listbox"
+          aria-label="Sugerencias del catálogo municipal"
+          className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto rounded-xl border border-line bg-white shadow-lg py-1.5 text-sm"
+        >
+          {coincidenciasVisibles.length > 0 ? (
             <div>
               <div className="px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-slate bg-slate-50">
                 Sugerencias del catálogo municipal
               </div>
-              {coincidencias.slice(0, 15).map((item, idx) => {
+              {coincidenciasVisibles.map((item, idx) => {
                 const activo = idx === indiceFoco;
                 return (
                   <button
                     key={item.id}
+                    id={`combobox-opcion-${idx}`}
+                    role="option"
+                    aria-selected={activo}
                     type="button"
                     onClick={() => elegirCatalogo(item)}
                     className={`flex w-full items-center justify-between px-3.5 py-2.5 text-left transition-colors ${
@@ -198,13 +220,16 @@ export default function ComboboxResiduo({
           ) : null}
 
           {/* Opción de usar texto libre si no coincide exactamente */}
-          {textoLimpio && (
+          {tieneOpcionPersonalizada && (
             <div className="border-t border-line/60 pt-1">
               <button
+                id={`combobox-opcion-${coincidenciasVisibles.length}`}
+                role="option"
+                aria-selected={indiceFoco === coincidenciasVisibles.length}
                 type="button"
                 onClick={() => elegirPersonalizado(busqueda)}
                 className={`flex w-full items-start gap-2.5 px-3.5 py-2.5 text-left text-xs transition-colors ${
-                  indiceFoco === coincidencias.length
+                  indiceFoco === coincidenciasVisibles.length
                     ? 'bg-amber-100 text-amber-950 font-semibold'
                     : 'bg-amber-50/70 hover:bg-amber-100/80 text-amber-900'
                 }`}
