@@ -1,10 +1,13 @@
 import {
   IsEnum,
   IsIn,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import {
   DECISIONES_REVISION,
@@ -33,4 +36,11 @@ export class RevisarSolicitudDto {
   @IsOptional()
   @IsObject()
   checklist?: Record<string, boolean>;
+
+  /** Presupuesto/monto final en CLP asignado por el funcionario al aprobar. */
+  @IsOptional()
+  @IsInt()
+  @Min(1, { message: 'El presupuesto mínimo es $1' })
+  @Max(5000000, { message: 'El presupuesto no puede superar $5.000.000' })
+  montoFinal?: number;
 }

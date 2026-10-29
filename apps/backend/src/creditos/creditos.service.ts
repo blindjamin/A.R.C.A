@@ -37,7 +37,7 @@ export interface ResumenCreditos {
 type ArticuloIntercambiado = Pick<
   ArticuloMarketplace,
   'id' | 'titulo' | 'usuarioPublicadorId' | 'usuarioCompradorId'
->;
+> & { creditos?: number | null };
 
 interface Otorgamiento {
   ciudadanoId: string;
@@ -120,9 +120,13 @@ export class CreditosService {
     manager: EntityManager,
     articulo: ArticuloIntercambiado,
   ): Promise<TransaccionCircularCredits> {
+    const monto =
+      articulo.creditos && articulo.creditos > 0
+        ? articulo.creditos
+        : creditosPorEntrega();
     return this.otorgar(manager, {
       ciudadanoId: articulo.usuarioPublicadorId,
-      monto: creditosPorEntrega(),
+      monto,
       origen: OrigenMovimientoCreditos.ENTREGA,
       motivo: `Entrega de «${articulo.titulo}»`,
       articuloId: articulo.id,

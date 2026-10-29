@@ -241,6 +241,12 @@ corren en este mismo proceso, puerto 3000, código en `src/admin/`.
 | `GET` | `/api/admin/metricas?dias=7\|30\|90` | Indicadores agregados (recibidas por día, cola, espera de revisión, decisiones y motivos, categorías, derivación, recaudación de la maqueta). Sin filas individuales |
 | `GET` | `/api/admin/residuos` | Catálogo de residuos de solo lectura (`id`, `nombre`, `categoria`, `precio`) para corregir la categoría |
 | `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos |
+| `GET` | `/api/admin/marketplace/pendientes` | Listado de artículos de marketplace pendientes de moderación municipal |
+| `POST` | `/api/admin/marketplace/:id/aprobar` | Aprueba la publicación de un artículo en el marketplace (`disponible`) |
+| `POST` | `/api/admin/marketplace/:id/rechazar` | Rechaza un artículo (`rechazado`) con `{ motivo? }` opcional |
+
+> En `POST /api/admin/solicitudes/:id/revision`, la aprobación permite fijar un presupuesto final (`montoFinal`), que reemplaza el estimado del catálogo y se cobra al vecino.
+> En `GET /api/admin/solicitudes/:id`, la respuesta incluye `coincidenciaMarketplace` con alerta si el mismo vecino tiene un artículo publicado o pendiente con título o categoría similar.
 
 Protegidos con `RolesGuard` de `src/core`: `ADMIN` y `FUNCIONARIO`, salvo la auditoría, que es solo
 `ADMIN`. Reabrir una solicitud `rechazada` o `retirada` también es solo de admin (lo decide el core).

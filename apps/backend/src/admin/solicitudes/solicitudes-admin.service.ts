@@ -4,13 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { FindOptionsWhere, In, Repository } from 'typeorm';
 import {
   AccionAuditoria,
   aplicarTransicion,
+  ArticuloMarketplace,
   AuditoriaService,
   type AuthUser,
   DECISIONES_REVISION,
+  EstadoArticuloMarketplace,
   EstadoSolicitudRetiro,
   type OrigenPeticion,
   SolicitudRetiro,
@@ -54,6 +56,14 @@ export type SolicitudDetalle = Omit<
    * salen: traen la ruta interna del archivo y su hash.
    */
   fotoUrl: string | null;
+  /** Publicación activa del mismo vecino en Marketplace que podría coincidir con este residuo. */
+  coincidenciaMarketplace?: {
+    id: number;
+    titulo: string;
+    estado: EstadoArticuloMarketplace;
+    tipo: string;
+    fechaPublicacion: Date;
+  } | null;
 };
 
 /**
@@ -72,6 +82,8 @@ export class SolicitudesAdminService {
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
     @InjectRepository(UsuarioAdministrador)
     private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
+    @InjectRepository(ArticuloMarketplace)
+    private readonly articuloMarketplaceRepository: Repository<ArticuloMarketplace>,
     private readonly auditoriaService: AuditoriaService,
     private readonly notificaciones: NotificacionesService,
   ) {}
@@ -133,6 +145,56 @@ export class SolicitudesAdminService {
       estadoPago: solicitud.estadoPago,
     }).filter((hacia) => !this.esDecisionDeRevision(solicitud.estado, hacia));
 
+    let coincidenciaMarketplace: SolicitudDetalle['coincidenciaMarketplace'] =
+      null;
+
+    if (solicitud.usuarioCiudadanoId) {
+      const articulosVecino = await this.articuloMarketplaceRepository.find({
+        where: {
+          usuarioPublicadorId: solicitud.usuarioCiudadanoId,
+          estado: In([
+            EstadoArticuloMarketplace.PENDIENTE_APROBACION,
+            EstadoArticuloMarketplace.DISPONIBLE,
+            EstadoArticuloMarketplace.EN_NEGOCIACION,
+          ]),
+        },
+        order: { fechaPublicacion: 'DESC' },
+        take: 5,
+      });
+
+      const nombreBuscado = (
+        solicitud.residuoCatalogo?.nombre ??
+        solicitud.nombreResiduoOtro ??
+        ''
+      )
+        .trim()
+        .toLowerCase();
+
+      const match = articulosVecino.find((art) => {
+        if (
+          solicitud.residuoCatalogoId &&
+          art.residuoCatalogoId === solicitud.residuoCatalogoId
+        ) {
+          return true;
+        }
+        const tit = art.titulo.toLowerCase();
+        return (
+          nombreBuscado.length >= 3 &&
+          (tit.includes(nombreBuscado) || nombreBuscado.includes(tit))
+        );
+      });
+
+      if (match) {
+        coincidenciaMarketplace = {
+          id: match.id,
+          titulo: match.titulo,
+          estado: match.estado,
+          tipo: match.tipo,
+          fechaPublicacion: match.fechaPublicacion,
+        };
+      }
+    }
+
     return {
       ...solicitud,
       revisadoPor: await this.resumenFuncionario(solicitud.revisadoPorId),
@@ -141,6 +203,7 @@ export class SolicitudesAdminService {
         : null,
       transicionesDisponibles: disponibles,
       fotoUrl: fotoUrlDe({ id, fotos }),
+      coincidenciaMarketplace,
     };
   }
 
