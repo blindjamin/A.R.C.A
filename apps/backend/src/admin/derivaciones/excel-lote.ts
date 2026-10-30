@@ -1,7 +1,9 @@
 import ExcelJS from 'exceljs';
 import {
+  categoriasObjetos,
   EstadoPagoSolicitud,
   type LoteDerivacion,
+  resumenObjetos,
   type SolicitudRetiro,
 } from '../../core';
 import { aproximarCoordenadas } from './coordenadas-aproximadas';
@@ -84,9 +86,16 @@ export async function generarExcelLote(
       solicitud: s.id,
       fechaSolicitud: aHoraLocal(s.fechaSolicitud),
       fechaAprobacion: aHoraLocal(s.fechaRevision),
-      residuo: s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`,
-      categoria: s.residuoCatalogo?.categoria ?? null,
-      instrucciones: s.residuoCatalogo?.instruccionesRecogida ?? null,
+      // Con varios objetos (HU-01) la fila los lista todos, con su cantidad.
+      residuo: s.objetos?.length
+        ? resumenObjetos(s.objetos)
+        : (s.residuoCatalogo?.nombre ?? s.nombreResiduoOtro),
+      categoria: s.objetos?.length
+        ? categoriasObjetos(s.objetos) || null
+        : (s.residuoCatalogo?.categoria ?? null),
+      instrucciones: s.objetos?.length
+        ? instruccionesDe(s.objetos)
+        : (s.residuoCatalogo?.instruccionesRecogida ?? null),
       descripcion: s.descripcion,
       direccion: s.direccionAnonimizada,
       latitud: ubicacion.latitud,
@@ -97,4 +106,14 @@ export async function generarExcelLote(
   }
 
   return Buffer.from(await libro.xlsx.writeBuffer());
+}
+
+/** Instrucciones de recogida distintas de los objetos del catálogo. */
+function instruccionesDe(
+  objetos: NonNullable<SolicitudRetiro['objetos']>,
+): string | null {
+  const instrucciones = objetos
+    .map((o) => o.residuoCatalogo?.instruccionesRecogida)
+    .filter((i): i is string => !!i);
+  return instrucciones.length ? [...new Set(instrucciones)].join(' / ') : null;
 }

@@ -201,8 +201,8 @@ export class DerivacionesAdminService {
 
     const solicitudes = await this.solicitudRetiroRepository.find({
       where: { loteDerivacionId: id },
-      relations: { residuoCatalogo: true },
-      order: { fechaSolicitud: 'ASC', id: 'ASC' },
+      relations: { residuoCatalogo: true, objetos: { residuoCatalogo: true } },
+      order: { fechaSolicitud: 'ASC', id: 'ASC', objetos: { orden: 'ASC' } },
     });
 
     const contenido = await generarExcelLote(lote, solicitudes);

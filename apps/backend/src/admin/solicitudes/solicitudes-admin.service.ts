@@ -14,7 +14,9 @@ import {
   DECISIONES_REVISION,
   EstadoArticuloMarketplace,
   EstadoSolicitudRetiro,
+  ObjetoSolicitudRetiro,
   type OrigenPeticion,
+  precioSugerido,
   SolicitudRetiro,
   TipoActorAuditoria,
   transicionesDisponibles,
@@ -28,7 +30,11 @@ import {
 } from './auditoria-solicitud';
 import { avisoDeSolicitud } from '../../notificaciones/avisos-solicitud';
 import { NotificacionesService } from '../../notificaciones/notificaciones.service';
-import { fotoUrlDe } from '../../solicitudes-retiro/solicitud-publica';
+import {
+  fotoUrlDe,
+  aObjetoPublico,
+  type ObjetoPublico,
+} from '../../solicitudes-retiro/solicitud-publica';
 import { FilterSolicitudesAdminDto } from './dto/filter-solicitudes-admin.dto';
 import { UpdateSolicitudAdminDto } from './dto/update-solicitud-admin.dto';
 
@@ -40,7 +46,7 @@ export interface FuncionarioResumen {
 
 export type SolicitudDetalle = Omit<
   SolicitudRetiro,
-  'revisadoPor' | 'tomadaPor' | 'fotos'
+  'revisadoPor' | 'tomadaPor' | 'fotos' | 'objetos'
 > & {
   revisadoPor: FuncionarioResumen | null;
   /** Funcionario con la toma vigente, si la hay. */
@@ -64,6 +70,15 @@ export type SolicitudDetalle = Omit<
     tipo: string;
     fechaPublicacion: Date;
   } | null;
+  /** Objetos a retirar (HU-01), en el orden en que los agregó el vecino. */
+  objetos: ObjetoPublico[];
+  /** Suma de precio × cantidad; null si hay algo fuera del catálogo. */
+  precioSugerido: number | null;
+};
+
+/** Fila del listado del panel, con sus objetos (HU-01). */
+export type SolicitudListado = Omit<SolicitudRetiro, 'objetos'> & {
+  objetos: ObjetoPublico[];
 };
 
 /**
@@ -84,11 +99,15 @@ export class SolicitudesAdminService {
     private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
     @InjectRepository(ArticuloMarketplace)
     private readonly articuloMarketplaceRepository: Repository<ArticuloMarketplace>,
+    @InjectRepository(ObjetoSolicitudRetiro)
+    private readonly objetoRepository: Repository<ObjetoSolicitudRetiro>,
     private readonly auditoriaService: AuditoriaService,
     private readonly notificaciones: NotificacionesService,
   ) {}
 
-  findAll(filtros: FilterSolicitudesAdminDto = {}): Promise<SolicitudRetiro[]> {
+  async findAll(
+    filtros: FilterSolicitudesAdminDto = {},
+  ): Promise<SolicitudListado[]> {
     const where: FindOptionsWhere<SolicitudRetiro> = {};
 
     if (filtros.estado) {
@@ -100,11 +119,16 @@ export class SolicitudesAdminService {
     const orden =
       filtros.estado === EstadoSolicitudRetiro.EN_REVISION ? 'ASC' : 'DESC';
 
-    return this.solicitudRetiroRepository.find({
+    const filas = await this.solicitudRetiroRepository.find({
       where,
-      relations: { residuoCatalogo: true },
-      order: { fechaSolicitud: orden },
+      relations: { residuoCatalogo: true, objetos: { residuoCatalogo: true } },
+      order: { fechaSolicitud: orden, objetos: { orden: 'ASC' } },
     });
+    // Los objetos salen en la misma forma que en el detalle.
+    return filas.map((s) => ({
+      ...s,
+      objetos: (s.objetos ?? []).map(aObjetoPublico),
+    }));
   }
 
   /**
@@ -134,6 +158,11 @@ export class SolicitudesAdminService {
   /** Detalle para el panel, con las acciones que la sesión puede ejecutar. */
   async detalle(id: number, user: AuthUser): Promise<SolicitudDetalle> {
     const { fotos, ...solicitud } = await this.findOne(id, true);
+    const objetos = await this.objetoRepository.find({
+      where: { solicitudRetiroId: id },
+      relations: { residuoCatalogo: true },
+      order: { orden: 'ASC' },
+    });
 
     const tomaVigente =
       !!solicitud.tomadaPorId &&
@@ -204,6 +233,8 @@ export class SolicitudesAdminService {
       transicionesDisponibles: disponibles,
       fotoUrl: fotoUrlDe({ id, fotos }),
       coincidenciaMarketplace,
+      objetos: objetos.map(aObjetoPublico),
+      precioSugerido: precioSugerido(objetos),
     };
   }
 

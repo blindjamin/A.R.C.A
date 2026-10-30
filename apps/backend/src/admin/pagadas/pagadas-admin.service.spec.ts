@@ -47,9 +47,13 @@ describe('PagadasAdminService', () => {
     expect(ultimaConsulta().order).toEqual({
       fechaSolicitud: 'DESC',
       id: 'DESC',
+      objetos: { orden: 'ASC' },
     });
     expect(ultimaConsulta().take).toBe(1000);
-    expect(ultimaConsulta().relations).toEqual({ residuoCatalogo: true });
+    expect(ultimaConsulta().relations).toEqual({
+      residuoCatalogo: true,
+      objetos: { residuoCatalogo: true },
+    });
   });
 
   it('filtra por estado del ciclo y mantiene el estado de pago', async () => {
