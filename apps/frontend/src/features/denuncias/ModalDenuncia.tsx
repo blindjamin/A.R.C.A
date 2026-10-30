@@ -90,7 +90,7 @@ export default function ModalDenuncia({
       ref={dialogo}
       onClose={onCerrar}
       aria-labelledby="titulo-denuncia"
-      className="card max-h-[90dvh] w-[calc(100%-2rem)] max-w-md space-y-4 overflow-y-auto bg-white p-6 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+      className="card max-h-[90dvh] w-[calc(100%-2rem)] max-w-md space-y-4 text-left overflow-y-auto bg-white p-6 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
         <div className="flex items-start justify-between gap-3">
           <h2 id="titulo-denuncia" className="font-display text-lg font-bold text-ink">
