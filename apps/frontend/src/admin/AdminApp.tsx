@@ -8,6 +8,7 @@ import Derivacion from './pages/Derivacion';
 import Metricas from './pages/Metricas';
 import Pagadas from './pages/Pagadas';
 import MarketplaceModeracion from './pages/MarketplaceModeracion';
+import Denuncias from './pages/Denuncias';
 import './admin.css';
 
 // El panel vive en /admin/* (rutas relativas: el BrowserRouter lo pone
@@ -19,6 +20,7 @@ export default function AdminApp() {
       <Routes>
         <Route index element={<Solicitudes />} />
         <Route path="marketplace" element={<MarketplaceModeracion />} />
+        <Route path="denuncias" element={<Denuncias />} />
         <Route path="metricas" element={<Metricas />} />
         <Route path="derivacion" element={<Derivacion />} />
         <Route path="pagadas" element={<Pagadas />} />

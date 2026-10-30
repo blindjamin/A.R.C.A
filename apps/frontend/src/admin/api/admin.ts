@@ -111,7 +111,7 @@ export const formatearPrecio = (clp: number): string =>
     maximumFractionDigits: 0,
   });
 
-async function handle<T>(res: Response): Promise<T> {
+export async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Error ${res.status}: ${body || res.statusText}`);

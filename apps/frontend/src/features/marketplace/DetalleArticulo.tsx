@@ -103,9 +103,9 @@ function ListaInteresados({
           {interesados.map((i) => (
             <li
               key={i.conversacionId}
-              className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 first:pt-0 last:pb-0"
             >
-              <div className="min-w-0 flex-1">
+              <div className="min-w-[10rem] flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate font-semibold">{i.nombre}</span>
                   {i.identidadVerificada && (
@@ -128,7 +128,7 @@ function ListaInteresados({
                   </p>
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <button
                   onClick={() =>
                     navigate(
