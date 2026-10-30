@@ -25,7 +25,6 @@ import {
   IconPencil,
   IconCreditCard,
 } from '../components/ui';
-import { estaSolicitudPagada } from '../features/pago/pagosStorage';
 import { useSession } from '../auth/SessionContext';
 import { CampoFoto } from '../features/solicitud-retiro/CampoFoto';
 
@@ -33,9 +32,6 @@ import { CampoFoto } from '../features/solicitud-retiro/CampoFoto';
 // antes de la derivación y solo si no pagó. El backend la valida igual.
 
 const conEstadoPago = (s: SolicitudRetiro): SolicitudRetiro => {
-  if (estaSolicitudPagada(s.id)) {
-    return { ...s, estadoPago: 'pagado' };
-  }
   if (s.estado === 'aprobada' && s.estadoPago !== 'pagado') {
     return {
       ...s,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
 import {
   cancelarSolicitud,
@@ -9,6 +9,13 @@ import {
   type SolicitudRetiro,
 } from '../api/arca';
 import {
+  fetchComprobante,
+  iniciarPago,
+  irAWebpay,
+  type ComprobantePago,
+  type ResultadoPago,
+} from '../api/pagos';
+import {
   BackButton,
   IconBuilding,
   IconCheck,
@@ -17,87 +24,75 @@ import {
   IconX,
   ScreenHeader,
 } from '../components/ui';
-import {
-  estaSolicitudPagada,
-  marcarSolicitudPagada,
-  obtenerComprobantePago,
-  type DatosComprobante,
-} from '../features/pago/pagosStorage';
+import { mensajeDeError } from '../features/marketplace/formato';
 
-type EstadoFlujoPago = 'formulario' | 'procesando' | 'aprobado' | 'anulado';
+// HU-44: el cobro real va por Webpay Plus. Esta pantalla inicia el pago y, a la
+// vuelta (`?resultado=`), muestra lo que confirmó el backend, nunca lo que dice
+// la URL: el resultado de la query solo elige el texto si el pago no quedó.
+
+const MOTIVO_NO_PAGADO: Record<Exclude<ResultadoPago, 'aprobado'>, string> = {
+  anulado: 'Cancelaste el pago en Webpay.',
+  agotado: 'Se agotó el tiempo para completar el pago.',
+  rechazado: 'Webpay no autorizó el pago.',
+};
+
+const esResultado = (valor: string | null): valor is ResultadoPago =>
+  valor === 'aprobado' || valor === 'anulado' || valor === 'agotado' || valor === 'rechazado';
 
 export default function PantallaPago() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [params] = useSearchParams();
   const { sesion } = useSession();
 
   const solicitudId = Number(id);
+  const idValido = Number.isInteger(solicitudId) && solicitudId > 0;
   const solicitudInicial = (location.state as { solicitud?: SolicitudRetiro } | undefined)
     ?.solicitud;
+  const resultadoVuelta = params.get('resultado');
 
-  const [solicitud, setSolicitud] = useState<SolicitudRetiro | null>(
-    solicitudInicial ?? null,
+  const [solicitud, setSolicitud] = useState<SolicitudRetiro | null>(solicitudInicial ?? null);
+  const [comprobante, setComprobante] = useState<ComprobantePago | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(
+    idValido ? null : 'Identificador de solicitud no válido',
   );
-
-  const [errorCarga, setErrorCarga] = useState<string | null>(() => {
-    if (!solicitudInicial && (!solicitudId || Number.isNaN(solicitudId))) {
-      return 'Identificador de solicitud no válido';
-    }
-    return null;
-  });
-
-  const [cargando, setCargando] = useState(() => {
-    if (solicitudInicial) return false;
-    if (!solicitudId || Number.isNaN(solicitudId)) return false;
-    return true;
-  });
-
-  const [comprobante, setComprobante] = useState<DatosComprobante | null>(() => {
-    if (solicitudInicial) {
-      return obtenerComprobantePago(solicitudInicial.id);
-    }
-    if (solicitudId && !Number.isNaN(solicitudId)) {
-      return obtenerComprobantePago(solicitudId);
-    }
-    return null;
-  });
-
-  const [estadoFlujo, setEstadoFlujo] = useState<EstadoFlujoPago>(() => {
-    if (
-      solicitudInicial &&
-      (solicitudInicial.estadoPago === 'pagado' || estaSolicitudPagada(solicitudInicial.id))
-    ) {
-      return 'aprobado';
-    }
-    if (solicitudId && !Number.isNaN(solicitudId) && estaSolicitudPagada(solicitudId)) {
-      return 'aprobado';
-    }
-    return 'formulario';
-  });
-
+  const [cargando, setCargando] = useState(idValido);
+  const [redirigiendo, setRedirigiendo] = useState(false);
+  const [errorPago, setErrorPago] = useState<string | null>(null);
+  const [reintentar, setReintentar] = useState(false);
   const [traspasando, setTraspasando] = useState(false);
+  const [errorComprobante, setErrorComprobante] = useState(false);
 
-  // Cargar solicitud si no viene por location.state
+  // Por separado: si falla el comprobante, la solicitud igual se muestra.
   useEffect(() => {
-    if (solicitud || !solicitudId || Number.isNaN(solicitudId)) return;
+    if (!idValido) return;
+    let vigente = true;
+    void Promise.allSettled([
+      solicitudInicial ? Promise.resolve(solicitudInicial) : fetchSolicitud(solicitudId),
+      fetchComprobante(solicitudId),
+    ]).then(([s, c]) => {
+      if (!vigente) return;
+      if (s.status === 'fulfilled') setSolicitud(s.value);
+      else setErrorCarga(mensajeDeError(s.reason));
+      if (c.status === 'fulfilled') setComprobante(c.value);
+      else setErrorComprobante(true);
+      setCargando(false);
+    });
+    return () => {
+      vigente = false;
+    };
+  }, [idValido, solicitudId, solicitudInicial]);
 
-    fetchSolicitud(solicitudId)
-      .then((res) => {
-        setSolicitud(res);
-        if (res.estadoPago === 'pagado' || estaSolicitudPagada(res.id)) {
-          const comp = obtenerComprobantePago(res.id);
-          if (comp) setComprobante(comp);
-          setEstadoFlujo('aprobado');
-        }
-      })
-      .catch((err) => {
-        setErrorCarga((err as Error).message);
-      })
-      .finally(() => {
-        setCargando(false);
-      });
-  }, [solicitud, solicitudId]);
+  // Si el vecino vuelve desde Webpay con «atrás», la página sale del bfcache
+  // con el botón deshabilitado: se rehabilita.
+  useEffect(() => {
+    const alVolver = (e: PageTransitionEvent) => {
+      if (e.persisted) setRedirigiendo(false);
+    };
+    window.addEventListener('pageshow', alVolver);
+    return () => window.removeEventListener('pageshow', alVolver);
+  }, []);
 
   if (cargando) {
     return (
@@ -118,7 +113,7 @@ export default function PantallaPago() {
           <button
             type="button"
             onClick={() => navigate('/mis-solicitudes')}
-            className="btn-outline text-xs px-4 py-2"
+            className="btn-outline min-h-[44px] text-xs px-4 py-2"
           >
             Volver a Mis solicitudes
           </button>
@@ -127,44 +122,26 @@ export default function PantallaPago() {
     );
   }
 
-  const monto =
-    solicitud.monto && solicitud.monto > 0
-      ? solicitud.monto
-      : solicitud.residuoCatalogo?.precio && solicitud.residuoCatalogo.precio > 0
-      ? solicitud.residuoCatalogo.precio
-      : 5000;
+  const monto = comprobante?.monto ?? solicitud.monto ?? null;
+  const montoTexto = monto ? formatearPrecio(monto) : '—';
+  const pagado = comprobante?.estadoPago === 'pagado';
+  const noPagado =
+    !pagado && !reintentar && esResultado(resultadoVuelta) && resultadoVuelta !== 'aprobado'
+      ? resultadoVuelta
+      : null;
 
-  const simularAprobado = () => {
-    setEstadoFlujo('procesando');
-    setTimeout(() => {
-      const ahora = new Date();
-      const nuevoComprobante: DatosComprobante = {
-        solicitudId: solicitud.id,
-        ordenCompra: `SD-${solicitud.id}-${Date.now().toString().slice(-4)}`,
-        codigoAutorizacion: `TBK-${Math.floor(100000 + Math.random() * 900000)}`,
-        monto,
-        fecha: ahora.toLocaleString('es-CL', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-        }),
-        metodoPago: 'Webpay Plus — Débito (•••• 4242)',
-      };
-
-      marcarSolicitudPagada(solicitud.id, nuevoComprobante);
-      setComprobante(nuevoComprobante);
-      setEstadoFlujo('aprobado');
-    }, 1200);
-  };
-
-  const simularAnulado = () => {
-    setEstadoFlujo('procesando');
-    setTimeout(() => {
-      setEstadoFlujo('anulado');
-    }, 800);
+  const pagar = async () => {
+    setRedirigiendo(true);
+    setErrorPago(null);
+    try {
+      irAWebpay(await iniciarPago(solicitud.id));
+    } catch (err) {
+      setErrorPago(mensajeDeError(err));
+      setRedirigiendo(false);
+    }
   };
 
   const handleTraspasoMarketplace = async () => {
-    if (!solicitud) return;
     const confirmar = window.confirm(
       'Al publicar este residuo en el Marketplace, tu solicitud de retiro municipal será cancelada. ¿Deseas continuar?',
     );
@@ -203,38 +180,25 @@ export default function PantallaPago() {
   };
 
   // ---------------------------------------------------------------------------
-  // PANTALLA PROCESANDO
+  // PANTALLA RESULTADO: PAGADO
   // ---------------------------------------------------------------------------
-  if (estadoFlujo === 'procesando') {
-    return (
-      <div className="mx-auto w-full max-w-md py-16 text-center space-y-4">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-forest-50 text-forest-700 animate-spin">
-          <IconCreditCard className="h-6 w-6" />
-        </div>
-        <div className="space-y-1">
-          <h2 className="text-sm font-bold text-ink">Conectando con Transbank Webpay…</h2>
-          <p className="text-xs text-slate">Verificando transacción de forma segura</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // PANTALLA RESULTADO: APROBADO (COMPACTO / SIN SCROLL)
-  // ---------------------------------------------------------------------------
-  if (estadoFlujo === 'aprobado') {
+  if (pagado) {
+    const fecha = comprobante?.fecha
+      ? new Date(comprobante.fecha).toLocaleString('es-CL', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        })
+      : '—';
     return (
       <div className="mx-auto flex w-full max-w-md flex-col justify-between space-y-4 py-1">
-        {/* Membrete institucional compacto */}
         <div className="flex items-center justify-between text-[11px] text-slate border-b border-line pb-2">
           <span className="flex items-center gap-1.5 font-medium">
             <IconBuilding className="h-3.5 w-3.5 text-forest-700" />
             <span>I. Municipalidad de Santo Domingo</span>
           </span>
-          <span className="font-semibold text-forest-700">Tesorería</span>
+          <span className="font-semibold text-forest-700">Webpay Plus</span>
         </div>
 
-        {/* Encabezado minimalista horizontal */}
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 ring-2 ring-emerald-50">
             <IconCheck className="h-6 w-6 stroke-[2.5]" />
@@ -249,28 +213,27 @@ export default function PantallaPago() {
               </span>
             </div>
             <p className="text-xs text-slate truncate">
-              Derechos municipales registrados en rentas comunales.
+              Transbank autorizó el pago de tu solicitud.
             </p>
           </div>
         </div>
 
-        {/* Ticket digital compacto (Grid de datos con monto destacado) */}
         <section className="card p-4 space-y-3 border border-line bg-white shadow-xs">
           <div className="flex items-baseline justify-between border-b border-line/60 pb-2.5">
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider text-slate">
-                Total acreditado
+                Total pagado
               </span>
               <p className="text-xl font-extrabold text-forest-700 mt-0.5">
-                {formatearPrecio(monto)}
+                {montoTexto}
               </p>
             </div>
             <div className="text-right">
               <span className="text-[10px] uppercase font-bold tracking-wider text-slate">
-                Comprobante
+                Orden de compra
               </span>
               <p className="font-mono text-xs font-semibold text-ink mt-0.5">
-                ING-SD-{solicitud.id}
+                {comprobante?.orden ?? '—'}
               </p>
             </div>
           </div>
@@ -292,28 +255,25 @@ export default function PantallaPago() {
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider text-slate">
-                Autorización TBK
+                Código de autorización
               </span>
               <p className="font-mono text-xs text-ink mt-0.5">
-                {comprobante?.codigoAutorizacion ?? 'TBK-481920'}
+                {comprobante?.codigoAutorizacion ?? '—'}
               </p>
             </div>
             <div>
               <span className="text-[10px] uppercase font-bold tracking-wider text-slate">
-                Medio
+                Fecha
               </span>
-              <p className="font-medium text-ink truncate mt-0.5">
-                Webpay Plus Débito
-              </p>
+              <p className="font-medium text-ink truncate mt-0.5">{fecha}</p>
             </div>
           </div>
 
           <div className="rounded-md bg-emerald-50/70 p-2.5 text-[11px] text-emerald-900 border border-emerald-200/60 leading-snug">
-            ✓ Solicitud habilitada para coordinación y programación de cuadrilla municipal.
+            ✓ Tu solicitud pasa a coordinación con la empresa de retiro.
           </div>
         </section>
 
-        {/* Acciones principales visibles sin scroll */}
         <div className="space-y-1.5 pt-1">
           <button
             type="button"
@@ -325,7 +285,7 @@ export default function PantallaPago() {
           <button
             type="button"
             onClick={() => window.print()}
-            className="w-full text-center py-1 text-xs text-slate hover:text-ink transition-colors font-medium"
+            className="min-h-[44px] w-full text-center py-1 text-xs text-slate hover:text-ink transition-colors font-medium"
           >
             Imprimir o guardar comprobante
           </button>
@@ -335,12 +295,11 @@ export default function PantallaPago() {
   }
 
   // ---------------------------------------------------------------------------
-  // PANTALLA RESULTADO: ANULADO (COMPACTO / SIN SCROLL)
+  // PANTALLA RESULTADO: NO PAGADO (anulado, agotado o rechazado)
   // ---------------------------------------------------------------------------
-  if (estadoFlujo === 'anulado') {
+  if (noPagado) {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col justify-between space-y-4 py-1">
-        {/* Membrete institucional compacto */}
         <div className="flex items-center justify-between text-[11px] text-slate border-b border-line pb-2">
           <span className="flex items-center gap-1.5 font-medium">
             <IconBuilding className="h-3.5 w-3.5 text-slate" />
@@ -349,7 +308,6 @@ export default function PantallaPago() {
           <span className="font-semibold text-slate">Webpay</span>
         </div>
 
-        {/* Encabezado minimalista horizontal */}
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800 ring-2 ring-amber-50">
             <IconX className="h-6 w-6 stroke-[2.5]" />
@@ -363,33 +321,27 @@ export default function PantallaPago() {
                 Sin cobro
               </span>
             </div>
-            <p className="text-xs text-slate truncate">
-              La operación fue cancelada por el usuario.
-            </p>
+            <p className="text-xs text-slate truncate">{MOTIVO_NO_PAGADO[noPagado]}</p>
           </div>
         </div>
 
-        {/* Tarjeta informativa compacta */}
         <section className="card p-4 space-y-3 border border-line bg-white shadow-xs">
           <div className="space-y-1.5 text-xs text-slate leading-relaxed">
             <p>
-              <strong className="text-ink">No se ha realizado ningún cobro</strong> ni cargo a tu
-              cuenta bancaria.
+              <strong className="text-ink">No se hizo ningún cobro</strong> a tu tarjeta.
             </p>
             <p>
-              Tu solicitud <strong className="text-ink">#{solicitud.id}</strong> sigue reservada en
-              estado <span className="font-semibold text-amber-800">«Pago pendiente»</span>. Puedes
-              completar el pago cuando lo desees para coordinar el retiro.
+              Tu solicitud <strong className="text-ink">#{solicitud.id}</strong> sigue aprobada y
+              con el pago pendiente. Puedes pagar cuando quieras para coordinar el retiro.
             </p>
           </div>
 
           <div className="flex items-center justify-between rounded-md bg-canvas px-3 py-2 text-xs border border-line/60">
             <span className="text-slate">Monto por pagar:</span>
-            <span className="font-bold text-ink">{formatearPrecio(monto)}</span>
+            <span className="font-bold text-ink">{montoTexto}</span>
           </div>
         </section>
 
-        {/* Alternativa: Enviar a Marketplace sin costo */}
         <section className="rounded-xl border border-gold-300 bg-gold-50/90 p-4 space-y-2.5 shadow-xs">
           <div className="flex items-center gap-2 text-ink">
             <span className="text-lg">🛍️</span>
@@ -402,9 +354,9 @@ export default function PantallaPago() {
           </p>
           <button
             type="button"
-            onClick={handleTraspasoMarketplace}
+            onClick={() => void handleTraspasoMarketplace()}
             disabled={traspasando}
-            className="btn-gold w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2 disabled:opacity-50"
+            className="btn-gold min-h-[44px] w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span>
               {traspasando
@@ -415,11 +367,10 @@ export default function PantallaPago() {
           </button>
         </section>
 
-        {/* Acciones principales visibles sin scroll */}
         <div className="space-y-2 pt-1">
           <button
             type="button"
-            onClick={() => setEstadoFlujo('formulario')}
+            onClick={() => setReintentar(true)}
             className="btn-primary w-full py-3 text-sm font-bold shadow-sm"
           >
             Reintentar pago
@@ -427,7 +378,7 @@ export default function PantallaPago() {
           <button
             type="button"
             onClick={() => navigate('/mis-solicitudes')}
-            className="w-full text-center py-1.5 text-xs text-slate hover:text-ink transition-colors font-medium"
+            className="min-h-[44px] w-full text-center py-1.5 text-xs text-slate hover:text-ink transition-colors font-medium"
           >
             Volver a Mis solicitudes
           </button>
@@ -437,7 +388,7 @@ export default function PantallaPago() {
   }
 
   // ---------------------------------------------------------------------------
-  // FORMULARIO DE PAGO / PASARELA
+  // INICIO DEL PAGO
   // ---------------------------------------------------------------------------
   return (
     <div className="mx-auto w-full max-w-lg space-y-4">
@@ -448,7 +399,6 @@ export default function PantallaPago() {
         subtitle="Portal de Pagos · I. Municipalidad de Santo Domingo"
       />
 
-      {/* Resumen del cobro */}
       <section className="card p-4 sm:p-5 space-y-3">
         <div className="flex items-center justify-between border-b border-line pb-2.5">
           <div>
@@ -486,21 +436,15 @@ export default function PantallaPago() {
             </div>
           )}
 
-          <div className="flex justify-between py-1">
-            <span className="text-slate">Vecino contribuyente:</span>
-            <span className="font-semibold text-ink">{sesion?.nombre ?? 'Vecino'}</span>
-          </div>
-
           <div className="flex items-center justify-between border-t border-line pt-2.5 mt-1">
             <span className="text-sm font-bold text-ink">Total a pagar:</span>
             <span className="text-xl font-extrabold text-forest-700">
-              {formatearPrecio(monto)}
+              {montoTexto}
             </span>
           </div>
         </div>
       </section>
 
-      {/* Medios de pago */}
       <section className="card p-4 sm:p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold text-ink">Medio de pago</h2>
@@ -517,31 +461,47 @@ export default function PantallaPago() {
           <div className="flex-1">
             <p className="text-xs font-bold text-ink">Webpay Plus (Transbank)</p>
             <p className="text-[11px] text-slate mt-0.5">
-              Tarjetas de Débito Redcompra y Crédito (Visa, Mastercard, American Express).
+              Tarjetas de débito y crédito. Te llevaremos al sitio de Webpay y volverás aquí al
+              terminar.
             </p>
           </div>
-          <span className="text-xs font-bold text-forest-700">✓ Activo</span>
         </div>
 
-        {/* Simulador de demo: botones requeridos para evaluar resultados */}
-        <div className="pt-2 space-y-2.5">
-          <button
-            type="button"
-            onClick={simularAprobado}
-            className="btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
-          >
-            <IconCheck className="h-4 w-4" />
-            <span>Simular pago aprobado ({formatearPrecio(monto)})</span>
-          </button>
+        {!monto && (
+          <p role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Esta solicitud todavía no tiene monto. Vuelve a intentarlo cuando la Municipalidad
+            confirme el presupuesto.
+          </p>
+        )}
 
-          <button
-            type="button"
-            onClick={simularAnulado}
-            className="w-full rounded-pill border border-line bg-canvas py-2 text-xs font-medium text-slate transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700"
-          >
-            Simular pago anulado / cancelado
-          </button>
-        </div>
+        {errorComprobante && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            No pudimos revisar si ya pagaste. Si pagaste hace poco, revisa Mis solicitudes antes
+            de pagar de nuevo.
+          </p>
+        )}
+
+        {errorPago && (
+          <p role="alert" className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700">
+            {errorPago}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => void pagar()}
+          disabled={redirigiendo || !monto}
+          className="btn-primary min-h-[44px] w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
+        >
+          <IconCreditCard className="h-4 w-4" />
+          <span>
+            {redirigiendo
+              ? 'Conectando con Webpay…'
+              : monto
+                ? `Pagar ${montoTexto} con Webpay`
+                : 'Pagar con Webpay'}
+          </span>
+        </button>
       </section>
     </div>
   );
