@@ -45,7 +45,8 @@ export interface RevisionVisible {
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
   estado: EstadoSolicitud;
   estadoPago: EstadoPago;
   monto: number | null;
@@ -70,7 +71,8 @@ export interface SolicitudRetiro {
 
 export interface CrearSolicitudInput {
   usuarioCiudadanoId: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId?: number | null;
+  nombreResiduoOtro?: string;
   direccionRetiro: string;
   foto: File;
   descripcion?: string;
@@ -79,7 +81,8 @@ export interface CrearSolicitudInput {
 
 export interface ReenviarSolicitudInput {
   descripcion?: string;
-  residuoCatalogoId?: number;
+  residuoCatalogoId?: number | null;
+  nombreResiduoOtro?: string;
   direccionRetiro?: string;
   foto?: File;
 }
@@ -87,10 +90,12 @@ export interface ReenviarSolicitudInput {
 // El backend recibe la solicitud como multipart/form-data: la foto va como
 // archivo en el campo `foto` y el resto como texto. Sin `Content-Type` a
 // mano: el navegador lo arma con el separador del multipart.
-function aFormData(campos: Record<string, string | number | File | undefined>): FormData {
+function aFormData(
+  campos: Record<string, string | number | File | null | undefined>,
+): FormData {
   const form = new FormData();
   for (const [clave, valor] of Object.entries(campos)) {
-    if (valor === undefined) continue;
+    if (valor === undefined || valor === null) continue;
     form.append(clave, valor instanceof File ? valor : String(valor));
   }
   return form;

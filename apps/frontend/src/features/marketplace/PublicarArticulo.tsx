@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   apiFetch,
@@ -10,6 +10,7 @@ import {
 import { publicarArticulo, type TipoArticulo } from '../../api/marketplace';
 import {
   BackButton,
+  ComboboxResiduo,
   ScreenHeader,
   IconCamera,
   IconRecycle,
@@ -38,6 +39,7 @@ function validar(
   titulo: string,
   descripcion: string,
   residuoId: string,
+  nombreResiduoOtro: string,
 ): Errores {
   const errores: Errores = {};
   if (!tipo) errores.tipo = 'Elige si lo regalas o lo intercambias.';
@@ -46,7 +48,8 @@ function validar(
   else if (t.length > TITULO_MAX) errores.titulo = `Máximo ${TITULO_MAX} caracteres.`;
   if (descripcion.length > DESCRIPCION_MAX)
     errores.descripcion = `Máximo ${DESCRIPCION_MAX} caracteres.`;
-  if (!residuoId) errores.residuo = 'Elige qué tipo de objeto es.';
+  if (!residuoId && !nombreResiduoOtro.trim())
+    errores.residuo = 'Elige o escribe qué tipo de objeto es.';
   return errores;
 }
 
@@ -65,7 +68,8 @@ export default function PublicarArticulo() {
         solicitudId?: number;
         titulo?: string;
         descripcion?: string;
-        residuoCatalogoId?: number;
+        residuoCatalogoId?: number | null;
+        nombreResiduoOtro?: string;
         fotoArchivo?: File | null;
         fotoUrl?: string | null;
       };
@@ -82,6 +86,9 @@ export default function PublicarArticulo() {
       importarParam?.residuoCatalogoId
         ? String(importarParam.residuoCatalogoId)
         : '',
+  );
+  const [nombreResiduoOtro, setNombreResiduoOtro] = useState(
+    () => importarParam?.nombreResiduoOtro ?? '',
   );
   const [foto, setFoto] = useState<Foto | null>(() => {
     if (importarParam?.fotoArchivo) {
@@ -203,15 +210,22 @@ export default function PublicarArticulo() {
 
   const aplicarSolicitud = (s: SolicitudRetiro) => {
     setSolicitudOrigenId(s.id);
-    if (s.residuoCatalogo?.nombre) {
-      setTitulo(s.residuoCatalogo.nombre);
+    const nombre = s.nombreResiduoOtro || s.residuoCatalogo?.nombre;
+    if (nombre) {
+      setTitulo(nombre);
     }
-    setResiduoId(String(s.residuoCatalogoId));
+    if (s.nombreResiduoOtro) {
+      setNombreResiduoOtro(s.nombreResiduoOtro);
+      setResiduoId('');
+    } else {
+      setNombreResiduoOtro('');
+      setResiduoId(s.residuoCatalogoId ? String(s.residuoCatalogoId) : '');
+    }
     setDescripcion(s.descripcion ?? '');
     if (s.fotoUrl) {
       cargarFotoRemota(
         s.fotoUrl,
-        s.residuoCatalogo?.nombre || `solicitud-${s.id}`,
+        nombre || `solicitud-${s.id}`,
       );
     } else {
       reemplazarFoto(null);
@@ -222,6 +236,7 @@ export default function PublicarArticulo() {
     setSolicitudOrigenId(null);
     setTitulo('');
     setResiduoId('');
+    setNombreResiduoOtro('');
     setDescripcion('');
     reemplazarFoto(null);
   };
@@ -240,15 +255,7 @@ export default function PublicarArticulo() {
     reemplazarFoto({ archivo, url: URL.createObjectURL(archivo) });
   };
 
-  const porCategoria = useMemo(() => {
-    const grupos = new Map<string, ResiduoCatalogo[]>();
-    for (const item of catalogo ?? []) {
-      grupos.set(item.categoria, [...(grupos.get(item.categoria) ?? []), item]);
-    }
-    return [...grupos.entries()];
-  }, [catalogo]);
-
-  const errores = validar(tipo, titulo, descripcion, residuoId);
+  const errores = validar(tipo, titulo, descripcion, residuoId, nombreResiduoOtro);
   const hayErrores = Object.keys(errores).length > 0;
   const visibles: Errores = intentado ? errores : {};
 
@@ -264,7 +271,8 @@ export default function PublicarArticulo() {
         tipo,
         titulo: titulo.trim(),
         descripcion: descripcion.trim() || undefined,
-        residuoCatalogoId: Number(residuoId),
+        residuoCatalogoId: residuoId ? Number(residuoId) : null,
+        nombreResiduoOtro: residuoId ? undefined : nombreResiduoOtro.trim(),
         foto: foto?.archivo,
       });
       navigate(`/marketplace/${nuevo.id}`, { state: { recienPublicado: true } });
@@ -447,24 +455,25 @@ export default function PublicarArticulo() {
         {errorCatalogo ? (
           <p className="text-sm text-rose-600">{errorCatalogo}</p>
         ) : (
-          <select
-            id="residuo"
-            value={residuoId}
-            onChange={(e) => setResiduoId(e.target.value)}
+          <ComboboxResiduo
+            catalogo={catalogo ?? []}
+            residuoSeleccionado={
+              catalogo?.find((c) => String(c.id) === residuoId) ?? null
+            }
+            nombreOtro={nombreResiduoOtro}
             disabled={!catalogo}
-            className="field"
-          >
-            <option value="">{catalogo ? 'Elige una opción' : 'Cargando catálogo…'}</option>
-            {porCategoria.map(([categoria, items]) => (
-              <optgroup key={categoria} label={categoria}>
-                {items.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.nombre}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+            onSeleccionar={(item, textoOtro) => {
+              if (item) {
+                setResiduoId(String(item.id));
+                setNombreResiduoOtro('');
+                if (!titulo) setTitulo(item.nombre);
+              } else {
+                setResiduoId('');
+                setNombreResiduoOtro(textoOtro);
+                if (!titulo) setTitulo(textoOtro);
+              }
+            }}
+          />
         )}
         <MensajeError mensaje={visibles.residuo} />
       </section>

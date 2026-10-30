@@ -70,7 +70,7 @@ src/
 │   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected
 │   └── ui/                      # UI Kit — primitivos reutilizables
 │       ├── Icons.tsx            # Sistema de íconos vectoriales SVG sobrios
-│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader
+│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader · ComboboxResiduo
 │       ├── EmptyState · BackButton · PriceTag · BotonClaveUnica · Estrellas
 │       ├── estadoMeta.ts        # Metadata (label/color) por estado de solicitud
 │       └── index.ts             # Punto de import único: import { ScreenHeader, IconUser } from '../../components/ui'
@@ -94,6 +94,8 @@ src/
 
 > El panel municipal vive en `src/admin/` y se sirve en `/admin/*` de este mismo sitio
 > (SPEC-frontend-unificado): no es otro origen ni necesita una variable de entorno propia.
+> Cuenta con espacios separados para solicitudes de retiro (`/admin`) y moderación de marketplace
+> (`/admin/marketplace`), detección de coincidencias con artículos de vecinos y asignación de presupuesto final en la aprobación.
 > El botón "Modo funcionario" de `SeleccionInicio.tsx` navega a `/admin` con el router de React.
 
 ### Chat del Marketplace (HU-06)

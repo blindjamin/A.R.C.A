@@ -47,10 +47,12 @@ export type TipoArticulo = 'regalo' | 'intercambio';
 
 // Alineado con `articulos_marketplace.estado` en ARCA_database_schema.dbml.
 export type EstadoArticulo =
+  | 'pendiente_aprobacion'
   | 'disponible'
   | 'en_negociacion'
   | 'retirado'
-  | 'completado';
+  | 'completado'
+  | 'rechazado';
 
 export interface PublicadorMarketplace {
   /** Nombre real entregado por ClaveÚnica (decisión de producto). */
@@ -66,7 +68,9 @@ export interface ArticuloMarketplace {
   titulo: string;
   descripcion: string | null;
   estado: EstadoArticulo;
-  residuoCatalogoId: number;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
+  motivoRechazo?: string | null;
   /** Categoría del catálogo municipal del residuo asociado. */
   categoria: string;
   fotoUrl: string | null;
@@ -112,7 +116,8 @@ export interface PublicarArticuloInput {
   tipo: TipoArticulo;
   titulo: string;
   descripcion?: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId?: number | null;
+  nombreResiduoOtro?: string;
   foto?: File;
 }
 
@@ -163,7 +168,12 @@ export function publicarArticulo(
   form.set('tipo', input.tipo);
   form.set('titulo', input.titulo);
   if (input.descripcion) form.set('descripcion', input.descripcion);
-  form.set('residuoCatalogoId', String(input.residuoCatalogoId));
+  if (input.residuoCatalogoId) {
+    form.set('residuoCatalogoId', String(input.residuoCatalogoId));
+  }
+  if (input.nombreResiduoOtro) {
+    form.set('nombreResiduoOtro', input.nombreResiduoOtro);
+  }
   if (input.foto) form.set('foto', input.foto);
 
   // Sin Content-Type explícito: el navegador pone el boundary del multipart.
@@ -358,8 +368,8 @@ async function ejemploPublicar(
     tipo: input.tipo,
     titulo: input.titulo,
     descripcion: input.descripcion ?? null,
-    estado: 'disponible',
-    residuoCatalogoId: input.residuoCatalogoId,
+    estado: 'pendiente_aprobacion',
+    residuoCatalogoId: input.residuoCatalogoId ?? null,
     categoria: categoria ?? 'Otros',
     // URL propia (no la de la vista previa, que la pantalla libera al salir).
     fotoUrl: input.foto ? URL.createObjectURL(input.foto) : null,

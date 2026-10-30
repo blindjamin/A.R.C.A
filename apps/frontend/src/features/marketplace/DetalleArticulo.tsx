@@ -329,16 +329,44 @@ export default function DetalleArticulo() {
       <BackButton onClick={volver} />
 
       {recienPublicado && (
-        <div className="rounded-md bg-green-50 px-4 py-3 text-sm font-medium text-green-700 flex items-center gap-2">
-          <IconCheck className="h-5 w-5 shrink-0 text-green-700" />
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900 flex items-center gap-2.5 shadow-xs">
+          <IconCheck className="h-5 w-5 shrink-0 text-emerald-700" />
           <div>
-            ¡Tu artículo ya está publicado! Tus vecinos ya pueden verlo.{' '}
+            ¡Tu artículo fue enviado para validación municipal! Tan pronto sea aprobado quedará visible a toda la comunidad.{' '}
             <button
               onClick={() => navigate('/marketplace/mis-publicaciones')}
-              className="font-semibold underline"
+              className="font-bold underline text-emerald-950 ml-1"
             >
               Ver mis publicaciones
             </button>
+          </div>
+        </div>
+      )}
+
+      {articulo.estado === 'pendiente_aprobacion' && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-xs text-amber-950 flex items-start gap-3 shadow-xs">
+          <span className="text-xl shrink-0 mt-0.5">⏳</span>
+          <div className="space-y-0.5">
+            <p className="font-bold text-amber-950">
+              Publicación en revisión técnica municipal
+            </p>
+            <p className="text-[11px] text-amber-900 leading-relaxed">
+              Para garantizar la seguridad de la comunidad, un funcionario municipal validará la publicación antes de que aparezca en el Marketplace.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {articulo.estado === 'rechazado' && (
+        <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-xs text-rose-950 flex items-start gap-3 shadow-xs">
+          <span className="text-xl shrink-0 mt-0.5">❌</span>
+          <div className="space-y-0.5">
+            <p className="font-bold text-rose-950">
+              Publicación no autorizada por moderación municipal
+            </p>
+            <p className="text-[11px] text-rose-900 leading-relaxed">
+              Motivo: {articulo.motivoRechazo || 'El artículo no cumple con los criterios de reutilización.'}
+            </p>
           </div>
         </div>
       )}

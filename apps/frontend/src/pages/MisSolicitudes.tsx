@@ -131,7 +131,7 @@ export default function MisSolicitudes() {
     setSeleccion(conPago);
     setEditandoCorreccion(false);
     setNuevaDescripcion(s.descripcion || '');
-    setNuevoResiduoId(s.residuoCatalogoId);
+    setNuevoResiduoId(s.residuoCatalogoId ?? '');
     setNuevaDireccion(s.direccionRetiro || '');
     setNuevaFoto(null);
     setNuevaFotoPreview(null);
@@ -142,7 +142,7 @@ export default function MisSolicitudes() {
         const detPago = conEstadoPago(det);
         setSeleccion(detPago);
         setNuevaDescripcion(det.descripcion || '');
-        setNuevoResiduoId(det.residuoCatalogoId);
+        setNuevoResiduoId(det.residuoCatalogoId ?? '');
         setNuevaDireccion(det.direccionRetiro || '');
       })
       .catch(() => {});
@@ -150,6 +150,9 @@ export default function MisSolicitudes() {
 
   const cancelar = async (id: number) => {
     if (!usuarioCiudadanoId) return;
+    const esAprobadaOPendiente =
+      seleccion?.id === id &&
+      (seleccion.estado === 'aprobada' || seleccion.estadoPago === 'pendiente');
     if (
       !window.confirm(
         '¿Cancelar esta solicitud? Dejará de aparecer en tu lista.',
@@ -171,6 +174,28 @@ export default function MisSolicitudes() {
         JSON.stringify(nuevas),
       );
       setOcultas(nuevas);
+      if (
+        esAprobadaOPendiente &&
+        window.confirm(
+          '¿Quieres aprovechar los datos y la foto de este residuo para ofrecerlo gratis en el Marketplace ahora?',
+        )
+      ) {
+        const item = seleccion;
+        setSeleccion(null);
+        navigate('/marketplace/subir', {
+          state: {
+            importarSolicitud: {
+              solicitudId: item.id,
+              titulo: item.nombreResiduoOtro || item.residuoCatalogo?.nombre || '',
+              descripcion: item.descripcion ?? '',
+              residuoCatalogoId: item.residuoCatalogoId,
+              nombreResiduoOtro: item.nombreResiduoOtro,
+              fotoUrl: item.fotoUrl,
+            },
+          },
+        });
+        return;
+      }
       setSeleccion(null);
     } catch (e) {
       setError((e as Error).message);
@@ -465,7 +490,7 @@ export default function MisSolicitudes() {
           <div className="flex items-start justify-between gap-2">
             <div>
               <h1 className="text-xl font-extrabold text-ink">
-                {seleccion.residuoCatalogo?.nombre ??
+                {seleccion.nombreResiduoOtro ?? seleccion.residuoCatalogo?.nombre ??
                   `Residuo #${seleccion.residuoCatalogoId}`}
               </h1>
               {categoria && (
@@ -599,7 +624,7 @@ export default function MisSolicitudes() {
               <li key={s.id}>
                 <ListItemCard
                   icon={<IconRecycle className="h-5 w-5 text-green-700" />}
-                  title={s.residuoCatalogo?.nombre ?? `Residuo #${s.residuoCatalogoId}`}
+                  title={s.nombreResiduoOtro ?? s.residuoCatalogo?.nombre ?? `Residuo #${s.residuoCatalogoId}`}
                   titleBadge={
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <EstadoPill estado={s.estado} />
