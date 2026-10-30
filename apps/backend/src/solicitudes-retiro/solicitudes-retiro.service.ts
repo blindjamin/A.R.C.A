@@ -16,6 +16,10 @@ import {
   EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
   FotoRetiro,
+  leerObjetosPedidos,
+  ObjetoSolicitudRetiro,
+  type ObjetoPedido,
+  ObjetosInvalidosError,
   type OrigenPeticion,
   ResiduoCatalogo,
   RevisionSolicitud,
@@ -59,6 +63,8 @@ export class SolicitudesRetiroService {
     private readonly revisionRepository: Repository<RevisionSolicitud>,
     @InjectRepository(FotoRetiro)
     private readonly fotoRetiroRepository: Repository<FotoRetiro>,
+    @InjectRepository(ObjetoSolicitudRetiro)
+    private readonly objetoRepository: Repository<ObjetoSolicitudRetiro>,
     private readonly residuosService: ResiduosService,
     private readonly auditoriaService: AuditoriaService,
     private readonly archivosService: ArchivosService,
@@ -101,21 +107,8 @@ export class SolicitudesRetiroService {
       throw new BadRequestException('El usuario ciudadano no está activo');
     }
 
-    let residuo: ResiduoCatalogo | null = null;
-    if (dto.residuoCatalogoId) {
-      residuo = await this.residuosService.findCatalogoById(
-        dto.residuoCatalogoId,
-      );
-      if (!residuo) {
-        throw new NotFoundException(
-          `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
-        );
-      }
-    } else if (!dto.nombreResiduoOtro?.trim()) {
-      throw new BadRequestException(
-        'Debes indicar un residuo del catálogo o ingresar el nombre de tu residuo.',
-      );
-    }
+    const objetos = await this.objetosValidados(dto.objetos, dto);
+    const principal = objetos[0];
 
     // Puente temporal: panel/Excel/mail aún leen direccionAnonimizada.
     const direccionAnonimizada = (
@@ -130,10 +123,8 @@ export class SolicitudesRetiroService {
     try {
       const solicitud = this.solicitudRetiroRepository.create({
         usuarioCiudadanoId: dto.usuarioCiudadanoId,
-        residuoCatalogoId: residuo?.id ?? null,
-        nombreResiduoOtro: residuo
-          ? null
-          : dto.nombreResiduoOtro?.trim() || null,
+        residuoCatalogoId: principal.residuoCatalogoId,
+        nombreResiduoOtro: principal.nombreOtro,
         descripcion: dto.descripcion ?? null,
         direccionRetiro,
         direccionAnonimizada,
@@ -144,7 +135,18 @@ export class SolicitudesRetiroService {
         estadoPago: EstadoPagoSolicitud.NO_APLICA,
       });
 
-      const guardada = await this.solicitudRetiroRepository.save(solicitud);
+      // La solicitud y sus objetos se guardan juntos: una solicitud sin objetos
+      // no tendría qué revisar ni qué cobrar.
+      const guardada = await this.solicitudRetiroRepository.manager.transaction(
+        async (m) => {
+          const nueva = await m.save(solicitud);
+          await m.save(
+            ObjetoSolicitudRetiro,
+            this.filasDeObjetos(nueva.id, objetos),
+          );
+          return nueva;
+        },
+      );
 
       await this.fotoRetiroRepository.save(
         this.fotoRetiroRepository.create({
@@ -162,7 +164,7 @@ export class SolicitudesRetiroService {
         entidad: 'solicitudes_retiro',
         entidadId: guardada.id,
         accion: AccionAuditoria.CREATE,
-        datosNuevos: { estado: guardada.estado },
+        datosNuevos: { estado: guardada.estado, objetos: objetos.length },
         origen,
       });
 
@@ -197,8 +199,12 @@ export class SolicitudesRetiroService {
 
     const filas = await this.solicitudRetiroRepository.find({
       where,
-      relations: { residuoCatalogo: true, fotos: true },
-      order: { fechaSolicitud: 'DESC' },
+      relations: {
+        residuoCatalogo: true,
+        fotos: true,
+        objetos: { residuoCatalogo: true },
+      },
+      order: { fechaSolicitud: 'DESC', objetos: { orden: 'ASC' } },
     });
 
     return filas.map((s) => aSolicitudPublica(s));
@@ -227,6 +233,8 @@ export class SolicitudesRetiroService {
 
   async findOnePublica(id: number, user: AuthUser): Promise<SolicitudPublica> {
     const solicitud = await this.findOne(id, user);
+    // Aparte y no como relación de `findOne`: esa entidad también se guarda.
+    solicitud.objetos = await this.cargarObjetos(id);
     return aSolicitudPublica(solicitud, {
       ultimaRevision: await this.ultimaRevision(id),
     });
@@ -287,16 +295,20 @@ export class SolicitudesRetiroService {
       throw this.comoHttp(error);
     }
 
-    if (dto.residuoCatalogoId !== undefined) {
-      const residuo = await this.residuosService.findCatalogoById(
-        dto.residuoCatalogoId,
-      );
-      if (!residuo) {
-        throw new NotFoundException(
-          `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
-        );
-      }
-      solicitud.residuoCatalogoId = dto.residuoCatalogoId;
+    // `objetos` reemplaza la lista completa. Solo `residuoCatalogoId` corrige
+    // el objeto principal y deja los demás como estaban.
+    let objetosNuevos: ObjetoPedido[] | null = null;
+    let principalCorregido: ObjetoPedido | null = null;
+    if (dto.objetos !== undefined) {
+      objetosNuevos = await this.objetosValidados(dto.objetos, {});
+      solicitud.residuoCatalogoId = objetosNuevos[0].residuoCatalogoId;
+      solicitud.nombreResiduoOtro = objetosNuevos[0].nombreOtro;
+    } else if (dto.residuoCatalogoId !== undefined) {
+      [principalCorregido] = await this.objetosValidados(undefined, {
+        residuoCatalogoId: dto.residuoCatalogoId,
+      });
+      solicitud.residuoCatalogoId = principalCorregido.residuoCatalogoId;
+      solicitud.nombreResiduoOtro = null;
     }
 
     if (dto.descripcion !== undefined) {
@@ -327,7 +339,25 @@ export class SolicitudesRetiroService {
     }
 
     try {
-      await this.solicitudRetiroRepository.save(solicitud);
+      await this.solicitudRetiroRepository.manager.transaction(async (m) => {
+        await m.save(solicitud);
+        if (objetosNuevos) {
+          await m.delete(ObjetoSolicitudRetiro, { solicitudRetiroId: id });
+          await m.save(
+            ObjetoSolicitudRetiro,
+            this.filasDeObjetos(id, objetosNuevos),
+          );
+        } else if (principalCorregido) {
+          await m.update(
+            ObjetoSolicitudRetiro,
+            { solicitudRetiroId: id, orden: 0 },
+            {
+              residuoCatalogoId: principalCorregido.residuoCatalogoId,
+              nombreOtro: null,
+            },
+          );
+        }
+      });
 
       if (fotoNuevaPath) {
         if (fotoAntes) {
@@ -360,6 +390,9 @@ export class SolicitudesRetiroService {
     if (solicitud.residuoCatalogoId !== residuoAnterior) {
       datosAnteriores.residuoCatalogoId = residuoAnterior;
       datosNuevos.residuoCatalogoId = solicitud.residuoCatalogoId;
+    }
+    if (objetosNuevos) {
+      datosNuevos.objetos = objetosNuevos.length;
     }
 
     await this.auditoriaService.registrar({
@@ -462,6 +495,56 @@ export class SolicitudesRetiroService {
       comentario: revision.comentario,
       fecha: revision.createdAt,
     };
+  }
+
+  /**
+   * Lee la lista que mandó el vecino y comprueba que cada objeto del catálogo
+   * exista. Se valida antes de guardar la foto o tocar la solicitud.
+   */
+  private async objetosValidados(
+    objetosJson: string | undefined,
+    anterior: { residuoCatalogoId?: number; nombreResiduoOtro?: string },
+  ): Promise<ObjetoPedido[]> {
+    let objetos: ObjetoPedido[];
+    try {
+      objetos = leerObjetosPedidos(objetosJson, anterior);
+    } catch (error) {
+      if (error instanceof ObjetosInvalidosError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+
+    const ids = new Set(
+      objetos
+        .map((o) => o.residuoCatalogoId)
+        .filter((id): id is number => id !== null),
+    );
+    for (const id of ids) {
+      const residuo: ResiduoCatalogo | null =
+        await this.residuosService.findCatalogoById(id);
+      if (!residuo) {
+        throw new NotFoundException(`Residuo de catálogo ${id} no encontrado`);
+      }
+    }
+    return objetos;
+  }
+
+  private filasDeObjetos(
+    solicitudRetiroId: number,
+    objetos: ObjetoPedido[],
+  ): Partial<ObjetoSolicitudRetiro>[] {
+    return objetos.map((o, orden) => ({ ...o, solicitudRetiroId, orden }));
+  }
+
+  private cargarObjetos(
+    solicitudRetiroId: number,
+  ): Promise<ObjetoSolicitudRetiro[]> {
+    return this.objetoRepository.find({
+      where: { solicitudRetiroId },
+      relations: { residuoCatalogo: true },
+      order: { orden: 'ASC' },
+    });
   }
 
   private comoHttp(error: unknown): Error {

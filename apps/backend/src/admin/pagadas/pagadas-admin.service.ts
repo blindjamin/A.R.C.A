@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { type FindOptionsWhere, Repository } from 'typeorm';
 import {
+  categoriasObjetos,
   EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
+  resumenObjetos,
   SolicitudRetiro,
 } from '../../core';
 import { LIMITE_EXPORTACION } from '../comun/exportar-tabla';
@@ -72,8 +74,8 @@ export class PagadasAdminService {
 
     const filas = await this.solicitudRepository.find({
       where,
-      relations: { residuoCatalogo: true },
-      order: { fechaSolicitud: 'DESC', id: 'DESC' },
+      relations: { residuoCatalogo: true, objetos: { residuoCatalogo: true } },
+      order: { fechaSolicitud: 'DESC', id: 'DESC', objetos: { orden: 'ASC' } },
       // ponytail: el sector no es columna; se filtra en memoria tras traer hasta
       // LIMITE_EXPORTACION. Si crece, guardar el sector al crear la solicitud.
       take: filtro.sector ? LIMITE_EXPORTACION : take,
@@ -94,8 +96,12 @@ export class PagadasAdminService {
       fechaSolicitud: s.fechaSolicitud.toISOString(),
       fechaRevision: s.fechaRevision?.toISOString() ?? null,
       estado: s.estado,
-      residuo: s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`,
-      categoria: s.residuoCatalogo?.categoria ?? '',
+      residuo: s.objetos?.length
+        ? resumenObjetos(s.objetos)
+        : (s.residuoCatalogo?.nombre ?? s.nombreResiduoOtro ?? ''),
+      categoria: s.objetos?.length
+        ? categoriasObjetos(s.objetos)
+        : (s.residuoCatalogo?.categoria ?? ''),
       sector:
         !lat || !lng
           ? SIN_UBICACION

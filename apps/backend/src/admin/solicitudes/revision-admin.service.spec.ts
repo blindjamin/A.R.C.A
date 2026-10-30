@@ -94,12 +94,18 @@ function montar(fila: SolicitudRetiro) {
   };
   const auditoria = { registrar: jest.fn(() => Promise.resolve()) };
   const notificaciones = { notificar: jest.fn(() => Promise.resolve()) };
+  // Sin filas: el precio sugerido sale del residuo principal, como antes de HU-01.
+  const objetosRepo = {
+    find: jest.fn((): Promise<unknown[]> => Promise.resolve([])),
+    update: jest.fn(() => Promise.resolve()),
+  };
 
   const service = new RevisionAdminService(
     solicitudes as unknown as Repository<SolicitudRetiro>,
     residuos as never,
     revisionesRepo as never,
     notasRepo as never,
+    objetosRepo as never,
     auditoria as unknown as AuditoriaService,
     notificaciones as unknown as NotificacionesService,
   );
@@ -111,6 +117,7 @@ function montar(fila: SolicitudRetiro) {
     notificaciones,
     revisiones,
     notas,
+    objetosRepo,
     guardada: () => guardada,
   };
 }
@@ -166,6 +173,68 @@ describe('RevisionAdminService.tomar', () => {
 });
 
 describe('RevisionAdminService.revisar', () => {
+  it('con varios objetos del catálogo, cobra la suma de precio por cantidad', async () => {
+    const { service, guardada, objetosRepo } = montar(filaBase());
+    objetosRepo.find.mockResolvedValueOnce([
+      {
+        nombreOtro: null,
+        cantidad: 2,
+        residuoCatalogo: { nombre: 'Silla', precio: 3000 },
+      },
+      {
+        nombreOtro: null,
+        cantidad: 1,
+        residuoCatalogo: { nombre: 'Mesa', precio: 7000 },
+      },
+    ]);
+
+    await service.revisar(
+      7,
+      {
+        decision: EstadoSolicitudRetiro.APROBADA,
+        checklist: checklistCompleto(),
+      },
+      FUNCIONARIO,
+    );
+
+    expect(guardada()).toMatchObject({ monto: 13000 });
+  });
+
+  it('con un objeto fuera del catálogo, aprobar exige el monto del funcionario', async () => {
+    const { service, guardada, objetosRepo } = montar(filaBase());
+    const conOtro = [
+      {
+        nombreOtro: null,
+        cantidad: 1,
+        residuoCatalogo: { nombre: 'Mesa', precio: 7000 },
+      },
+      { nombreOtro: 'Piano', cantidad: 1, residuoCatalogo: null },
+    ];
+    objetosRepo.find.mockResolvedValue(conOtro);
+
+    await expect(
+      service.revisar(
+        7,
+        {
+          decision: EstadoSolicitudRetiro.APROBADA,
+          checklist: checklistCompleto(),
+        },
+        FUNCIONARIO,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    await service.revisar(
+      7,
+      {
+        decision: EstadoSolicitudRetiro.APROBADA,
+        checklist: checklistCompleto(),
+        montoFinal: 25000,
+      },
+      FUNCIONARIO,
+    );
+    expect(guardada()).toMatchObject({ monto: 25000 });
+  });
+
   it('aprobar guarda la decisión, libera la toma y audita sin texto libre', async () => {
     const { service, guardada, revisiones, auditoria } = montar(
       filaBase({

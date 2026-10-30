@@ -25,3 +25,13 @@ export type {
   MotivoTransicionInvalida,
   SolicitudEnCiclo,
 } from './ciclo-solicitud';
+export {
+  CANTIDAD_MAXIMA_POR_OBJETO,
+  categoriasObjetos,
+  leerObjetosPedidos,
+  MAXIMO_OBJETOS_POR_SOLICITUD,
+  ObjetosInvalidosError,
+  precioSugerido,
+  resumenObjetos,
+} from './objetos-solicitud';
+export type { ObjetoConResiduo, ObjetoPedido } from './objetos-solicitud';

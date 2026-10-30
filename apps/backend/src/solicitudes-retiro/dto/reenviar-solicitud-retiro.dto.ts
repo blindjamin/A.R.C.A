@@ -23,6 +23,12 @@ export class ReenviarSolicitudRetiroDto {
   @IsInt()
   residuoCatalogoId?: number;
 
+  /** Lista completa de objetos en JSON; reemplaza la anterior (ver el DTO de creación). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  objetos?: string;
+
   @IsOptional()
   @IsString()
   @MinLength(1)

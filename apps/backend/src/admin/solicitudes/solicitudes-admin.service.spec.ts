@@ -76,6 +76,7 @@ function montar(fila: SolicitudRetiro) {
     repositorio as unknown as Repository<SolicitudRetiro>,
     funcionarios as unknown as Repository<UsuarioAdministrador>,
     articulosMarketplace as unknown as Repository<ArticuloMarketplace>,
+    { find: jest.fn(() => Promise.resolve([])) } as never,
     auditoria as unknown as AuditoriaService,
     notificaciones as unknown as NotificacionesService,
   );

@@ -15,9 +15,13 @@ import {
   aplicarTransicion,
   AuditoriaService,
   type AuthUser,
+  EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
   NotaSolicitud,
+  ObjetoSolicitudRetiro,
   type OrigenPeticion,
+  precioSugerido,
+  resumenObjetos,
   ResiduoCatalogo,
   RevisionSolicitud,
   SolicitudRetiro,
@@ -73,6 +77,8 @@ export class RevisionAdminService {
     private readonly revisionRepository: Repository<RevisionSolicitud>,
     @InjectRepository(NotaSolicitud)
     private readonly notaRepository: Repository<NotaSolicitud>,
+    @InjectRepository(ObjetoSolicitudRetiro)
+    private readonly objetoRepository: Repository<ObjetoSolicitudRetiro>,
     private readonly auditoriaService: AuditoriaService,
     private readonly notificaciones: NotificacionesService,
     @Optional()
@@ -125,13 +131,36 @@ export class RevisionAdminService {
     this.asegurarNoTomadaPorOtro(solicitud, user, ahora);
 
     const antes = fotografiar(solicitud);
+    // Aparte y no como relación de `cargar`: la solicitud se guarda después.
+    const objetos = await this.objetoRepository.find({
+      where: { solicitudRetiroId: id },
+      relations: { residuoCatalogo: true },
+      order: { orden: 'ASC' },
+    });
+
+    // Con algún objeto fuera del catálogo no hay sugerencia y el funcionario
+    // tiene que presupuestar el monto (`montoFinal`).
+    const precioCatalogo =
+      objetos.length > 0
+        ? precioSugerido(objetos)
+        : (solicitud.residuoCatalogo?.precio ?? null);
+    if (
+      dto.decision === EstadoSolicitudRetiro.APROBADA &&
+      solicitud.estadoPago !== EstadoPagoSolicitud.PAGADO &&
+      precioCatalogo === null &&
+      dto.montoFinal === undefined
+    ) {
+      throw new BadRequestException(
+        'La solicitud tiene objetos fuera del catálogo: indica el monto a cobrar para aprobarla.',
+      );
+    }
 
     try {
       validarRevision(dto);
       aplicarTransicion(solicitud, dto.decision, {
         actor: actorDe(user),
         administradorId: user.administradorId,
-        precioCatalogo: solicitud.residuoCatalogo?.precio,
+        precioCatalogo,
         montoFinal: dto.montoFinal,
         ahora,
       });
@@ -194,7 +223,10 @@ export class RevisionAdminService {
               correo,
               {
                 id: solicitud.id,
-                residuoNombre: solicitud.residuoCatalogo?.nombre,
+                residuoNombre:
+                  objetos.length > 0
+                    ? resumenObjetos(objetos)
+                    : solicitud.residuoCatalogo?.nombre,
                 categoria: solicitud.residuoCatalogo?.categoria,
                 direccion: solicitud.direccionAnonimizada,
                 fechaSolicitud: solicitud.fechaSolicitud,
@@ -246,6 +278,11 @@ export class RevisionAdminService {
       residuoCatalogoId: dto.residuoCatalogoId,
       nombreResiduoOtro: null,
     });
+    // La corrección es del objeto principal; los demás objetos no cambian.
+    await this.objetoRepository.update(
+      { solicitudRetiroId: id, orden: 0 },
+      { residuoCatalogoId: dto.residuoCatalogoId, nombreOtro: null },
+    );
 
     await this.auditoriaService.registrar({
       tipoActor: TipoActorAuditoria.ADMINISTRADOR,

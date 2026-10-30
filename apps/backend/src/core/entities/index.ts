@@ -6,6 +6,7 @@ import { ContactoCiudadano } from './contacto-ciudadano.entity';
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
 import { SolicitudRetiro } from './solicitud-retiro.entity';
 import { FotoRetiro } from './foto-retiro.entity';
+import { ObjetoSolicitudRetiro } from './objeto-solicitud-retiro.entity';
 import { Auditoria } from './auditoria.entity';
 import { RevisionSolicitud } from './revision-solicitud.entity';
 import { NotaSolicitud } from './nota-solicitud.entity';
@@ -31,6 +32,7 @@ export { EstadoPagoSolicitud } from './estado-pago-solicitud.enum';
 export { SolicitudRetiro } from './solicitud-retiro.entity';
 export { TipoFotoRetiro } from './tipo-foto-retiro.enum';
 export { FotoRetiro } from './foto-retiro.entity';
+export { ObjetoSolicitudRetiro } from './objeto-solicitud-retiro.entity';
 export { AccionAuditoria } from './accion-auditoria.enum';
 export { TipoActorAuditoria } from './tipo-actor-auditoria.enum';
 export { Auditoria } from './auditoria.entity';
@@ -65,6 +67,7 @@ export const ENTIDADES = [
   ResiduoCatalogo,
   SolicitudRetiro,
   FotoRetiro,
+  ObjetoSolicitudRetiro,
   Auditoria,
   RevisionSolicitud,
   NotaSolicitud,
