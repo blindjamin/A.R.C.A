@@ -20,7 +20,7 @@ repositorio y entrega dos archivos `.zip`; la **Parte 2** se hace en el cPanel.
 |---|---|---|---|
 | Frontend | Archivos estáticos (HTML/JS/CSS). Incluye la app del vecino y el panel municipal en `/admin` | `https://arca.santodomingo.cl` | Raíz de documentos del dominio (cPanel → Dominios) |
 | API | Aplicación Node.js (NestJS) | `https://arca.santodomingo.cl/api` | `~/api` |
-| Base de datos | MySQL / MariaDB | — | `santod85_arca_db` |
+| Base de datos | MySQL / MariaDB | — | `<cuenta>_arca_db` |
 
 Puntos clave:
 
@@ -66,9 +66,12 @@ no coincide carácter por carácter con la registrada, ClaveÚnica rechaza el in
 - **"Setup Node.js App"** en cPanel (Node.js Selector de CloudLinux) con **Node.js 22.12.0 o
   superior** (el equipo desarrolla con Node 24). Con versiones anteriores la API no arranca.
 - **Terminal** de cPanel (o SSH).
-- Base `santod85_arca_db` con un usuario MySQL que tenga **todos los privilegios** sobre ella
+- Base `<cuenta>_arca_db` con un usuario MySQL que tenga **todos los privilegios** sobre ella
   (cPanel → Bases de datos MySQL → "Agregar usuario a la base de datos"). El usuario lleva el
-  prefijo `santod85_`.
+  prefijo `<cuenta>_`.
+
+> `<cuenta>` es el nombre de la cuenta cPanel de la Municipalidad, que cPanel antepone a las bases
+> y usuarios MySQL. Lo entrega TI municipal y **no se escribe en el repositorio**, que es público.
 - `arca.santodomingo.cl` con **HTTPS activo**. Sin HTTPS la sesión no se guarda en el navegador.
 
 ---
@@ -152,7 +155,7 @@ municipal, que se descarga solo cuando entra un funcionario. Comprimir el **cont
 
 ### 2.1 Base de datos
 
-Solo verificar que el usuario MySQL tenga todos los privilegios sobre `santod85_arca_db`. Las
+Solo verificar que el usuario MySQL tenga todos los privilegios sobre `<cuenta>_arca_db`. Las
 tablas **no se crean a mano**: las crean las migraciones en el paso 2.2.
 
 ### 2.2 API (`~/api`)
@@ -184,9 +187,9 @@ existe) con este contenido, completando los valores:
 ```
 DB_HOST=localhost
 DB_PORT=3306
-DB_USERNAME=santod85_<usuario>
+DB_USERNAME=<cuenta>_<usuario>
 DB_PASSWORD=<contraseña>
-DB_DATABASE=santod85_arca_db
+DB_DATABASE=<cuenta>_arca_db
 
 NODE_ENV=production
 FRONTEND_URL=https://arca.santodomingo.cl
@@ -239,7 +242,7 @@ Las variables también se pueden cargar en el formulario de "Setup Node.js App",
 
 **d) Instalar dependencias y crear las tablas.** En la parte superior de la página de la
 aplicación, cPanel muestra un comando para "entrar al entorno virtual", con la forma
-`source /home/santod85/nodevenv/api/<versión>/bin/activate && cd /home/santod85/api`. Copiarlo,
+`source /home/<cuenta>/nodevenv/api/<versión>/bin/activate && cd /home/<cuenta>/api`. Copiarlo,
 pegarlo en la **Terminal** y luego:
 
 ```bash
@@ -370,7 +373,7 @@ revisar que no traiga contraseñas.**
 | Error de sintaxis o `Unsupported engine` al iniciar | Node.js menor a 22.12 | Cambiar la versión en "Setup Node.js App" |
 | `Cannot find module .../dist/main.js` | Startup file mal escrito o `dist/` no quedó en la raíz de la app | Verificar que exista `~/api/dist/main.js` |
 | `Cannot find module '@nestjs/...'` | Faltó `npm install --omit=dev` | Repetir 2.2 d |
-| `Unable to connect to the database` / `Access denied` | No existe `.env.local`, se llama `.env`, o usuario/contraseña/base incorrectos | Revisar 2.2 c; el usuario lleva prefijo `santod85_` |
+| `Unable to connect to the database` / `Access denied` | No existe `.env.local`, se llama `.env`, o usuario/contraseña/base incorrectos | Revisar 2.2 c; el usuario lleva prefijo `<cuenta>_` |
 | `/api/health` responde `404` de NestJS (`Cannot GET ...`) | La ruta que llega a la app no coincide | Confirmar que "Application URL" termine en `/api` |
 | `/api/health` responde la página del frontend | La petición no llega a la app Node | Revisar que el `.htaccess` conserve el bloque de Passenger y que la regla de 2.3 excluya `/api` |
 | `Table ... doesn't exist` | No se corrieron las migraciones | 2.2 d |
@@ -402,7 +405,7 @@ revisar que no traiga contraseñas.**
   `seed-operadores-prueba`) insertan usuarios de demostración con identificadores fijos. En
   producción no se puede entrar con ellos (solo se entra por ClaveÚnica), pero **deben
   desactivarse antes de la puesta en marcha real** (§7.4).
-- Respaldos periódicos de `santod85_arca_db` (cPanel → Copia de seguridad).
+- Respaldos periódicos de `<cuenta>_arca_db` (cPanel → Copia de seguridad).
 - **Cloudflare y el límite de consultas.** La API limita las consultas por IP de cada
   visitante. El sitio pasa por Cloudflare (se ve en las páginas de error del servidor), y si
   la API recibe la IP de Cloudflare en vez de la del visitante, podría bloquear a muchos
@@ -466,7 +469,7 @@ historial de la Terminal.
 
 ### 7.2 Dar el rol
 
-En phpMyAdmin (cPanel → phpMyAdmin → `santod85_arca_db` → SQL):
+En phpMyAdmin (cPanel → phpMyAdmin → `<cuenta>_arca_db` → SQL):
 
 ```sql
 -- 1. El id de la cuenta (pegar la huella del paso 7.1)
