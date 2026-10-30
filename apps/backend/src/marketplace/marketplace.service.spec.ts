@@ -15,6 +15,7 @@ import {
   type ResiduoCatalogo,
   type SesionService,
   TipoArticuloMarketplace,
+  type UsuarioCiudadano,
 } from '../core';
 import type { ArchivosService } from '../archivos/archivos.service';
 import type { CreditosService } from '../creditos/creditos.service';
@@ -57,6 +58,7 @@ const articulo = (cambios: Partial<ArticuloMarketplace> = {}) =>
     usuarioCompradorId: null,
     fechaTransaccion: null,
     residuoCatalogo: MUEBLES,
+    usuarioPublicador: { activo: true } as UsuarioCiudadano,
     ...cambios,
   }) as ArticuloMarketplace;
 
@@ -190,14 +192,16 @@ describe('MarketplaceService.publicar', () => {
     expect(guardado.latitud).not.toBe(String(dto.lat));
   });
 
-  it('queda disponible, a nombre de la sesión, con vencimiento a 30 días', async () => {
+  it('queda en pendiente_aprobacion, a nombre de la sesión, con vencimiento a 30 días', async () => {
     const { service, articuloRepo } = montar();
 
     const publico = await service.publicar(dto, undefined, usuario(YO));
 
     const guardado = articuloRepo.create.mock.calls[0][0];
     expect(guardado.usuarioPublicadorId).toBe(YO);
-    expect(guardado.estado).toBe(EstadoArticuloMarketplace.DISPONIBLE);
+    expect(guardado.estado).toBe(
+      EstadoArticuloMarketplace.PENDIENTE_APROBACION,
+    );
     expect(guardado.titulo).toBe('Sofá de 3 cuerpos');
     const dias =
       (guardado.fechaExpiracion!.getTime() -
@@ -288,6 +292,15 @@ describe('MarketplaceService.listar', () => {
     expect((where.fechaExpiracion as FindOperator<Date>).type).toBe('moreThan');
   });
 
+  it('oculta las publicaciones de un vecino dado de baja (HU-38)', async () => {
+    const { service, articuloRepo } = montar();
+
+    await service.listar({}, usuario(YO));
+
+    const where = whereDe(articuloRepo) as Where;
+    expect(where.usuarioPublicador).toEqual({ activo: true });
+  });
+
   it('filtra por tipo y categoría del catálogo', async () => {
     const { service, articuloRepo } = montar();
 
@@ -374,6 +387,18 @@ describe('MarketplaceService.listar', () => {
 });
 
 describe('MarketplaceService.obtener', () => {
+  it('404 si quien publicó se dio de baja (HU-38)', async () => {
+    const { service } = montar({
+      encontrado: articulo({
+        usuarioPublicador: { activo: false } as UsuarioCiudadano,
+      }),
+    });
+
+    await expect(service.obtener(10, {}, usuario(YO))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
   it('404 para un tercero si el artículo está reservado', async () => {
     const { service } = montar({
       encontrado: articulo({

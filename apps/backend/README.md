@@ -101,6 +101,8 @@ Todos cuelgan del prefijo `/api`.
 | `PATCH` | `/api/solicitudes-retiro/:id/cancelar` | Cancelar solicitud (ciudadano). Borra la dirección de retiro: una cancelada no se reabre |
 | `GET` | `/api/perfil` | Perfil de contacto del vecino: `{ nombre, email, telefono, direccion }` (HU-37). Teléfono y dirección salen de `contacto_ciudadano`; `nombre` (de la sesión) solo lectura |
 | `PATCH` | `/api/perfil` | Actualiza `{ telefono?, direccion? }` en `contacto_ciudadano` (un texto vacío borra el dato). Audita qué campos cambiaron, sin los valores. El correo solo cambia vía `/api/mail` |
+| `GET` | `/api/perfil/baja` | Antes de darse de baja (HU-38): `{ puedeDarseDeBaja, solicitudesQueBloquean, articulosQueBloquean, solicitudesQueSeCancelan, horasParaVolver }` |
+| `POST` | `/api/perfil/baja` | Body `{ confirmo: true }`. Desactiva la cuenta con `fecha_baja`, cancela las solicitudes abiertas sin pagar, borra el contacto y el push, revoca las sesiones y borra la cookie. 409 si hay solicitudes pagadas o en retiro o intercambios reservados; 403 si es funcionario. Volver: entrar de nuevo pasadas 48 h |
 | `POST` | `/api/mail/enviar-codigo` | Solicitar código OTP (`{ email }`). El ciudadano se toma de la sesión, no del body |
 | `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y asociar correo a la sesión del vecino autenticado |
 | `POST` | `/api/pagos/solicitudes/:id` | Inicia Webpay Plus (HU-44) si la solicitud es del vecino, está `aprobada`, `estadoPago` es `pendiente` y `monto` > 0. Responde `{ url, token }`. El navegador debe enviar un formulario `POST` a `url` con el campo `token_ws` = `token`. `403` si no es suya, `404` si no existe, `409` si no hay cobro pendiente o ya está pagada |
@@ -239,6 +241,12 @@ corren en este mismo proceso, puerto 3000, código en `src/admin/`.
 | `GET` | `/api/admin/metricas?dias=7\|30\|90` | Indicadores agregados (recibidas por día, cola, espera de revisión, decisiones y motivos, categorías, derivación, recaudación de la maqueta). Sin filas individuales |
 | `GET` | `/api/admin/residuos` | Catálogo de residuos de solo lectura (`id`, `nombre`, `categoria`, `precio`) para corregir la categoría |
 | `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos |
+| `GET` | `/api/admin/marketplace/pendientes` | Listado de artículos de marketplace pendientes de moderación municipal |
+| `POST` | `/api/admin/marketplace/:id/aprobar` | Aprueba la publicación de un artículo en el marketplace (`disponible`) |
+| `POST` | `/api/admin/marketplace/:id/rechazar` | Rechaza un artículo (`rechazado`) con `{ motivo }` obligatorio |
+
+> En `POST /api/admin/solicitudes/:id/revision`, la aprobación permite fijar un presupuesto final (`montoFinal`), que reemplaza el estimado del catálogo y se cobra al vecino.
+> En `GET /api/admin/solicitudes/:id`, la respuesta incluye `coincidenciaMarketplace` con alerta si el mismo vecino tiene un artículo publicado o pendiente con título o categoría similar.
 
 Protegidos con `RolesGuard` de `src/core`: `ADMIN` y `FUNCIONARIO`, salvo la auditoría, que es solo
 `ADMIN`. Reabrir una solicitud `rechazada` o `retirada` también es solo de admin (lo decide el core).
@@ -327,6 +335,7 @@ src/
     ├── auditoria/
     ├── derivaciones/
     ├── mapa-calor/
+    ├── marketplace/
     ├── metricas/
     ├── residuos/
     └── solicitudes/
@@ -421,6 +430,8 @@ siempre en una migración nueva.
 | `1782164700000` | `chat-marketplace` — `interesado_id` (NOT NULL, FK, dos índices) en `mensajes_marketplace` y tabla `suscripciones_push`. Completa las filas sembradas y borra las sin interlocutor |
 | `1782164900000` | `notificaciones` — tabla de avisos de la campanita (HU-23) |
 | `1782164800000` | `interes-reserva-marketplace` — tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo` y `fecha_reserva` en `articulos_marketplace` |
+| `1782165200000` | `moderacion-market-residuo-otro` — estados `pendiente_aprobacion` y `rechazado`, moderación municipal y residuo libre en solicitudes y marketplace |
+| `1782165300000` | `creditos-articulos-marketplace` — columna `creditos` en `articulos_marketplace` para asignación de Circular Credits |
 
 ### Se escriben a mano — no usar `migration:generate`
 

@@ -21,6 +21,7 @@ import {
 import BotonReservar from '../BotonReservar';
 import { ESTADO_ARTICULO_META } from '../formato';
 import { useNoLeidos } from './NoLeidosContext';
+import type { EstadoArticulo } from '../../../api/marketplace';
 
 type MensajeLocal = MensajeChat & { estado?: 'enviando' | 'error' };
 
@@ -28,12 +29,14 @@ type Cabecera = Omit<HistorialChat, 'mensajes'>;
 
 const MAX_LINEAS_INPUT = 4;
 
-const AVISO_SOLO_LECTURA = {
+const AVISO_SOLO_LECTURA: Record<EstadoArticulo, string> = {
+  pendiente_aprobacion: 'Esta publicación está en revisión municipal.',
   en_negociacion: 'Este artículo fue reservado por otro vecino.',
   retirado: 'Quien publicó retiró este artículo.',
   completado: 'Este intercambio ya se completó.',
   disponible: 'Esta publicación venció.',
-} as const;
+  rechazado: 'Esta publicación fue rechazada por moderación municipal.',
+};
 
 const hora = (iso: string): string =>
   new Date(iso).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });

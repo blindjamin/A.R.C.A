@@ -56,7 +56,8 @@ export interface ArticuloPublico {
   titulo: string;
   descripcion: string | null;
   estado: EstadoArticuloMarketplace;
-  residuoCatalogoId: number;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
   categoria: string;
   fotoUrl: string | null;
   creditos: number;
@@ -171,11 +172,12 @@ export function aArticuloPublico(
     descripcion: articulo.descripcion,
     estado: articulo.estado,
     residuoCatalogoId: articulo.residuoCatalogoId,
-    categoria: articulo.residuoCatalogo.categoria,
+    nombreResiduoOtro: articulo.nombreResiduoOtro ?? null,
+    categoria: articulo.residuoCatalogo?.categoria ?? 'Otro',
     fotoUrl: articulo.fotoPath
       ? `/api/marketplace/articulos/${articulo.id}/foto`
       : null,
-    creditos: creditosPorEntrega(),
+    creditos: articulo.creditos ?? creditosPorEntrega(),
     banda: contexto.banda,
     publicador: {
       nombre: NOMBRE_PUBLICADOR_PROVISORIO,

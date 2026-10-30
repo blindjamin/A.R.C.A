@@ -13,11 +13,12 @@ import { Public } from './decorators/public.decorator';
 import { LimiteLogin } from '../seguridad/limites';
 import { ClaveUnicaService } from './clave-unica.service';
 import {
+  ERROR_BAJA_RECIENTE,
   ERROR_INGRESO_CLAVE_UNICA,
   OAUTH_STATE_COOKIE,
 } from './clave-unica.constants';
 import { COOKIE_SESION, leerCookie, opcionesCookieSesion } from './cookies';
-import { SesionService } from './sesion.service';
+import { BajaRecienteException, SesionService } from './sesion.service';
 
 /**
  * Punto de entrada del inicio de sesión con ClaveÚnica (HU-12).
@@ -207,10 +208,14 @@ export class ClaveUnicaController {
     }
     res.clearCookie(COOKIE_SESION, opcionesCookieSesion());
 
+    // La baja reciente es el único motivo que se le explica: la persona ya se
+    // autenticó con ClaveÚnica y es su propia cuenta.
     res.redirect(
       302,
       this.claveUnicaService.construirUrlCierreSesion(
-        ERROR_INGRESO_CLAVE_UNICA,
+        fallo instanceof BajaRecienteException
+          ? ERROR_BAJA_RECIENTE
+          : ERROR_INGRESO_CLAVE_UNICA,
       ),
     );
   }

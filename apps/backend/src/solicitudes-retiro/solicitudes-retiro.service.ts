@@ -17,6 +17,7 @@ import {
   EstadoSolicitudRetiro,
   FotoRetiro,
   type OrigenPeticion,
+  ResiduoCatalogo,
   RevisionSolicitud,
   RolAdministrador,
   SolicitudRetiro,
@@ -100,13 +101,19 @@ export class SolicitudesRetiroService {
       throw new BadRequestException('El usuario ciudadano no está activo');
     }
 
-    const residuo = await this.residuosService.findCatalogoById(
-      dto.residuoCatalogoId,
-    );
-
-    if (!residuo) {
-      throw new NotFoundException(
-        `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
+    let residuo: ResiduoCatalogo | null = null;
+    if (dto.residuoCatalogoId) {
+      residuo = await this.residuosService.findCatalogoById(
+        dto.residuoCatalogoId,
+      );
+      if (!residuo) {
+        throw new NotFoundException(
+          `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
+        );
+      }
+    } else if (!dto.nombreResiduoOtro?.trim()) {
+      throw new BadRequestException(
+        'Debes indicar un residuo del catálogo o ingresar el nombre de tu residuo.',
       );
     }
 
@@ -123,7 +130,10 @@ export class SolicitudesRetiroService {
     try {
       const solicitud = this.solicitudRetiroRepository.create({
         usuarioCiudadanoId: dto.usuarioCiudadanoId,
-        residuoCatalogoId: dto.residuoCatalogoId,
+        residuoCatalogoId: residuo?.id ?? null,
+        nombreResiduoOtro: residuo
+          ? null
+          : dto.nombreResiduoOtro?.trim() || null,
         descripcion: dto.descripcion ?? null,
         direccionRetiro,
         direccionAnonimizada,

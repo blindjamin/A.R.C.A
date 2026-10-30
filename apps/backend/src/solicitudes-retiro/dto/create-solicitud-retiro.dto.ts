@@ -19,9 +19,15 @@ export class CreateSolicitudRetiroDto {
   @IsNotEmpty()
   usuarioCiudadanoId: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  residuoCatalogoId: number;
+  residuoCatalogoId?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  nombreResiduoOtro?: string;
 
   @IsString()
   @IsNotEmpty({ message: 'La dirección de retiro es obligatoria' })

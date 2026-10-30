@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
+import { UsuarioAdministrador } from './usuario-administrador.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
 import { EstadoArticuloMarketplace } from './estado-articulo-marketplace.enum';
 import { TipoArticuloMarketplace } from './tipo-articulo-marketplace.enum';
@@ -26,8 +27,16 @@ export class ArticuloMarketplace {
   @Column({ name: 'usuario_publicador_id', type: 'varchar', length: 36 })
   usuarioPublicadorId: string;
 
-  @Column({ name: 'residuo_catalogo_id', type: 'int' })
-  residuoCatalogoId: number;
+  @Column({ name: 'residuo_catalogo_id', type: 'int', nullable: true })
+  residuoCatalogoId: number | null;
+
+  @Column({
+    name: 'nombre_residuo_otro',
+    type: 'varchar',
+    length: 150,
+    nullable: true,
+  })
+  nombreResiduoOtro: string | null;
 
   @Column({ type: 'enum', enum: TipoArticuloMarketplace })
   tipo: TipoArticuloMarketplace;
@@ -38,12 +47,30 @@ export class ArticuloMarketplace {
   @Column({ type: 'text', nullable: true })
   descripcion: string | null;
 
+  @Column({ name: 'motivo_rechazo', type: 'text', nullable: true })
+  motivoRechazo: string | null;
+
+  @Column({
+    name: 'moderado_por_id',
+    type: 'varchar',
+    length: 36,
+    nullable: true,
+  })
+  moderadoPorId: string | null;
+
+  @Column({ name: 'fecha_moderacion', type: 'datetime', nullable: true })
+  fechaModeracion: Date | null;
+
   @Column({
     type: 'enum',
     enum: EstadoArticuloMarketplace,
-    default: EstadoArticuloMarketplace.DISPONIBLE,
+    default: EstadoArticuloMarketplace.PENDIENTE_APROBACION,
   })
   estado: EstadoArticuloMarketplace;
+
+  /** Circular Credits asignados por el funcionario municipal al aprobar. */
+  @Column({ type: 'int', nullable: true })
+  creditos: number | null;
 
   /** Relativa a la carpeta de subidas. Nunca una URL pública. */
   @Column({ name: 'foto_path', type: 'varchar', length: 500, nullable: true })
@@ -113,7 +140,11 @@ export class ArticuloMarketplace {
   @JoinColumn({ name: 'usuario_comprador_id' })
   usuarioComprador: UsuarioCiudadano | null;
 
-  @ManyToOne(() => ResiduoCatalogo)
+  @ManyToOne(() => ResiduoCatalogo, { nullable: true })
   @JoinColumn({ name: 'residuo_catalogo_id' })
-  residuoCatalogo: ResiduoCatalogo;
+  residuoCatalogo: ResiduoCatalogo | null;
+
+  @ManyToOne(() => UsuarioAdministrador, { nullable: true })
+  @JoinColumn({ name: 'moderado_por_id' })
+  moderadoPor: UsuarioAdministrador | null;
 }

@@ -11,4 +11,5 @@ export { default as Estrellas } from './Estrellas';
 export { default as EstrellasInput } from './EstrellasInput';
 export { default as ArticuloCard } from './ArticuloCard';
 export { default as BadgeNoLeidos } from './BadgeNoLeidos';
+export { default as ComboboxResiduo } from './ComboboxResiduo';
 export * from './Icons';
