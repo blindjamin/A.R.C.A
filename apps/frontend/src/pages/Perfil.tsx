@@ -642,6 +642,22 @@ export default function Perfil() {
             </div>
             <IconChevronRight className="h-4 w-4 text-slate-2" />
           </Link>
+
+          <Link
+            to="/ayuda"
+            className="card flex items-center justify-between p-4 transition-all hover:border-green-300 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-green-50 text-green-700">
+                <IconPhone className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-ink">Ayuda</p>
+                <p className="text-xs text-slate">Preguntas frecuentes, guía y contacto</p>
+              </div>
+            </div>
+            <IconChevronRight className="h-4 w-4 text-slate-2" />
+          </Link>
         </div>
       </section>
 

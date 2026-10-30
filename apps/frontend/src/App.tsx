@@ -8,6 +8,7 @@ import { NoLeidosProvider } from './features/marketplace/chat/NoLeidosContext';
 import marketplaceRoutes from './features/marketplace/routes';
 import Login from './pages/Login';
 import AcercaDe from './pages/AcercaDe';
+import Ayuda from './pages/Ayuda';
 import Privacidad from './pages/Privacidad';
 import SeleccionInicio from './pages/SeleccionInicio';
 import Inicio from './pages/Inicio';
@@ -46,6 +47,7 @@ export default function App() {
             {/* Login diferido: ClaveÚnica primero, luego el gate decide */}
             <Route path="/login" element={<Login />} />
             <Route path="/acerca-de" element={<AcercaDe />} />
+            <Route path="/ayuda" element={<Ayuda />} />
             <Route path="/privacidad" element={<Privacidad />} />
             <Route path="/" element={<Entrada />} />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />
