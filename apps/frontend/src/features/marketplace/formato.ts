@@ -21,6 +21,15 @@ export const ESTADO_ARTICULO_META: Record<
   },
 };
 
+export function metaDeEstadoArticulo(estado: EstadoArticulo): { etiqueta: string; clase: string } {
+  return (
+    ESTADO_ARTICULO_META[estado] ?? {
+      etiqueta: estado ? String(estado).replace(/_/g, ' ') : 'Desconocido',
+      clase: 'bg-stone-100 text-stone-700',
+    }
+  );
+}
+
 export const TIPO_ARTICULO_META: Record<
   TipoArticulo,
   { etiqueta: string; clase: string }
@@ -28,6 +37,15 @@ export const TIPO_ARTICULO_META: Record<
   regalo: { etiqueta: 'Regalo', clase: 'bg-gold-100 text-gold-700' },
   intercambio: { etiqueta: 'Intercambio', clase: 'bg-green-100 text-green-700' },
 };
+
+export function metaDeTipoArticulo(tipo: string): { etiqueta: string; clase: string } {
+  const meta = TIPO_ARTICULO_META[tipo as TipoArticulo];
+  if (meta) return meta;
+  return {
+    etiqueta: tipo ?? 'Artículo',
+    clase: 'bg-stone-100 text-stone-700',
+  };
+}
 
 const DIA_MS = 86_400_000;
 

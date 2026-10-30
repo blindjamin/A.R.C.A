@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { BadgeNoLeidos, EmptyState, IconMarketplace, ScreenHeader } from '../../../components/ui';
+import { BadgeNoLeidos, EmptyState, IconMarketplace } from '../../../components/ui';
 import { useNoLeidos } from './NoLeidosContext';
+import { MarketplaceHeader } from '../MarketplaceNav';
 
 const horaOFecha = (iso: string): string => {
   const d = new Date(iso);
@@ -14,8 +15,14 @@ export default function Bandeja() {
   const { conversaciones } = useNoLeidos();
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-4">
-      <ScreenHeader title="Mensajes" />
+    <div className="mx-auto w-full max-w-2xl space-y-4 pb-8">
+      {/* Cabecera y Navegación segmentada unificada */}
+      <MarketplaceHeader
+        titulo="Mensajes y Chat"
+        subtitulo="Conversaciones activas con vecinos sobre regalos e intercambios."
+        tabActiva="mensajes"
+        mostrarBotonPublicar={false}
+      />
 
       {conversaciones.length === 0 ? (
         <EmptyState

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { iconoPorCategoria } from '../../api/arca';
 import {
   listarInteresados,
   obtenerArticulo,
@@ -12,12 +11,14 @@ import {
 import {
   BackButton,
   BadgeNoLeidos,
+  CategoriaPlaceholder,
   EmptyState,
   Estrellas,
   IconBadge,
-  IconSearch,
   IconCheck,
   IconMapPin,
+  IconSearch,
+  IconUser,
 } from '../../components/ui';
 import BotonReservar from './BotonReservar';
 import CalificarIntercambio from './CalificarIntercambio';
@@ -26,65 +27,133 @@ import PanelEntrega from './entrega/PanelEntrega';
 import { useNoLeidos } from './chat/NoLeidosContext';
 import { ETIQUETA_BANDA, useOrigenAproximado } from './distancia';
 import {
-  ESTADO_ARTICULO_META,
-  TIPO_ARTICULO_META,
+  metaDeEstadoArticulo,
+  metaDeTipoArticulo,
   haceCuanto,
   mensajeDeError,
 } from './formato';
 
-// Retirar pide confirmación en línea (segundo clic), sin window.confirm.
-function RetirarPublicacion({ id, onRetirado }: { id: number; onRetirado: () => void }) {
-  const [confirmando, setConfirmando] = useState(false);
+function RetirarPublicacion({
+  id,
+  onRetirado,
+}: {
+  id: number;
+  onRetirado: () => void;
+}) {
   const [retirando, setRetirando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const retirar = async () => {
+  const confirmar = async () => {
+    if (
+      !window.confirm(
+        '¿Seguro que quieres retirar este artículo? Ya no estará disponible para otros vecinos.',
+      )
+    ) {
+      return;
+    }
     setRetirando(true);
     setError(null);
     try {
       await retirarArticulo(id);
       onRetirado();
     } catch (e) {
-      setError((e as Error).message);
+      setError(mensajeDeError(e));
       setRetirando(false);
     }
   };
 
-  if (!confirmando) {
-    return (
-      <button onClick={() => setConfirmando(true)} className="btn-outline w-full">
-        Retirar publicación
-      </button>
-    );
-  }
-
   return (
-    <div className="card space-y-3 p-4">
-      <p className="text-sm text-ink-2">
-        ¿Retirar esta publicación? Tus vecinos dejarán de verla.
-      </p>
-      {error && <p className="text-xs text-rose-600">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setConfirmando(false)}
-          disabled={retirando}
-          className="btn-ghost flex-1"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={retirar}
-          disabled={retirando}
-          className="btn flex-1 border border-rose-300 bg-rose-50 text-rose-600 hover:border-rose-600 hover:bg-rose-600 hover:text-white"
-        >
-          {retirando ? 'Retirando…' : 'Sí, retirar'}
-        </button>
-      </div>
+    <div className="space-y-1">
+      <button
+        onClick={confirmar}
+        disabled={retirando}
+        className="w-full rounded-md border border-line py-3 text-sm font-semibold text-slate transition hover:border-rose-400 hover:text-rose-700"
+      >
+        {retirando ? 'Retirando…' : 'Retirar del Marketplace'}
+      </button>
+      {error && <p className="text-center text-xs text-rose-600">{error}</p>}
     </div>
   );
 }
 
-// Cierre del intercambio: lo que ve cada participante después de la entrega.
+function ListaInteresados({
+  articuloId,
+  interesados,
+  onReservado,
+}: {
+  articuloId: number;
+  interesados: Interesado[];
+  onReservado: () => void;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <section className="card space-y-3 p-5">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">
+        Vecinos interesados ({interesados.length})
+      </h2>
+      {interesados.length === 0 ? (
+        <p className="text-sm text-slate">
+          Todavía nadie te ha escrito por este artículo. Te avisaremos cuando
+          alguien se interese.
+        </p>
+      ) : (
+        <ul className="divide-y divide-line">
+          {interesados.map((i) => (
+            <li
+              key={i.conversacionId}
+              className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate font-semibold">{i.nombre}</span>
+                  {i.identidadVerificada && (
+                    <span
+                      title="Identidad verificada con ClaveÚnica"
+                      className="text-xs text-green-700"
+                    >
+                      ✓
+                    </span>
+                  )}
+                </div>
+                <Estrellas
+                  valor={i.calificacionPromedio}
+                  cantidad={i.cantidadCalificaciones}
+                />
+                {i.ultimoMensaje && (
+                  <p className="truncate text-xs text-slate">
+                    {i.ultimoMensaje.esMio ? 'Tú: ' : ''}
+                    {i.ultimoMensaje.contenido}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  onClick={() =>
+                    navigate(
+                      `/marketplace/${articuloId}/chat/${i.conversacionId}`,
+                    )
+                  }
+                  className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold hover:bg-canvas"
+                >
+                  Abrir chat
+                  {i.noLeidos > 0 && ` (${i.noLeidos})`}
+                </button>
+                <BotonReservar
+                  articuloId={articuloId}
+                  conversacionId={i.conversacionId}
+                  nombre={i.nombre}
+                  onReservado={onReservado}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function CierreEntrega({
   articulo,
   onCalificado,
@@ -121,126 +190,81 @@ function CierreEntrega({
   );
 }
 
-function ListaInteresados({
-  articuloId,
-  interesados,
-  onReservado,
-}: {
-  articuloId: number;
-  interesados: Interesado[];
-  onReservado: () => void;
-}) {
-  const navigate = useNavigate();
-  return (
-    <section className="card space-y-2 p-4 text-left">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">Interesados</h2>
-      {interesados.length === 0 ? (
-        <p className="text-sm text-slate">Todavía nadie ha dicho que le interesa.</p>
-      ) : (
-        interesados.map((i) => (
-          <div key={i.conversacionId} className="space-y-2 rounded-md border border-line p-3">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-bold">{i.nombre}</p>
-              <BadgeNoLeidos cantidad={i.noLeidos} />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Estrellas valor={i.calificacionPromedio} cantidad={i.cantidadCalificaciones} />
-              {i.identidadVerificada && (
-                <span className="pill bg-green-100 text-green-700">Identidad verificada</span>
-              )}
-            </div>
-            {i.ultimoMensaje && (
-              <p className="truncate text-sm text-slate">
-                {i.ultimoMensaje.esMio && 'Tú: '}
-                {i.ultimoMensaje.contenido}
-              </p>
-            )}
-            <div className="flex flex-wrap items-start gap-2">
-              <button
-                onClick={() => navigate(`/marketplace/${articuloId}/chat/${i.conversacionId}`)}
-                className="btn-outline px-4 py-2"
-              >
-                Chatear
-              </button>
-              <BotonReservar
-                articuloId={articuloId}
-                conversacionId={i.conversacionId}
-                nombre={i.nombre}
-                onReservado={onReservado}
-              />
-            </div>
-          </div>
-        ))
-      )}
-    </section>
-  );
-}
-
-interface Resultado {
-  clave: string;
-  articulo: ArticuloMarketplace | null;
-  error: string | null;
-}
-
-const articuloVigente = (r: Resultado | null, id: number): ArticuloMarketplace | null =>
-  r?.clave.startsWith(`${id}|`) ? r.articulo : null;
-
 export default function DetalleArticulo() {
   const { id: idParam } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const recienPublicado =
-    (location.state as { recienPublicado?: boolean } | null)?.recienPublicado ?? false;
-  const { origen } = useOrigenAproximado();
-  const [resultado, setResultado] = useState<Resultado | null>(null);
   const { conversaciones } = useNoLeidos();
+  const { origen } = useOrigenAproximado();
+
+  const idValido = idParam !== undefined && /^\d+$/.test(idParam);
+  const id = idValido ? Number(idParam) : -1;
+
+  // Cache en memoria para mantener el artículo visible si cambia el origen.
+  const [resultado, setResultado] = useState<{
+    clave: string;
+    articulo?: ArticuloMarketplace;
+    error?: string;
+  } | null>(null);
+
   const [version, setVersion] = useState(0);
   const [interesados, setInteresados] = useState<Interesado[]>([]);
   const [interesando, setInteresando] = useState(false);
   const [errorInteres, setErrorInteres] = useState<string | null>(null);
 
-  const id = Number(idParam);
-  const idValido = Number.isInteger(id) && id > 0;
-  const clave = `${id}|${JSON.stringify(origen)}`;
+  const recienPublicado = Boolean(
+    (location.state as { recienPublicado?: boolean } | null)?.recienPublicado,
+  );
 
-  useEffect(() => {
+  const volver = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/marketplace');
+    }
+  };
+
+  const cargar = (ignorarCache = false) => {
     if (!idValido) return;
-    let vigente = true;
+    const clave = `${id}|${JSON.stringify(origen)}`;
+    if (!ignorarCache && resultado?.clave === clave) return;
+
     obtenerArticulo(id, origen)
-      .then((articulo) => vigente && setResultado({ clave, articulo, error: null }))
-      .catch(
-        (e: Error) => vigente && setResultado({ clave, articulo: null, error: e.message }),
-      );
-    return () => {
-      vigente = false;
-    };
-  }, [id, idValido, origen, clave, version]);
+      .then((art) => setResultado({ clave, articulo: art }))
+      .catch((e: Error) => setResultado({ clave, error: e.message }));
+  };
 
-  // Quien publica ve a los interesados; se recarga con cada aviso del chat
-  // (`conversaciones` cambia) y tras reservar o liberar. En la entrega también
-  // hace falta: ahí se marca con `reservado` la conversación de quien recibe.
-  const actual = articuloVigente(resultado, id);
-  const verInteresados =
-    !!actual?.esPropio &&
-    (actual.estado === 'disponible' || actual.estado === 'en_negociacion');
   useEffect(() => {
-    if (!verInteresados) return;
-    let vigente = true;
-    listarInteresados(id)
-      .then((lista) => vigente && setInteresados(lista))
-      .catch(() => {});
-    return () => {
-      vigente = false;
-    };
-  }, [id, verInteresados, conversaciones, version]);
+    cargar(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, origen]);
 
-  const recargar = () => setVersion((v) => v + 1);
-
-  const volver = () => navigate('/marketplace');
+  const recargar = () => {
+    cargar(true);
+    setVersion((v) => v + 1);
+  };
 
   // Descarta la respuesta de otro artículo (la ruta reutiliza el componente
   // al pasar de /marketplace/1 a /marketplace/2).
   const vigente = resultado?.clave.startsWith(`${id}|`) ? resultado : null;
+
+  // Quien publica ve a los interesados; se recarga con cada aviso del chat
+  // (`conversaciones` cambia) y tras reservar o liberar. En la entrega también
+  // hace falta: ahí se marca con `reservado` la conversación de quien recibe.
+  const verInteresados =
+    !!vigente?.articulo?.esPropio &&
+    (vigente.articulo.estado === 'disponible' ||
+      vigente.articulo.estado === 'en_negociacion');
+  useEffect(() => {
+    if (!verInteresados) return;
+    let actual = true;
+    listarInteresados(id)
+      .then((lista) => actual && setInteresados(lista))
+      .catch(() => {});
+    return () => {
+      actual = false;
+    };
+  }, [id, verInteresados, conversaciones, version]);
 
   if (!idValido || vigente?.error) {
     return (
@@ -303,16 +327,22 @@ export default function DetalleArticulo() {
       <BackButton onClick={volver} />
 
       {recienPublicado && (
-        <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900 flex items-center gap-2.5 shadow-xs">
-          <IconCheck className="h-5 w-5 shrink-0 text-emerald-700" />
-          <div>
-            ¡Tu artículo fue enviado para validación municipal! Tan pronto sea aprobado quedará visible a toda la comunidad.{' '}
-            <button
-              onClick={() => navigate('/marketplace/mis-publicaciones')}
-              className="font-bold underline text-emerald-950 ml-1"
-            >
-              Ver mis publicaciones
-            </button>
+        <div className="rounded-xl border border-amber-300 bg-amber-50/90 px-4 py-3 text-sm font-medium text-amber-950 flex items-start gap-2.5 shadow-xs">
+          <span className="text-xl shrink-0">⏳</span>
+          <div className="space-y-0.5">
+            <p className="font-bold text-amber-950">
+              ¡Tu artículo fue enviado para validación municipal!
+            </p>
+            <p className="text-xs text-amber-800">
+              Estará visible para tus vecinos una vez que el equipo municipal lo apruebe.{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/marketplace/mis-publicaciones')}
+                className="font-bold underline text-amber-950 hover:text-amber-900"
+              >
+                Ver mis publicaciones
+              </button>
+            </p>
           </div>
         </div>
       )}
@@ -346,27 +376,35 @@ export default function DetalleArticulo() {
       )}
 
       <div className="card overflow-hidden">
-        <div className="relative flex aspect-[4/3] w-full items-center justify-center bg-green-50 sm:aspect-[16/9]">
+        <div className="relative flex aspect-[4/3] w-full items-center justify-center bg-stone-100 sm:aspect-[16/9] overflow-hidden">
           {fotoUrl ? (
             <img src={fotoUrl} alt={titulo} className="h-full w-full object-cover" />
           ) : (
-            <span className="text-7xl" aria-hidden="true">
-              {iconoPorCategoria(categoria)}
-            </span>
+            <CategoriaPlaceholder categoria={categoria} />
           )}
           <span
-            className={`pill absolute left-3 top-3 font-semibold ${TIPO_ARTICULO_META[tipo].clase}`}
+            className={`pill absolute left-3 top-3 font-semibold shadow-xs ${metaDeTipoArticulo(tipo).clase}`}
           >
-            {TIPO_ARTICULO_META[tipo].etiqueta}
+            {metaDeTipoArticulo(tipo).etiqueta}
           </span>
+          {esPropio ? (
+            <span className="pill absolute right-3 top-3 bg-emerald-800 text-white font-semibold text-xs shadow-xs flex items-center gap-1">
+              <IconUser className="h-3.5 w-3.5" />
+              <span>Tu publicación</span>
+            </span>
+          ) : (
+            <span className="pill absolute right-3 top-3 bg-white/95 text-stone-700 backdrop-blur-xs font-medium text-xs shadow-xs">
+              De un vecino
+            </span>
+          )}
         </div>
 
         <div className="space-y-2 p-5">
           <div className="flex items-start justify-between gap-3">
             <h1 className="text-2xl font-extrabold text-ink">{titulo}</h1>
             {estado !== 'disponible' && (
-              <span className={`pill shrink-0 ${ESTADO_ARTICULO_META[estado].clase}`}>
-                {ESTADO_ARTICULO_META[estado].etiqueta}
+              <span className={`pill shrink-0 ${metaDeEstadoArticulo(estado).clase}`}>
+                {metaDeEstadoArticulo(estado).etiqueta}
               </span>
             )}
           </div>
@@ -411,8 +449,13 @@ export default function DetalleArticulo() {
       </section>
 
       {esPropio ? (
-        <div className="space-y-3 text-center">
-          <span className="pill bg-green-100 text-green-700">Es tu publicación</span>
+        <div className="space-y-3">
+          <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/80 p-3 text-center shadow-xs">
+            <span className="inline-flex items-center gap-1.5 font-bold text-xs text-emerald-800">
+              <IconUser className="h-4 w-4 shrink-0" />
+              Esta es tu publicación en el Marketplace
+            </span>
+          </div>
           {estado === 'disponible' && (
             <RetirarPublicacion
               id={articulo.id}

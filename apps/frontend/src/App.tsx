@@ -64,6 +64,10 @@ export default function App() {
               element={<Protected><MisSolicitudes /></Protected>}
             />
             <Route
+              path="/mis-publicaciones"
+              element={<Navigate to="/marketplace/mis-publicaciones" replace />}
+            />
+            <Route
               path="/pago/:id"
               element={<Protected><PantallaPago /></Protected>}
             />

@@ -19,7 +19,7 @@ import {
   IconSearch,
 } from '../../../components/ui';
 import BotonReservar from '../BotonReservar';
-import { ESTADO_ARTICULO_META } from '../formato';
+import { metaDeEstadoArticulo } from '../formato';
 import { useNoLeidos } from './NoLeidosContext';
 import type { EstadoArticulo } from '../../../api/marketplace';
 
@@ -287,8 +287,8 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
           <div className="flex items-center gap-2">
             <h1 className="truncate text-base font-bold">{articulo.titulo}</h1>
             {articulo.estado !== 'disponible' && (
-              <span className={`pill shrink-0 ${ESTADO_ARTICULO_META[articulo.estado].clase}`}>
-                {ESTADO_ARTICULO_META[articulo.estado].etiqueta}
+              <span className={`pill shrink-0 ${metaDeEstadoArticulo(articulo.estado).clase}`}>
+                {metaDeEstadoArticulo(articulo.estado).etiqueta}
               </span>
             )}
             <IconChevronRight className="h-4 w-4 shrink-0 text-slate-2" />
@@ -401,7 +401,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
         </form>
       ) : (
         <p className="border-t border-line bg-card p-4 text-center text-sm text-slate">
-          {AVISO_SOLO_LECTURA[articulo.estado]}
+          {AVISO_SOLO_LECTURA[articulo.estado] ?? 'Esta conversación está en modo solo lectura.'}
         </p>
       )}
     </div>

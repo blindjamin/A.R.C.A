@@ -336,3 +336,49 @@ export function IconCreditCard(props: IconProps) {
     </svg>
   );
 }
+
+export function IconMuebles(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" {...props}>
+      <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3" />
+      <path d="M3 11v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v2H7v-2a2 2 0 0 0-4 0Z" />
+      <path d="M5 18v2" />
+      <path d="M19 18v2" />
+    </svg>
+  );
+}
+
+export function IconElectronica(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" {...props}>
+      <rect width="20" height="14" x="2" y="3" rx="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  );
+}
+
+export function IconLineaBlanca(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" {...props}>
+      <rect width="14" height="20" x="5" y="2" rx="2" />
+      <line x1="5" y1="9" x2="19" y2="9" />
+      <line x1="8" y1="5" x2="8" y2="7" />
+      <line x1="8" y1="12" x2="8" y2="15" />
+    </svg>
+  );
+}
+
+export function IconConstruccion(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" {...props}>
+      <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
+      <path d="M17.64 15 22 10.64" />
+      <path d="m20.91 3.26-1.25-1.25a2 2 0 0 0-2.83 0l-1.8 1.8 4.08 4.08 1.8-1.8a2 2 0 0 0 0-2.83Z" />
+      <path d="m15.03 3.81-4 4" />
+    </svg>
+  );
+}
+
+export const IconOtros = IconBox;
+

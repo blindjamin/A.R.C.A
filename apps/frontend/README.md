@@ -70,13 +70,13 @@ src/
 │   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected
 │   └── ui/                      # UI Kit — primitivos reutilizables
 │       ├── Icons.tsx            # Sistema de íconos vectoriales SVG sobrios
-│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader · ComboboxResiduo
+│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader · IconoCategoria · ComboboxResiduo
 │       ├── EmptyState · BackButton · PriceTag · BotonClaveUnica · Estrellas · EstrellasInput
 │       ├── estadoMeta.ts        # Metadata (label/color) por estado de solicitud
 │       └── index.ts             # Punto de import único: import { ScreenHeader, IconUser } from '../../components/ui'
 ├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
 ├── features/
-│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones, calificar)
+│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones, MarketplaceNav, calificar)
 │   │   ├── chat/                # Chat (HU-06): Chat, Bandeja y NoLeidosContext
 │   │   └── entrega/             # Entrega con código (HU-15): PanelEntrega y CodigoEntrega
 │   ├── pago/                    # Persistencia local de pagos y comprobantes (pagosStorage.ts)

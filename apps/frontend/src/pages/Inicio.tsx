@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
 import { MODULOS, type Modulo, type ModuloIconKey } from '../config/modulos';
 import {
@@ -29,20 +29,10 @@ function renderModuloIcon(key: ModuloIconKey) {
 }
 
 function ModuloCard({ modulo }: { modulo: Modulo }) {
-  const navigate = useNavigate();
   const clickable = modulo.activo && modulo.ruta;
 
-  return (
-    <button
-      type="button"
-      disabled={!clickable}
-      onClick={() => clickable && navigate(modulo.ruta!)}
-      className={`card flex flex-col items-start p-4 text-left transition-all ${
-        clickable
-          ? 'hover:-translate-y-0.5 hover:shadow-md hover:border-green-300'
-          : 'opacity-75 cursor-not-allowed'
-      }`}
-    >
+  const contenido = (
+    <>
       <div className="flex w-full items-start justify-between">
         <IconBadge
           icon={renderModuloIcon(modulo.icono)}
@@ -54,7 +44,27 @@ function ModuloCard({ modulo }: { modulo: Modulo }) {
       </div>
       <h3 className="mt-3 text-base font-bold text-ink">{modulo.titulo}</h3>
       <p className="mt-1 text-xs leading-relaxed text-ink-2">{modulo.descripcion}</p>
-    </button>
+    </>
+  );
+
+  if (clickable) {
+    return (
+      <Link
+        to={modulo.ruta!}
+        className="card flex flex-col items-start p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-green-300 select-none touch-manipulation active:scale-[0.98]"
+      >
+        {contenido}
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      aria-disabled="true"
+      className="card flex flex-col items-start p-4 text-left transition-all opacity-75 cursor-not-allowed select-none"
+    >
+      {contenido}
+    </div>
   );
 }
 

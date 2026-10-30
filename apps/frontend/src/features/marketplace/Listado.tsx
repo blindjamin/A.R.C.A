@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { fetchCatalogo } from '../../api/arca';
 import {
   listarArticulos,
@@ -9,20 +9,18 @@ import {
 } from '../../api/marketplace';
 import {
   ArticuloCard,
-  BadgeNoLeidos,
   EmptyState,
-  ScreenHeader,
-  IconPlus,
   IconMapPin,
   IconRecycle,
+  IconSearch,
 } from '../../components/ui';
-import { useNoLeidos } from './chat/NoLeidosContext';
 import { useOrigenAproximado } from './distancia';
+import { MarketplaceHeader } from './MarketplaceNav';
 
 const TIPOS: { valor: TipoArticulo | null; etiqueta: string }[] = [
   { valor: null, etiqueta: 'Todos' },
-  { valor: 'regalo', etiqueta: 'Regalo' },
-  { valor: 'intercambio', etiqueta: 'Intercambio' },
+  { valor: 'regalo', etiqueta: 'Regalos' },
+  { valor: 'intercambio', etiqueta: 'Intercambios' },
 ];
 
 const ESPERA_BUSQUEDA_MS = 300;
@@ -35,7 +33,6 @@ interface Resultado {
 
 export default function Listado() {
   const navigate = useNavigate();
-  const { totalNoLeidos } = useNoLeidos();
   const { origen, estado: estadoUbicacion } = useOrigenAproximado();
 
   const [tipo, setTipo] = useState<TipoArticulo | null>(null);
@@ -45,15 +42,14 @@ export default function Listado() {
   const [categorias, setCategorias] = useState<string[]>([]);
   const [resultado, setResultado] = useState<Resultado | null>(null);
 
-  // Las categorías salen del catálogo municipal: es la misma taxonomía que usa
-  // cada artículo (residuoCatalogoId). Si falla, simplemente no hay chips.
+  // Las categorías salen del catálogo municipal
   useEffect(() => {
     fetchCatalogo()
       .then((items) => setCategorias([...new Set(items.map((i) => i.categoria))]))
       .catch(() => setCategorias([]));
   }, []);
 
-  // No se consulta en cada tecla, sino cuando la persona deja de escribir.
+  // Debounce en búsqueda
   useEffect(() => {
     const t = setTimeout(() => setTextoBuscado(texto.trim()), ESPERA_BUSQUEDA_MS);
     return () => clearTimeout(t);
@@ -83,107 +79,109 @@ export default function Listado() {
     };
   }, [filtros, clave]);
 
-  // Mientras llega la respuesta de los filtros actuales se muestra "cargando",
-  // pero solo la primera vez; después se mantiene la lista anterior visible.
   const cargando = resultado === null;
   const actualizando = resultado !== null && resultado.clave !== clave;
   const hayFiltros = tipo !== null || categoria !== null || textoBuscado !== '';
 
-  const irAPublicar = () => navigate('/marketplace/subir');
+  // En Explorar se muestran ÚNICAMENTE los artículos de otros vecinos.
+  // Las publicaciones propias viven exclusivamente en "Mis publicaciones" para evitar confusiones.
+  const articulosFiltrados = useMemo(() => {
+    if (!resultado) return [];
+    return resultado.articulos.filter((a) => !a.esPropio);
+  }, [resultado]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <ScreenHeader
-            title="Marketplace"
-            subtitle="Regala o intercambia con tus vecinos."
-          />
-          <div className="mt-1 flex items-center gap-4">
-            <button
-              onClick={() => navigate('/marketplace/mis-publicaciones')}
-              className="text-sm font-semibold text-green-700 hover:underline"
-            >
-              Mis publicaciones →
-            </button>
-            <button
-              onClick={() => navigate('/marketplace/mensajes')}
-              className="flex items-center gap-1.5 text-sm font-semibold text-green-700 hover:underline"
-            >
-              Mensajes
-              <BadgeNoLeidos cantidad={totalNoLeidos} />
-            </button>
-          </div>
-        </div>
-        <button onClick={irAPublicar} className="btn-gold shrink-0 flex items-center gap-1.5">
-          <IconPlus className="h-4 w-4" />
-          <span>Publicar</span>
-        </button>
-      </div>
-
-      <input
-        type="search"
-        value={texto}
-        onChange={(e) => setTexto(e.target.value)}
-        placeholder="Buscar sofá, refrigerador…"
-        className="field"
-        aria-label="Buscar artículos"
+    <div className="space-y-4 pb-8">
+      {/* Cabecera y Barra de Navegación Segmentada Mobile-First */}
+      <MarketplaceHeader
+        titulo="Marketplace"
+        subtitulo="Regala o intercambia con tus vecinos de Santo Domingo."
+        tabActiva="explorar"
       />
 
-      {/* Filtros siempre a la vista, sin deslizar hacia el lado (no se
-          descubría que había más). */}
-      <div role="group" aria-label="Tipo de publicación" className="grid grid-cols-3 gap-2">
-        {TIPOS.map((t) => (
-          <button
-            key={t.etiqueta}
-            onClick={() => setTipo(t.valor)}
-            aria-pressed={tipo === t.valor}
-            className={`chip justify-center ${tipo === t.valor ? 'chip-active' : ''}`}
-          >
-            {t.etiqueta}
-          </button>
-        ))}
+      {/* Buscador táctil con ícono sobrio */}
+      <div className="relative">
+        <IconSearch className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+        <input
+          type="search"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="Buscar muebles, estufas, línea blanca…"
+          className="field pl-10 text-sm shadow-xs"
+          aria-label="Buscar artículos"
+        />
       </div>
 
-      {categorias.length > 0 && (
-        <select
-          value={categoria ?? ''}
-          onChange={(e) => setCategoria(e.target.value || null)}
-          className="field"
-          aria-label="Categoría"
-        >
-          <option value="">Todas las categorías</option>
-          {categorias.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
+      {/* Filtros secundarios: Tipo y Categoría */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div role="group" aria-label="Tipo de publicación" className="grid grid-cols-3 gap-1.5 flex-1">
+          {TIPOS.map((t) => (
+            <button
+              key={t.etiqueta}
+              onClick={() => setTipo(t.valor)}
+              aria-pressed={tipo === t.valor}
+              className={`chip justify-center text-xs py-1.5 active:scale-95 transition-all ${
+                tipo === t.valor ? 'chip-active font-semibold' : ''
+              }`}
+            >
+              {t.etiqueta}
+            </button>
           ))}
-        </select>
-      )}
+        </div>
+
+        {categorias.length > 0 && (
+          <select
+            value={categoria ?? ''}
+            onChange={(e) => setCategoria(e.target.value || null)}
+            className="field text-xs py-1.5 sm:w-48 shrink-0"
+            aria-label="Categoría"
+          >
+            <option value="">Todas las categorías</option>
+            {categorias.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
 
       {estadoUbicacion === 'denegado' && (
-        <p className="rounded-md bg-sky-100 px-4 py-2.5 text-xs text-sky-700 flex items-center gap-1.5">
+        <p className="rounded-xl bg-sky-50 border border-sky-200/70 px-3.5 py-2 text-xs text-sky-800 flex items-center gap-2">
           <IconMapPin className="h-4 w-4 shrink-0 text-sky-600" />
           <span>Activa la ubicación para ver a qué distancia está cada artículo.</span>
         </p>
       )}
 
+      {/* Listado de artículos en cuadrícula responsiva */}
       {cargando ? (
-        <p className="text-slate">Cargando artículos…</p>
+        <div className="py-12 text-center">
+          <p className="text-sm text-slate animate-pulse">Cargando catálogo comunitario…</p>
+        </div>
       ) : resultado.error ? (
-        <p className="text-rose-600">{resultado.error}</p>
-      ) : resultado.articulos.length === 0 ? (
+        <p className="rounded-xl bg-rose-50 border border-rose-200 p-4 text-xs text-rose-700">
+          {resultado.error}
+        </p>
+      ) : articulosFiltrados.length === 0 ? (
         <EmptyState
-          icon={<IconRecycle className="h-8 w-8 text-green-700" />}
+          icon={<IconRecycle className="h-8 w-8 text-emerald-700" />}
           message={
             hayFiltros
-              ? 'No hay artículos que coincidan con tu búsqueda.'
-              : 'Todavía no hay artículos publicados. ¡Sé el primero!'
+              ? 'No se encontraron artículos de otros vecinos con los filtros aplicados.'
+              : 'Todavía no hay artículos publicados por otros vecinos en el Marketplace.'
           }
           action={
-            <button onClick={irAPublicar} className="btn-primary">
-              Publicar un artículo
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+              <Link to="/marketplace/subir" className="btn-primary text-xs sm:text-sm">
+                Publicar un artículo
+              </Link>
+              <Link
+                to="/marketplace/mis-publicaciones"
+                className="btn-outline text-xs sm:text-sm"
+              >
+                Ver mis publicaciones
+              </Link>
+            </div>
           }
         />
       ) : (
@@ -192,7 +190,7 @@ export default function Listado() {
             actualizando ? 'opacity-60' : ''
           }`}
         >
-          {resultado.articulos.map((a) => (
+          {articulosFiltrados.map((a) => (
             <ArticuloCard
               key={a.id}
               articulo={a}
@@ -204,3 +202,4 @@ export default function Listado() {
     </div>
   );
 }
+

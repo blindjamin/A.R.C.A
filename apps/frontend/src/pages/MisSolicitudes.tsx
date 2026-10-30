@@ -97,7 +97,10 @@ export default function MisSolicitudes() {
   }, []);
 
   useEffect(() => {
-    if (!usuarioCiudadanoId) return;
+    if (!usuarioCiudadanoId) {
+      Promise.resolve().then(() => setLoading(false));
+      return;
+    }
     let cancelado = false;
     Promise.resolve().then(() => {
       if (!cancelado) {
