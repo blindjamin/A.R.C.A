@@ -42,7 +42,7 @@ export class Denuncia {
   @Column({ name: 'articulo_id', type: 'int', nullable: true })
   articuloId: number | null;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Column({ type: 'enum', enum: MotivoDenuncia })
   motivo: MotivoDenuncia;
 
   @Column({ type: 'text', nullable: true })

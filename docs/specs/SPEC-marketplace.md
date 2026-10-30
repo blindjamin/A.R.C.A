@@ -202,14 +202,26 @@ Se puede escribir si el artículo está `disponible` y vigente, o `en_negociacio
 | `POST /push/suscripciones` | Body `{ endpoint, keys: { p256dh, auth } }`. Responde `{ suscrito: true }`. Si el `endpoint` ya existía se reasigna al vecino actual; tope de 5 por vecino (se borra la más antigua) | 400 si el servicio push no está en la lista blanca · 409 si no hay claves VAPID |
 | `DELETE /push/suscripciones` | Body `{ endpoint }`. Responde `{ eliminado: true }` | — |
 
-**Denuncias (HU-16).** En `denuncias/`, tabla `denuncias` (migración `1782165400000-denuncias`, sigue el
+**Denuncias (HU-16).** En `denuncias/`, tabla `denuncias` (migración `1782165500000-denuncias`, sigue el
 esquema dbml más `origen` y `mensajes_adjuntos`). El vecino nunca envía ni recibe el id del denunciado: si
 denuncia quien publicó, el denunciado es el interesado de `conversacion`; si no, es quien publicó.
 
 | Método y ruta | Qué hace | Errores |
 |---|---|---|
-| `POST /denuncias` | Body `{ articuloId, origen: articulo\|perfil\|chat, motivo, descripcion?, conversacion?, mensajes?: id[] }`. `motivo`: `no_se_presento`, `articulo_distinto`, `basura_encubierta`, `pidio_datos_o_dinero`, `trato_ofensivo` u `otro`. Descripción de hasta 500 caracteres. Hasta 5 mensajes de esa conversación, que se **copian** (el chat se borra a los 30 días). Responde `{ id }`. Una sola denuncia abierta por denunciante, denunciado y artículo; tope de 5 por vecino en 24 h. Se audita sin la descripción ni los mensajes | 400 si quien publica no indica `conversacion` o un mensaje no es de la conversación · 403 si se denuncia a sí mismo · 404 si el artículo no existe o no es visible · 409 si ya hay una abierta · 429 al pasar el tope |
+| `POST /denuncias` | Body `{ articuloId, origen: articulo\|perfil\|chat, motivo, descripcion?, conversacion?, mensajes?: id[] }`. `motivo`: `no_se_presento`, `articulo_distinto`, `basura_encubierta`, `pidio_datos_o_dinero`, `trato_ofensivo` u `otro`. Descripción de hasta 500 caracteres. Hasta 5 mensajes de esa conversación, que se **copian** (el chat se borra a los 30 días). Responde `{ id }`. Una sola denuncia abierta por denunciante, denunciado y artículo; tope de 5 por vecino en 24 h. Se audita sin la descripción ni los mensajes | 400 si quien publica no indica `conversacion` · 403 si se denuncia a sí mismo o adjunta mensajes que no son de su conversación · 404 si el artículo no existe o no es visible · 409 si ya hay una abierta · 429 al pasar el tope |
 | `GET /denuncias/mias` | Las denuncias propias: `id`, `articuloId`, `articuloTitulo`, `motivo`, `origen`, `estado` (`abierta`, `investigacion`, `resuelta`, `rechazada`), `fechaDenuncia`, `fechaResolucion`. Nunca el denunciado ni la resolución | — |
+
+Decisiones de Miguel (PO) que se apartan de `tasks/instrucciones-denuncia.md`:
+- Puede denunciar a quien publicó **cualquier vecino que vea el artículo**, aunque no haya escrito: así se
+  denuncia una publicación sospechosa sin tener que contactarla. Solo puede adjuntar mensajes quien tiene
+  conversación. Quien publicó solo denuncia a un interesado de su artículo.
+- Se adjuntan hasta 5 mensajes de 500 caracteres, no la conversación completa.
+- No hay aviso «Recibimos tu denuncia» en la campanita: el estado se ve en `GET /denuncias/mias`.
+- Los motivos son los de la lista de arriba, acordados con el panel.
+
+El 409 y el tope diario se cuentan dentro de una transacción que bloquea la fila del denunciante, para que
+dos envíos simultáneos no se los salten. `motivo` es `ENUM` también en la base. La `descripcion` se guarda
+tal como la escribió el vecino (solo `trim`): el frontend y el panel la muestran como texto, nunca como HTML.
 
 La revisión en el panel y el bloqueo (HU-18) van aparte, en `admin/`. La tabla ya trae `resolucion`,
 `revisado_por_administrador_id` y `fecha_resolucion` para eso.

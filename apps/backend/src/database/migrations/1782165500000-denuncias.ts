@@ -14,8 +14,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * El `down` borra la tabla con sus datos.
  */
-export class Denuncias1782165400000 implements MigrationInterface {
-  name = 'Denuncias1782165400000';
+export class Denuncias1782165500000 implements MigrationInterface {
+  name = 'Denuncias1782165500000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
@@ -24,7 +24,8 @@ export class Denuncias1782165400000 implements MigrationInterface {
         usuario_denunciante_id VARCHAR(36) NOT NULL,
         usuario_denunciado_id VARCHAR(36) NOT NULL,
         articulo_id INT NULL,
-        motivo VARCHAR(255) NOT NULL,
+        motivo ENUM('no_se_presento', 'articulo_distinto', 'basura_encubierta',
+          'pidio_datos_o_dinero', 'trato_ofensivo', 'otro') NOT NULL,
         descripcion TEXT NULL,
         origen VARCHAR(20) NOT NULL,
         mensajes_adjuntos JSON NULL,

@@ -53,19 +53,25 @@ const mensaje = (id: number, remitente: string) =>
 
 function montar({
   art = articulo(),
-  interes = conversacion,
+  interes = conversacion as typeof conversacion | null,
   repetidas = 0,
   hoy = 0,
   mensajes = [] as MensajeMarketplace[],
 } = {}) {
-  const denunciaRepo = {
-    count: jest
-      .fn()
-      .mockResolvedValueOnce(repetidas)
-      .mockResolvedValueOnce(hoy),
-    create: jest.fn((d: Partial<Denuncia>) => d),
+  // El conteo se elige por la consulta, no por el orden de las llamadas.
+  const tx = {
+    findOne: jest.fn().mockResolvedValue({ id: 'bloqueado' }),
+    count: jest.fn((_: unknown, { where }: { where: { estado?: unknown } }) =>
+      Promise.resolve(where.estado ? repetidas : hoy),
+    ),
+    create: jest.fn((_: unknown, d: Partial<Denuncia>) => d),
     save: jest.fn((d: Partial<Denuncia>) => Promise.resolve({ ...d, id: 99 })),
+  };
+  const denunciaRepo = {
     find: jest.fn(),
+    manager: {
+      transaction: jest.fn((fn: (m: typeof tx) => unknown) => fn(tx)),
+    },
   };
   const articuloRepo = { findOne: jest.fn().mockResolvedValue(art) };
   const interesadoRepo = { findOne: jest.fn().mockResolvedValue(interes) };
@@ -79,7 +85,7 @@ function montar({
     auditoria as unknown as AuditoriaService,
   );
   service.ahora = () => AHORA;
-  return { service, denunciaRepo, interesadoRepo, mensajeRepo, auditoria };
+  return { service, tx, denunciaRepo, interesadoRepo, mensajeRepo, auditoria };
 }
 
 const base = {
@@ -90,12 +96,12 @@ const base = {
 
 describe('DenunciasService.crear', () => {
   it('el interesado denuncia a quien publicó, sin saber su id', async () => {
-    const { service, denunciaRepo } = montar();
+    const { service, tx } = montar();
 
     await expect(service.crear(base, usuario(INTERESADO))).resolves.toEqual({
       id: 99,
     });
-    expect(denunciaRepo.save).toHaveBeenCalledWith(
+    expect(tx.save).toHaveBeenCalledWith(
       expect.objectContaining({
         usuarioDenuncianteId: INTERESADO,
         usuarioDenunciadoId: PUBLICADOR,
@@ -107,13 +113,13 @@ describe('DenunciasService.crear', () => {
   });
 
   it('cualquier vecino que ve el artículo puede denunciar a quien lo publicó', async () => {
-    const { service, denunciaRepo } = montar({ interes: null });
+    const { service, tx } = montar({ interes: null });
 
     await service.crear(
       { ...base, origen: OrigenDenuncia.PERFIL },
       usuario(OTRO),
     );
-    expect(denunciaRepo.save).toHaveBeenCalledWith(
+    expect(tx.save).toHaveBeenCalledWith(
       expect.objectContaining({ usuarioDenunciadoId: PUBLICADOR }),
     );
   });
@@ -130,7 +136,7 @@ describe('DenunciasService.crear', () => {
   });
 
   it('quien publicó denuncia al interesado de la conversación indicada', async () => {
-    const { service, denunciaRepo, interesadoRepo } = montar();
+    const { service, tx, interesadoRepo } = montar();
 
     await service.crear(
       { ...base, origen: OrigenDenuncia.CHAT, conversacion: 7 },
@@ -139,7 +145,7 @@ describe('DenunciasService.crear', () => {
     expect(interesadoRepo.findOne).toHaveBeenCalledWith({
       where: { id: 7, articuloId: 10 },
     });
-    expect(denunciaRepo.save).toHaveBeenCalledWith(
+    expect(tx.save).toHaveBeenCalledWith(
       expect.objectContaining({ usuarioDenunciadoId: INTERESADO }),
     );
   });
@@ -163,12 +169,25 @@ describe('DenunciasService.crear', () => {
   });
 
   it('no repite una denuncia abierta por el mismo intercambio', async () => {
-    const { service, denunciaRepo } = montar({ repetidas: 1 });
+    const { service, tx } = montar({ repetidas: 1 });
 
     await expect(
       service.crear(base, usuario(INTERESADO)),
     ).rejects.toBeInstanceOf(ConflictException);
-    expect(denunciaRepo.save).not.toHaveBeenCalled();
+    expect(tx.save).not.toHaveBeenCalled();
+  });
+
+  it('cuenta y guarda con el denunciante bloqueado, dentro de la transacción', async () => {
+    const { service, tx } = montar();
+
+    await service.crear(base, usuario(INTERESADO));
+    expect(tx.findOne).toHaveBeenCalledWith(expect.anything(), {
+      where: { id: INTERESADO },
+      lock: { mode: 'pessimistic_write' },
+    });
+    expect(tx.findOne.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.count.mock.invocationCallOrder[0],
+    );
   });
 
   it('corta en el tope diario', async () => {
@@ -180,7 +199,7 @@ describe('DenunciasService.crear', () => {
   });
 
   it('copia los mensajes adjuntos de la conversación, marcando de quién es cada uno', async () => {
-    const { service, denunciaRepo, mensajeRepo } = montar({
+    const { service, tx, mensajeRepo } = montar({
       mensajes: [mensaje(1, INTERESADO), mensaje(2, PUBLICADOR)],
     });
 
@@ -196,7 +215,7 @@ describe('DenunciasService.crear', () => {
         }) as unknown,
       }),
     );
-    expect(denunciaRepo.save).toHaveBeenCalledWith(
+    expect(tx.save).toHaveBeenCalledWith(
       expect.objectContaining({
         mensajesAdjuntos: [
           {
@@ -215,14 +234,14 @@ describe('DenunciasService.crear', () => {
   });
 
   it('rechaza mensajes que no son de esa conversación', async () => {
-    const { service, denunciaRepo } = montar({
+    const { service, tx } = montar({
       mensajes: [mensaje(1, INTERESADO)],
     });
 
     await expect(
       service.crear({ ...base, mensajes: [1, 50] }, usuario(INTERESADO)),
-    ).rejects.toBeInstanceOf(BadRequestException);
-    expect(denunciaRepo.save).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.save).not.toHaveBeenCalled();
   });
 
   it('sin conversación no se pueden adjuntar mensajes', async () => {
@@ -230,7 +249,7 @@ describe('DenunciasService.crear', () => {
 
     await expect(
       service.crear({ ...base, mensajes: [1] }, usuario(OTRO)),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('la auditoría no copia la descripción ni los mensajes', async () => {

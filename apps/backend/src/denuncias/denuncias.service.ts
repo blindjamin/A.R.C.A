@@ -20,6 +20,7 @@ import {
   MensajeMarketplace,
   type OrigenPeticion,
   TipoActorAuditoria,
+  UsuarioCiudadano,
 } from '../core';
 import { esVisiblePara, recortar } from '../marketplace/articulo-publico';
 import type { CrearDenunciaDto } from './dto/crear-denuncia.dto';
@@ -96,32 +97,6 @@ export class DenunciasService {
       throw new ForbiddenException('No puedes denunciarte a ti mismo');
     }
 
-    const repetida = await this.denunciaRepo.count({
-      where: {
-        usuarioDenuncianteId: yo,
-        usuarioDenunciadoId: denunciadoId,
-        articuloId: articulo.id,
-        estado: In(ESTADOS_ABIERTOS),
-      },
-    });
-    if (repetida > 0) {
-      throw new ConflictException(
-        'Ya tienes una denuncia abierta por este intercambio. La Municipalidad la está revisando.',
-      );
-    }
-    const hoy = await this.denunciaRepo.count({
-      where: {
-        usuarioDenuncianteId: yo,
-        fechaDenuncia: MoreThan(new Date(ahora.getTime() - MS_DIA)),
-      },
-    });
-    if (hoy >= TOPE_DENUNCIAS_POR_DIA) {
-      throw new HttpException(
-        `Llegaste al máximo de ${TOPE_DENUNCIAS_POR_DIA} denuncias por día. Si es urgente, llama a la Municipalidad.`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
     const mensajesAdjuntos = await this.copiarMensajes(
       dto.mensajes ?? [],
       articulo.id,
@@ -129,18 +104,51 @@ export class DenunciasService {
       yo,
     );
 
-    const denuncia = await this.denunciaRepo.save(
-      this.denunciaRepo.create({
-        usuarioDenuncianteId: yo,
-        usuarioDenunciadoId: denunciadoId,
-        articuloId: articulo.id,
-        motivo: dto.motivo,
-        descripcion: dto.descripcion ?? null,
-        origen: dto.origen,
-        mensajesAdjuntos,
-        fechaDenuncia: ahora,
-      }),
-    );
+    // Contar e insertar con el denunciante bloqueado: dos POST simultáneos no
+    // pueden saltarse el 409 ni el tope diario.
+    const denuncia = await this.denunciaRepo.manager.transaction(async (m) => {
+      await m.findOne(UsuarioCiudadano, {
+        where: { id: yo },
+        lock: { mode: 'pessimistic_write' },
+      });
+      const repetida = await m.count(Denuncia, {
+        where: {
+          usuarioDenuncianteId: yo,
+          usuarioDenunciadoId: denunciadoId,
+          articuloId: articulo.id,
+          estado: In(ESTADOS_ABIERTOS),
+        },
+      });
+      if (repetida > 0) {
+        throw new ConflictException(
+          'Ya tienes una denuncia abierta por este intercambio. La Municipalidad la está revisando.',
+        );
+      }
+      const hoy = await m.count(Denuncia, {
+        where: {
+          usuarioDenuncianteId: yo,
+          fechaDenuncia: MoreThan(new Date(ahora.getTime() - MS_DIA)),
+        },
+      });
+      if (hoy >= TOPE_DENUNCIAS_POR_DIA) {
+        throw new HttpException(
+          `Llegaste al máximo de ${TOPE_DENUNCIAS_POR_DIA} denuncias por día. Si es urgente, llama a la Municipalidad.`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      return m.save(
+        m.create(Denuncia, {
+          usuarioDenuncianteId: yo,
+          usuarioDenunciadoId: denunciadoId,
+          articuloId: articulo.id,
+          motivo: dto.motivo,
+          descripcion: dto.descripcion ?? null,
+          origen: dto.origen,
+          mensajesAdjuntos,
+          fechaDenuncia: ahora,
+        }),
+      );
+    });
 
     // Sin la descripción ni los mensajes: la auditoría no copia lo que escribió el vecino.
     await this.auditoriaService.registrar({
@@ -192,14 +200,14 @@ export class DenunciasService {
     const unicos = [...new Set(ids)];
     if (unicos.length === 0) return null;
     if (interesadoId === null) {
-      throw new BadRequestException(SOLO_TU_CONVERSACION);
+      throw new ForbiddenException(SOLO_TU_CONVERSACION);
     }
     const mensajes = await this.mensajeRepo.find({
       where: { id: In(unicos), articuloId, interesadoId },
       order: { id: 'ASC' },
     });
     if (mensajes.length !== unicos.length) {
-      throw new BadRequestException(SOLO_TU_CONVERSACION);
+      throw new ForbiddenException(SOLO_TU_CONVERSACION);
     }
     return mensajes.map((m) => ({
       deQuien: m.usuarioRemitenteId === yo ? 'denunciante' : 'denunciado',
