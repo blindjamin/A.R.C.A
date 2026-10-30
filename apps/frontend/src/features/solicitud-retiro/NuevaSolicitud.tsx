@@ -9,10 +9,7 @@ import {
 import { publicarArticulo } from '../../api/marketplace';
 import { ComboboxResiduo, ScreenHeader } from '../../components/ui';
 import { useSession } from '../../auth/SessionContext';
-import {
-  obtenerPerfilVecino,
-  tieneCorreoValido,
-} from '../../utils/perfilStorage';
+import { fetchPerfil } from '../../api/perfil';
 import { VerificarCorreoModal } from './VerificarCorreoModal';
 import { CampoFoto } from './CampoFoto';
 import { useSolicitudFlow } from './SolicitudFlowContext';
@@ -38,9 +35,7 @@ export default function NuevaSolicitud() {
   const [descripcion, setDescripcion] = useState('');
   // Por defecto, la dirección del perfil; el vecino puede cambiarla (por
   // ejemplo, si pide el retiro para un familiar que vive en otra casa).
-  const [direccionRetiro, setDireccionRetiro] = useState(
-    () => obtenerPerfilVecino(usuarioCiudadanoId).direccion ?? '',
-  );
+  const [direccionRetiro, setDireccionRetiro] = useState('');
   const [foto, setFoto] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -51,6 +46,14 @@ export default function NuevaSolicitud() {
     fetchCatalogo()
       .then(setCatalogo)
       .catch((e: Error) => setError(e.message));
+    // Sin perfil, el vecino escribe la dirección: no bloquea la solicitud.
+    fetchPerfil()
+      .then((perfil) => {
+        if (perfil.direccion) {
+          setDireccionRetiro((actual) => actual || perfil.direccion || '');
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   const seleccionado = catalogo.find((r) => r.id === residuoId);
@@ -163,13 +166,15 @@ export default function NuevaSolicitud() {
     }
 
     // Si el vecino aún no tiene correo verificado, se le solicita obligatoriamente
-    if (!tieneCorreoValido(ciudadanoIdActivo)) {
+    const email = await fetchPerfil()
+      .then((perfil) => perfil.email)
+      .catch(() => null);
+    if (!email) {
       setMostrarModalCorreo(true);
       return;
     }
 
-    const perfil = obtenerPerfilVecino(ciudadanoIdActivo);
-    await ejecutarCreacion(perfil.email);
+    await ejecutarCreacion(email);
   };
 
   return (
