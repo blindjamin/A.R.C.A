@@ -24,6 +24,21 @@ export const DURACION_SESION_VECINO_MS = 7 * 24 * 60 * 60 * 1000;
 export const DURACION_SESION_MUNICIPAL_MS = 8 * 60 * 60 * 1000;
 export const INACTIVIDAD_MAXIMA_MUNICIPAL_MS = 30 * 60 * 1000;
 
+// Decisión 011: volver tras darse de baja es automático, pero no antes de 48 h,
+// para que la baja no se use para entrar y salir.
+export const ESPERA_VUELTA_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * El vecino se dio de baja hace menos de `ESPERA_VUELTA_MS`. Solo se lanza a
+ * quien ya se autenticó con ClaveÚnica, así que decirle por qué no entra no le
+ * revela nada de una cuenta ajena.
+ */
+export class BajaRecienteException extends UnauthorizedException {
+  constructor() {
+    super('Podrás volver a entrar 48 horas después de darte de baja.');
+  }
+}
+
 // `updated_at` se usa como "última actividad". Escribirlo en cada petición sería
 // una escritura por request; una vez por minuto basta para medir 30 minutos.
 export const INTERVALO_ACTIVIDAD_MS = 60 * 1000;
@@ -148,12 +163,13 @@ export class SesionService {
   private async emitir(
     datos: DatosNuevaSesion,
   ): Promise<{ valorCookie: string; usuario: AuthUser }> {
-    const ciudadano = await this.usuarios.findOne({
-      where: { id: datos.usuarioCiudadanoId, activo: true },
+    const encontrado = await this.usuarios.findOne({
+      where: { id: datos.usuarioCiudadanoId },
     });
-    if (!ciudadano) {
+    if (!encontrado) {
       throw new UnauthorizedException('No se pudo iniciar sesión.');
     }
+    const ciudadano = await this.volverSiCorresponde(encontrado, this.ahora());
 
     const usuario = await this.authService.resolveCiudadanoId(ciudadano.id);
     const ahora = this.ahora();
@@ -186,6 +202,7 @@ export class SesionService {
   /**
    * Upsert por `clave_unica_id`. Un ciudadano desactivado no vuelve a entrar
    * aunque ClaveÚnica lo haya autenticado: la baja la decide ARCA, no ClaveÚnica.
+   * La excepción es la baja voluntaria pasadas 48 h (`volverSiCorresponde`).
    */
   private async registrarIngreso(
     claveUnicaId: string,
@@ -221,14 +238,47 @@ export class SesionService {
     ciudadano: UsuarioCiudadano,
     ahora: Date,
   ): Promise<UsuarioCiudadano> {
-    if (!ciudadano.activo) {
-      throw new UnauthorizedException('No se pudo iniciar sesión.');
-    }
+    const activo = await this.volverSiCorresponde(ciudadano, ahora);
     await this.usuarios.update(
-      { id: ciudadano.id },
+      { id: activo.id },
       { fechaUltimaActividad: ahora },
     );
-    return ciudadano;
+    return activo;
+  }
+
+  /**
+   * Reactiva a un vecino dado de baja si ya pasaron `ESPERA_VUELTA_MS`
+   * (decisión 011). Una cuenta desactivada por la Municipalidad, sin
+   * `fecha_baja`, no vuelve sola.
+   */
+  private async volverSiCorresponde(
+    ciudadano: UsuarioCiudadano,
+    ahora: Date,
+  ): Promise<UsuarioCiudadano> {
+    if (ciudadano.activo) return ciudadano;
+    if (!ciudadano.fechaBaja) {
+      throw new UnauthorizedException('No se pudo iniciar sesión.');
+    }
+    if (ahora.getTime() - ciudadano.fechaBaja.getTime() < ESPERA_VUELTA_MS) {
+      throw new BajaRecienteException();
+    }
+
+    // Condicionado a `activo = false`: dos ingresos simultáneos reactivan una vez.
+    const { affected } = await this.usuarios.update(
+      { id: ciudadano.id, activo: false },
+      { activo: true, fechaBaja: null },
+    );
+    if (affected) {
+      await this.auditoria.registrar({
+        tipoActor: TipoActorAuditoria.CIUDADANO,
+        actor: await this.authService.resolveCiudadanoId(ciudadano.id),
+        entidad: 'usuarios_ciudadanos',
+        accion: AccionAuditoria.UPDATE,
+        datosAnteriores: { activo: false },
+        datosNuevos: { activo: true, motivo: 'vuelta_tras_baja' },
+      });
+    }
+    return { ...ciudadano, activo: true, fechaBaja: null };
   }
 
   /**

@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Permite acceder al dev server via tunel ngrok (host publico != localhost)
+    allowedHosts: true,
     proxy: {
       // Reenvia las llamadas a la API al backend local, para que frontend
       // y backend queden detras de un unico origen (necesario para ngrok

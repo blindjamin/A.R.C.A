@@ -2,7 +2,11 @@ import { createHash } from 'node:crypto';
 import { QueryFailedError, type Repository } from 'typeorm';
 import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SesionService } from './sesion.service';
+import {
+  BajaRecienteException,
+  ESPERA_VUELTA_MS,
+  SesionService,
+} from './sesion.service';
 import type { AuditoriaService } from '../auditoria/auditoria.service';
 import { AccionAuditoria } from '../entities/accion-auditoria.enum';
 import { RolAdministrador } from '../entities/rol-administrador.enum';
@@ -506,6 +510,78 @@ describe('SesionService', () => {
       ).rejects.toThrow(UnauthorizedException);
       expect(repoSesiones.save).not.toHaveBeenCalled();
       expect(auditoria.registrar).not.toHaveBeenCalled();
+    });
+
+    describe('vuelta tras darse de baja (HU-38, decisión 011)', () => {
+      const dadoDeBaja = (hace: number) =>
+        repoUsuarios.findOne.mockResolvedValueOnce({
+          id: CIUDADANO_ID,
+          activo: false,
+          fechaBaja: antes(hace),
+        });
+
+      it('antes de 48 h: BajaRecienteException, sin reactivar ni crear sesión', async () => {
+        dadoDeBaja(ESPERA_VUELTA_MS - SEGUNDO);
+
+        await expect(
+          servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN),
+        ).rejects.toThrow(BajaRecienteException);
+        expect(repoUsuarios.update).not.toHaveBeenCalled();
+        expect(repoSesiones.save).not.toHaveBeenCalled();
+      });
+
+      it('a las 48 h justas: reactiva, limpia fecha_baja, audita y crea la sesión', async () => {
+        dadoDeBaja(ESPERA_VUELTA_MS);
+
+        await servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN);
+
+        expect(repoUsuarios.update).toHaveBeenCalledWith(
+          { id: CIUDADANO_ID, activo: false },
+          { activo: true, fechaBaja: null },
+        );
+        expect(auditoria.registrar).toHaveBeenCalledWith(
+          expect.objectContaining({
+            entidad: 'usuarios_ciudadanos',
+            accion: AccionAuditoria.UPDATE,
+            datosNuevos: { activo: true, motivo: 'vuelta_tras_baja' },
+          }),
+        );
+        expect(repoSesiones.save).toHaveBeenCalled();
+      });
+
+      it('dos ingresos simultáneos: solo el que reactiva audita la vuelta', async () => {
+        dadoDeBaja(ESPERA_VUELTA_MS + HORA);
+        repoUsuarios.update.mockResolvedValueOnce({ affected: 0 });
+
+        await servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN);
+
+        expect(auditoria.registrar).not.toHaveBeenCalledWith(
+          expect.objectContaining({ entidad: 'usuarios_ciudadanos' }),
+        );
+        expect(repoSesiones.save).toHaveBeenCalled();
+      });
+
+      it('desactivado por la Municipalidad (sin fecha_baja): no vuelve solo', async () => {
+        repoUsuarios.findOne.mockResolvedValueOnce({
+          id: CIUDADANO_ID,
+          activo: false,
+          fechaBaja: null,
+        });
+
+        const fallo = servicio.iniciarConClaveUnica(IDENTIDAD, ORIGEN);
+        await expect(fallo).rejects.toThrow(UnauthorizedException);
+        await expect(fallo).rejects.not.toBeInstanceOf(BajaRecienteException);
+        expect(repoUsuarios.update).not.toHaveBeenCalled();
+      });
+
+      it('el acceso de desarrollo aplica la misma espera', async () => {
+        dadoDeBaja(HORA);
+
+        await expect(
+          servicio.crear({ usuarioCiudadanoId: CIUDADANO_ID }),
+        ).rejects.toThrow(BajaRecienteException);
+        expect(repoSesiones.save).not.toHaveBeenCalled();
+      });
     });
   });
 

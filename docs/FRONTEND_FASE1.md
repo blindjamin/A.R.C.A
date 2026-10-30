@@ -211,7 +211,7 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `AdminSolicitudes` | `pages/` | `/admin` | `GET/PATCH /api/solicitudes-retiro` | **backend** + HU-08 |
 | `AdminAuditoria` | `pages/` | `/admin/auditoria` | Logs y estadísticas de auditoría | **admin** (HU-13) |
 | `Listado` | `features/marketplace/` | `/marketplace` | `listarArticulos` | datos de ejemplo |
-| `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo`; interés, reserva, liberar y entregar con código (`registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`) | datos de ejemplo + **backend** (HU-06) |
+| `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo`; interés, reserva, liberar, entregar con código y calificar (`registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`, `calificar`) | datos de ejemplo + **backend** (HU-06, HU-15) |
 | `PublicarArticulo` | `features/marketplace/` | `/marketplace/subir` | `publicarArticulo` + `GET /api/residuos/catalogo` | datos de ejemplo |
 | `MisPublicaciones` | `features/marketplace/` | `/marketplace/mis-publicaciones` | `listarMisPublicaciones` | datos de ejemplo |
 | `Avisos` | `pages/` | `/avisos` | `GET/PATCH /api/notificaciones` + mensajes sin leer del chat | **backend** (HU-23) |

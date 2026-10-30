@@ -187,8 +187,10 @@ export interface DatosTransicion {
   actor: ActorCiclo;
   /** `usuarios_administradores.id` de quien decide. No aplica al vecino. */
   administradorId?: string | null;
-  /** Precio vigente del catálogo. Obligatorio al aprobar una solicitud en revisión sin pagar. */
+  /** Precio vigente del catálogo. */
   precioCatalogo?: number | null;
+  /** Monto final presupuestado por el funcionario (prevalece sobre precioCatalogo). */
+  montoFinal?: number | null;
   ahora: Date;
 }
 
@@ -221,15 +223,19 @@ export function aplicarTransicion(
     hacia === APROBADA &&
     solicitud.estadoPago !== EstadoPagoSolicitud.PAGADO;
 
-  if (
-    congelaMonto &&
-    (datos.precioCatalogo === undefined || datos.precioCatalogo === null)
-  ) {
-    throw new Error('precioCatalogo es obligatorio al aprobar una solicitud');
+  const montoDefinido =
+    datos.montoFinal !== undefined && datos.montoFinal !== null
+      ? datos.montoFinal
+      : datos.precioCatalogo;
+
+  if (congelaMonto && (montoDefinido === undefined || montoDefinido === null)) {
+    throw new Error(
+      'precioCatalogo o montoFinal es obligatorio al aprobar una solicitud',
+    );
   }
 
   if (congelaMonto) {
-    const monto = datos.precioCatalogo as number;
+    const monto = montoDefinido as number;
     solicitud.monto = monto;
     solicitud.estadoPago =
       monto > 0 ? EstadoPagoSolicitud.PENDIENTE : EstadoPagoSolicitud.NO_APLICA;

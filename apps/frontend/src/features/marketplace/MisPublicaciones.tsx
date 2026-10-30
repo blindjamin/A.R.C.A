@@ -8,6 +8,7 @@ import {
   BadgeNoLeidos,
   EmptyState,
   IconoCategoria,
+  IconBox,
   IconChevronRight,
   IconPlus,
   IconRecycle,
@@ -90,6 +91,10 @@ export default function MisPublicaciones() {
     return articulos;
   }, [articulos, filtro]);
 
+  // Reservados: tienen el código de entrega esperando. Van primero para que
+  // cerrar la entrega no dependa de buscar el artículo en la lista.
+  const pendientes = (articulos ?? []).filter((a) => a.estado === 'en_negociacion');
+
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 pb-12">
       {/* Cabecera y Navegación segmentada unificada */}
@@ -122,6 +127,37 @@ export default function MisPublicaciones() {
         />
       ) : (
         <div className="space-y-3">
+          {/* Entregas pendientes para cerrar con el código */}
+          {pendientes.length > 0 && (
+            <section className="space-y-2 mb-3">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">
+                Entregas pendientes
+              </h2>
+              {pendientes.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => navigate(`/marketplace/${a.id}`)}
+                  className="card flex w-full items-center gap-3 p-4 text-left hover:border-emerald-300 transition-colors"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
+                    <IconBox className="h-5 w-5" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold text-ink">{a.titulo}</span>
+                    <span className="block truncate text-sm text-ink-2">
+                      Para {a.reservadoPara ?? 'un vecino'}
+                    </span>
+                    <span className="block text-xs text-slate">
+                      Confirma la entrega con el código de 6 dígitos.
+                    </span>
+                  </span>
+                  <IconChevronRight className="h-4 w-4 shrink-0 text-slate-2" />
+                </button>
+              ))}
+            </section>
+          )}
+
           {/* Barra táctil de filtros rápidos con contadores numéricos */}
           <div
             role="tablist"

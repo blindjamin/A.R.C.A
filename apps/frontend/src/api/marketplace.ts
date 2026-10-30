@@ -68,7 +68,9 @@ export interface ArticuloMarketplace {
   titulo: string;
   descripcion: string | null;
   estado: EstadoArticulo;
-  residuoCatalogoId: number;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
+  motivoRechazo?: string | null;
   /** Categoría del catálogo municipal del residuo asociado. */
   categoria: string;
   fotoUrl: string | null;
@@ -81,6 +83,8 @@ export interface ArticuloMarketplace {
   esPropio: boolean;
   /** La sesión lo reservó ("Lo quiero"). Lo calcula el backend. */
   soyReceptor: boolean;
+  /** La sesión recibió el artículo, está completado y todavía no lo calificó. */
+  puedoCalificar: boolean;
   /** Código de 6 dígitos para dictárselo a quien publica. Solo lo ve quien recibe, reservado. */
   codigoEntrega: string | null;
   /** Sector aproximado del retiro. Solo los dos participantes, con el artículo reservado o completado. */
@@ -88,7 +92,8 @@ export interface ArticuloMarketplace {
   /** Nombre de quien recibe. Solo lo ve quien publica. */
   reservadoPara: string | null;
   fechaPublicacion: string;
-  motivoRechazo?: string | null;
+  /** Vence a los 30 días de publicarse (ISO). */
+  fechaExpiracion: string;
 }
 
 /** Vecino que dijo "Me interesa" (lo ve solo quien publica). */
@@ -115,7 +120,8 @@ export interface PublicarArticuloInput {
   tipo: TipoArticulo;
   titulo: string;
   descripcion?: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId?: number | null;
+  nombreResiduoOtro?: string;
   foto?: File;
 }
 
@@ -166,7 +172,12 @@ export function publicarArticulo(
   form.set('tipo', input.tipo);
   form.set('titulo', input.titulo);
   if (input.descripcion) form.set('descripcion', input.descripcion);
-  form.set('residuoCatalogoId', String(input.residuoCatalogoId));
+  if (input.residuoCatalogoId) {
+    form.set('residuoCatalogoId', String(input.residuoCatalogoId));
+  }
+  if (input.nombreResiduoOtro) {
+    form.set('nombreResiduoOtro', input.nombreResiduoOtro);
+  }
   if (input.foto) form.set('foto', input.foto);
 
   // Sin Content-Type explícito: el navegador pone el boundary del multipart.
@@ -227,6 +238,32 @@ export function entregar(id: number, codigo: string): Promise<ArticuloMarketplac
   }).then((r) => handle<ArticuloMarketplace>(r));
 }
 
+export interface CalificarInput {
+  /** 1 a 5 estrellas. */
+  puntuacion: number;
+  /** Hasta 1000 caracteres. */
+  comentario?: string;
+}
+
+/** Respuesta de `POST /marketplace/articulos/:id/calificacion` (HU-15). */
+export interface CalificacionPublica {
+  puntuacion: number;
+  comentario: string | null;
+  fecha: string;
+}
+
+/** Solo quien recibió el artículo, una vez entregado y una sola vez. */
+export function calificar(
+  id: number,
+  input: CalificarInput,
+): Promise<CalificacionPublica> {
+  return apiFetch(`${API_URL}/marketplace/articulos/${id}/calificacion`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  }).then((r) => handle<CalificacionPublica>(r));
+}
+
 // --- Datos de ejemplo -------------------------------------------------------
 // Solo se usan con USAR_DATOS_DE_EJEMPLO = true. Imitan la semántica que
 // tendrá el backend (filtros, banda solo con origen, reglas de retiro) para
@@ -265,25 +302,34 @@ const articulo = (
   metros: number,
   diasAtras: number,
   estado: EstadoArticulo = 'disponible',
-): ArticuloEjemplo => ({
-  id,
-  tipo,
-  titulo,
-  descripcion,
-  estado,
-  residuoCatalogoId,
-  categoria,
-  fotoUrl: null,
-  creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
-  publicador: pub,
-  esPropio: pub === YO,
-  soyReceptor: false,
-  codigoEntrega: null,
-  sector: null,
-  reservadoPara: null,
-  fechaPublicacion: new Date(Date.now() - diasAtras * 86_400_000).toISOString(),
-  metros,
-});
+): ArticuloEjemplo => {
+  const fechaPublicacion = new Date(
+    Date.now() - diasAtras * 86_400_000,
+  ).toISOString();
+  return {
+    id,
+    tipo,
+    titulo,
+    descripcion,
+    estado,
+    residuoCatalogoId,
+    categoria,
+    fotoUrl: null,
+    creditos: CREDITOS_POR_ARTICULO_EJEMPLO,
+    publicador: pub,
+    esPropio: pub === YO,
+    soyReceptor: false,
+    puedoCalificar: false,
+    codigoEntrega: null,
+    sector: null,
+    reservadoPara: null,
+    fechaPublicacion,
+    fechaExpiracion: new Date(
+      new Date(fechaPublicacion).getTime() + 30 * 86_400_000,
+    ).toISOString(),
+    metros,
+  };
+};
 
 const articulosEjemplo: ArticuloEjemplo[] = [
   articulo(1, 'regalo', 'Sofá de 3 cuerpos', 'Tela gris, un cojín algo gastado. Hay que retirarlo.', 'Muebles', 1, CAMILA, 650, 1),
@@ -296,7 +342,6 @@ const articulosEjemplo: ArticuloEjemplo[] = [
   articulo(8, 'regalo', 'Colchón de 2 plazas', 'Limpio, sin manchas. Retirar en el día.', 'Otros', 8, PEDRO, 9_100, 10),
   articulo(9, 'regalo', 'Silla de escritorio', 'Con ruedas, el respaldo se reclina.', 'Muebles', 9, YO, 0, 7),
   articulo(10, 'intercambio', 'Horno eléctrico', 'Lo cambié por una estufa.', 'Línea Blanca', 10, YO, 0, 20, 'completado'),
-  articulo(11, 'regalo', 'Estante de pino 4 niveles', 'En revisión por moderación municipal.', 'Muebles', 11, YO, 0, 1, 'pendiente_aprobacion'),
 ];
 
 let siguienteIdEjemplo = articulosEjemplo.length + 1;
@@ -363,7 +408,7 @@ async function ejemploPublicar(
     titulo: input.titulo,
     descripcion: input.descripcion ?? null,
     estado: 'pendiente_aprobacion',
-    residuoCatalogoId: input.residuoCatalogoId,
+    residuoCatalogoId: input.residuoCatalogoId ?? null,
     categoria: categoria ?? 'Otros',
     // URL propia (no la de la vista previa, que la pantalla libera al salir).
     fotoUrl: input.foto ? URL.createObjectURL(input.foto) : null,
@@ -371,10 +416,12 @@ async function ejemploPublicar(
     publicador: YO,
     esPropio: true,
     soyReceptor: false,
+    puedoCalificar: false,
     codigoEntrega: null,
     sector: null,
     reservadoPara: null,
     fechaPublicacion: new Date().toISOString(),
+    fechaExpiracion: new Date(Date.now() + 30 * 86_400_000).toISOString(),
     metros: 0,
   };
   articulosEjemplo.unshift(nuevo);

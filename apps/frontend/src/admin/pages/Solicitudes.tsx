@@ -22,6 +22,7 @@ import {
   HistorialYNotas,
   TarjetaRevision,
 } from '../components/RevisionSolicitud';
+import { IconMarketplace, IconTruck } from '../../components/ui/Icons';
 
 const FILTROS: { value: EstadoSolicitud | 'todas'; label: string }[] = [
   { value: 'todas', label: 'Todas' },
@@ -52,6 +53,20 @@ const ETIQUETA_PAGO: Record<EstadoPago, string> = {
   no_aplica: 'Sin cobro',
   pendiente: 'Pago pendiente',
   pagado: 'Pagado',
+};
+
+const ETIQUETAS_ESTADO_MARKETPLACE: Record<string, string> = {
+  pendiente_aprobacion: 'Pendiente de aprobación',
+  disponible: 'Disponible',
+  en_negociacion: 'En negociación',
+  retirado: 'Retirado',
+  completado: 'Completado',
+  rechazado: 'Rechazado',
+};
+
+const formatoEstadoMarketplace = (estado: string): string => {
+  const clave = estado.toLowerCase();
+  return ETIQUETAS_ESTADO_MARKETPLACE[clave] ?? estado;
 };
 
 // Plazo tras el cual una solicitud en revisión se marca como atrasada.
@@ -162,11 +177,17 @@ export default function Solicitudes() {
           {items.map((s) => (
             <li key={s.id}>
               <ListItemCard
-                icon="♻️"
+                icon={<IconTruck className="h-5 w-5 text-emerald-700" />}
                 title={
                   <>
+                    <span className="pill bg-emerald-100 text-emerald-800 text-[10px] font-bold py-0.5 px-1.5 mr-1.5">
+                      Retiro
+                    </span>
                     #{s.id} ·{' '}
-                    {s.residuoCatalogo?.nombre ?? `Residuo ${s.residuoCatalogoId}`}
+                    {s.residuoCatalogo?.nombre ??
+                      (s.nombreResiduoOtro
+                        ? `Otro: ${s.nombreResiduoOtro}`
+                        : `Residuo ${s.residuoCatalogoId}`)}
                   </>
                 }
                 titleBadge={<EstadoPill estado={s.estado} />}
@@ -294,19 +315,54 @@ function DetalleSolicitud({
       <div className="card space-y-3 p-5">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
+            <div className="flex items-center gap-2">
+              <span className="pill bg-emerald-100 text-emerald-800 text-xs font-bold py-0.5 px-2 flex items-center gap-1">
+                <IconTruck className="h-3.5 w-3.5" /> Retiro Municipal
+              </span>
+              <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
+            </div>
             <p className="text-sm text-slate">
               {solicitud.residuoCatalogo?.nombre ??
-                `Residuo ${solicitud.residuoCatalogoId}`}
+                (solicitud.nombreResiduoOtro
+                  ? `Otro: ${solicitud.nombreResiduoOtro} (Personalizado)`
+                  : `Residuo ${solicitud.residuoCatalogoId}`)}
             </p>
           </div>
           <EstadoPill estado={solicitud.estado} />
         </div>
 
+        {solicitud.coincidenciaMarketplace && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs space-y-1.5">
+            <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
+              <IconMarketplace className="h-4 w-4 text-amber-700" />
+              <span>Coincidencia detectada con publicación en Marketplace</span>
+            </div>
+            <p className="text-xs text-amber-900 leading-relaxed">
+              El mismo vecino tiene una publicación activa o en revisión en el Marketplace:{' '}
+              <strong>«{solicitud.coincidenciaMarketplace.titulo}»</strong> (Art. #{solicitud.coincidenciaMarketplace.id}, estado:{' '}
+              <span className="font-semibold text-[11px] text-amber-950 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                {formatoEstadoMarketplace(solicitud.coincidenciaMarketplace.estado)}
+              </span>),
+              publicada el {new Date(solicitud.coincidenciaMarketplace.fechaPublicacion).toLocaleDateString('es-CL')}.
+            </p>
+            <p className="text-[11px] text-amber-800">
+              Verifica si corresponde al mismo artículo para coordinar con el vecino si prefiere retiro municipal o publicación en Marketplace.
+            </p>
+          </div>
+        )}
+
         <FotoSolicitud solicitud={solicitud} />
 
         <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <Dato label="Categoría" valor={solicitud.residuoCatalogo?.categoria} />
+          <Dato
+            label="Categoría"
+            valor={
+              solicitud.residuoCatalogo?.categoria ??
+              (solicitud.nombreResiduoOtro
+                ? `Otro (${solicitud.nombreResiduoOtro})`
+                : '—')
+            }
+          />
           {/* Referencia seudónima, igual que en la auditoría: el panel no necesita saber quién es. */}
           <Dato
             label="Vecino"

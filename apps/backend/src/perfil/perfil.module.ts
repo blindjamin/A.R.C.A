@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditoriaModule, AuthModule, ContactoCiudadano } from '../core';
 import { MailModule } from '../mail/mail.module';
 import { PerfilController } from './perfil.controller';
+import { BajaService } from './baja.service';
 import { PerfilService } from './perfil.service';
 
 @Module({
@@ -13,6 +14,6 @@ import { PerfilService } from './perfil.service';
     MailModule,
   ],
   controllers: [PerfilController],
-  providers: [PerfilService],
+  providers: [PerfilService, BajaService],
 })
 export class PerfilModule {}

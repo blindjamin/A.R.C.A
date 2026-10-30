@@ -92,9 +92,24 @@ export default function Catalogo() {
           </div>
         ))}
         {filtrados.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate">
-            Sin resultados para tu búsqueda.
-          </p>
+          <div className="col-span-full py-8 text-center space-y-3">
+            <p className="text-sm text-slate">
+              No encontramos «{query}» en el catálogo estándar.
+            </p>
+            {query.trim() && (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(
+                    `/nueva-solicitud?otro=${encodeURIComponent(query.trim())}`,
+                  )
+                }
+                className="btn-outline text-xs px-4 py-2 inline-flex items-center gap-1.5"
+              >
+                <span>➕ Solicitar retiro de «{query.trim()}» fuera de catálogo</span>
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>

@@ -9,10 +9,11 @@ import { ClaveUnicaController } from './clave-unica.controller';
 import { ClaveUnicaService } from './clave-unica.service';
 import {
   CLAVE_UNICA_BASE_URL,
+  ERROR_BAJA_RECIENTE,
   ERROR_INGRESO_CLAVE_UNICA,
   OAUTH_STATE_COOKIE,
 } from './clave-unica.constants';
-import { SesionService } from './sesion.service';
+import { BajaRecienteException, SesionService } from './sesion.service';
 
 const REDIRECT_URI =
   'https://arca.santodomingo.gob.cl/api/auth/clave-unica/callback';
@@ -303,6 +304,26 @@ describe('ClaveUnicaController', () => {
         'sesion-anterior.secreto',
       );
       esperarCierreImplicito(redirecciones);
+    });
+
+    it('si se dio de baja hace menos de 48 h, vuelve al login con error=baja-reciente', async () => {
+      sesionService.iniciarConClaveUnica.mockRejectedValue(
+        new BajaRecienteException(),
+      );
+      const controlador = await crearControladorConClaveUnicaSimulada();
+      const { res, cookies, redirecciones } = crearRespuestaFalsa();
+
+      await controlador.callback(
+        peticionCon('cu_oauth_state=aaa'),
+        res,
+        'codigo',
+        'aaa',
+      );
+
+      expect(cookies).toHaveLength(0);
+      const url = new URL(redirecciones[0].url);
+      const retorno = new URL(url.searchParams.get('redirect') as string);
+      expect(retorno.searchParams.get('error')).toBe(ERROR_BAJA_RECIENTE);
     });
 
     it('si ClaveÚnica no responde, igual cierra su sesión', async () => {

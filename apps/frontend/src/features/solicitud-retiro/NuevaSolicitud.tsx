@@ -4,10 +4,10 @@ import {
   apiFetch,
   crearSolicitudRetiro,
   fetchCatalogo,
-  formatearPrecio,
   type ResiduoCatalogo,
 } from '../../api/arca';
-import { IconoCategoria, PriceTag, ScreenHeader } from '../../components/ui';
+import { publicarArticulo } from '../../api/marketplace';
+import { ComboboxResiduo, ScreenHeader } from '../../components/ui';
 import { useSession } from '../../auth/SessionContext';
 import {
   obtenerPerfilVecino,
@@ -28,9 +28,13 @@ export default function NuevaSolicitud() {
   const flujo = useSolicitudFlow();
 
   const [catalogo, setCatalogo] = useState<ResiduoCatalogo[]>([]);
-  const [residuoId, setResiduoId] = useState<number | ''>(
-    searchParams.get('residuo') ? Number(searchParams.get('residuo')) : '',
+  const [residuoId, setResiduoId] = useState<number | null>(
+    searchParams.get('residuo') ? Number(searchParams.get('residuo')) : null,
   );
+  const [nombreResiduoOtro, setNombreResiduoOtro] = useState(
+    () => searchParams.get('otro') ?? '',
+  );
+  const [publicarEnMarketplace, setPublicarEnMarketplace] = useState(false);
   const [descripcion, setDescripcion] = useState('');
   // Por defecto, la dirección del perfil; el vecino puede cambiarla (por
   // ejemplo, si pide el retiro para un familiar que vive en otra casa).
@@ -50,11 +54,12 @@ export default function NuevaSolicitud() {
   }, []);
 
   const seleccionado = catalogo.find((r) => r.id === residuoId);
+  const residuoDefinido = Boolean(seleccionado || nombreResiduoOtro.trim());
   const direccionLimpia = direccionRetiro.trim();
-  const listoParaEnviar = Boolean(seleccionado && foto && direccionLimpia);
+  const listoParaEnviar = Boolean(residuoDefinido && foto && direccionLimpia);
 
   const ejecutarCreacion = async (emailContacto?: string) => {
-    if (!seleccionado || !foto || !direccionLimpia) return;
+    if (!residuoDefinido || !foto || !direccionLimpia) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -69,26 +74,53 @@ export default function NuevaSolicitud() {
         throw new Error('Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
       }
 
+      const nombreFinal = seleccionado?.nombre ?? nombreResiduoOtro.trim();
+
       const creada = await crearSolicitudRetiro({
         usuarioCiudadanoId: ciudadanoIdValido,
-        residuoCatalogoId: seleccionado.id,
+        residuoCatalogoId: seleccionado ? seleccionado.id : null,
+        nombreResiduoOtro: seleccionado ? undefined : nombreResiduoOtro.trim(),
         direccionRetiro: direccionLimpia,
         foto,
         descripcion: descripcion.trim() || undefined,
         emailContacto,
       });
+
+      let publicadoEnMarket = false;
+      let errorMarketplace: string | null = null;
+      if (publicarEnMarketplace) {
+        try {
+          await publicarArticulo({
+            tipo: 'regalo',
+            titulo: nombreFinal,
+            descripcion: descripcion.trim() || undefined,
+            residuoCatalogoId: seleccionado ? seleccionado.id : null,
+            nombreResiduoOtro: seleccionado ? undefined : nombreResiduoOtro.trim(),
+            foto,
+          });
+          publicadoEnMarket = true;
+        } catch (errMarket) {
+          console.error('Error publicando paralelamente en Marketplace:', errMarket);
+          errorMarketplace =
+            (errMarket as Error).message ||
+            'No se pudo generar la publicación comunitaria';
+        }
+      }
+
       flujo.reset();
       navigate('/solicitud/creada', {
         state: {
           solicitud: {
             id: creada.id,
-            residuoId: seleccionado.id,
-            nombreResiduo: seleccionado.nombre,
+            residuoId: seleccionado?.id ?? 0,
+            nombreResiduo: nombreFinal,
             descripcion: descripcion.trim(),
             direccionRetiro: direccionLimpia,
             foto,
             fotoPreview,
           },
+          publicadoMarketplace: publicadoEnMarket,
+          errorMarketplace,
         },
       });
     } catch (err) {
@@ -99,7 +131,10 @@ export default function NuevaSolicitud() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!seleccionado) return;
+    if (!residuoDefinido) {
+      setError('Escribe o selecciona el tipo de residuo para tu solicitud.');
+      return;
+    }
     if (!foto) {
       setError('Agrega una foto del objeto para que el municipio pueda revisarlo.');
       return;
@@ -140,45 +175,32 @@ export default function NuevaSolicitud() {
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4">
       <ScreenHeader
-        title="Nueva solicitud"
-        subtitle="Confirma el residuo y agrega detalles."
+        title="Nueva solicitud de retiro"
+        subtitle="Confirma el residuo, su foto y dirección para el retiro municipal."
       />
 
       {error && <p className="pill w-full bg-rose-100 text-rose-600">{error}</p>}
 
       <form onSubmit={handleSubmit} className="card space-y-5 p-5">
         <div>
-          <label className="mb-1.5 block text-sm font-semibold">
+          <label className="mb-1.5 block text-sm font-semibold text-ink">
             Tipo de residuo
           </label>
-          <select
-            value={residuoId}
-            onChange={(e) =>
-              setResiduoId(e.target.value ? Number(e.target.value) : '')
-            }
-            required
-            className="field"
-          >
-            <option value="">Selecciona del catálogo…</option>
-            {catalogo.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.nombre} — {item.categoria} (
-                {formatearPrecio(item.precio)})
-              </option>
-            ))}
-          </select>
+          <ComboboxResiduo
+            catalogo={catalogo}
+            residuoSeleccionado={seleccionado ?? null}
+            nombreOtro={nombreResiduoOtro}
+            onSeleccionar={(item, textoOtro) => {
+              if (item) {
+                setResiduoId(item.id);
+                setNombreResiduoOtro('');
+              } else {
+                setResiduoId(null);
+                setNombreResiduoOtro(textoOtro);
+              }
+            }}
+          />
         </div>
-
-        {/* Resumen de precio del seleccionado */}
-        {seleccionado && (
-          <div className="flex items-center justify-between rounded-md bg-green-50 px-4 py-3">
-            <span className="flex items-center gap-2 text-sm font-medium">
-              <IconoCategoria categoria={seleccionado.categoria} className="h-5 w-5 text-emerald-800" />
-              {seleccionado.nombre}
-            </span>
-            <PriceTag amount={seleccionado.precio} className="text-lg" />
-          </div>
-        )}
 
         <div>
           <label className="mb-1.5 block text-sm font-semibold">Foto del objeto</label>
@@ -229,12 +251,36 @@ export default function NuevaSolicitud() {
           />
         </div>
 
+        {/* Opción de publicar en paralelo en Marketplace */}
+        <div className="rounded-xl border border-gold-300 bg-gold-50/70 p-4 space-y-2">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={publicarEnMarketplace}
+              onChange={(e) => setPublicarEnMarketplace(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gold-400 text-forest-700 focus:ring-forest-600"
+            />
+            <div className="space-y-0.5">
+              <span className="text-sm font-bold text-ink flex items-center gap-1.5">
+                <span>🛍️</span>
+                <span>Ofrecer también en el Marketplace comunitario</span>
+                <span className="pill bg-gold-200 text-gold-900 text-[10px] font-bold py-0.2 px-1.5">
+                  Gratis
+                </span>
+              </span>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                Reutilizamos la misma foto y datos para crear una publicación comunitaria. Si a un vecino le sirve, podrá solicitarlo y retirarlo antes de que pase el camión municipal.
+              </p>
+            </div>
+          </label>
+        </div>
+
         <button
           type="submit"
           disabled={submitting || !listoParaEnviar}
           className="btn-primary w-full py-3.5"
         >
-          {submitting ? 'Enviando…' : 'Crear solicitud'}
+          {submitting ? 'Enviando…' : 'Crear solicitud de retiro'}
         </button>
       </form>
 

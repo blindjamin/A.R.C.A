@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
 import {
+  cancelarSolicitud,
   fetchSolicitud,
   formatearPrecio,
   type SolicitudRetiro,
@@ -73,6 +74,8 @@ export default function PantallaPago() {
     }
     return 'formulario';
   });
+
+  const [traspasando, setTraspasando] = useState(false);
 
   // Cargar solicitud si no viene por location.state
   useEffect(() => {
@@ -157,6 +160,45 @@ export default function PantallaPago() {
     setTimeout(() => {
       setEstadoFlujo('anulado');
     }, 800);
+  };
+
+  const handleTraspasoMarketplace = async () => {
+    if (!solicitud) return;
+    const confirmar = window.confirm(
+      'Al publicar este residuo en el Marketplace, tu solicitud de retiro municipal será cancelada. ¿Deseas continuar?',
+    );
+    if (!confirmar) return;
+
+    setTraspasando(true);
+    try {
+      const usuarioId = sesion?.ciudadanoId ?? 'anonimo';
+      await cancelarSolicitud(
+        solicitud.id,
+        usuarioId,
+        'Cancelada por traspaso a Marketplace',
+      );
+      navigate('/marketplace/subir', {
+        state: {
+          importarSolicitud: {
+            solicitudId: solicitud.id,
+            titulo:
+              solicitud.nombreResiduoOtro ||
+              solicitud.residuoCatalogo?.nombre ||
+              '',
+            descripcion: solicitud.descripcion ?? '',
+            residuoCatalogoId: solicitud.residuoCatalogoId,
+            nombreResiduoOtro: solicitud.nombreResiduoOtro,
+            fotoUrl: solicitud.fotoUrl,
+          },
+        },
+      });
+    } catch (err) {
+      alert(
+        'No se pudo cancelar la solicitud para el traspaso: ' +
+          (err as Error).message,
+      );
+      setTraspasando(false);
+    }
   };
 
   // ---------------------------------------------------------------------------
@@ -344,6 +386,32 @@ export default function PantallaPago() {
             <span className="text-slate">Monto por pagar:</span>
             <span className="font-bold text-ink">{formatearPrecio(monto)}</span>
           </div>
+        </section>
+
+        {/* Alternativa: Enviar a Marketplace sin costo */}
+        <section className="rounded-xl border border-gold-300 bg-gold-50/90 p-4 space-y-2.5 shadow-xs">
+          <div className="flex items-center gap-2 text-ink">
+            <span className="text-lg">🛍️</span>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gold-950">
+              ¿No te acomoda el valor del presupuesto?
+            </h3>
+          </div>
+          <p className="text-xs text-slate-700 leading-relaxed">
+            Puedes ofrecer este artículo <strong>gratis a tus vecinos en el Marketplace</strong>. Reutilizaremos automáticamente la foto y los datos ingresados para que no tengas que escribirlos de nuevo.
+          </p>
+          <button
+            type="button"
+            onClick={handleTraspasoMarketplace}
+            disabled={traspasando}
+            className="btn-gold w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <span>
+              {traspasando
+                ? 'Cancelando solicitud y traspasando…'
+                : 'Publicar gratis en el Marketplace'}
+            </span>
+            {!traspasando && <span>→</span>}
+          </button>
         </section>
 
         {/* Acciones principales visibles sin scroll */}
