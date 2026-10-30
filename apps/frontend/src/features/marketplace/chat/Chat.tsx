@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   enviarMensaje,
   marcarLeidos,
@@ -14,6 +14,7 @@ import { activarPush, pedirPermisoEnGesto } from '../../../pwa/push';
 import {
   BackButton,
   EmptyState,
+  IconChevronRight,
   IconMarketplace,
   IconSearch,
 } from '../../../components/ui';
@@ -278,7 +279,11 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
             <IconMarketplace className="h-5 w-5 text-green-700" />
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <Link
+          to={`/marketplace/${articulo.id}`}
+          aria-label={`Ver el artículo ${articulo.titulo}`}
+          className="min-w-0 flex-1 rounded-md hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
           <div className="flex items-center gap-2">
             <h1 className="truncate text-base font-bold">{articulo.titulo}</h1>
             {articulo.estado !== 'disponible' && (
@@ -286,9 +291,10 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
                 {ESTADO_ARTICULO_META[articulo.estado].etiqueta}
               </span>
             )}
+            <IconChevronRight className="h-4 w-4 shrink-0 text-slate-2" />
           </div>
           <p className="truncate text-xs text-slate-2">{otroNombre}</p>
-        </div>
+        </Link>
         {esPublicador && articulo.estado === 'disponible' && conversacionRuta && (
           <BotonReservar
             articuloId={id}

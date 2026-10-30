@@ -71,13 +71,14 @@ src/
 │   └── ui/                      # UI Kit — primitivos reutilizables
 │       ├── Icons.tsx            # Sistema de íconos vectoriales SVG sobrios
 │       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader · ComboboxResiduo
-│       ├── EmptyState · BackButton · PriceTag · BotonClaveUnica · Estrellas
+│       ├── EmptyState · BackButton · PriceTag · BotonClaveUnica · Estrellas · EstrellasInput
 │       ├── estadoMeta.ts        # Metadata (label/color) por estado de solicitud
 │       └── index.ts             # Punto de import único: import { ScreenHeader, IconUser } from '../../components/ui'
 ├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
 ├── features/
-│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones)
-│   │   └── chat/                # Chat (HU-06): Chat, Bandeja y NoLeidosContext
+│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones, calificar)
+│   │   ├── chat/                # Chat (HU-06): Chat, Bandeja y NoLeidosContext
+│   │   └── entrega/             # Entrega con código (HU-15): PanelEntrega y CodigoEntrega
 │   ├── pago/                    # Persistencia local de pagos y comprobantes (pagosStorage.ts)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
@@ -127,8 +128,11 @@ En la barra superior (`AppShell`), en el lugar del botón de perfil, que sigue e
 
 - **Vecino, artículo disponible:** «Me interesa» (regalo) o «Quiero intercambiar» registra el interés y navega al chat; si ya tiene interés, dice «Ver conversación» con los no leídos.
 - **Quien publica, disponible:** lista «Interesados» (nombre, estrellas, «Identidad verificada», último mensaje) con «Chatear» y «Reservar»; reservar pide confirmar con el nombre.
-- **Quien publica, reservado:** «Reservado para {nombre}», el sector, «Liberar» y el formulario «Confirmar entrega» (código de 6 dígitos).
-- **Quien recibe, reservado:** tarjeta «Reservado para ti» con el sector y el código; se lo dicta a quien publicó.
+- **Quien publica, reservado:** `entrega/PanelEntrega`: «Entrega pendiente» con el nombre de quien recibe y el sector, «Pedir el código por chat» (manda un mensaje al receptor y dispara su aviso), el código de 6 dígitos con confirmación en dos pasos y «Liberar reserva». Un código equivocado muestra el error del backend y deja reintentar.
+- **Quien recibe, reservado:** `entrega/CodigoEntrega`: «Reservado para ti» con el sector y el código en una ventana aparte, en grande, para dictarlo en el momento. El texto pide no dictarlo por chat antes de recibir el artículo.
+- **Después de entregar:** «Entrega confirmada» para quien publicó y «Recibiste este artículo» para quien recibe. Quien recibió califica con estrellas (1–5) y comentario opcional (`CalificarIntercambio` + `components/ui/EstrellasInput`, radios nativos). El backend solo lo permite una vez y con el artículo completado (`puedoCalificar`).
+- **Mis publicaciones:** bloque «Entregas pendientes» con los artículos en `en_negociacion`, para llegar al código sin buscarlos en la lista.
+- **Chat:** el título de la cabecera enlaza al artículo, para volver al código desde la conversación.
 
 ### Criterio de organización
 

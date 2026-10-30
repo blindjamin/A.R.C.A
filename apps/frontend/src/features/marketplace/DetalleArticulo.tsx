@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { iconoPorCategoria } from '../../api/arca';
 import {
-  entregar,
-  liberar,
   listarInteresados,
   obtenerArticulo,
   registrarInteres,
@@ -22,6 +20,9 @@ import {
   IconMapPin,
 } from '../../components/ui';
 import BotonReservar from './BotonReservar';
+import CalificarIntercambio from './CalificarIntercambio';
+import CodigoEntrega from './entrega/CodigoEntrega';
+import PanelEntrega from './entrega/PanelEntrega';
 import { useNoLeidos } from './chat/NoLeidosContext';
 import { ETIQUETA_BANDA, useOrigenAproximado } from './distancia';
 import {
@@ -83,71 +84,39 @@ function RetirarPublicacion({ id, onRetirado }: { id: number; onRetirado: () => 
   );
 }
 
-// Sector y código de entrega: solo los ve quien corresponde (lo decide el backend).
-function PanelReservaPropia({
+// Cierre del intercambio: lo que ve cada participante después de la entrega.
+function CierreEntrega({
   articulo,
-  onCambio,
+  onCalificado,
 }: {
   articulo: ArticuloMarketplace;
-  onCambio: () => void;
+  onCalificado: () => void;
 }) {
-  const [codigo, setCodigo] = useState('');
-  const [enviando, setEnviando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const ejecutar = async (accion: () => Promise<unknown>) => {
-    setEnviando(true);
-    setError(null);
-    try {
-      await accion();
-      onCambio();
-    } catch (e) {
-      setError(mensajeDeError(e));
-      setEnviando(false);
-    }
-  };
+  const { esPropio, soyReceptor, puedoCalificar, publicador, titulo } = articulo;
 
   return (
-    <section className="card space-y-3 p-4 text-left">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">
-        Reservado para {articulo.reservadoPara ?? 'un vecino'}
+    <section className="card space-y-3 p-5 text-center">
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+        <IconCheck className="h-6 w-6 text-green-700" />
+      </span>
+      <h2 className="text-lg font-bold text-ink">
+        {esPropio ? 'Entrega confirmada' : 'Recibiste este artículo'}
       </h2>
-      {articulo.sector && <p className="text-sm text-ink-2">Sector: {articulo.sector}</p>}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void ejecutar(() => entregar(articulo.id, codigo));
-        }}
-        className="space-y-2"
-      >
-        <label htmlFor="codigo-entrega" className="text-sm font-semibold">
-          Confirmar entrega
-        </label>
-        <p className="text-xs text-slate">
-          Pide el código de 6 dígitos a quien recibe cuando le entregues el artículo.
-        </p>
-        <input
-          id="codigo-entrega"
-          inputMode="numeric"
-          autoComplete="off"
-          maxLength={6}
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
-          placeholder="000000"
-          className="field text-center tracking-widest"
+      <p className="text-sm text-ink-2">
+        {esPropio
+          ? 'El intercambio quedó cerrado y los créditos de la entrega ya están registrados en tu billetera.'
+          : `«${titulo}» quedó a tu nombre. Gracias por darle una segunda vida.`}
+      </p>
+      {soyReceptor && puedoCalificar && (
+        <CalificarIntercambio
+          articuloId={articulo.id}
+          nombrePublicador={publicador.nombre}
+          onCalificado={onCalificado}
         />
-        {error && <p className="text-xs text-rose-600">{error}</p>}
-        <button type="submit" disabled={enviando || codigo.length !== 6} className="btn-primary w-full">
-          Confirmar entrega
-        </button>
-      </form>
-      <button
-        onClick={() => void ejecutar(() => liberar(articulo.id))}
-        disabled={enviando}
-        className="btn-outline w-full"
-      >
-        Liberar
-      </button>
+      )}
+      {soyReceptor && !puedoCalificar && (
+        <p className="text-xs text-slate">Ya calificaste este intercambio.</p>
+      )}
     </section>
   );
 }
@@ -248,9 +217,12 @@ export default function DetalleArticulo() {
   }, [id, idValido, origen, clave, version]);
 
   // Quien publica ve a los interesados; se recarga con cada aviso del chat
-  // (`conversaciones` cambia) y tras reservar o liberar.
+  // (`conversaciones` cambia) y tras reservar o liberar. En la entrega también
+  // hace falta: ahí se marca con `reservado` la conversación de quien recibe.
   const actual = articuloVigente(resultado, id);
-  const verInteresados = !!actual?.esPropio && actual.estado === 'disponible';
+  const verInteresados =
+    !!actual?.esPropio &&
+    (actual.estado === 'disponible' || actual.estado === 'en_negociacion');
   useEffect(() => {
     if (!verInteresados) return;
     let vigente = true;
@@ -311,6 +283,8 @@ export default function DetalleArticulo() {
 
   const delArticulo = conversaciones.filter((c) => c.articulo.id === articulo.id);
   const propia = delArticulo.find((c) => !c.soyPublicador);
+  // El código se pide a quien tiene la reserva, no a cualquier interesado.
+  const conversacionReserva = interesados.find((i) => i.reservado);
 
   const mostrarInteres = async () => {
     setInteresando(true);
@@ -453,26 +427,23 @@ export default function DetalleArticulo() {
             />
           )}
           {estado === 'en_negociacion' && (
-            <PanelReservaPropia articulo={articulo} onCambio={recargar} />
+            <PanelEntrega
+              articulo={articulo}
+              conversacionId={conversacionReserva?.conversacionId}
+              onCambio={recargar}
+            />
+          )}
+          {estado === 'completado' && (
+            <CierreEntrega articulo={articulo} onCalificado={recargar} />
           )}
         </div>
       ) : (
         <div className="space-y-2">
-          {soyReceptor && estado === 'en_negociacion' && (
-            <section className="card space-y-2 p-4 text-center">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate">
-                Reservado para ti
-              </h2>
-              {sector && <p className="text-sm text-ink-2">Sector: {sector}</p>}
-              {codigoEntrega && (
-                <p className="font-display text-4xl font-extrabold tracking-widest text-green-700">
-                  {codigoEntrega}
-                </p>
-              )}
-              <p className="text-xs text-slate">
-                Díctale este código a quien publicó cuando te entregue el artículo.
-              </p>
-            </section>
+          {soyReceptor && estado === 'completado' && (
+            <CierreEntrega articulo={articulo} onCalificado={recargar} />
+          )}
+          {soyReceptor && estado === 'en_negociacion' && codigoEntrega && (
+            <CodigoEntrega codigo={codigoEntrega} sector={sector} />
           )}
           {propia ? (
             <button
