@@ -19,6 +19,7 @@ import {
   IconSearch,
 } from '../../../components/ui';
 import BotonReservar from '../BotonReservar';
+import BotonDenunciar from '../denuncia/BotonDenunciar';
 import { metaDeEstadoArticulo } from '../formato';
 import { useNoLeidos } from './NoLeidosContext';
 import type { EstadoArticulo } from '../../../api/marketplace';
@@ -303,6 +304,9 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
             onReservado={() => cargar(false)}
             className="btn-primary shrink-0 px-4 py-2"
           />
+        )}
+        {conversacionRuta && (
+          <BotonDenunciar origen={{ tipo: 'chat', conversacionId: conversacionRuta }} nombre={otroNombre} className="shrink-0" soloIconoEnMovil />
         )}
       </header>
 
