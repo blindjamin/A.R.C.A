@@ -652,6 +652,15 @@ export default function Perfil() {
         </button>
       </section>
 
+      <p className="text-center">
+        <Link
+          to="/denuncias"
+          className="text-xs text-slate underline underline-offset-2 hover:text-ink"
+        >
+          Mis denuncias
+        </Link>
+      </p>
+
       {sesion?.rol === 'vecino' && (
         <p className="text-center">
           <Link

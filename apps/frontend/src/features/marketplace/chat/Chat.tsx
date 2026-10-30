@@ -18,6 +18,7 @@ import {
   IconMarketplace,
   IconSearch,
 } from '../../../components/ui';
+import BotonDenunciar from '../../denuncias/BotonDenunciar';
 import BotonReservar from '../BotonReservar';
 import { metaDeEstadoArticulo } from '../formato';
 import { useNoLeidos } from './NoLeidosContext';
@@ -304,6 +305,15 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
             className="btn-primary shrink-0 px-4 py-2"
           />
         )}
+        <BotonDenunciar
+          articuloId={id}
+          origen="chat"
+          nombre={otroNombre}
+          conversacion={esPublicador ? conversacionRuta : undefined}
+          mensajes={mensajes}
+          compacto
+          className="shrink-0"
+        />
       </header>
 
       <div className="relative min-h-0 flex-1">

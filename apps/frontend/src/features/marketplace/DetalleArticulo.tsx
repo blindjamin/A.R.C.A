@@ -20,6 +20,7 @@ import {
   IconSearch,
   IconUser,
 } from '../../components/ui';
+import BotonDenunciar from '../denuncias/BotonDenunciar';
 import BotonReservar from './BotonReservar';
 import CalificarIntercambio from './CalificarIntercambio';
 import CodigoEntrega from './entrega/CodigoEntrega';
@@ -508,6 +509,14 @@ export default function DetalleArticulo() {
             )
           )}
           {errorInteres && <p className="text-center text-xs text-rose-600">{errorInteres}</p>}
+          <p className="pt-2 text-center">
+            <BotonDenunciar
+              articuloId={articulo.id}
+              origen="articulo"
+              nombre={publicador.nombre}
+              texto="Denunciar esta publicación"
+            />
+          </p>
         </div>
       )}
     </div>
