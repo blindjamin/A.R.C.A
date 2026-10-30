@@ -217,9 +217,12 @@ export default function DetalleArticulo() {
   }, [id, idValido, origen, clave, version]);
 
   // Quien publica ve a los interesados; se recarga con cada aviso del chat
-  // (`conversaciones` cambia) y tras reservar o liberar.
+  // (`conversaciones` cambia) y tras reservar o liberar. En la entrega también
+  // hace falta: ahí se marca con `reservado` la conversación de quien recibe.
   const actual = articuloVigente(resultado, id);
-  const verInteresados = !!actual?.esPropio && actual.estado === 'disponible';
+  const verInteresados =
+    !!actual?.esPropio &&
+    (actual.estado === 'disponible' || actual.estado === 'en_negociacion');
   useEffect(() => {
     if (!verInteresados) return;
     let vigente = true;
@@ -280,7 +283,8 @@ export default function DetalleArticulo() {
 
   const delArticulo = conversaciones.filter((c) => c.articulo.id === articulo.id);
   const propia = delArticulo.find((c) => !c.soyPublicador);
-  const conversacionPropia = delArticulo.find((c) => c.soyPublicador);
+  // El código se pide a quien tiene la reserva, no a cualquier interesado.
+  const conversacionReserva = interesados.find((i) => i.reservado);
 
   const mostrarInteres = async () => {
     setInteresando(true);
@@ -425,7 +429,7 @@ export default function DetalleArticulo() {
           {estado === 'en_negociacion' && (
             <PanelEntrega
               articulo={articulo}
-              conversacionId={conversacionPropia?.conversacionId}
+              conversacionId={conversacionReserva?.conversacionId}
               onCambio={recargar}
             />
           )}
