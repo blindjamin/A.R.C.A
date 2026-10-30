@@ -10,8 +10,8 @@ export type MotivoDenuncia =
   | 'no_se_presento'
   | 'articulo_distinto'
   | 'basura_encubierta'
-  | 'cobro_indebido'
-  | 'trato_inadecuado'
+  | 'pidio_datos_o_dinero'
+  | 'trato_ofensivo'
   | 'otro';
 
 export type OrigenDenuncia = 'articulo' | 'perfil' | 'chat';
@@ -22,8 +22,8 @@ export const MOTIVOS_DENUNCIA: { valor: MotivoDenuncia; etiqueta: string }[] = [
   { valor: 'no_se_presento', etiqueta: 'No se presentó a la entrega acordada' },
   { valor: 'articulo_distinto', etiqueta: 'El artículo no era el publicado' },
   { valor: 'basura_encubierta', etiqueta: 'Usa el Marketplace para deshacerse de basura' },
-  { valor: 'cobro_indebido', etiqueta: 'Me pidió dinero por algo publicado gratis' },
-  { valor: 'trato_inadecuado', etiqueta: 'Trato inadecuado o amenazas' },
+  { valor: 'pidio_datos_o_dinero', etiqueta: 'Me pidió datos personales o dinero' },
+  { valor: 'trato_ofensivo', etiqueta: 'Trato ofensivo o acoso' },
   { valor: 'otro', etiqueta: 'Otro motivo' },
 ];
 
