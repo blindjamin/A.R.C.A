@@ -202,6 +202,18 @@ Se puede escribir si el artículo está `disponible` y vigente, o `en_negociacio
 | `POST /push/suscripciones` | Body `{ endpoint, keys: { p256dh, auth } }`. Responde `{ suscrito: true }`. Si el `endpoint` ya existía se reasigna al vecino actual; tope de 5 por vecino (se borra la más antigua) | 400 si el servicio push no está en la lista blanca · 409 si no hay claves VAPID |
 | `DELETE /push/suscripciones` | Body `{ endpoint }`. Responde `{ eliminado: true }` | — |
 
+**Denuncias (HU-16).** En `denuncias/`, tabla `denuncias` (migración `1782165400000-denuncias`, sigue el
+esquema dbml más `origen` y `mensajes_adjuntos`). El vecino nunca envía ni recibe el id del denunciado: si
+denuncia quien publicó, el denunciado es el interesado de `conversacion`; si no, es quien publicó.
+
+| Método y ruta | Qué hace | Errores |
+|---|---|---|
+| `POST /denuncias` | Body `{ articuloId, origen: articulo\|perfil\|chat, motivo, descripcion?, conversacion?, mensajes?: id[] }`. `motivo`: `no_se_presento`, `articulo_distinto`, `basura_encubierta`, `cobro_indebido`, `trato_inadecuado` u `otro`. Descripción de hasta 500 caracteres. Hasta 5 mensajes de esa conversación, que se **copian** (el chat se borra a los 30 días). Responde `{ id }`. Una sola denuncia abierta por denunciante, denunciado y artículo; tope de 5 por vecino en 24 h. Se audita sin la descripción ni los mensajes | 400 si quien publica no indica `conversacion` o un mensaje no es de la conversación · 403 si se denuncia a sí mismo · 404 si el artículo no existe o no es visible · 409 si ya hay una abierta · 429 al pasar el tope |
+| `GET /denuncias/mias` | Las denuncias propias: `id`, `articuloId`, `articuloTitulo`, `motivo`, `origen`, `estado` (`abierta`, `investigacion`, `resuelta`, `rechazada`), `fechaDenuncia`, `fechaResolucion`. Nunca el denunciado ni la resolución | — |
+
+La revisión en el panel y el bloqueo (HU-18) van aparte, en `admin/`. La tabla ya trae `resolucion`,
+`revisado_por_administrador_id` y `fecha_resolucion` para eso.
+
 Las acciones que cambian el estado devuelven el `ArticuloMarketplace` actualizado.
 `calificacion` responde 201 con `{ puntuacion, comentario, fecha }`.
 
@@ -342,7 +354,7 @@ Los créditos por intercambios y regalos entre vecinos siguen las reglas de §7.
 | Queda fuera | Por qué |
 |---|---|
 | Nombre real del vecino | Toca el núcleo y HU-38. Sprint 4. El chat usa solo el nombre de pila de la sesión de ClaveÚnica (§5.5) |
-| Denuncia de incumplimiento (HU-16) | **No está implementada.** Pendiente de conversar con Miguel |
+| Revisar denuncias y bloquear (HU-18) | Va en el panel municipal (`admin/`), en un PR aparte. La denuncia del vecino ya existe (§5.2) |
 | Intercambio con propuesta de artículo, perfil público y doble reserva | Segunda fase; por ahora el intercambio funciona igual que el regalo |
 | Disparador del 50 % por retiro pagado | Se conecta en la confirmación del pago con Webpay, HU-44 (§7.3) |
 | Notificación al recibir créditos | HU-23 está fuera del sprint |

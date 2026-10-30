@@ -18,6 +18,7 @@ import { TransaccionCircularCredits } from './transaccion-circular-credits.entit
 import { SuscripcionPush } from './suscripcion-push.entity';
 import { Notificacion } from './notificacion.entity';
 import { PagoWebpay } from './pago-webpay.entity';
+import { Denuncia } from './denuncia.entity';
 
 export { RolAdministrador } from './rol-administrador.enum';
 export { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -51,6 +52,10 @@ export { SuscripcionPush } from './suscripcion-push.entity';
 export { Notificacion } from './notificacion.entity';
 export { EstadoIntentoPago } from './estado-intento-pago.enum';
 export { PagoWebpay } from './pago-webpay.entity';
+export { EstadoDenuncia } from './estado-denuncia.enum';
+export { MotivoDenuncia } from './motivo-denuncia.enum';
+export { OrigenDenuncia } from './origen-denuncia.enum';
+export { Denuncia, type MensajeAdjunto } from './denuncia.entity';
 
 // Usado por apps/backend/src/database/data-source.ts: el glob __dirname +
 // '/../**/*.entity' que usaba antes de la migración no encuentra las
@@ -77,4 +82,5 @@ export const ENTIDADES = [
   SuscripcionPush,
   Notificacion,
   PagoWebpay,
+  Denuncia,
 ];

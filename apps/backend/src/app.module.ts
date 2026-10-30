@@ -22,6 +22,7 @@ import { MailModule } from './mail/mail.module';
 import { PerfilModule } from './perfil/perfil.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { PagosModule } from './pagos/pagos.module';
+import { DenunciasModule } from './denuncias/denuncias.module';
 
 @Module({
   imports: [
@@ -65,6 +66,7 @@ import { PagosModule } from './pagos/pagos.module';
     ResiduosModule,
     SolicitudesRetiroModule,
     MarketplaceModule,
+    DenunciasModule,
     PushModule,
     CreditosModule,
     SolicitudesAdminModule,
