@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { resumenObjetos } from '../../api/arca';
 import {
   actualizarSolicitud,
   fetchSolicitud,
@@ -184,10 +185,7 @@ export default function Solicitudes() {
                       Retiro
                     </span>
                     #{s.id} ·{' '}
-                    {s.residuoCatalogo?.nombre ??
-                      (s.nombreResiduoOtro
-                        ? `Otro: ${s.nombreResiduoOtro}`
-                        : `Residuo ${s.residuoCatalogoId}`)}
+                    {resumenObjetos(s)}
                   </>
                 }
                 titleBadge={<EstadoPill estado={s.estado} />}
@@ -322,10 +320,7 @@ function DetalleSolicitud({
               <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
             </div>
             <p className="text-sm text-slate">
-              {solicitud.residuoCatalogo?.nombre ??
-                (solicitud.nombreResiduoOtro
-                  ? `Otro: ${solicitud.nombreResiduoOtro} (Personalizado)`
-                  : `Residuo ${solicitud.residuoCatalogoId}`)}
+              {resumenObjetos(solicitud)}
             </p>
           </div>
           <EstadoPill estado={solicitud.estado} />

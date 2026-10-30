@@ -42,6 +42,24 @@ export interface RevisionVisible {
   fecha: string;
 }
 
+/** Un objeto de la solicitud, como lo devuelve el backend (HU-01). */
+export interface ObjetoSolicitud {
+  residuoCatalogoId: number | null;
+  /** Nombre del catálogo o el que escribió el vecino. */
+  nombre: string;
+  categoria: string | null;
+  cantidad: number;
+  /** null si está fuera del catálogo. */
+  precioUnitario: number | null;
+}
+
+/** Un objeto tal como lo agrega el vecino al crear la solicitud. */
+export interface ObjetoNuevo {
+  residuoCatalogoId?: number;
+  nombreOtro?: string;
+  cantidad: number;
+}
+
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
@@ -67,12 +85,32 @@ export interface SolicitudRetiro {
   fotoUrl?: string | null;
   // Detalle de la última revisión del funcionario municipal (para corregir)
   ultimaRevision?: RevisionVisible | null;
+  // Objetos a retirar; las solicitudes de antes traen uno.
+  objetos?: ObjetoSolicitud[];
+  // Suma de precio × cantidad; null si algo está fuera del catálogo.
+  precioSugerido?: number | null;
+}
+
+/** «Sillón ×2, Refrigerador», o el residuo de antes si no vienen los objetos. */
+export function resumenObjetos(s: {
+  objetos?: ObjetoSolicitud[];
+  residuoCatalogo?: { nombre: string } | null;
+  nombreResiduoOtro?: string | null;
+}): string {
+  if (s.objetos?.length) {
+    return s.objetos
+      .map((o) => (o.cantidad > 1 ? `${o.nombre} ×${o.cantidad}` : o.nombre))
+      .join(', ');
+  }
+  return s.residuoCatalogo?.nombre ?? s.nombreResiduoOtro ?? 'Residuo';
 }
 
 export interface CrearSolicitudInput {
   usuarioCiudadanoId: string;
   residuoCatalogoId?: number | null;
   nombreResiduoOtro?: string;
+  /** Todos los objetos; el primero también va en `residuoCatalogoId` o `nombreResiduoOtro`. */
+  objetos?: ObjetoNuevo[];
   direccionRetiro: string;
   foto: File;
   descripcion?: string;
@@ -153,9 +191,14 @@ export function fetchCatalogo(): Promise<ResiduoCatalogo[]> {
 export function crearSolicitudRetiro(
   data: CrearSolicitudInput,
 ): Promise<SolicitudRetiro> {
+  const { objetos, ...campos } = data;
   return apiFetch(`${API_URL}/solicitudes-retiro`, {
     method: 'POST',
-    body: aFormData({ ...data }),
+    // La lista viaja como JSON en un campo de texto del multipart.
+    body: aFormData({
+      ...campos,
+      objetos: objetos ? JSON.stringify(objetos) : undefined,
+    }),
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 

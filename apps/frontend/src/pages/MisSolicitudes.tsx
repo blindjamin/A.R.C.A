@@ -10,6 +10,7 @@ import {
   type EstadoSolicitud,
   type ResiduoCatalogo,
   type SolicitudRetiro,
+  resumenObjetos,
 } from '../api/arca';
 import {
   BackButton,
@@ -493,8 +494,7 @@ export default function MisSolicitudes() {
           <div className="flex items-start justify-between gap-2">
             <div>
               <h1 className="text-xl font-extrabold text-ink">
-                {seleccion.nombreResiduoOtro ?? seleccion.residuoCatalogo?.nombre ??
-                  `Residuo #${seleccion.residuoCatalogoId}`}
+                {resumenObjetos(seleccion)}
               </h1>
               {categoria && (
                 <p className="text-sm text-ink-2">
@@ -627,7 +627,7 @@ export default function MisSolicitudes() {
               <li key={s.id}>
                 <ListItemCard
                   icon={<IconRecycle className="h-5 w-5 text-green-700" />}
-                  title={s.nombreResiduoOtro ?? s.residuoCatalogo?.nombre ?? `Residuo #${s.residuoCatalogoId}`}
+                  title={resumenObjetos(s)}
                   titleBadge={
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
                       <EstadoPill estado={s.estado} />

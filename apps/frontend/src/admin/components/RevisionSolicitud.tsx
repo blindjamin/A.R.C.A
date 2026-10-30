@@ -52,8 +52,17 @@ export function TarjetaRevision({
   );
   const [motivo, setMotivo] = useState<MotivoRevision | ''>('');
   const [comentario, setComentario] = useState('');
+  // Con varios objetos (HU-01) el precio de referencia es la suma del catálogo;
+  // si alguno está fuera de él, no hay referencia y el funcionario lo fija.
+  const objetos = solicitud.objetos ?? [];
+  const variosObjetos = objetos.length > 1;
+  const objetosFueraDeCatalogo = objetos.filter((o) => o.residuoCatalogoId === null);
+  const precioReferencia =
+    objetos.length > 0
+      ? (solicitud.precioSugerido ?? null)
+      : (solicitud.residuoCatalogo?.precio ?? null);
   const [montoFinal, setMontoFinal] = useState<number | ''>(
-    solicitud.monto ?? solicitud.residuoCatalogo?.precio ?? '',
+    solicitud.monto ?? precioReferencia ?? '',
   );
   const [residuos, setResiduos] = useState<ResiduoResumen[]>([]);
   const [guardando, setGuardando] = useState(false);
@@ -76,7 +85,7 @@ export function TarjetaRevision({
   const checklistCompleto = ITEMS_CHECKLIST_APROBACION.every(
     (i) => checklist[i.id],
   );
-  const requiereMontoManual = !solicitud.residuoCatalogoId;
+  const requiereMontoManual = precioReferencia === null;
   const faltaMontoObligatorio =
     requiereMontoManual && (montoFinal === '' || Number(montoFinal) <= 0);
   const exigeComentario =
@@ -130,7 +139,41 @@ export function TarjetaRevision({
     <div className="card space-y-4 p-5">
       <h2 className="font-bold">Revisión</h2>
 
-      {solicitud.nombreResiduoOtro && !solicitud.residuoCatalogoId && (
+      {objetos.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-xs uppercase tracking-wide text-slate-2">
+            {variosObjetos ? `Objetos a retirar (${objetos.length})` : 'Objeto a retirar'}
+          </span>
+          <ul className="divide-y divide-line rounded-lg border border-line text-sm">
+            {objetos.map((o, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 px-3 py-2">
+                <span>
+                  <span className="font-semibold">{o.nombre}</span>
+                  {o.cantidad > 1 && <span className="text-slate"> ×{o.cantidad}</span>}
+                  {o.categoria && (
+                    <span className="block text-xs text-slate-2">{o.categoria}</span>
+                  )}
+                </span>
+                <span className="shrink-0 text-xs font-semibold">
+                  {o.precioUnitario === null
+                    ? 'Fuera de catálogo'
+                    : `$${(o.precioUnitario * o.cantidad).toLocaleString('es-CL')}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {variosObjetos && objetosFueraDeCatalogo.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <span className="font-semibold">Objetos fuera de catálogo:</span>{' '}
+          {objetosFueraDeCatalogo.map((o) => `«${o.nombre}»`).join(', ')}. Fija el
+          valor total a cobrar antes de aprobar.
+        </div>
+      )}
+
+      {!variosObjetos && solicitud.nombreResiduoOtro && !solicitud.residuoCatalogoId && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <span className="font-semibold">Residuo fuera de catálogo:</span> el vecino ingresó «{solicitud.nombreResiduoOtro}». Puedes clasificarlo en el catálogo a continuación si corresponde, o dejarlo y fijar su tarifa.
         </div>
@@ -138,7 +181,7 @@ export function TarjetaRevision({
 
       <label className="block space-y-1 text-sm">
         <span className="text-xs uppercase tracking-wide text-slate-2">
-          Categoría del residuo
+          {variosObjetos ? 'Categoría del objeto 1' : 'Categoría del residuo'}
         </span>
         <select
           className="field w-full"
@@ -236,9 +279,7 @@ export function TarjetaRevision({
                 step="500"
                 className="field flex-1"
                 placeholder={
-                  solicitud.residuoCatalogo?.precio !== undefined
-                    ? String(solicitud.residuoCatalogo.precio)
-                    : 'Ej: 5000'
+                  precioReferencia !== null ? String(precioReferencia) : 'Ej: 5000'
                 }
                 value={montoFinal}
                 disabled={deshabilitado}
@@ -251,8 +292,8 @@ export function TarjetaRevision({
             </div>
             <p className="text-[11px] text-slate">
               {requiereMontoManual
-                ? '⚠️ Residuo no tipificado en catálogo: es obligatorio fijar un valor definitivo (> $0) para el vecino antes de aprobar.'
-                : `Precio sugerido por catálogo: $${(solicitud.residuoCatalogo?.precio ?? 0).toLocaleString('es-CL')}. Puedes modificarlo antes de aprobar.`}
+                ? '⚠️ Hay objetos fuera del catálogo: es obligatorio fijar un valor definitivo (> $0) para el vecino antes de aprobar.'
+                : `${variosObjetos ? 'Suma sugerida por catálogo' : 'Precio sugerido por catálogo'}: $${(precioReferencia ?? 0).toLocaleString('es-CL')}. Puedes modificarlo antes de aprobar.`}
             </p>
           </div>
 
