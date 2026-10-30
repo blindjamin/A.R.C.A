@@ -5,6 +5,7 @@
 // migración, cuando exista apps/backend-admin.
 
 import { apiFetch } from '../../api/apiFetch';
+import type { ObjetoSolicitud } from '../../api/arca';
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -65,6 +66,10 @@ export interface SolicitudRetiro {
   updatedAt: string;
   // El GET incluye la relación anidada; en el POST puede no venir.
   residuoCatalogo?: ResiduoCatalogo | null;
+  // Objetos a retirar (HU-01), en el orden en que los agregó el vecino.
+  objetos?: ObjetoSolicitud[];
+  // Suma de precio × cantidad; null si algo está fuera del catálogo. Solo en el detalle.
+  precioSugerido?: number | null;
 }
 
 /** Lo que devuelve `GET /admin/solicitudes/:id`. */

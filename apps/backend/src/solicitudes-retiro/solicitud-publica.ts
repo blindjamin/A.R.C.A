@@ -1,9 +1,32 @@
 import {
+  precioSugerido,
   TipoFotoRetiro,
   type EstadoSolicitudRetiro,
   type MotivoRevision,
+  type ObjetoSolicitudRetiro,
   type SolicitudRetiro,
 } from '../core';
+
+/** Un objeto de la solicitud, como lo ven el vecino y el panel (HU-01). */
+export interface ObjetoPublico {
+  residuoCatalogoId: number | null;
+  /** Nombre del catálogo o el que escribió el vecino. */
+  nombre: string;
+  categoria: string | null;
+  cantidad: number;
+  /** Precio unitario vigente del catálogo; null si está fuera del catálogo. */
+  precioUnitario: number | null;
+}
+
+export function aObjetoPublico(objeto: ObjetoSolicitudRetiro): ObjetoPublico {
+  return {
+    residuoCatalogoId: objeto.residuoCatalogoId,
+    nombre: objeto.residuoCatalogo?.nombre ?? objeto.nombreOtro ?? 'Objeto',
+    categoria: objeto.residuoCatalogo?.categoria ?? null,
+    cantidad: objeto.cantidad,
+    precioUnitario: objeto.residuoCatalogo?.precio ?? null,
+  };
+}
 
 /** Lo que la API ciudadana muestra de una revisión (nunca revisor ni checklist). */
 export interface RevisionVisible {
@@ -38,6 +61,13 @@ export interface SolicitudPublica {
   updatedAt: Date;
   residuoCatalogo?: SolicitudRetiro['residuoCatalogo'];
   fotoUrl: string | null;
+  /** Solo cuando se cargaron; las solicitudes de antes traen uno. */
+  objetos?: ObjetoPublico[];
+  /**
+   * Suma de precio × cantidad si todo es del catálogo; null si algún objeto
+   * está fuera de él y el monto lo presupuesta el funcionario.
+   */
+  precioSugerido?: number | null;
   ultimaRevision?: RevisionVisible | null;
 }
 
@@ -84,6 +114,12 @@ export function aSolicitudPublica(
     updatedAt: solicitud.updatedAt,
     residuoCatalogo: solicitud.residuoCatalogo,
     fotoUrl: fotoUrlDe(solicitud),
+    ...(solicitud.objetos
+      ? {
+          objetos: solicitud.objetos.map(aObjetoPublico),
+          precioSugerido: precioSugerido(solicitud.objetos),
+        }
+      : {}),
     ...(extras.ultimaRevision !== undefined
       ? { ultimaRevision: extras.ultimaRevision }
       : {}),

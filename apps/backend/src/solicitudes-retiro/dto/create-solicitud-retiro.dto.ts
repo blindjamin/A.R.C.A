@@ -29,6 +29,16 @@ export class CreateSolicitudRetiroDto {
   @MaxLength(150)
   nombreResiduoOtro?: string;
 
+  /**
+   * Lista de objetos en JSON (HU-01): `[{ residuoCatalogoId?, nombreOtro?,
+   * cantidad }]`. Si no viene, la solicitud tiene un solo objeto, el de
+   * `residuoCatalogoId` o `nombreResiduoOtro`. La valida `leerObjetosPedidos`.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  objetos?: string;
+
   @IsString()
   @IsNotEmpty({ message: 'La dirección de retiro es obligatoria' })
   @MaxLength(500)

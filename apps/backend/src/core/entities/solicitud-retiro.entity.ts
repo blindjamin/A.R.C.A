@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { FotoRetiro } from './foto-retiro.entity';
+import { ObjetoSolicitudRetiro } from './objeto-solicitud-retiro.entity';
 import { ResiduoCatalogo } from './residuo-catalogo.entity';
 import { UsuarioAdministrador } from './usuario-administrador.entity';
 import { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -156,4 +157,11 @@ export class SolicitudRetiro {
 
   @OneToMany(() => FotoRetiro, (foto) => foto.solicitudRetiro)
   fotos: FotoRetiro[];
+
+  /**
+   * Objetos a retirar (HU-01). Cargarlos solo para leer: guardar una solicitud
+   * con esta relación cargada haría que TypeORM sincronice la lista.
+   */
+  @OneToMany(() => ObjetoSolicitudRetiro, (objeto) => objeto.solicitudRetiro)
+  objetos?: ObjetoSolicitudRetiro[];
 }

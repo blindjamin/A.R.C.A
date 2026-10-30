@@ -5,6 +5,7 @@ import {
   cancelarSolicitud,
   fetchSolicitud,
   formatearPrecio,
+  resumenObjetos,
   type SolicitudRetiro,
 } from '../api/arca';
 import {
@@ -236,7 +237,7 @@ export default function PantallaPago() {
                 Residuo
               </span>
               <p className="font-medium text-ink truncate mt-0.5">
-                {solicitud.residuoCatalogo?.nombre ?? solicitud.nombreResiduoOtro ?? 'Residuo'}
+                {resumenObjetos(solicitud)}
               </p>
             </div>
             <div>
@@ -409,7 +410,7 @@ export default function PantallaPago() {
           <div className="flex justify-between py-1">
             <span className="text-slate">Ítem:</span>
             <span className="font-semibold text-ink">
-              {solicitud.residuoCatalogo?.nombre ?? solicitud.nombreResiduoOtro ?? 'Residuo'}
+              {resumenObjetos(solicitud)}
             </span>
           </div>
 

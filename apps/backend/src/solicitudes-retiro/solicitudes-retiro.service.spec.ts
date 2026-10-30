@@ -16,6 +16,7 @@ import {
   type SolicitudRetiro,
   TipoFotoRetiro,
   type UsuarioCiudadano,
+  ObjetoSolicitudRetiro,
 } from '../core';
 import type { ArchivosService } from '../archivos/archivos.service';
 import type { Repository } from 'typeorm';
@@ -95,7 +96,40 @@ function montar(fila?: SolicitudRetiro) {
       ),
     ),
     find: jest.fn(() => Promise.resolve([])),
+    manager: {} as { transaction: unknown },
   };
+
+  // Objetos guardados (HU-01), como los dejaría la tabla `objetos_solicitud_retiro`.
+  let objetos: Partial<ObjetoSolicitudRetiro>[] = [];
+  const objetoRepo = {
+    find: jest.fn(() => Promise.resolve([...objetos])),
+  };
+  const em = {
+    save: jest.fn((destino: unknown, filas?: unknown) => {
+      if (destino === ObjetoSolicitudRetiro) {
+        objetos.push(...(filas as Partial<ObjetoSolicitudRetiro>[]));
+        return Promise.resolve(filas);
+      }
+      return solicitudRepo.save(destino as SolicitudRetiro);
+    }),
+    delete: jest.fn(() => {
+      objetos = [];
+      return Promise.resolve();
+    }),
+    update: jest.fn(
+      (
+        _destino: unknown,
+        donde: { orden: number },
+        cambios: Partial<ObjetoSolicitudRetiro>,
+      ) => {
+        objetos = objetos.map((o) =>
+          o.orden === donde.orden ? { ...o, ...cambios } : o,
+        );
+        return Promise.resolve();
+      },
+    ),
+  };
+  solicitudRepo.manager.transaction = (fn: (m: typeof em) => unknown) => fn(em);
 
   const ciudadanoRepo = {
     findOne: jest.fn(() =>
@@ -156,6 +190,7 @@ function montar(fila?: SolicitudRetiro) {
     ciudadanoRepo as unknown as Repository<UsuarioCiudadano>,
     revisionRepo as unknown as Repository<RevisionSolicitud>,
     fotoRepo as unknown as Repository<FotoRetiro>,
+    objetoRepo as unknown as Repository<ObjetoSolicitudRetiro>,
     residuos as unknown as ResiduosService,
     auditoria as unknown as AuditoriaService,
     archivos as unknown as ArchivosService,
@@ -170,6 +205,7 @@ function montar(fila?: SolicitudRetiro) {
     auditoria,
     archivos,
     guardada: () => guardada,
+    objetos: () => objetos,
   };
 }
 
@@ -197,9 +233,67 @@ describe('SolicitudesRetiroService.create', () => {
     expect(auditoria.registrar).toHaveBeenCalledWith(
       expect.objectContaining({
         accion: AccionAuditoria.CREATE,
-        datosNuevos: { estado: EstadoSolicitudRetiro.EN_REVISION },
+        datosNuevos: { estado: EstadoSolicitudRetiro.EN_REVISION, objetos: 1 },
       }),
     );
+  });
+
+  it('guarda varios objetos con su cantidad; el primero queda como principal', async () => {
+    const { service, guardada, objetos } = montar();
+
+    await service.create(
+      {
+        usuarioCiudadanoId: CIUDADANO_ID,
+        direccionRetiro: 'Calle 1',
+        objetos: JSON.stringify([
+          { residuoCatalogoId: 2, cantidad: 3 },
+          { nombreOtro: 'Hamaca' },
+        ]),
+      },
+      FOTO,
+      VECINO,
+    );
+
+    expect(guardada()?.residuoCatalogoId).toBe(2);
+    expect(guardada()?.nombreResiduoOtro).toBeNull();
+    expect(objetos()).toEqual([
+      expect.objectContaining({ residuoCatalogoId: 2, cantidad: 3, orden: 0 }),
+      expect.objectContaining({ nombreOtro: 'Hamaca', cantidad: 1, orden: 1 }),
+    ]);
+  });
+
+  it('con una lista inválida responde 400 sin guardar la foto', async () => {
+    const { service, archivos } = montar();
+
+    await expect(
+      service.create(
+        {
+          usuarioCiudadanoId: CIUDADANO_ID,
+          direccionRetiro: 'Calle 1',
+          objetos: JSON.stringify([{ residuoCatalogoId: 2, cantidad: 0 }]),
+        },
+        FOTO,
+        VECINO,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(archivos.guardarImagen).not.toHaveBeenCalled();
+  });
+
+  it('con un objeto que no está en el catálogo responde 404', async () => {
+    const { service, residuos } = montar();
+    residuos.findCatalogoById.mockResolvedValueOnce(null);
+
+    await expect(
+      service.create(
+        {
+          usuarioCiudadanoId: CIUDADANO_ID,
+          direccionRetiro: 'Calle 1',
+          objetos: JSON.stringify([{ residuoCatalogoId: 999 }]),
+        },
+        FOTO,
+        VECINO,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('sin foto responde 400', async () => {
@@ -408,6 +502,64 @@ describe('SolicitudesRetiroService.reenviarPorCiudadano', () => {
     expect(JSON.stringify(auditoria.registrar.mock.calls)).not.toContain(
       'Sillón',
     );
+  });
+
+  it('corregir solo el residuo cambia el objeto principal y conserva los demás', async () => {
+    const { service, objetos, guardada } = montar(requiereModificacion());
+    objetos().push(
+      {
+        solicitudRetiroId: 7,
+        residuoCatalogoId: 1,
+        nombreOtro: null,
+        cantidad: 1,
+        orden: 0,
+      },
+      {
+        solicitudRetiroId: 7,
+        residuoCatalogoId: null,
+        nombreOtro: 'Piano',
+        cantidad: 1,
+        orden: 1,
+      },
+    );
+
+    await service.reenviarPorCiudadano(
+      7,
+      { residuoCatalogoId: 4 },
+      undefined,
+      VECINO,
+    );
+
+    expect(guardada()?.residuoCatalogoId).toBe(4);
+    expect(objetos()).toEqual([
+      expect.objectContaining({ residuoCatalogoId: 4, orden: 0 }),
+      expect.objectContaining({ nombreOtro: 'Piano', orden: 1 }),
+    ]);
+  });
+
+  it('una lista nueva de objetos reemplaza la anterior', async () => {
+    const { service, guardada, objetos } = montar(requiereModificacion());
+
+    await service.reenviarPorCiudadano(
+      7,
+      {
+        objetos: JSON.stringify([
+          { nombreOtro: 'Piano' },
+          { residuoCatalogoId: 2, cantidad: 2 },
+        ]),
+      },
+      undefined,
+      VECINO,
+    );
+
+    expect(guardada()).toMatchObject({
+      residuoCatalogoId: null,
+      nombreResiduoOtro: 'Piano',
+    });
+    expect(objetos()).toEqual([
+      expect.objectContaining({ nombreOtro: 'Piano', orden: 0 }),
+      expect.objectContaining({ residuoCatalogoId: 2, cantidad: 2, orden: 1 }),
+    ]);
   });
 
   it('sin correcciones también se puede reenviar, y la auditoría lleva solo el estado', async () => {
