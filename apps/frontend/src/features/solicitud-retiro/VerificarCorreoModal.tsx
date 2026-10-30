@@ -3,7 +3,6 @@ import {
   solicitarCodigoCorreo,
   verificarCodigoCorreo,
 } from '../../api/arca';
-import { guardarPerfilVecino } from '../../utils/perfilStorage';
 
 interface VerificarCorreoModalProps {
   ciudadanoId: string | null;
@@ -68,11 +67,7 @@ export function VerificarCorreoModal({
       );
 
       if (res.verificado) {
-        // Guardar en el perfil del usuario para que nunca más se lo vuelva a pedir
-        guardarPerfilVecino(ciudadanoId, {
-          email: email.trim(),
-          emailVerificado: true,
-        });
+        // El servidor ya guardó el correo verificado: el perfil lo lee de ahí.
         onVerificado(email.trim());
       } else {
         setError(res.mensaje || 'El código ingresado no es válido');

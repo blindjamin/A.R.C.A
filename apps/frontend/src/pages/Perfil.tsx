@@ -1,6 +1,13 @@
-import { useState, useId } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
+import {
+  actualizarPerfil,
+  borrarPerfilLocal,
+  fetchPerfil,
+  type PerfilVecino,
+} from '../api/perfil';
+import { VerificarCorreoModal } from '../features/solicitud-retiro/VerificarCorreoModal';
 import {
   IconCircularCredits,
   IconMarketplace,
@@ -13,14 +20,12 @@ import {
   IconMail,
   IconPhone,
   IconMapPin,
-  IconBuilding,
   IconPencil,
   IconX,
   IconCheck,
+  IconEye,
+  IconEyeOff,
 } from '../components/ui/Icons';
-
-import { type PerfilCiudadano } from '../utils/perfilStorage';
-export type { PerfilCiudadano };
 
 interface MovimientoCredito {
   id: string;
@@ -66,17 +71,9 @@ const MOVIMIENTOS_DEMO: MovimientoCredito[] = [
   },
 ];
 
-const SECTORES_SANTO_DOMINGO = [
-  'Rocas de Santo Domingo',
-  'Santa María del Mar',
-  'Santo Domingo Urbano',
-  'El Convento',
-  'Bucalemu',
-  'Las Brisas de Santo Domingo',
-  'San Enrique',
-  'El Yali',
-  'Mostazal',
-];
+// Mismos topes que `ActualizarPerfilDto` en el backend.
+const LARGO_MAXIMO_TELEFONO = 20;
+const LARGO_MAXIMO_DIRECCION = 2000;
 
 /**
  * Validador estricto: devuelve true solo si el campo existe y tiene texto no vacío.
@@ -86,11 +83,66 @@ function tieneValor(valor?: string | null): valor is string {
   return typeof valor === 'string' && valor.trim().length > 0;
 }
 
+/** Deja ver solo el comienzo del correo: «mi•••@correo.cl». */
+function ocultarCorreo(email: string): string {
+  const [usuario, dominio] = email.split('@');
+  if (!dominio) return '••••••';
+  return `${usuario.slice(0, 2)}•••@${dominio}`;
+}
+
+/** Deja ver solo los últimos cuatro dígitos: «•••• 4321». */
+function ocultarTelefono(telefono: string): string {
+  const digitos = telefono.replace(/\D/g, '');
+  return digitos.length > 4 ? `•••• ${digitos.slice(-4)}` : '••••';
+}
+
+/** Muestra el error del servidor en palabras del vecino, sin el detalle técnico. */
+function mensajeDeError(err: unknown, porDefecto: string): string {
+  const texto = err instanceof Error ? err.message : '';
+  if (texto.startsWith('Error 400')) {
+    return 'Revisa los datos: el teléfono admite hasta 20 caracteres.';
+  }
+  if (texto.startsWith('Error 401')) {
+    return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+  }
+  return porDefecto;
+}
+
+/** Valor oculto por defecto, con un botón «ojo» para verlo. */
+function DatoOculto({
+  valor,
+  oculto,
+  etiqueta,
+}: {
+  valor: string;
+  oculto: string;
+  etiqueta: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span className="flex items-center gap-2">
+      <span className="truncate">{visible ? valor : oculto}</span>
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? `Ocultar ${etiqueta}` : `Mostrar ${etiqueta}`}
+        aria-pressed={visible}
+        className="shrink-0 rounded-md p-1 text-slate hover:bg-canvas hover:text-green-700"
+      >
+        {visible ? (
+          <IconEyeOff className="h-4 w-4" />
+        ) : (
+          <IconEye className="h-4 w-4" />
+        )}
+      </button>
+    </span>
+  );
+}
+
 export default function Perfil() {
   const { sesion, salir } = useSession();
 
   const modalTitleId = useId();
-  const storageKey = `arca_perfil_vecino_${sesion?.ciudadanoId || 'default'}`;
   const storageSaldoKey = `arca_cc_saldo_${sesion?.ciudadanoId || 'default'}`;
 
   const [saldoCC] = useState<number>(() => {
@@ -105,103 +157,78 @@ export default function Perfil() {
     return 120;
   });
 
-  // Inicializar estado del perfil desde localStorage o valores por defecto
-  const [perfil, setPerfil] = useState<PerfilCiudadano>(() => {
-    try {
-      const guardado = localStorage.getItem(storageKey);
-      if (guardado) {
-        // `rut` puede venir de perfiles guardados antes de dejar de mostrarlo:
-        // se descarta y no se vuelve a escribir.
-        const perfilGuardado = JSON.parse(guardado) as PerfilCiudadano & {
-          rut?: string;
-        };
-        delete perfilGuardado.rut;
-        // El contacto con el vecino es solo por correo o llamada.
-        if (perfilGuardado.canalPreferido === 'WhatsApp / SMS') {
-          delete perfilGuardado.canalPreferido;
-        }
-        // El nombre lo entrega ClaveÚnica: manda el de la sesión, no el guardado.
-        return {
-          ...perfilGuardado,
-          nombre: sesion?.nombre || perfilGuardado.nombre,
-        };
-      }
-    } catch {
-      // Ignorar error de parsing
-    }
+  // El contacto se lee del servidor; el navegador no guarda datos personales.
+  const [perfil, setPerfil] = useState<PerfilVecino | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
 
-    // Sin perfil guardado: solo el nombre de ClaveÚnica. Los datos de contacto
-    // los agrega el vecino; nunca se muestran datos de ejemplo como si fueran suyos.
-    return { nombre: sesion?.nombre || 'Vecino de Santo Domingo' };
-  });
+  useEffect(() => {
+    borrarPerfilLocal();
+    fetchPerfil()
+      .then(setPerfil)
+      .catch((err: unknown) =>
+        setErrorCarga(
+          mensajeDeError(err, 'No pudimos cargar tus datos de contacto. Intenta de nuevo.'),
+        ),
+      );
+  }, []);
+
+  // El nombre lo entrega ClaveÚnica: el vecino no lo edita.
+  const nombre = perfil?.nombre || sesion?.nombre || 'Vecino de Santo Domingo';
 
   // Estado del modal de edición
   const [editando, setEditando] = useState(false);
+  const [cambiandoCorreo, setCambiandoCorreo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
   const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
   // Formulario temporal de edición
-  const [formEmail, setFormEmail] = useState(perfil.email ?? '');
-  const [formTelefono, setFormTelefono] = useState(perfil.telefono ?? '');
-  const [formDireccion, setFormDireccion] = useState(perfil.direccion ?? '');
-  const [formSector, setFormSector] = useState(perfil.sector ?? '');
-  const [formCanalPreferido, setFormCanalPreferido] = useState(
-    perfil.canalPreferido ?? '',
-  );
+  const [formTelefono, setFormTelefono] = useState('');
+  const [formDireccion, setFormDireccion] = useState('');
 
-  const abrirEditor = () => {
-    setFormEmail(perfil.email ?? '');
-    setFormTelefono(perfil.telefono ?? '');
-    setFormDireccion(perfil.direccion ?? '');
-    setFormSector(perfil.sector ?? '');
-    setFormCanalPreferido(perfil.canalPreferido ?? '');
-    setEditando(true);
-  };
-
-  const guardarCambios = (e: React.FormEvent) => {
-    e.preventDefault();
-    const nuevoPerfil: PerfilCiudadano = {
-      // El nombre lo entrega ClaveÚnica: el vecino no lo edita.
-      nombre: perfil.nombre,
-      email: formEmail.trim() ? formEmail.trim() : undefined,
-      emailVerificado:
-        Boolean(perfil.emailVerificado && formEmail.trim() === perfil.email),
-      telefono: formTelefono.trim() ? formTelefono.trim() : undefined,
-      direccion: formDireccion.trim() ? formDireccion.trim() : undefined,
-      sector: formSector.trim() ? formSector.trim() : undefined,
-      canalPreferido: formCanalPreferido.trim()
-        ? formCanalPreferido.trim()
-        : undefined,
-    };
-
-    setPerfil(nuevoPerfil);
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(nuevoPerfil));
-    } catch {
-      // Ignorar fallback
-    }
-
-    setEditando(false);
-    setMensajeExito('Datos de perfil actualizados correctamente.');
+  const mostrarExito = (mensaje: string) => {
+    setMensajeExito(mensaje);
     setTimeout(() => setMensajeExito(null), 3500);
   };
 
-  const limpiarCamposOpcionales = () => {
-    setFormEmail('');
-    setFormTelefono('');
-    setFormDireccion('');
-    setFormSector('');
-    setFormCanalPreferido('');
+  const abrirEditor = () => {
+    // Sin el perfil cargado, guardar el formulario vacío borraría el contacto.
+    if (!perfil) return;
+    setFormTelefono(perfil?.telefono ?? '');
+    setFormDireccion(perfil?.direccion ?? '');
+    setErrorGuardar(null);
+    setEditando(true);
   };
 
-  const cargarDatosEjemplo = () => {
-    setFormEmail('maximiliano.vecino@santodomingo.cl');
-    setFormTelefono('+56 9 8765 4321');
-    setFormDireccion('Calle Las Torcazas 420');
-    setFormSector('Rocas de Santo Domingo');
-    setFormCanalPreferido('Correo Electrónico');
+  const guardarCambios = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuardando(true);
+    setErrorGuardar(null);
+    try {
+      // Un texto vacío borra el dato: el vecino puede dejar de compartirlo.
+      const actualizado = await actualizarPerfil({
+        telefono: formTelefono.trim(),
+        direccion: formDireccion.trim(),
+      });
+      setPerfil(actualizado);
+      setEditando(false);
+      mostrarExito('Datos de perfil actualizados correctamente.');
+    } catch (err) {
+      setErrorGuardar(
+        mensajeDeError(err, 'No pudimos guardar tus datos. Intenta de nuevo.'),
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
-  const iniciales = perfil.nombre
+  const correoVerificado = (email: string) => {
+    setCambiandoCorreo(false);
+    setPerfil((actual) => (actual ? { ...actual, email } : actual));
+    mostrarExito('Correo verificado y actualizado.');
+  };
+
+  const iniciales = nombre
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
@@ -215,11 +242,9 @@ export default function Perfil() {
 
   // Verificar si hay algún dato de contacto opcional con contenido real
   const hayDatosContacto =
-    tieneValor(perfil.email) ||
-    tieneValor(perfil.telefono) ||
-    tieneValor(perfil.direccion) ||
-    tieneValor(perfil.sector) ||
-    tieneValor(perfil.canalPreferido);
+    tieneValor(perfil?.email) ||
+    tieneValor(perfil?.telefono) ||
+    tieneValor(perfil?.direccion);
 
   return (
     <div className="page-text-contrast space-y-6 max-w-4xl mx-auto pb-10">
@@ -256,21 +281,12 @@ export default function Perfil() {
             </div>
             <div className="space-y-1">
               <h2 className="text-xl font-bold text-ink sm:text-2xl">
-                {perfil.nombre}
+                {nombre}
               </h2>
               <div className="flex flex-wrap items-center gap-2 text-xs text-slate">
                 <span className="font-medium text-ink-2">Vecino Acreditado</span>
                 <span>•</span>
                 <span>Comuna de Santo Domingo</span>
-                {tieneValor(perfil.sector) && (
-                  <>
-                    <span>•</span>
-                    <span className="inline-flex items-center gap-1 font-semibold text-green-700">
-                      <IconBuilding className="h-3 w-3" />
-                      {perfil.sector}
-                    </span>
-                  </>
-                )}
               </div>
               <p className="text-xs font-mono text-slate-2">
                 ID Vecino: <span className="text-ink-2">{idMostrable}</span>
@@ -433,9 +449,17 @@ export default function Perfil() {
           </button>
         </div>
 
-        {hayDatosContacto ? (
+        {errorCarga ? (
+          <div className="card p-6 text-center" role="alert">
+            <p className="text-sm font-medium text-rose-600">{errorCarga}</p>
+          </div>
+        ) : !perfil ? (
+          <div className="card p-6 text-center">
+            <p className="text-sm text-slate">Cargando tus datos de contacto…</p>
+          </div>
+        ) : hayDatosContacto ? (
           <div className="grid gap-3 sm:grid-cols-2">
-            {/* Correo Electrónico (opcional: solo si está relleno) */}
+            {/* Correo y teléfono se muestran ocultos hasta que el vecino toca el «ojo». */}
             {tieneValor(perfil.email) && (
               <div className="card flex items-start gap-3 p-4">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
@@ -445,19 +469,17 @@ export default function Perfil() {
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
                     Correo Electrónico
                   </span>
-                  <p className="truncate text-sm font-semibold text-ink">
-                    <a
-                      href={`mailto:${perfil.email}`}
-                      className="hover:text-green-700 hover:underline"
-                    >
-                      {perfil.email}
-                    </a>
-                  </p>
+                  <div className="text-sm font-semibold text-ink">
+                    <DatoOculto
+                      valor={perfil.email}
+                      oculto={ocultarCorreo(perfil.email)}
+                      etiqueta="correo"
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Teléfono de Contacto (opcional: solo si está relleno) */}
             {tieneValor(perfil.telefono) && (
               <div className="card flex items-start gap-3 p-4">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
@@ -467,14 +489,13 @@ export default function Perfil() {
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
                     Teléfono de Contacto
                   </span>
-                  <p className="truncate text-sm font-semibold text-ink">
-                    <a
-                      href={`tel:${perfil.telefono}`}
-                      className="hover:text-green-700 hover:underline"
-                    >
-                      {perfil.telefono}
-                    </a>
-                  </p>
+                  <div className="text-sm font-semibold text-ink">
+                    <DatoOculto
+                      valor={perfil.telefono}
+                      oculto={ocultarTelefono(perfil.telefono)}
+                      etiqueta="teléfono"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -491,40 +512,6 @@ export default function Perfil() {
                   </span>
                   <p className="truncate text-sm font-semibold text-ink">
                     {perfil.direccion}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Sector / Cuadrante Municipal (opcional: solo si está relleno) */}
-            {tieneValor(perfil.sector) && (
-              <div className="card flex items-start gap-3 p-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
-                  <IconBuilding className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
-                    Sector / Cuadrante Municipal
-                  </span>
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {perfil.sector}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Canal Preferente de Notificación (opcional: solo si está relleno) */}
-            {tieneValor(perfil.canalPreferido) && (
-              <div className="card flex items-start gap-3 p-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
-                  <IconClipboard className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
-                    Canal Preferente de Notificación
-                  </span>
-                  <p className="truncate text-sm font-semibold text-ink">
-                    {perfil.canalPreferido}
                   </p>
                 </div>
               </div>
@@ -704,7 +691,7 @@ export default function Perfil() {
               </button>
             </div>
 
-            <form onSubmit={guardarCambios} className="mt-5 space-y-4">
+            <form onSubmit={(e) => void guardarCambios(e)} className="mt-5 space-y-4">
               {/* Nombre: lo entrega ClaveÚnica, no se edita */}
               <div>
                 <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
@@ -713,7 +700,7 @@ export default function Perfil() {
                 <input
                   type="text"
                   readOnly
-                  value={perfil.nombre}
+                  value={nombre}
                   className="field cursor-not-allowed text-slate"
                 />
                 <p className="mt-1 text-[11px] text-slate-2">
@@ -721,121 +708,79 @@ export default function Perfil() {
                 </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* Correo (opcional) */}
-                <div>
-                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
-                    Correo Electrónico <span className="font-normal text-slate-2">(opcional)</span>
-                  </label>
+              {/* Correo: se cambia solo verificándolo con un código. */}
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
+                  Correo Electrónico
+                </label>
+                <div className="flex items-center gap-2">
                   <input
-                    type="email"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    placeholder="ejemplo@correo.cl"
-                    className="field"
+                    type="text"
+                    readOnly
+                    value={perfil?.email ? ocultarCorreo(perfil.email) : 'Sin correo registrado'}
+                    className="field cursor-not-allowed text-slate"
                   />
-                  <p className="mt-1 text-[11px] text-slate-2">
-                    Si lo dejas vacío, no se mostrará en pantalla.
-                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setCambiandoCorreo(true)}
+                    className="btn-outline shrink-0 py-2 px-3 text-xs font-semibold"
+                  >
+                    {perfil?.email ? 'Cambiar' : 'Agregar'}
+                  </button>
                 </div>
-
-                {/* Teléfono (opcional) */}
-                <div>
-                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
-                    Teléfono de Contacto <span className="font-normal text-slate-2">(opcional)</span>
-                  </label>
-                  <input
-                    type="tel"
-                    value={formTelefono}
-                    onChange={(e) => setFormTelefono(e.target.value)}
-                    placeholder="+56 9 1234 5678"
-                    className="field"
-                  />
-                  <p className="mt-1 text-[11px] text-slate-2">
-                    Si lo dejas vacío, no se mostrará en pantalla.
-                  </p>
-                </div>
+                <p className="mt-1 text-[11px] text-slate-2">
+                  Te enviaremos un código para verificarlo.
+                </p>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* Sector Municipal (opcional) */}
-                <div>
-                  <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
-                    Sector / Cuadrante <span className="font-normal text-slate-2">(opcional)</span>
-                  </label>
-                  <select
-                    value={formSector}
-                    onChange={(e) => setFormSector(e.target.value)}
-                    className="field"
-                  >
-                    <option value="">(Sin sector especificado - se ocultará)</option>
-                    {SECTORES_SANTO_DOMINGO.map((sec) => (
-                      <option key={sec} value={sec}>
-                        {sec}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-[11px] text-slate-2">
-                    Sector de retiro en Santo Domingo.
-                  </p>
-                </div>
+              {/* Teléfono (opcional) */}
+              <div>
+                <label
+                  htmlFor="perfil-telefono"
+                  className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate"
+                >
+                  Teléfono de Contacto <span className="font-normal text-slate-2">(opcional)</span>
+                </label>
+                <input
+                  id="perfil-telefono"
+                  type="tel"
+                  value={formTelefono}
+                  onChange={(e) => setFormTelefono(e.target.value)}
+                  maxLength={LARGO_MAXIMO_TELEFONO}
+                  placeholder="+56 9 1234 5678"
+                  className="field"
+                />
+                <p className="mt-1 text-[11px] text-slate-2">
+                  Si lo dejas vacío, se borra de A.R.C.A.
+                </p>
               </div>
 
               {/* Dirección Domiciliaria (opcional) */}
               <div>
-                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
+                <label
+                  htmlFor="perfil-direccion"
+                  className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate"
+                >
                   Dirección Domiciliaria <span className="font-normal text-slate-2">(opcional)</span>
                 </label>
                 <input
+                  id="perfil-direccion"
                   type="text"
                   value={formDireccion}
                   onChange={(e) => setFormDireccion(e.target.value)}
+                  maxLength={LARGO_MAXIMO_DIRECCION}
                   placeholder="Calle, pasaje o avenida y número"
                   className="field"
                 />
                 <p className="mt-1 text-[11px] text-slate-2">
-                  Si se deja vacío, no se mostrará en pantalla.
+                  Se propone al pedir un retiro; puedes cambiarla en cada solicitud.
                 </p>
               </div>
 
-              {/* Canal de Notificación Preferente (opcional) */}
-              <div>
-                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
-                  Canal de Notificación Preferente <span className="font-normal text-slate-2">(opcional)</span>
-                </label>
-                <select
-                  value={formCanalPreferido}
-                  onChange={(e) => setFormCanalPreferido(e.target.value)}
-                  className="field"
-                >
-                  <option value="">(Sin preferencia - se ocultará)</option>
-                  <option value="Correo Electrónico">Correo Electrónico</option>
-                  <option value="Llamada Telefónica">Llamada Telefónica</option>
-                </select>
-              </div>
-
-              {/* Herramientas de prueba: solo en desarrollo, nunca en producción. */}
-              {import.meta.env.DEV && (
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-canvas/70 p-3 text-xs border border-line">
-                  <span className="text-slate font-medium">Herramientas de prueba:</span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={limpiarCamposOpcionales}
-                      className="text-rose-600 hover:underline font-semibold"
-                    >
-                      Limpiar opcionales
-                    </button>
-                    <span className="text-line">•</span>
-                    <button
-                      type="button"
-                      onClick={cargarDatosEjemplo}
-                      className="text-green-700 hover:underline font-semibold"
-                    >
-                      Cargar datos demo
-                    </button>
-                  </div>
-                </div>
+              {errorGuardar && (
+                <p role="alert" className="pill w-full bg-rose-100 text-rose-600">
+                  {errorGuardar}
+                </p>
               )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-line">
@@ -848,14 +793,23 @@ export default function Perfil() {
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary py-2 px-5 text-xs font-semibold"
+                  disabled={guardando}
+                  className="btn-primary py-2 px-5 text-xs font-semibold disabled:opacity-60"
                 >
-                  Guardar cambios
+                  {guardando ? 'Guardando…' : 'Guardar cambios'}
                 </button>
               </div>
             </form>
           </div>
         </div>
+      )}
+
+      {cambiandoCorreo && (
+        <VerificarCorreoModal
+          ciudadanoId={sesion?.ciudadanoId ?? null}
+          onVerificado={correoVerificado}
+          onCerrar={() => setCambiandoCorreo(false)}
+        />
       )}
     </div>
   );
