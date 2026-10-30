@@ -212,6 +212,7 @@ con esa misma regla.
 | No tocar | Por qué |
 |---|---|
 | `.env`, `.env.local` | Contienen credenciales; no se versionan ni se muestran en respuestas |
+| Datos del servidor municipal en el repo | El repo es público: nombres de cuentas cPanel, SSH o MySQL, rutas `/home/...` y hosts internos van como marcador (`<cuenta>`), nunca el valor real |
 | Migraciones ya aplicadas | Se corrigen con una **migración nueva**, jamás editando una existente |
 | `docs/ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
 | Sistema CAS Chile (Power Builder + Sybase) | Está fuera del alcance de ARCA. No integrar |
