@@ -62,25 +62,37 @@ export default function PantallaPago() {
   const [errorPago, setErrorPago] = useState<string | null>(null);
   const [reintentar, setReintentar] = useState(false);
   const [traspasando, setTraspasando] = useState(false);
+  const [errorComprobante, setErrorComprobante] = useState(false);
 
+  // Por separado: si falla el comprobante, la solicitud igual se muestra.
   useEffect(() => {
     if (!idValido) return;
     let vigente = true;
-    Promise.all([
+    void Promise.allSettled([
       solicitudInicial ? Promise.resolve(solicitudInicial) : fetchSolicitud(solicitudId),
       fetchComprobante(solicitudId),
-    ])
-      .then(([s, c]) => {
-        if (!vigente) return;
-        setSolicitud(s);
-        setComprobante(c);
-      })
-      .catch((err: Error) => vigente && setErrorCarga(mensajeDeError(err)))
-      .finally(() => vigente && setCargando(false));
+    ]).then(([s, c]) => {
+      if (!vigente) return;
+      if (s.status === 'fulfilled') setSolicitud(s.value);
+      else setErrorCarga(mensajeDeError(s.reason));
+      if (c.status === 'fulfilled') setComprobante(c.value);
+      else setErrorComprobante(true);
+      setCargando(false);
+    });
     return () => {
       vigente = false;
     };
   }, [idValido, solicitudId, solicitudInicial]);
+
+  // Si el vecino vuelve desde Webpay con «atrás», la página sale del bfcache
+  // con el botón deshabilitado: se rehabilita.
+  useEffect(() => {
+    const alVolver = (e: PageTransitionEvent) => {
+      if (e.persisted) setRedirigiendo(false);
+    };
+    window.addEventListener('pageshow', alVolver);
+    return () => window.removeEventListener('pageshow', alVolver);
+  }, []);
 
   if (cargando) {
     return (
@@ -101,7 +113,7 @@ export default function PantallaPago() {
           <button
             type="button"
             onClick={() => navigate('/mis-solicitudes')}
-            className="btn-outline text-xs px-4 py-2"
+            className="btn-outline min-h-[44px] text-xs px-4 py-2"
           >
             Volver a Mis solicitudes
           </button>
@@ -110,7 +122,8 @@ export default function PantallaPago() {
     );
   }
 
-  const monto = comprobante?.monto ?? solicitud.monto ?? 0;
+  const monto = comprobante?.monto ?? solicitud.monto ?? null;
+  const montoTexto = monto ? formatearPrecio(monto) : '—';
   const pagado = comprobante?.estadoPago === 'pagado';
   const noPagado =
     !pagado && !reintentar && esResultado(resultadoVuelta) && resultadoVuelta !== 'aprobado'
@@ -212,7 +225,7 @@ export default function PantallaPago() {
                 Total pagado
               </span>
               <p className="text-xl font-extrabold text-forest-700 mt-0.5">
-                {formatearPrecio(monto)}
+                {montoTexto}
               </p>
             </div>
             <div className="text-right">
@@ -272,7 +285,7 @@ export default function PantallaPago() {
           <button
             type="button"
             onClick={() => window.print()}
-            className="w-full text-center py-1 text-xs text-slate hover:text-ink transition-colors font-medium"
+            className="min-h-[44px] w-full text-center py-1 text-xs text-slate hover:text-ink transition-colors font-medium"
           >
             Imprimir o guardar comprobante
           </button>
@@ -325,7 +338,7 @@ export default function PantallaPago() {
 
           <div className="flex items-center justify-between rounded-md bg-canvas px-3 py-2 text-xs border border-line/60">
             <span className="text-slate">Monto por pagar:</span>
-            <span className="font-bold text-ink">{formatearPrecio(monto)}</span>
+            <span className="font-bold text-ink">{montoTexto}</span>
           </div>
         </section>
 
@@ -343,7 +356,7 @@ export default function PantallaPago() {
             type="button"
             onClick={() => void handleTraspasoMarketplace()}
             disabled={traspasando}
-            className="btn-gold w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2 disabled:opacity-50"
+            className="btn-gold min-h-[44px] w-full py-2.5 text-xs font-bold shadow-2xs flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span>
               {traspasando
@@ -365,7 +378,7 @@ export default function PantallaPago() {
           <button
             type="button"
             onClick={() => navigate('/mis-solicitudes')}
-            className="w-full text-center py-1.5 text-xs text-slate hover:text-ink transition-colors font-medium"
+            className="min-h-[44px] w-full text-center py-1.5 text-xs text-slate hover:text-ink transition-colors font-medium"
           >
             Volver a Mis solicitudes
           </button>
@@ -426,7 +439,7 @@ export default function PantallaPago() {
           <div className="flex items-center justify-between border-t border-line pt-2.5 mt-1">
             <span className="text-sm font-bold text-ink">Total a pagar:</span>
             <span className="text-xl font-extrabold text-forest-700">
-              {formatearPrecio(monto)}
+              {montoTexto}
             </span>
           </div>
         </div>
@@ -454,6 +467,20 @@ export default function PantallaPago() {
           </div>
         </div>
 
+        {!monto && (
+          <p role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Esta solicitud todavía no tiene monto. Vuelve a intentarlo cuando la Municipalidad
+            confirme el presupuesto.
+          </p>
+        )}
+
+        {errorComprobante && (
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            No pudimos revisar si ya pagaste. Si pagaste hace poco, revisa Mis solicitudes antes
+            de pagar de nuevo.
+          </p>
+        )}
+
         {errorPago && (
           <p role="alert" className="rounded-md bg-rose-50 px-3 py-2 text-xs text-rose-700">
             {errorPago}
@@ -463,14 +490,16 @@ export default function PantallaPago() {
         <button
           type="button"
           onClick={() => void pagar()}
-          disabled={redirigiendo}
-          className="btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
+          disabled={redirigiendo || !monto}
+          className="btn-primary min-h-[44px] w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
         >
           <IconCreditCard className="h-4 w-4" />
           <span>
             {redirigiendo
               ? 'Conectando con Webpay…'
-              : `Pagar ${formatearPrecio(monto)} con Webpay`}
+              : monto
+                ? `Pagar ${montoTexto} con Webpay`
+                : 'Pagar con Webpay'}
           </span>
         </button>
       </section>

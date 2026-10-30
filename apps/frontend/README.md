@@ -79,7 +79,6 @@ src/
 │   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones, MarketplaceNav, calificar)
 │   │   ├── chat/                # Chat (HU-06): Chat, Bandeja y NoLeidosContext
 │   │   └── entrega/             # Entrega con código (HU-15): PanelEntrega y CodigoEntrega
-│   ├── pago/                    # Persistencia local de pagos y comprobantes (pagosStorage.ts)
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
 │       ├── CampoFoto · fotoSolicitud.ts  # Foto obligatoria de la solicitud (JPG/PNG/WebP, 5 MB)
