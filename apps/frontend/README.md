@@ -134,6 +134,16 @@ En la barra superior (`AppShell`), en el lugar del botón de perfil, que sigue e
 - **Mis publicaciones:** bloque «Entregas pendientes» con los artículos en `en_negociacion`, para llegar al código sin buscarlos en la lista.
 - **Chat:** el título de la cabecera enlaza al artículo, para volver al código desde la conversación.
 
+### Darse de baja (HU-38)
+
+`/perfil/baja` (`pages/DarseDeBaja.tsx`, `api/baja.ts`), enlazada al pie del perfil solo para el rol
+`vecino`. Primero pide `GET /api/perfil/baja` y muestra qué pasa (cuenta desactivada, publicaciones
+ocultas, contacto borrado, qué solicitudes sin pagar se cancelan) y qué la bloquea (solicitudes pagadas
+o en retiro, intercambios reservados), con enlaces a cada una. La confirmación exige marcar la casilla.
+Tras `POST /api/perfil/baja` navega a `/login?baja=<fecha de vuelta>`, que muestra desde cuándo puede
+volver; si intenta entrar antes de 48 h, el backend vuelve a `/login?error=baja-reciente`. A un
+funcionario la pantalla le explica que su baja la hace TI.
+
 ### Criterio de organización
 
 - **`features/`** — un módulo funcional completo (pantallas + estado + rutas) que se puede

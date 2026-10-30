@@ -21,6 +21,20 @@ const IDENTIDADES_DEV = {
 // Con este `?error=` vuelve el backend cuando el ingreso con ClaveÚnica no se
 // completó (cierre implícito). No trae el motivo, a propósito.
 const ERROR_INGRESO_CLAVE_UNICA = 'clave-unica';
+// El vecino se dio de baja hace menos de 48 h (HU-38): es su propia cuenta, así
+// que sí se le dice el motivo.
+const ERROR_BAJA_RECIENTE = 'baja-reciente';
+
+const formatoFechaHora = (iso: string): string | null => {
+  const fecha = new Date(iso);
+  return Number.isNaN(fecha.getTime())
+    ? null
+    : fecha.toLocaleString('es-CL', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+        hourCycle: 'h23',
+      });
+};
 
 // Cómo se usa la app, en tres pasos (pedido del patrocinador, 08-10-2026).
 const PASOS: { titulo: string; texto: string; Icon: ComponentType<IconProps> }[] = [
@@ -47,6 +61,9 @@ export default function Login() {
   const [searchParams] = useSearchParams();
   const ingresoFallido =
     searchParams.get('error') === ERROR_INGRESO_CLAVE_UNICA;
+  const bajaReciente = searchParams.get('error') === ERROR_BAJA_RECIENTE;
+  // Tras darse de baja, la pantalla de baja vuelve acá con la fecha de vuelta.
+  const volverDesde = formatoFechaHora(searchParams.get('baja') ?? '');
 
   // Paso provisorio de los accesos de desarrollo: pide los datos que en
   // producción entrega ClaveÚnica, para probar el perfil sin ella.
@@ -124,6 +141,24 @@ export default function Login() {
             >
               No pudimos completar tu ingreso con ClaveÚnica. Inténtalo de
               nuevo y, si el problema sigue, contacta a la Municipalidad.
+            </p>
+          )}
+          {bajaReciente && (
+            <p
+              role="alert"
+              className="rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-center text-sm text-white"
+            >
+              Te diste de baja hace poco. Podrás volver a entrar 48 horas después de
+              darte de baja.
+            </p>
+          )}
+          {volverDesde && (
+            <p
+              role="status"
+              className="rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-center text-sm text-white"
+            >
+              Te diste de baja de A.R.C.A. Podrás volver a entrar con ClaveÚnica desde
+              el {volverDesde}.
             </p>
           )}
           <div className="flex justify-center">
