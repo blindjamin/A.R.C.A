@@ -20,6 +20,7 @@ import {
   IconSearch,
   IconUser,
 } from '../../components/ui';
+import BotonDenunciar from '../denuncias/BotonDenunciar';
 import BotonReservar from './BotonReservar';
 import CalificarIntercambio from './CalificarIntercambio';
 import CodigoEntrega from './entrega/CodigoEntrega';
@@ -446,6 +447,15 @@ export default function DetalleArticulo() {
             cantidad={publicador.cantidadCalificaciones}
           />
         </div>
+        {!esPropio && (
+          <BotonDenunciar
+            articuloId={articulo.id}
+            origen="perfil"
+            nombre={publicador.nombre}
+            texto="Denunciar a este vecino"
+            className="shrink-0 self-start text-xs text-slate underline underline-offset-2 hover:text-rose-700"
+          />
+        )}
       </section>
 
       {esPropio ? (
@@ -508,6 +518,14 @@ export default function DetalleArticulo() {
             )
           )}
           {errorInteres && <p className="text-center text-xs text-rose-600">{errorInteres}</p>}
+          <p className="pt-2 text-center">
+            <BotonDenunciar
+              articuloId={articulo.id}
+              origen="articulo"
+              nombre={publicador.nombre}
+              texto="Denunciar esta publicación"
+            />
+          </p>
         </div>
       )}
     </div>
