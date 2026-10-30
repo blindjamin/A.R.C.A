@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 
 // HU-39: ayuda para vecinos. Pública como «Acerca de»: se llega desde el login
@@ -150,6 +150,9 @@ const GUIAS: { titulo: string; pasos: string[] }[] = [
 
 export default function Ayuda() {
   const navigate = useNavigate();
+  // Si se entró directo a /ayuda no hay historial en la app: `-1` sacaría de ella.
+  const { key } = useLocation();
+  const volver = () => (key === 'default' ? navigate('/') : navigate(-1));
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -157,8 +160,8 @@ export default function Ayuda() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => navigate(-1)}
-            className="rounded-pill px-3 py-1 text-sm hover:bg-white/15"
+            onClick={volver}
+            className="flex min-h-[44px] items-center rounded-pill px-3 py-1 text-sm hover:bg-white/15"
           >
             ← Volver
           </button>
@@ -173,13 +176,13 @@ export default function Ayuda() {
             Respuestas rápidas y una guía paso a paso para usar A.R.C.A.
           </p>
           <nav aria-label="Secciones de la ayuda" className="mt-3 flex flex-wrap gap-2 text-sm">
-            <a href="#preguntas" className="pill bg-green-50 font-semibold text-green-800">
+            <a href="#preguntas" className="pill min-h-[44px] bg-green-50 font-semibold text-green-800">
               Preguntas frecuentes
             </a>
-            <a href="#guia" className="pill bg-green-50 font-semibold text-green-800">
+            <a href="#guia" className="pill min-h-[44px] bg-green-50 font-semibold text-green-800">
               Guía paso a paso
             </a>
-            <a href="#contacto" className="pill bg-green-50 font-semibold text-green-800">
+            <a href="#contacto" className="pill min-h-[44px] bg-green-50 font-semibold text-green-800">
               Hablar con una persona
             </a>
           </nav>
@@ -195,7 +198,7 @@ export default function Ayuda() {
               <div className="card divide-y divide-line">
                 {grupo.preguntas.map((p) => (
                   <details key={p.pregunta} className="group px-4 py-3">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-ink">
+                    <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-3 font-semibold text-ink">
                       {p.pregunta}
                       <span
                         aria-hidden="true"
