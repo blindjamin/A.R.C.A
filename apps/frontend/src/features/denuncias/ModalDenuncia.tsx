@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   crearDenuncia,
@@ -42,13 +42,13 @@ export default function ModalDenuncia({
   const [error, setError] = useState<string | null>(null);
   const [enviada, setEnviada] = useState(false);
 
+  // `showModal` lleva el foco adentro, lo atrapa y cierra con Escape.
+  const dialogo = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const alTeclear = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCerrar();
-    };
-    window.addEventListener('keydown', alTeclear);
-    return () => window.removeEventListener('keydown', alTeclear);
-  }, [onCerrar]);
+    const d = dialogo.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  const cerrar = () => dialogo.current?.close();
 
   // Los pendientes de envío (id negativo) no existen en el servidor.
   const adjuntables = mensajes.filter((m) => m.id > 0).slice(-20);
@@ -85,26 +85,22 @@ export default function ModalDenuncia({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-      onClick={onCerrar}
+    // Sin cierre al tocar el fondo: se perdería lo escrito.
+    <dialog
+      ref={dialogo}
+      onClose={onCerrar}
+      aria-labelledby="titulo-denuncia"
+      className="card max-h-[90dvh] w-[calc(100%-2rem)] max-w-md space-y-4 overflow-y-auto bg-white p-6 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="titulo-denuncia"
-        className="card max-h-[90dvh] w-full max-w-md space-y-4 overflow-y-auto bg-white p-6 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
         <div className="flex items-start justify-between gap-3">
           <h2 id="titulo-denuncia" className="font-display text-lg font-bold text-ink">
             {enviada ? 'Denuncia enviada' : `Denunciar a ${nombre}`}
           </h2>
           <button
             type="button"
-            onClick={onCerrar}
+            onClick={cerrar}
             aria-label="Cerrar"
-            className="p-1 text-lg leading-none text-slate-2 hover:text-ink"
+            className="-m-2 flex min-h-[44px] min-w-[44px] items-center justify-center text-lg leading-none text-slate-2 hover:text-ink"
           >
             ✕
           </button>
@@ -123,7 +119,7 @@ export default function ModalDenuncia({
               </Link>
               .
             </p>
-            <button type="button" onClick={onCerrar} className="btn-primary w-full py-3">
+            <button type="button" onClick={cerrar} className="btn-primary w-full py-3">
               Entendido
             </button>
           </div>
@@ -139,7 +135,7 @@ export default function ModalDenuncia({
               {MOTIVOS_DENUNCIA.map((m) => (
                 <label
                   key={m.valor}
-                  className="flex cursor-pointer items-center gap-2 rounded-md border border-line px-3 py-2 text-sm has-[:checked]:border-green-700 has-[:checked]:bg-green-50"
+                  className="flex min-h-[44px] cursor-pointer items-center gap-2 rounded-md border border-line px-3 py-2 text-sm has-[:checked]:border-green-700 has-[:checked]:bg-green-50"
                 >
                   <input
                     type="radio"
@@ -182,7 +178,7 @@ export default function ModalDenuncia({
                 <ul className="max-h-48 space-y-1 overflow-y-auto">
                   {adjuntables.map((m) => (
                     <li key={m.id}>
-                      <label className="flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-canvas">
+                      <label className="flex min-h-[44px] cursor-pointer items-start gap-2 rounded-md px-2 py-2.5 text-sm hover:bg-canvas">
                         <input
                           type="checkbox"
                           className="mt-1"
@@ -218,7 +214,6 @@ export default function ModalDenuncia({
             </button>
           </form>
         )}
-      </div>
-    </div>
+    </dialog>
   );
 }

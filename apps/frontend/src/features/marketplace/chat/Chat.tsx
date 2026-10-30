@@ -311,7 +311,8 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
           nombre={otroNombre}
           conversacion={esPublicador ? conversacionRuta : undefined}
           mensajes={mensajes}
-          className="shrink-0 text-xs text-slate underline underline-offset-2 hover:text-rose-700"
+          compacto
+          className="shrink-0"
         />
       </header>
 

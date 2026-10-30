@@ -447,15 +447,6 @@ export default function DetalleArticulo() {
             cantidad={publicador.cantidadCalificaciones}
           />
         </div>
-        {!esPropio && (
-          <BotonDenunciar
-            articuloId={articulo.id}
-            origen="perfil"
-            nombre={publicador.nombre}
-            texto="Denunciar a este vecino"
-            className="shrink-0 self-start text-xs text-slate underline underline-offset-2 hover:text-rose-700"
-          />
-        )}
       </section>
 
       {esPropio ? (
