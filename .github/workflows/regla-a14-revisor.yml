@@ -16,6 +16,8 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  # Para volver a correr la ejecucion del otro evento (ver el ultimo paso).
+  actions: write
 
 jobs:
   revisor:
@@ -89,3 +91,31 @@ jobs:
             }
 
             core.info(`Aprobado por @${revisor}. HU: ${hu} · IA: ${ia}`);
+
+      # Cada evento (push o edicion del PR, y revision) deja su propia ejecucion con el
+      # mismo nombre de check. Sin esto, la del push queda en rojo despues de aprobar, o
+      # en verde despues de descartar una aprobacion. Se vuelve a correr la ultima del
+      # otro evento para que las dos digan lo mismo. Solo en el primer intento, para que
+      # las dos ejecuciones no se reactiven entre si sin fin.
+      - name: Actualizar la ejecucion del otro evento
+        if: always() && github.run_attempt == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            if (pr.base.ref !== 'develop') return;
+
+            const { owner, repo } = context.repo;
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: 'regla-a14-revisor.yml',
+              head_sha: pr.head.sha, per_page: 50,
+            });
+            const otra = data.workflow_runs
+              .filter(r => r.id !== context.runId && r.event !== context.eventName)
+              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+
+            // Si sigue corriendo, va a leer el estado actual por su cuenta.
+            if (!otra || otra.status !== 'completed') return;
+
+            await github.rest.actions.reRunWorkflow({ owner, repo, run_id: otra.id });
+            core.info(`Se volvio a correr la ejecucion ${otra.id} (${otra.event}).`);
