@@ -173,6 +173,13 @@ export default function Login() {
             </Link>
             <span aria-hidden="true" className="mx-2 text-xs text-white/60">·</span>
             <Link
+              to="/ayuda"
+              className="text-xs text-white/85 underline underline-offset-2 hover:text-white"
+            >
+              Ayuda
+            </Link>
+            <span aria-hidden="true" className="mx-2 text-xs text-white/60">·</span>
+            <Link
               to="/privacidad"
               className="text-xs text-white/85 underline underline-offset-2 hover:text-white"
             >
