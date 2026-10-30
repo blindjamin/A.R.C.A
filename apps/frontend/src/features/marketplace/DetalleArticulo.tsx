@@ -183,6 +183,9 @@ function CierreEntrega({
           onCalificado={onCalificado}
         />
       )}
+      {soyReceptor && !puedoCalificar && (
+        <p className="text-xs text-slate">Ya calificaste este intercambio.</p>
+      )}
     </section>
   );
 }
@@ -204,12 +207,13 @@ export default function DetalleArticulo() {
     error?: string;
   } | null>(null);
 
+  const [version, setVersion] = useState(0);
   const [interesados, setInteresados] = useState<Interesado[]>([]);
   const [interesando, setInteresando] = useState(false);
   const [errorInteres, setErrorInteres] = useState<string | null>(null);
 
   const recienPublicado = Boolean(
-    (location.state as { publicado?: boolean } | null)?.publicado,
+    (location.state as { recienPublicado?: boolean } | null)?.recienPublicado,
   );
 
   const volver = () => {
@@ -226,12 +230,7 @@ export default function DetalleArticulo() {
     if (!ignorarCache && resultado?.clave === clave) return;
 
     obtenerArticulo(id, origen)
-      .then((art) => {
-        setResultado({ clave, articulo: art });
-        if (art.esPropio) {
-          listarInteresados(id).then(setInteresados).catch(() => {});
-        }
-      })
+      .then((art) => setResultado({ clave, articulo: art }))
       .catch((e: Error) => setResultado({ clave, error: e.message }));
   };
 
@@ -240,11 +239,32 @@ export default function DetalleArticulo() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, origen]);
 
-  const recargar = () => cargar(true);
+  const recargar = () => {
+    cargar(true);
+    setVersion((v) => v + 1);
+  };
 
   // Descarta la respuesta de otro artículo (la ruta reutiliza el componente
   // al pasar de /marketplace/1 a /marketplace/2).
   const vigente = resultado?.clave.startsWith(`${id}|`) ? resultado : null;
+
+  // Quien publica ve a los interesados; se recarga con cada aviso del chat
+  // (`conversaciones` cambia) y tras reservar o liberar. En la entrega también
+  // hace falta: ahí se marca con `reservado` la conversación de quien recibe.
+  const verInteresados =
+    !!vigente?.articulo?.esPropio &&
+    (vigente.articulo.estado === 'disponible' ||
+      vigente.articulo.estado === 'en_negociacion');
+  useEffect(() => {
+    if (!verInteresados) return;
+    let actual = true;
+    listarInteresados(id)
+      .then((lista) => actual && setInteresados(lista))
+      .catch(() => {});
+    return () => {
+      actual = false;
+    };
+  }, [id, verInteresados, conversaciones, version]);
 
   if (!idValido || vigente?.error) {
     return (
@@ -436,17 +456,6 @@ export default function DetalleArticulo() {
               Esta es tu publicación en el Marketplace
             </span>
           </div>
-          {estado === 'pendiente_aprobacion' && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 text-xs text-amber-950 space-y-1">
-              <p className="font-bold flex items-center gap-1.5">
-                <span>⏳</span>
-                <span>Publicación en revisión técnica</span>
-              </p>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                El equipo municipal está validando los datos y fotografía del artículo. Cuando sea aprobado, se activará automáticamente y los vecinos podrán solicitarlo.
-              </p>
-            </div>
-          )}
           {estado === 'disponible' && (
             <RetirarPublicacion
               id={articulo.id}
