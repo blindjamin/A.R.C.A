@@ -122,9 +122,10 @@ export default function PantallaPago() {
     );
   }
 
-  const monto = comprobante?.monto ?? solicitud.monto ?? null;
-  const montoTexto = monto ? formatearPrecio(monto) : '—';
   const pagado = comprobante?.estadoPago === 'pagado';
+  // Antes de pagar manda la solicitud: el comprobante puede traer el monto de un intento anterior.
+  const monto = pagado ? (comprobante?.monto ?? null) : (solicitud.monto ?? null);
+  const montoTexto = monto ? formatearPrecio(monto) : '—';
   const noPagado =
     !pagado && !reintentar && esResultado(resultadoVuelta) && resultadoVuelta !== 'aprobado'
       ? resultadoVuelta
