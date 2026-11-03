@@ -25,7 +25,6 @@ import {
   IconPencil,
   IconCreditCard,
 } from '../components/ui';
-import { estaSolicitudPagada } from '../features/pago/pagosStorage';
 import { useSession } from '../auth/SessionContext';
 import { CampoFoto } from '../features/solicitud-retiro/CampoFoto';
 
@@ -33,15 +32,8 @@ import { CampoFoto } from '../features/solicitud-retiro/CampoFoto';
 // antes de la derivación y solo si no pagó. El backend la valida igual.
 
 const conEstadoPago = (s: SolicitudRetiro): SolicitudRetiro => {
-  if (estaSolicitudPagada(s.id)) {
-    return { ...s, estadoPago: 'pagado' };
-  }
   if (s.estado === 'aprobada' && s.estadoPago !== 'pagado') {
-    return {
-      ...s,
-      estadoPago: 'pendiente',
-      monto: s.monto ?? s.residuoCatalogo?.precio ?? 5000,
-    };
+    return { ...s, estadoPago: 'pendiente' };
   }
   return s;
 };
@@ -431,7 +423,7 @@ export default function MisSolicitudes() {
                     Pago de retiro pendiente
                   </h2>
                   <p className="text-xs text-amber-800 font-medium">
-                    Monto a pagar: {formatearPrecio(seleccion.monto ?? seleccion.residuoCatalogo?.precio ?? 5000)}
+                    Monto a pagar: {seleccion.monto ? formatearPrecio(seleccion.monto) : 'por confirmar'}
                   </p>
                 </div>
               </div>
@@ -454,7 +446,9 @@ export default function MisSolicitudes() {
               className="btn-primary w-full py-3 text-sm font-bold flex items-center justify-center gap-2 shadow-sm"
             >
               <IconCreditCard className="h-4 w-4" />
-              <span>Pagar retiro ({formatearPrecio(seleccion.monto ?? seleccion.residuoCatalogo?.precio ?? 5000)})</span>
+              <span>
+                Pagar retiro{seleccion.monto ? ` (${formatearPrecio(seleccion.monto)})` : ''}
+              </span>
             </button>
           </section>
         )}
