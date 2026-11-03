@@ -53,7 +53,7 @@ const mensaje = (id: number, remitente: string) =>
 
 function montar({
   art = articulo(),
-  interes = conversacion as typeof conversacion | null,
+  interes = conversacion,
   repetidas = 0,
   hoy = 0,
   mensajes = [] as MensajeMarketplace[],
