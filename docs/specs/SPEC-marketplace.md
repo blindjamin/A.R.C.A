@@ -223,8 +223,17 @@ El 409 y el tope diario se cuentan dentro de una transacción que bloquea la fil
 dos envíos simultáneos no se los salten. `motivo` es `ENUM` también en la base. La `descripcion` se guarda
 tal como la escribió el vecino (solo `trim`): el frontend y el panel la muestran como texto, nunca como HTML.
 
-La revisión en el panel y el bloqueo (HU-18) van aparte, en `admin/`. La tabla ya trae `resolucion`,
-`revisado_por_administrador_id` y `fecha_resolucion` para eso.
+**Revisión en el panel (HU-18).** En `admin/denuncias/`, para administrador y funcionario. Los vecinos
+aparecen por su nombre de pila (el de la sesión, como en el chat) y nunca por su id.
+
+| Método y ruta | Qué hace | Errores |
+|---|---|---|
+| `GET /admin/denuncias?estado=` | Hasta 200, las más nuevas primero. `estado` admite varios separados por coma (`resuelta,rechazada`); sin él, todas. Cada una: `id`, `fecha`, `motivo`, `estado`, `origen`, `denuncianteNombre`, `denunciadoNombre`, `articuloTitulo`, `denunciasDelDenunciado` (en cualquier estado) | 400 si un estado no existe |
+| `GET /admin/denuncias/:id` | Lo anterior más `descripcion`, `mensajes` (solo los adjuntos: `deQuien`, `contenido`, `fecha`), `resolucion` y `fechaResolucion` | 404 |
+| `PATCH /admin/denuncias/:id` | Body `{ estado: investigacion\|resuelta\|rechazada, resolucion? }`. `abierta` pasa a `investigacion`; `abierta` o `investigacion` pasan a `resuelta` o `rechazada`, con `resolucion` obligatoria (hasta 500) y `fecha_resolucion`. Guarda quién la revisó, bloquea la fila y se audita sin el texto de la resolución. Responde el detalle | 400 sin resolución al cerrar · 404 · 409 si ya está cerrada o en ese estado |
+
+El denunciante no recibe aviso al cerrarse: ve el estado en `GET /denuncias/mias`. El bloqueo del vecino
+denunciado queda para un PR aparte, con su propia migración.
 
 Las acciones que cambian el estado devuelven el `ArticuloMarketplace` actualizado.
 `calificacion` responde 201 con `{ puntuacion, comentario, fecha }`.

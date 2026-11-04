@@ -18,6 +18,7 @@ import { DerivacionesAdminModule } from './admin/derivaciones/derivaciones-admin
 import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
 import { PagadasAdminModule } from './admin/pagadas/pagadas-admin.module';
 import { MarketplaceAdminModule } from './admin/marketplace/marketplace-admin.module';
+import { DenunciasAdminModule } from './admin/denuncias/denuncias-admin.module';
 import { MailModule } from './mail/mail.module';
 import { PerfilModule } from './perfil/perfil.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
@@ -77,6 +78,7 @@ import { DenunciasModule } from './denuncias/denuncias.module';
     MetricasAdminModule,
     PagadasAdminModule,
     MarketplaceAdminModule,
+    DenunciasAdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
