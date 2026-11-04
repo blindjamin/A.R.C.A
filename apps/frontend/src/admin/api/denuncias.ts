@@ -26,9 +26,13 @@ export interface DenunciaResumen {
   origen: OrigenDenuncia;
   denuncianteNombre: string;
   denunciadoNombre: string;
+  /** Referencia corta y estable: el nombre de pila se repite o falta sin sesión activa. */
+  denuncianteRef: string;
+  denunciadoRef: string;
   articuloTitulo: string | null;
-  /** Cuántas denuncias acumula el denunciado, en cualquier estado. */
+  /** Denuncias contra el denunciado, sin contar las rechazadas. */
   denunciasDelDenunciado: number;
+  denunciasRechazadasDelDenunciado: number;
 }
 
 /** Copia de un mensaje que el denunciante adjuntó (hasta 5). */
