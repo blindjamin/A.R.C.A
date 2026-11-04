@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { BarraAccesibilidad, MenuAccesibilidad } from '../../accesibilidad/BarraAccesibilidad';
 import { useSession } from '../../auth/SessionContext';
 import {
+  IconFlag,
   IconChart,
   IconClipboard,
   IconCreditCard,
@@ -17,6 +18,7 @@ import {
 const NAV = [
   { to: '/admin', label: 'Solicitudes', icon: IconClipboard, end: true, reqAdmin: false },
   { to: '/admin/marketplace', label: 'Marketplace', icon: IconMarketplace, end: false, reqAdmin: false },
+  { to: '/admin/denuncias', label: 'Denuncias', icon: IconFlag, end: false, reqAdmin: false },
   { to: '/admin/metricas', label: 'Métricas', icon: IconChart, end: false, reqAdmin: false },
   { to: '/admin/derivacion', label: 'Derivación', icon: IconTruck, end: false, reqAdmin: false },
   { to: '/admin/pagadas', label: 'Pagadas', icon: IconCreditCard, end: false, reqAdmin: false },
