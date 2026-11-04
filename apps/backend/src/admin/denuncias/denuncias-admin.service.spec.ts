@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import type { Repository } from 'typeorm';
@@ -53,12 +54,13 @@ function montar(fila: Denuncia | null = denuncia()) {
   };
   const denunciaRepo = {
     find: jest.fn(({ select }: { select?: unknown }) =>
-      // Con `select` es la consulta de conteo: dos denuncias contra el denunciado.
+      // Con `select` es la consulta de conteo: dos vigentes y una rechazada.
       Promise.resolve(
         select
           ? [
-              { usuarioDenunciadoId: DENUNCIADO },
-              { usuarioDenunciadoId: DENUNCIADO },
+              { usuarioDenunciadoId: DENUNCIADO, estado: 'abierta' },
+              { usuarioDenunciadoId: DENUNCIADO, estado: 'resuelta' },
+              { usuarioDenunciadoId: DENUNCIADO, estado: 'rechazada' },
             ]
           : fila
             ? [fila]
@@ -86,31 +88,49 @@ function montar(fila: Denuncia | null = denuncia()) {
 }
 
 describe('DenunciasAdminService.listar', () => {
-  it('muestra nombres de pila y cuántas denuncias acumula el denunciado', async () => {
+  it('muestra nombres de pila, referencias y cuenta aparte las rechazadas', async () => {
     const { service } = montar();
 
-    await expect(service.listar('abierta')).resolves.toEqual([
+    await expect(service.listar(funcionario, 'abierta')).resolves.toEqual([
       expect.objectContaining({
         id: 5,
         denuncianteNombre: 'Carolina',
         denunciadoNombre: 'Pedro',
         articuloTitulo: 'Silla de madera',
+        denuncianteRef: '00000001',
+        denunciadoRef: '00000002',
         denunciasDelDenunciado: 2,
+        denunciasRechazadasDelDenunciado: 1,
       }),
     ]);
+  });
+
+  it('deja fuera las denuncias contra quien consulta', async () => {
+    const { service, denunciaRepo } = montar();
+
+    await service.listar(funcionario);
+    expect(denunciaRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          usuarioDenunciadoId: expect.objectContaining({
+            value: funcionario.ciudadanoId,
+          }) as unknown,
+        },
+      }),
+    );
   });
 
   it('acepta varios estados separados por coma', async () => {
     const { service, denunciaRepo } = montar();
 
-    await service.listar('resuelta,rechazada');
+    await service.listar(funcionario, 'resuelta,rechazada');
     expect(denunciaRepo.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
+        where: expect.objectContaining({
           estado: expect.objectContaining({
             value: [EstadoDenuncia.RESUELTA, EstadoDenuncia.RECHAZADA],
           }) as unknown,
-        },
+        }) as unknown,
       }),
     );
   });
@@ -118,7 +138,7 @@ describe('DenunciasAdminService.listar', () => {
   it('rechaza un estado desconocido', async () => {
     const { service } = montar();
 
-    await expect(service.listar('borrada')).rejects.toBeInstanceOf(
+    await expect(service.listar(funcionario, 'borrada')).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -128,7 +148,7 @@ describe('DenunciasAdminService.detalle', () => {
   it('trae solo los mensajes adjuntos, la descripción y la resolución', async () => {
     const { service } = montar();
 
-    const d = await service.detalle(5);
+    const d = await service.detalle(5, funcionario);
     expect(d.mensajes).toEqual([
       { deQuien: 'denunciado', contenido: 'ahí estoy', fecha: '2026-10-28' },
     ]);
@@ -139,7 +159,34 @@ describe('DenunciasAdminService.detalle', () => {
   it('404 si no existe', async () => {
     const { service } = montar(null);
 
-    await expect(service.detalle(99)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.detalle(99, funcionario)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('registra cada apertura como ACCESO, sin lo que escribió el vecino', async () => {
+    const { service, auditoria } = montar();
+
+    await service.detalle(5, funcionario);
+    expect(auditoria.registrar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accion: 'ACCESO',
+        entidad: 'denuncias',
+        entidadId: 5,
+      }),
+    );
+    expect(JSON.stringify(auditoria.registrar.mock.calls)).not.toContain(
+      'No llegó',
+    );
+  });
+
+  it('el denunciado no la ve, aunque sea funcionario, y no se audita', async () => {
+    const { service, auditoria } = montar();
+
+    await expect(
+      service.detalle(5, { ...funcionario, ciudadanoId: DENUNCIADO }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(auditoria.registrar).not.toHaveBeenCalled();
   });
 });
 
@@ -163,6 +210,49 @@ describe('DenunciasAdminService.cambiarEstado', () => {
         fechaResolucion: null,
       }),
     );
+  });
+
+  it('pasar a investigación no guarda la resolución ni registra un ACCESO', async () => {
+    const { service, tx, auditoria } = montar();
+
+    await service.cambiarEstado(
+      5,
+      { estado: EstadoDenuncia.INVESTIGACION, resolucion: 'Borrador' },
+      funcionario,
+    );
+    expect(tx.save).toHaveBeenCalledWith(
+      expect.objectContaining({ resolucion: null }),
+    );
+    expect(auditoria.registrar).toHaveBeenCalledTimes(1);
+    expect(auditoria.registrar).not.toHaveBeenCalledWith(
+      expect.objectContaining({ accion: 'ACCESO' }),
+    );
+  });
+
+  it('un funcionario denunciado no puede cerrar la denuncia en su contra', async () => {
+    const { service, tx } = montar();
+
+    await expect(
+      service.cambiarEstado(
+        5,
+        { estado: EstadoDenuncia.RECHAZADA, resolucion: 'No fue así' },
+        { ...funcionario, ciudadanoId: DENUNCIADO },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.save).not.toHaveBeenCalled();
+  });
+
+  it('quien denunció no revisa su propia denuncia', async () => {
+    const { service, tx } = montar();
+
+    await expect(
+      service.cambiarEstado(
+        5,
+        { estado: EstadoDenuncia.RESUELTA, resolucion: 'A mi favor' },
+        { ...funcionario, ciudadanoId: DENUNCIANTE },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(tx.save).not.toHaveBeenCalled();
   });
 
   it('resolver exige la resolución', async () => {
