@@ -195,6 +195,10 @@ NODE_ENV=production
 FRONTEND_URL=https://arca.santodomingo.cl
 TRUST_PROXY=loopback
 
+MAIL_USER=<cuenta de correo emisora>
+MAIL_PASS=<contraseña de aplicación>
+MAIL_FROM=A.R.C.A. Santo Domingo <cuenta de correo emisora>
+
 CLAVE_UNICA_CLIENT_ID=<entregado por Gobierno Digital>
 CLAVE_UNICA_CLIENT_SECRET=<entregado por Gobierno Digital>
 CLAVE_UNICA_REDIRECT_URI=https://arca.santodomingo.cl/
