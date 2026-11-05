@@ -284,12 +284,12 @@ describe('RevisionAdminService.revisar', () => {
     ],
     [
       EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
-      'Tu solicitud #7 necesita cambios',
+      'Tu solicitud #7 necesita cambios: La foto no permite ver el residuo',
       { motivo: MotivoRevision.FOTO_INSUFICIENTE, comentario: 'nota interna' },
     ],
     [
       EstadoSolicitudRetiro.RECHAZADA,
-      'Tu solicitud #7 fue rechazada',
+      'Tu solicitud #7 fue rechazada: Solicitud duplicada',
       { motivo: MotivoRevision.DUPLICADA, comentario: 'nota interna' },
     ],
   ])(

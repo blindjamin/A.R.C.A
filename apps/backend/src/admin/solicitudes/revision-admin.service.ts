@@ -208,7 +208,7 @@ export class RevisionAdminService {
     });
 
     // Campanita: además del correo, ya con la decisión persistida y auditada.
-    const aviso = avisoDeSolicitud(id, dto.decision);
+    const aviso = avisoDeSolicitud(id, dto.decision, dto.motivo);
     if (aviso) {
       void this.notificaciones.notificar(solicitud.usuarioCiudadanoId, aviso);
     }

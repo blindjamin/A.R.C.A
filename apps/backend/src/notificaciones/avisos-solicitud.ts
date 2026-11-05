@@ -1,4 +1,4 @@
-import { EstadoSolicitudRetiro } from '../core';
+import { EstadoSolicitudRetiro, MotivoRevision } from '../core';
 import type { NuevoAviso } from './notificaciones.service';
 
 /**
@@ -27,20 +27,41 @@ const TEXTO_POR_ESTADO: Partial<
     `Tu solicitud #${id} fue cancelada`,
 };
 
+/** Motivos de la lista que el vecino ve. `otro` no dice nada y no se muestra. */
+const ETIQUETA_MOTIVO: Partial<Record<MotivoRevision, string>> = {
+  [MotivoRevision.FOTO_INSUFICIENTE]: 'La foto no permite ver el residuo',
+  [MotivoRevision.CATEGORIA_INCORRECTA]: 'Categoría incorrecta',
+  [MotivoRevision.DESCRIPCION_INCOMPLETA]: 'Descripción incompleta',
+  [MotivoRevision.DIRECCION_INCOMPLETA]: 'Dirección incompleta',
+  [MotivoRevision.FUERA_DE_COMUNA]: 'Dirección fuera de la comuna',
+  [MotivoRevision.RESIDUO_NO_ADMITIDO]: 'Residuo no admitido',
+  [MotivoRevision.DUPLICADA]: 'Solicitud duplicada',
+  [MotivoRevision.CONTENIDO_INAPROPIADO]: 'Contenido inapropiado',
+};
+
+const CON_MOTIVO: EstadoSolicitudRetiro[] = [
+  EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+  EstadoSolicitudRetiro.RECHAZADA,
+];
+
 /**
  * Aviso de la campanita por un cambio de estado de la solicitud. Solo el
- * número y el estado: nunca notas del funcionario, dirección ni contacto.
+ * número, el estado y, al pedir cambios o rechazar, el motivo de la lista:
+ * nunca el comentario libre, notas del funcionario, dirección ni contacto.
  */
 export function avisoDeSolicitud(
   id: number,
   estado: EstadoSolicitudRetiro,
+  motivo?: MotivoRevision | null,
 ): NuevoAviso | null {
   const texto = TEXTO_POR_ESTADO[estado];
   if (!texto) return null;
+  const etiqueta =
+    motivo && CON_MOTIVO.includes(estado) ? ETIQUETA_MOTIVO[motivo] : undefined;
   return {
     tipo: 'solicitud',
     titulo: 'Solicitud de retiro',
-    cuerpo: texto(id),
+    cuerpo: etiqueta ? `${texto(id)}: ${etiqueta}` : texto(id),
     url: URL_SOLICITUDES,
   };
 }
