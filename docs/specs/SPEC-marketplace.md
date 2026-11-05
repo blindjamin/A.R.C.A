@@ -232,8 +232,23 @@ aparecen por su nombre de pila (el de la sesión, como en el chat) y nunca por s
 | `GET /admin/denuncias/:id` | Lo anterior más `descripcion`, `mensajes` (solo los adjuntos: `deQuien`, `contenido`, `fecha`), `resolucion` y `fechaResolucion` | 404 |
 | `PATCH /admin/denuncias/:id` | Body `{ estado: investigacion\|resuelta\|rechazada, resolucion? }`. `abierta` pasa a `investigacion`; `abierta` o `investigacion` pasan a `resuelta` o `rechazada`, con `resolucion` obligatoria (hasta 500) y `fecha_resolucion`. Guarda quién la revisó, bloquea la fila y se audita sin el texto de la resolución. Responde el detalle | 400 sin resolución al cerrar · 404 · 409 si ya está cerrada o en ese estado |
 
-El denunciante no recibe aviso al cerrarse: ve el estado en `GET /denuncias/mias`. El bloqueo del vecino
-denunciado queda para un PR aparte, con su propia migración.
+El denunciante no recibe aviso al cerrarse: ve el estado en `GET /denuncias/mias`. 
+
+**Bloqueo del vecino denunciado (HU-18).** Módulo `bloqueos/`, tabla `bloqueos_ciudadano` (historial: el
+vigente es la última fila del vecino, si es `bloqueo`). Solo dentro de A.R.C.A.: no toca ClaveÚnica ni las
+solicitudes de retiro. Quién puede escribir se define en un solo lugar, `ROLES_BLOQUEO` (hoy solo admin).
+
+| Método y ruta | Qué hace | Errores |
+|---|---|---|
+| `GET /admin/denuncias/:id/bloqueo` | Admin y funcionario. `{ bloqueado, motivo, fecha, puedeBloquear }` del denunciado | 404 |
+| `POST /admin/denuncias/:id/bloqueo` | Solo admin. Body `{ motivo }` (1 a 500, con `trim`). Cierra las sesiones del vecino, lo audita (sin motivo ni id del vecino) y le avisa en la campanita sin el motivo. Responde el estado | 403 si no es admin o es el denunciante · 404 · 409 si es funcionario o ya está bloqueado |
+| `POST /admin/denuncias/:id/desbloqueo` | Solo admin. Body `{ motivo }`. No toca sesiones. Responde el estado | 403 · 404 · 409 si no está bloqueado |
+| `GET /marketplace/bloqueo` | El propio vecino: `{ bloqueado: false }` o `{ bloqueado: true, motivo, fecha }` | |
+
+Un vecino bloqueado recibe 403 al publicar (`POST /marketplace/articulos`), mostrar interés y enviar mensajes
+(`NoBloqueadoGuard`); reservar, liberar y entregar siguen permitidos para cerrar intercambios en curso. Sus
+publicaciones desaparecen del listado público y siguen en «Mis publicaciones». El vecino ve el motivo y cómo
+pedir revisión (Ayuda) en un aviso del Marketplace.
 
 Las acciones que cambian el estado devuelven el `ArticuloMarketplace` actualizado.
 `calificacion` responde 201 con `{ puntuacion, comentario, fecha }`.
