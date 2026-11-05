@@ -42,26 +42,6 @@ export interface RevisionVisible {
   fecha: string;
 }
 
-/**
- * Etiqueta del motivo de revisión que ve el vecino. Debe coincidir con
- * ETIQUETA_MOTIVO de admin/api/admin.ts y con avisos-solicitud.ts del backend.
- * `otro` (o un valor desconocido) no tiene etiqueta: queda el comentario.
- */
-const ETIQUETA_MOTIVO_VECINO: Record<string, string> = {
-  foto_insuficiente: 'La foto no permite ver el residuo',
-  categoria_incorrecta: 'Categoría incorrecta',
-  descripcion_incompleta: 'Descripción incompleta',
-  direccion_incompleta: 'Dirección incompleta',
-  fuera_de_comuna: 'Dirección fuera de la comuna',
-  residuo_no_admitido: 'Residuo no admitido',
-  duplicada: 'Solicitud duplicada',
-  contenido_inapropiado: 'Contenido inapropiado',
-};
-
-export function etiquetaMotivo(motivo?: string | null): string | undefined {
-  return motivo ? ETIQUETA_MOTIVO_VECINO[motivo] : undefined;
-}
-
 /** Un objeto de la solicitud, como lo devuelve el backend (HU-01). */
 export interface ObjetoSolicitud {
   residuoCatalogoId: number | null;

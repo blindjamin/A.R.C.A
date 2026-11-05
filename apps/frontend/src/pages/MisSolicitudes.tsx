@@ -11,7 +11,6 @@ import {
   type ResiduoCatalogo,
   type SolicitudRetiro,
   resumenObjetos,
-  etiquetaMotivo,
 } from '../api/arca';
 import {
   BackButton,
@@ -284,13 +283,13 @@ export default function MisSolicitudes() {
 
             {/* Motivo y Comentario del funcionario (NUNCA notas internas ni checklist) */}
             <div className="rounded-md bg-white p-3.5 border border-sky-200 text-xs space-y-2">
-              {etiquetaMotivo(seleccion.ultimaRevision?.motivo) && (
+              {seleccion.ultimaRevision?.motivo && (
                 <div>
                   <span className="font-bold text-sky-900 uppercase tracking-wider text-[10px]">
                     Motivo indicado:
                   </span>
                   <p className="font-semibold text-ink mt-0.5">
-                    {etiquetaMotivo(seleccion.ultimaRevision?.motivo)}
+                    {seleccion.ultimaRevision.motivo}
                   </p>
                 </div>
               )}
