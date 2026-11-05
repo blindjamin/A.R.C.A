@@ -74,3 +74,30 @@ export function cambiarEstadoDenuncia(
     body: JSON.stringify(cambio),
   }).then((r) => handle<DenunciaDetalle>(r));
 }
+
+/** Bloqueo del vecino denunciado en el Marketplace (HU-18). */
+export interface EstadoBloqueo {
+  bloqueado: boolean;
+  motivo: string | null;
+  fecha: string | null;
+  /** Solo el administrador puede bloquear y desbloquear. */
+  puedeBloquear: boolean;
+}
+
+export function obtenerBloqueo(denunciaId: number): Promise<EstadoBloqueo> {
+  return apiFetch(`${API_URL}/admin/denuncias/${denunciaId}/bloqueo`).then((r) =>
+    handle<EstadoBloqueo>(r),
+  );
+}
+
+export function cambiarBloqueo(
+  denunciaId: number,
+  accion: 'bloqueo' | 'desbloqueo',
+  motivo: string,
+): Promise<EstadoBloqueo> {
+  return apiFetch(`${API_URL}/admin/denuncias/${denunciaId}/${accion}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivo }),
+  }).then((r) => handle<EstadoBloqueo>(r));
+}
