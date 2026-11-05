@@ -1,11 +1,12 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import {
   AccionAuditoria,
   AuditoriaService,
@@ -37,9 +38,14 @@ export interface DenunciaResumenAdmin {
   origen: string;
   denuncianteNombre: string;
   denunciadoNombre: string;
+  /** Referencia corta y estable: el nombre de pila se repite o falta sin sesión activa. */
+  denuncianteRef: string;
+  denunciadoRef: string;
   articuloTitulo: string | null;
-  /** Cuántas denuncias acumula el denunciado, en cualquier estado. */
+  /** Denuncias contra el denunciado, sin contar las rechazadas. */
   denunciasDelDenunciado: number;
+  /** Las rechazadas van aparte: no deben marcar a un vecino denunciado sin razón. */
+  denunciasRechazadasDelDenunciado: number;
 }
 
 export interface DenunciaDetalleAdmin extends DenunciaResumenAdmin {
@@ -49,6 +55,9 @@ export interface DenunciaDetalleAdmin extends DenunciaResumenAdmin {
   resolucion: string | null;
   fechaResolucion: Date | null;
 }
+
+/** Últimos caracteres del id: el comienzo se repite en las cuentas sembradas. */
+const referenciaDe = (id: string): string => id.slice(-8);
 
 /** Revisión de denuncias en el panel municipal (HU-18). */
 @Injectable()
@@ -63,7 +72,10 @@ export class DenunciasAdminService {
   ahora = (): Date => new Date();
 
   /** `estado` admite varios separados por coma: las cerradas son dos. */
-  async listar(estado?: string): Promise<DenunciaResumenAdmin[]> {
+  async listar(
+    user: AuthUser,
+    estado?: string,
+  ): Promise<DenunciaResumenAdmin[]> {
     const estados = estado ? estado.split(',').map((e) => e.trim()) : [];
     const invalido = estados.find((e) => !ESTADOS.includes(e));
     if (invalido !== undefined) {
@@ -72,9 +84,11 @@ export class DenunciasAdminService {
       );
     }
     const filas = await this.denunciaRepo.find({
-      where: estados.length
-        ? { estado: In(estados as EstadoDenuncia[]) }
-        : undefined,
+      // El denunciado no ve quién lo denunció, aunque además sea funcionario.
+      where: {
+        usuarioDenunciadoId: Not(user.ciudadanoId),
+        ...(estados.length ? { estado: In(estados as EstadoDenuncia[]) } : {}),
+      },
       relations: { articulo: true },
       order: { fechaDenuncia: 'DESC' },
       take: LIMITE_LISTADO,
@@ -82,12 +96,37 @@ export class DenunciasAdminService {
     return this.resumir(filas);
   }
 
-  async detalle(id: number): Promise<DenunciaDetalleAdmin> {
+  /** El detalle trae lo que escribió el vecino: cada apertura queda registrada. */
+  async detalle(
+    id: number,
+    user: AuthUser,
+    origen?: OrigenPeticion,
+  ): Promise<DenunciaDetalleAdmin> {
+    const detalle = await this.cargarDetalle(id, user);
+    await this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.ADMINISTRADOR,
+      actor: user,
+      entidad: 'denuncias',
+      entidadId: id,
+      accion: AccionAuditoria.ACCESO,
+      origen,
+    });
+    return detalle;
+  }
+
+  private async cargarDetalle(
+    id: number,
+    user: AuthUser,
+  ): Promise<DenunciaDetalleAdmin> {
     const d = await this.denunciaRepo.findOne({
       where: { id },
       relations: { articulo: true },
     });
     if (!d) throw new NotFoundException(`Denuncia ${id} no encontrada`);
+    // Mismo 404 que si no existiera: la respuesta no le confirma que lo denunciaron.
+    if (d.usuarioDenunciadoId === user.ciudadanoId) {
+      throw new NotFoundException(`Denuncia ${id} no encontrada`);
+    }
     const [resumen] = await this.resumir([d]);
     return {
       ...resumen,
@@ -121,7 +160,14 @@ export class DenunciasAdminService {
         where: { id },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!d) throw new NotFoundException(`Denuncia ${id} no encontrada`);
+      if (!d || d.usuarioDenunciadoId === user.ciudadanoId) {
+        throw new NotFoundException(`Denuncia ${id} no encontrada`);
+      }
+      if (d.usuarioDenuncianteId === user.ciudadanoId) {
+        throw new ForbiddenException(
+          'No puedes revisar una denuncia que hiciste tú',
+        );
+      }
       if (CERRADAS.includes(d.estado)) {
         throw new ConflictException('La denuncia ya está cerrada');
       }
@@ -130,9 +176,12 @@ export class DenunciasAdminService {
       }
       const estadoAnterior = d.estado;
       d.estado = dto.estado;
-      d.resolucion = dto.resolucion ?? d.resolucion;
       d.revisadoPorAdministradorId = user.administradorId ?? null;
-      if (cierra) d.fechaResolucion = this.ahora();
+      // La resolución es del cierre: pasar a investigación no la guarda.
+      if (cierra) {
+        d.resolucion = dto.resolucion ?? null;
+        d.fechaResolucion = this.ahora();
+      }
       await m.save(d);
       return estadoAnterior;
     });
@@ -151,7 +200,7 @@ export class DenunciasAdminService {
       },
       origen,
     });
-    return this.detalle(id);
+    return this.cargarDetalle(id, user);
   }
 
   // ponytail: un nombre por vecino y un find para los conteos; si el listado
@@ -176,14 +225,17 @@ export class DenunciasAdminService {
     const contra = denunciados.length
       ? await this.denunciaRepo.find({
           where: { usuarioDenunciadoId: In(denunciados) },
-          select: { id: true, usuarioDenunciadoId: true },
+          select: { id: true, usuarioDenunciadoId: true, estado: true },
         })
       : [];
     const conteo = new Map<string, number>();
+    const rechazadas = new Map<string, number>();
     for (const c of contra) {
-      conteo.set(
+      const destino =
+        c.estado === EstadoDenuncia.RECHAZADA ? rechazadas : conteo;
+      destino.set(
         c.usuarioDenunciadoId,
-        (conteo.get(c.usuarioDenunciadoId) ?? 0) + 1,
+        (destino.get(c.usuarioDenunciadoId) ?? 0) + 1,
       );
     }
 
@@ -195,8 +247,12 @@ export class DenunciasAdminService {
       origen: d.origen,
       denuncianteNombre: nombres.get(d.usuarioDenuncianteId) ?? '',
       denunciadoNombre: nombres.get(d.usuarioDenunciadoId) ?? '',
+      denuncianteRef: referenciaDe(d.usuarioDenuncianteId),
+      denunciadoRef: referenciaDe(d.usuarioDenunciadoId),
       articuloTitulo: d.articulo?.titulo ?? null,
       denunciasDelDenunciado: conteo.get(d.usuarioDenunciadoId) ?? 0,
+      denunciasRechazadasDelDenunciado:
+        rechazadas.get(d.usuarioDenunciadoId) ?? 0,
     }));
   }
 }
