@@ -1,10 +1,11 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { CurrentUser, type AuthUser } from '../core';
+import { CurrentUser, LimiteCorreo, type AuthUser } from '../core';
 import { EnviarCodigoDto } from './dto/enviar-codigo.dto';
 import { VerificarCodigoDto } from './dto/verificar-codigo.dto';
 import { MailService } from './mail.service';
 
 @Controller('mail')
+@LimiteCorreo()
 export class MailController {
   constructor(private readonly mailService: MailService) {}
 

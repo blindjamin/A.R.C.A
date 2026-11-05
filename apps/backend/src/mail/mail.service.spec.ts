@@ -1,4 +1,6 @@
-import { MailService } from './mail.service';
+import { HttpException, ServiceUnavailableException } from '@nestjs/common';
+import { generarHtmlCambioEstado } from './mail-templates';
+import { MailService, TOPE_CODIGOS_POR_HORA } from './mail.service';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { SesionCiudadano } from '../core/entities/sesion-ciudadano.entity';
@@ -46,6 +48,7 @@ describe('MailService', () => {
     const resInvalido = await service.verificarCodigo(
       'vecino@santodomingo.cl',
       '000000',
+      '00000000-0000-4000-8000-000000000001',
     );
     expect(resInvalido.verificado).toBe(false);
 
@@ -58,16 +61,103 @@ describe('MailService', () => {
     expect(resValido.verificado).toBe(true);
   });
 
-  it('debe registrar y obtener el correo de un ciudadano', async () => {
-    await service.registrarCorreoCiudadano(
-      '00000000-0000-4000-8000-000000000001',
+  it('solo guarda el correo del ciudadano tras verificarlo', async () => {
+    const id = '00000000-0000-4000-8000-000000000001';
+    const { codigoDev } = await service.enviarCodigo(
+      'vecino@santodomingo.cl',
+      id,
+    );
+    expect(await service.obtenerCorreoCiudadano(id)).toBeNull();
+
+    await service.verificarCodigo('vecino@santodomingo.cl', codigoDev!, id);
+    expect(await service.obtenerCorreoCiudadano(id)).toBe(
       'vecino@santodomingo.cl',
     );
+  });
 
-    const correo = await service.obtenerCorreoCiudadano(
-      '00000000-0000-4000-8000-000000000001',
+  it('el código de una cuenta no sirve para otra', async () => {
+    const { codigoDev } = await service.enviarCodigo('a@b.cl', 'cuenta-a');
+
+    const res = await service.verificarCodigo('a@b.cl', codigoDev!, 'cuenta-b');
+    expect(res.verificado).toBe(false);
+    expect(await service.obtenerCorreoCiudadano('cuenta-b')).toBeNull();
+  });
+
+  it('pone un tope de códigos por cuenta y hora', async () => {
+    for (let i = 0; i < TOPE_CODIGOS_POR_HORA; i++) {
+      await service.enviarCodigo(`v${i}@b.cl`, 'cuenta-a');
+    }
+    await expect(
+      service.enviarCodigo('otro@b.cl', 'cuenta-a'),
+    ).rejects.toBeInstanceOf(HttpException);
+    await expect(
+      service.enviarCodigo('otro@b.cl', 'cuenta-b'),
+    ).resolves.toMatchObject({ ok: true });
+  });
+
+  describe('en producción', () => {
+    const montarProduccion = (pass?: string) => {
+      const config = {
+        get: jest.fn((k: string) =>
+          k === 'NODE_ENV'
+            ? 'production'
+            : k === 'MAIL_PASS'
+              ? pass
+              : undefined,
+        ),
+      };
+      return new MailService(
+        config as unknown as ConfigService,
+        sesionRepo as Repository<SesionCiudadano>,
+      );
+    };
+
+    it('sin credenciales responde 503 y no entrega el código', async () => {
+      await expect(
+        montarProduccion().enviarCodigo('a@b.cl', 'cuenta-a'),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('si falla el envío responde 503 y no entrega el código', async () => {
+      const prod = montarProduccion('clave');
+      const interno = prod as unknown as {
+        transporter: { sendMail: jest.Mock };
+      };
+      interno.transporter = {
+        sendMail: jest.fn().mockRejectedValue(new Error('smtp caído')),
+      };
+
+      await expect(
+        prod.enviarCodigo('a@b.cl', 'cuenta-a'),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('si se envía no devuelve el código', async () => {
+      const prod = montarProduccion('clave');
+      const interno = prod as unknown as {
+        transporter: { sendMail: jest.Mock };
+      };
+      interno.transporter = { sendMail: jest.fn().mockResolvedValue({}) };
+
+      const res = await prod.enviarCodigo('a@b.cl', 'cuenta-a');
+      expect(res).toEqual({ ok: true, mensaje: 'Código enviado a tu correo' });
+    });
+  });
+
+  it('el correo muestra como texto lo que escribieron vecinos y funcionarios', () => {
+    const html = generarHtmlCambioEstado(
+      {
+        id: 1,
+        residuoNombre: '<a href="https://malo.test">Pincha aquí</a>',
+        direccion: '<img src=x>',
+      },
+      'aprobada',
+      '<script>alert(1)</script>',
     );
-    expect(correo).toBe('vecino@santodomingo.cl');
+    expect(html).not.toContain('<a href="https://malo.test"');
+    expect(html).not.toContain('<img src=x>');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
   });
 
   it('debe ejecutar notificarCambioEstado sin lanzar errores en modo simulación', async () => {
