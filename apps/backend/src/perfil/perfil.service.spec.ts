@@ -19,7 +19,7 @@ const VECINO: AuthUser = {
 
 type Contacto = Pick<
   ContactoCiudadano,
-  'usuarioCiudadanoId' | 'telefono' | 'direccion'
+  'usuarioCiudadanoId' | 'telefono' | 'direccion' | 'email'
 >;
 
 describe('PerfilService', () => {
@@ -79,6 +79,7 @@ describe('PerfilService', () => {
       usuarioCiudadanoId: VECINO.ciudadanoId,
       telefono: '+56911111111',
       direccion: 'Calle 1',
+      email: null,
     });
     expect(auditoriaService.registrar).toHaveBeenCalledWith({
       tipoActor: TipoActorAuditoria.CIUDADANO,
@@ -98,11 +99,30 @@ describe('PerfilService', () => {
     });
   });
 
+  it('borrar teléfono y dirección no elimina el correo verificado', async () => {
+    guardado = {
+      usuarioCiudadanoId: VECINO.ciudadanoId,
+      telefono: '+56911111111',
+      direccion: 'Calle 1',
+      email: 'ana@ejemplo.cl',
+    };
+
+    await service.actualizar(VECINO, { telefono: '', direccion: '' });
+
+    expect(contactos.delete).not.toHaveBeenCalled();
+    expect(guardado).toMatchObject({
+      telefono: null,
+      direccion: null,
+      email: 'ana@ejemplo.cl',
+    });
+  });
+
   it('si el vecino borra todo, no queda una fila vacía', async () => {
     guardado = {
       usuarioCiudadanoId: VECINO.ciudadanoId,
       telefono: '+56911111111',
       direccion: null,
+      email: null,
     };
 
     await service.actualizar(VECINO, { telefono: '   ' });
@@ -118,6 +138,7 @@ describe('PerfilService', () => {
       usuarioCiudadanoId: VECINO.ciudadanoId,
       telefono: '+56911111111',
       direccion: null,
+      email: null,
     };
 
     await service.actualizar(VECINO, { telefono: '+56911111111' });

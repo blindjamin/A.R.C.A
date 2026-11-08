@@ -3,35 +3,49 @@ import { generarHtmlCambioEstado } from './mail-templates';
 import { MailService, TOPE_CODIGOS_POR_HORA } from './mail.service';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
-import { SesionCiudadano } from '../core/entities/sesion-ciudadano.entity';
+import { ContactoCiudadano } from '../core/entities/contacto-ciudadano.entity';
 
 describe('MailService', () => {
   let service: MailService;
   let configService: Partial<ConfigService>;
-  let sesionRepo: Partial<Repository<SesionCiudadano>>;
+  let contactos: Repository<ContactoCiudadano>;
+  const correos = new Map<string, string>();
+
+  const repoContactos = (): Repository<ContactoCiudadano> =>
+    ({
+      findOne: jest.fn((opts: { where: { usuarioCiudadanoId: string } }) => {
+        const id = opts.where.usuarioCiudadanoId;
+        const email = correos.get(id);
+        return Promise.resolve(
+          email
+            ? {
+                usuarioCiudadanoId: id,
+                email,
+                telefono: null,
+                direccion: null,
+              }
+            : null,
+        );
+      }),
+      create: jest.fn((fila: Partial<ContactoCiudadano>) => fila),
+      save: jest.fn((fila: ContactoCiudadano) => {
+        if (fila.email) correos.set(fila.usuarioCiudadanoId, fila.email);
+        else correos.delete(fila.usuarioCiudadanoId);
+        return Promise.resolve(fila);
+      }),
+    }) as unknown as Repository<ContactoCiudadano>;
 
   beforeEach(() => {
+    correos.clear();
     configService = {
       get: jest.fn().mockImplementation((key: string) => {
         if (key === 'MAIL_USER') return 'soporte.arcaa@gmail.com';
         return undefined;
       }),
     };
+    contactos = repoContactos();
 
-    sesionRepo = {
-      findOne: jest.fn(),
-      createQueryBuilder: jest.fn().mockReturnValue({
-        update: jest.fn().mockReturnThis(),
-        set: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        execute: jest.fn().mockResolvedValue({ affected: 1 }),
-      }),
-    };
-
-    service = new MailService(
-      configService as ConfigService,
-      sesionRepo as Repository<SesionCiudadano>,
-    );
+    service = new MailService(configService as ConfigService, contactos);
   });
 
   it('debe generar y verificar un código OTP exitosamente', async () => {
@@ -106,10 +120,7 @@ describe('MailService', () => {
               : undefined,
         ),
       };
-      return new MailService(
-        config as unknown as ConfigService,
-        sesionRepo as Repository<SesionCiudadano>,
-      );
+      return new MailService(config as unknown as ConfigService, contactos);
     };
 
     it('sin credenciales responde 503 y no entrega el código', async () => {

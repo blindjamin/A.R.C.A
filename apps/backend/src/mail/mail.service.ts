@@ -12,7 +12,7 @@ import { randomInt } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as nodemailer from 'nodemailer';
-import { SesionCiudadano } from '../core/entities/sesion-ciudadano.entity';
+import { ContactoCiudadano } from '../core/entities/contacto-ciudadano.entity';
 import { generarHtmlCodigo, generarHtmlCambioEstado } from './mail-templates';
 
 /** Códigos que una cuenta puede pedir por hora: el correo le llega a un tercero. */
@@ -32,12 +32,11 @@ export class MailService {
   // Por cuenta y correo: pedir un código para el correo de otro no pisa el suyo.
   private readonly otps = new Map<string, OtpData>();
   private readonly codigosPedidos = new Map<string, number[]>(); // usuarioCiudadanoId -> timestamps
-  private readonly emailsVerificados = new Map<string, string>(); // usuarioCiudadanoId -> email verificado
 
   constructor(
     private readonly configService: ConfigService,
-    @InjectRepository(SesionCiudadano)
-    private readonly sesionCiudadanoRepository: Repository<SesionCiudadano>,
+    @InjectRepository(ContactoCiudadano)
+    private readonly contactos: Repository<ContactoCiudadano>,
   ) {
     this.inicializarTransporte();
   }
@@ -254,20 +253,7 @@ export class MailService {
     this.otps.delete(clave);
 
     if (usuarioCiudadanoId) {
-      this.emailsVerificados.set(usuarioCiudadanoId, normalizado);
-      try {
-        // Actualizar emailSesion en la última sesión activa del ciudadano
-        await this.sesionCiudadanoRepository
-          .createQueryBuilder()
-          .update(SesionCiudadano)
-          .set({ emailSesion: normalizado })
-          .where('usuario_ciudadano_id = :id', { id: usuarioCiudadanoId })
-          .execute();
-      } catch (err) {
-        this.logger.warn(
-          `No se pudo sincronizar email_sesion en sesiones_ciudadano: ${err}`,
-        );
-      }
+      await this.guardarCorreoVerificado(usuarioCiudadanoId, normalizado);
     }
 
     return {
@@ -278,29 +264,38 @@ export class MailService {
   }
 
   /**
-   * Obtiene el correo verificado de un vecino, buscando en memoria o en su última sesión.
+   * Correo verificado del vecino. Vive en `contacto_ciudadano`: sobrevive al
+   * reinicio y la baja borra la fila.
    */
   async obtenerCorreoCiudadano(
     usuarioCiudadanoId: string,
   ): Promise<string | null> {
-    if (this.emailsVerificados.has(usuarioCiudadanoId)) {
-      return this.emailsVerificados.get(usuarioCiudadanoId)!;
-    }
+    const contacto = await this.contactos.findOne({
+      where: { usuarioCiudadanoId },
+    });
+    return contacto?.email ?? null;
+  }
 
-    try {
-      const sesion = await this.sesionCiudadanoRepository.findOne({
-        where: { usuarioCiudadanoId },
-        order: { fechaInicio: 'DESC' },
-      });
-      if (sesion?.emailSesion) {
-        this.emailsVerificados.set(usuarioCiudadanoId, sesion.emailSesion);
-        return sesion.emailSesion;
-      }
-    } catch {
-      // Ignorar fallback
+  private async guardarCorreoVerificado(
+    usuarioCiudadanoId: string,
+    email: string,
+  ): Promise<void> {
+    const contacto = await this.contactos.findOne({
+      where: { usuarioCiudadanoId },
+    });
+    if (contacto) {
+      contacto.email = email;
+      await this.contactos.save(contacto);
+      return;
     }
-
-    return null;
+    await this.contactos.save(
+      this.contactos.create({
+        usuarioCiudadanoId,
+        telefono: null,
+        direccion: null,
+        email,
+      }),
+    );
   }
 
   /**

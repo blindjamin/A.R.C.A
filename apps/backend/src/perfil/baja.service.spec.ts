@@ -142,6 +142,11 @@ describe('BajaService.darseDeBaja', () => {
       { usuarioCiudadanoId: VECINO, activa: true },
       { activa: false },
     );
+    expect(em.update).toHaveBeenCalledWith(
+      SesionCiudadano,
+      { usuarioCiudadanoId: VECINO },
+      { emailSesion: null },
+    );
     expect(auditoria.registrar).toHaveBeenCalledWith(
       expect.objectContaining({
         entidad: 'usuarios_ciudadanos',

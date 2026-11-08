@@ -66,6 +66,7 @@ export class PerfilService {
         usuarioCiudadanoId: user.ciudadanoId,
         telefono: null,
         direccion: null,
+        email: null,
       });
     const cambiados: CampoContacto[] = [];
 
@@ -83,7 +84,12 @@ export class PerfilService {
     }
 
     // Si el vecino borró todo, no queda una fila vacía.
-    if (contacto.telefono === null && contacto.direccion === null) {
+    // El correo verificado vive en la misma fila: borrarla lo perdería.
+    if (
+      contacto.telefono === null &&
+      contacto.direccion === null &&
+      !contacto.email
+    ) {
       await this.contactos.delete({ usuarioCiudadanoId: user.ciudadanoId });
     } else {
       await this.contactos.save(contacto);
