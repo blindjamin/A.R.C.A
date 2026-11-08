@@ -13,22 +13,20 @@ describe('MailService', () => {
 
   const repoContactos = (): Repository<ContactoCiudadano> =>
     ({
-      findOne: jest.fn(
-        (opts: { where: { usuarioCiudadanoId: string } }) => {
-          const id = opts.where.usuarioCiudadanoId;
-          const email = correos.get(id);
-          return Promise.resolve(
-            email
-              ? {
-                  usuarioCiudadanoId: id,
-                  email,
-                  telefono: null,
-                  direccion: null,
-                }
-              : null,
-          );
-        },
-      ),
+      findOne: jest.fn((opts: { where: { usuarioCiudadanoId: string } }) => {
+        const id = opts.where.usuarioCiudadanoId;
+        const email = correos.get(id);
+        return Promise.resolve(
+          email
+            ? {
+                usuarioCiudadanoId: id,
+                email,
+                telefono: null,
+                direccion: null,
+              }
+            : null,
+        );
+      }),
       create: jest.fn((fila: Partial<ContactoCiudadano>) => fila),
       save: jest.fn((fila: ContactoCiudadano) => {
         if (fila.email) correos.set(fila.usuarioCiudadanoId, fila.email);
@@ -47,10 +45,7 @@ describe('MailService', () => {
     };
     contactos = repoContactos();
 
-    service = new MailService(
-      configService as ConfigService,
-      contactos,
-    );
+    service = new MailService(configService as ConfigService, contactos);
   });
 
   it('debe generar y verificar un código OTP exitosamente', async () => {
@@ -125,10 +120,7 @@ describe('MailService', () => {
               : undefined,
         ),
       };
-      return new MailService(
-        config as unknown as ConfigService,
-        contactos,
-      );
+      return new MailService(config as unknown as ConfigService, contactos);
     };
 
     it('sin credenciales responde 503 y no entrega el código', async () => {

@@ -37,10 +37,11 @@ Table contacto_ciudadano {
   usuario_ciudadano_id varchar(36) [primary key, note: "1 a 1 con usuarios_ciudadanos"]
   telefono varchar(20)
   direccion text
+  email varchar(255) [note: "Correo verificado con código. No es el de ClaveÚnica."]
   created_at timestamp [default: 'CURRENT_TIMESTAMP']
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
 
-  Note: "Contacto del vecino para coordinar el retiro (HU-37, decisión 016). Aparte de usuarios_ciudadanos para que la identidad siga sin datos personales. Si el vecino borra ambos datos, la fila se elimina. La baja (HU-38) debe borrarla."
+  Note: "Contacto del vecino para coordinar el retiro (HU-37, decisión 016). Aparte de usuarios_ciudadanos para que la identidad siga sin datos personales. Si el vecino borra teléfono y dirección, la fila se conserva mientras tenga correo. La baja (HU-38) borra la fila."
 }
 
 Table sesiones_ciudadano {
