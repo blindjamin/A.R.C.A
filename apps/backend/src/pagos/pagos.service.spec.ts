@@ -78,8 +78,10 @@ describe('PagosService', () => {
     consultarEstado,
     reversar,
   };
+  const abono = { id: 1, montoCreditos: 50 };
   const creditos = {
-    otorgarPorPago: jest.fn(() => Promise.resolve({})),
+    otorgarPorPago: jest.fn(() => Promise.resolve(abono)),
+    avisarAbono: jest.fn(),
   };
   const auditoria = {
     registrar: jest.fn(() => Promise.resolve()),
@@ -225,6 +227,8 @@ describe('PagosService', () => {
     expect(confirmar).toHaveBeenCalledTimes(1);
     expect(creditos.otorgarPorPago).toHaveBeenCalledTimes(1);
     expect(creditos.otorgarPorPago).toHaveBeenCalledWith(manager, guardada);
+    expect(creditos.avisarAbono).toHaveBeenCalledTimes(1);
+    expect(creditos.avisarAbono).toHaveBeenCalledWith(abono);
     const llamada = auditoria.registrar.mock.calls.find(
       (args) =>
         (args[0] as { entidadId?: number }).entidadId === 7 &&
@@ -275,6 +279,7 @@ describe('PagosService', () => {
     expect(guardada.estadoPago).toBe(EstadoPagoSolicitud.PAGADO);
     expect(pagos[0].estado).toBe(EstadoIntentoPago.AUTORIZADO);
     expect(creditos.otorgarPorPago).toHaveBeenCalledTimes(1);
+    expect(creditos.avisarAbono).toHaveBeenCalledTimes(1);
   });
 
   it('si el monto no coincide, no marca pagado, no otorga créditos y reversa', async () => {

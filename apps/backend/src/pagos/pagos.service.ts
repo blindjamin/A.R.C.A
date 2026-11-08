@@ -20,6 +20,7 @@ import {
   PagoWebpay,
   SolicitudRetiro,
   TipoActorAuditoria,
+  TransaccionCircularCredits,
   origenesPermitidos,
   type AuthUser,
 } from '../core';
@@ -253,78 +254,101 @@ export class PagosService {
     token: string,
     confirmado: TransaccionConfirmada,
   ): Promise<{ solicitudId: number; resultado: ResultadoPago } | null> {
-    return this.dataSource.transaction(async (manager) => {
-      const pago = await manager.findOne(PagoWebpay, {
-        where: { token },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!pago) return null;
-      if (pago.estado !== EstadoIntentoPago.INICIADO) {
-        return {
-          solicitudId: pago.solicitudRetiroId,
-          resultado: resultadoDe(pago.estado) ?? 'rechazado',
-        };
-      }
-
-      const codigo = confirmado.authorizationCode;
-      const cuadra =
-        confirmado.status === ESTADO_AUTORIZADO &&
-        confirmado.responseCode === 0 &&
-        Number.isInteger(confirmado.amount) &&
-        confirmado.amount === pago.monto &&
-        confirmado.buyOrder === pago.buyOrder &&
-        codigo !== null &&
-        /^[A-Za-z0-9]{1,6}$/.test(codigo);
-
-      if (!cuadra) {
-        if (
-          confirmado.status === ESTADO_AUTORIZADO &&
-          Number.isInteger(confirmado.amount) &&
-          confirmado.amount > 0
-        ) {
-          await this.intentarReversa(token, confirmado.amount);
+    const cerrado = await this.dataSource.transaction(
+      async (
+        manager,
+      ): Promise<{
+        solicitudId: number;
+        resultado: ResultadoPago;
+        abono: TransaccionCircularCredits | null;
+      } | null> => {
+        const pago = await manager.findOne(PagoWebpay, {
+          where: { token },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!pago) return null;
+        if (pago.estado !== EstadoIntentoPago.INICIADO) {
+          return {
+            solicitudId: pago.solicitudRetiroId,
+            resultado: resultadoDe(pago.estado) ?? 'rechazado',
+            abono: null,
+          };
         }
-        pago.estado = EstadoIntentoPago.RECHAZADO;
+
+        const codigo = confirmado.authorizationCode;
+        const cuadra =
+          confirmado.status === ESTADO_AUTORIZADO &&
+          confirmado.responseCode === 0 &&
+          Number.isInteger(confirmado.amount) &&
+          confirmado.amount === pago.monto &&
+          confirmado.buyOrder === pago.buyOrder &&
+          codigo !== null &&
+          /^[A-Za-z0-9]{1,6}$/.test(codigo);
+
+        if (!cuadra) {
+          if (
+            confirmado.status === ESTADO_AUTORIZADO &&
+            Number.isInteger(confirmado.amount) &&
+            confirmado.amount > 0
+          ) {
+            await this.intentarReversa(token, confirmado.amount);
+          }
+          pago.estado = EstadoIntentoPago.RECHAZADO;
+          await manager.save(pago);
+          await this.auditarResultado(
+            pago.solicitudRetiroId,
+            'rechazado',
+            null,
+          );
+          return {
+            solicitudId: pago.solicitudRetiroId,
+            resultado: 'rechazado',
+            abono: null,
+          };
+        }
+
+        const solicitud = await manager.findOne(SolicitudRetiro, {
+          where: { id: pago.solicitudRetiroId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        const cobrable =
+          solicitud !== null &&
+          solicitud.estado === EstadoSolicitudRetiro.APROBADA &&
+          solicitud.estadoPago === EstadoPagoSolicitud.PENDIENTE &&
+          solicitud.monto === pago.monto;
+
+        if (!cobrable || !solicitud) {
+          await this.intentarReversa(token, confirmado.amount);
+          pago.estado = EstadoIntentoPago.RECHAZADO;
+          await manager.save(pago);
+          await this.auditarResultado(
+            pago.solicitudRetiroId,
+            'rechazado',
+            null,
+          );
+          return {
+            solicitudId: pago.solicitudRetiroId,
+            resultado: 'rechazado',
+            abono: null,
+          };
+        }
+
+        const pagoAnterior = solicitud.estadoPago;
+        solicitud.estadoPago = EstadoPagoSolicitud.PAGADO;
+        pago.estado = EstadoIntentoPago.AUTORIZADO;
+        pago.codigoAutorizacion = codigo;
+        pago.fechaTransaccion = confirmado.transactionDate ?? new Date();
+        await manager.save(solicitud);
         await manager.save(pago);
-        await this.auditarResultado(pago.solicitudRetiroId, 'rechazado', null);
-        return {
-          solicitudId: pago.solicitudRetiroId,
-          resultado: 'rechazado',
-        };
-      }
-
-      const solicitud = await manager.findOne(SolicitudRetiro, {
-        where: { id: pago.solicitudRetiroId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      const cobrable =
-        solicitud !== null &&
-        solicitud.estado === EstadoSolicitudRetiro.APROBADA &&
-        solicitud.estadoPago === EstadoPagoSolicitud.PENDIENTE &&
-        solicitud.monto === pago.monto;
-
-      if (!cobrable || !solicitud) {
-        await this.intentarReversa(token, confirmado.amount);
-        pago.estado = EstadoIntentoPago.RECHAZADO;
-        await manager.save(pago);
-        await this.auditarResultado(pago.solicitudRetiroId, 'rechazado', null);
-        return {
-          solicitudId: pago.solicitudRetiroId,
-          resultado: 'rechazado',
-        };
-      }
-
-      const pagoAnterior = solicitud.estadoPago;
-      solicitud.estadoPago = EstadoPagoSolicitud.PAGADO;
-      pago.estado = EstadoIntentoPago.AUTORIZADO;
-      pago.codigoAutorizacion = codigo;
-      pago.fechaTransaccion = confirmado.transactionDate ?? new Date();
-      await manager.save(solicitud);
-      await manager.save(pago);
-      await this.creditos.otorgarPorPago(manager, solicitud);
-      await this.auditarResultado(solicitud.id, 'aprobado', pagoAnterior);
-      return { solicitudId: solicitud.id, resultado: 'aprobado' };
-    });
+        const abono = await this.creditos.otorgarPorPago(manager, solicitud);
+        await this.auditarResultado(solicitud.id, 'aprobado', pagoAnterior);
+        return { solicitudId: solicitud.id, resultado: 'aprobado', abono };
+      },
+    );
+    if (!cerrado) return null;
+    // Después del commit: un rollback no debe dejar el aviso de un abono que no quedó.
+    if (cerrado.abono) this.creditos.avisarAbono(cerrado.abono);
+    return { solicitudId: cerrado.solicitudId, resultado: cerrado.resultado };
   }
 
   private async intentarReversa(token: string, monto: number): Promise<void> {
