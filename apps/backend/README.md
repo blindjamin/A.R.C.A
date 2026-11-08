@@ -146,7 +146,7 @@ Requieren sesión. Contrato completo: [spec `marketplace`](../../docs/specs/SPEC
 
 Tiempo real: `TiempoRealGateway` (`src/tiempo-real/`, socket.io en `/api/socket.io`, compartido por el chat y los avisos) solo empuja los eventos `mensaje`, `leidos` y `notificacion`; no define `@SubscribeMessage`, porque los guards globales son HTTP. En el handshake valida la cookie de sesión y el `Origin` y une al vecino a su sala. El gateway no tiene límite propio: la escritura pasa por el REST. Si el destinatario no tiene sockets conectados, `PushService` le manda un aviso con el título del artículo y «`<nombre> te escribió`», sin el texto del mensaje.
 
-`ConservacionChatService` (`src/marketplace/chat/`) borra cada 24 h (y al arrancar) los mensajes e intereses de los artículos completados, retirados o vencidos hace más de 30 días, y deja una constancia de auditoría con los conteos.
+`ConservacionChatService` (`src/marketplace/chat/`) borra cada 24 h (y al arrancar) los mensajes e intereses de los artículos completados, retirados, reservados sin entregar o vencidos hace más de 30 días, y deja una constancia de auditoría con los conteos.
 
 ### Campanita de avisos (HU-23, módulo `src/notificaciones/`)
 
