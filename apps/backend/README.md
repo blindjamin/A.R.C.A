@@ -239,7 +239,7 @@ corren en este mismo proceso, puerto 3000, código en `src/admin/`.
 | `GET` / `POST` | `/api/admin/derivaciones` | Historial de lotes / crea un lote: deriva en una transacción todas las aprobadas con el pago resuelto (`400` si no hay ninguna) |
 | `GET` | `/api/admin/derivaciones/:id/excel` | Descarga el `.xlsx` del lote (sin fotos ni id del vecino), armado en memoria. Cada descarga se audita como `ACCESO` |
 | `GET` | `/api/admin/metricas?dias=7\|30\|90` | Indicadores agregados (recibidas por día, cola, espera de revisión, decisiones y motivos, categorías, derivación, recaudación de la maqueta). Sin filas individuales |
-| `GET` | `/api/admin/metricas/reporte?desde=&hasta=` | Reporte del rango (HU-09): número de retiros, objetos por categoría y monto. Fechas ISO, un año como máximo. Sin vecino, dirección ni contacto. La pantalla la hace el frontend |
+| `GET` | `/api/admin/metricas/reporte?desde=&hasta=` | Reporte del rango (HU-09): `solicitudesRecibidas` (todas), `retiros` (solo estado `retirada`), objetos por categoría de las recibidas y `monto` (solo pago `pagado`). Fechas ISO, un año como máximo. Sin vecino, dirección ni contacto. La pantalla la hace el frontend |
 | `GET` | `/api/admin/residuos` | Catálogo de residuos de solo lectura (`id`, `nombre`, `categoria`, `precio`) para corregir la categoría |
 | `GET` | `/api/admin/mapa-calor` | Agregación de solicitudes por sector y métrica (`volumen` o `pendientes`), calculado en memoria con umbral de privacidad. Devuelve intensidad relativa y conteos |
 | `GET` | `/api/admin/marketplace/pendientes` | Listado de artículos de marketplace pendientes de moderación municipal |

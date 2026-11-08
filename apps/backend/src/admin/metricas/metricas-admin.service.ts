@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { LoteDerivacion, RevisionSolicitud, SolicitudRetiro } from '../../core';
 import {
   calcularMetricas,
@@ -74,9 +74,9 @@ export class MetricasAdminService {
   }
 
   /**
-   * Reporte para el selector de fechas (HU-09). Agregados del rango: cantidad
-   * de retiros, objetos por categoría y monto. Sin vecino, dirección ni contacto.
-   * La pantalla la arma el frontend.
+   * Reporte para el selector de fechas (HU-09). Solicitudes recibidas, retiros
+   * realizados, objetos por categoría y monto recaudado. Sin vecino, dirección
+   * ni contacto. La pantalla la arma el frontend.
    */
   async reporte(desdeIso: string, hastaIso: string): Promise<ReporteGestion> {
     const desde = desdeIso.slice(0, 10);
@@ -88,9 +88,16 @@ export class MetricasAdminService {
       );
     }
 
+    const inicio = new Date(`${desde}T00:00:00`);
+    const fin = new Date(`${hasta}T00:00:00`);
+    fin.setDate(fin.getDate() + 1);
+
     const solicitudes = await this.solicitudRetiroRepository.find({
+      where: { fechaSolicitud: Between(inicio, fin) },
       select: {
         monto: true,
+        estado: true,
+        estadoPago: true,
         fechaSolicitud: true,
         residuoCatalogo: { id: true, categoria: true },
         objetos: {
@@ -105,6 +112,8 @@ export class MetricasAdminService {
     return calcularReporte(
       solicitudes.map((solicitud) => ({
         fechaSolicitud: solicitud.fechaSolicitud,
+        estado: solicitud.estado,
+        estadoPago: solicitud.estadoPago,
         monto: solicitud.monto,
         objetos: solicitud.objetos?.length
           ? solicitud.objetos.map((objeto) => ({

@@ -1,3 +1,5 @@
+import { EstadoPagoSolicitud, EstadoSolicitudRetiro } from '../../core';
+
 /** Un año, inclusive. El mismo tope que las exportaciones del panel. */
 export const DIAS_MAXIMO_REPORTE = 366;
 
@@ -8,6 +10,8 @@ export interface ObjetoReporte {
 
 export interface FilaReporte {
   fechaSolicitud: Date;
+  estado: EstadoSolicitudRetiro;
+  estadoPago: EstadoPagoSolicitud;
   monto: number | null;
   objetos: ObjetoReporte[];
 }
@@ -15,7 +19,11 @@ export interface FilaReporte {
 export interface ReporteGestion {
   desde: string;
   hasta: string;
+  /** Todas las solicitudes creadas en el rango, sea cual sea su estado. */
+  solicitudesRecibidas: number;
+  /** Solo las que llegaron a `retirada`. */
   retiros: number;
+  /** Suma de `monto` de las que tienen el pago en `pagado`. */
   monto: number;
   porCategoria: { categoria: string; objetos: number }[];
 }
@@ -31,14 +39,17 @@ const diaLocal = (fecha: Date): string => {
 export function diasDelRango(desde: string, hasta: string): number | null {
   const inicio = new Date(`${desde}T00:00:00`);
   const fin = new Date(`${hasta}T00:00:00`);
-  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime())) return null;
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()))
+    return null;
   if (fin < inicio) return null;
   return Math.round((fin.getTime() - inicio.getTime()) / 86_400_000) + 1;
 }
 
 /**
- * Retiros, objetos por categoría y monto del rango. Solo agregados: ninguna
- * fila trae vecino, dirección ni identificador.
+ * Agregados del rango. `solicitudesRecibidas` son todas; `retiros` solo las
+ * de estado `retirada`; `monto` solo lo que tiene el pago en `pagado`.
+ * Los objetos se cuentan sobre las recibidas. Ninguna fila trae vecino,
+ * dirección ni identificador.
  */
 export function calcularReporte(
   filas: FilaReporte[],
@@ -63,11 +74,17 @@ export function calcularReporte(
       conteo.set(categoria, (conteo.get(categoria) ?? 0) + cantidad);
     }
   }
+  const pagadas = enRango.filter(
+    (fila) => fila.estadoPago === EstadoPagoSolicitud.PAGADO,
+  );
   return {
     desde,
     hasta,
-    retiros: enRango.length,
-    monto: enRango.reduce((total, fila) => total + (fila.monto ?? 0), 0),
+    solicitudesRecibidas: enRango.length,
+    retiros: enRango.filter(
+      (fila) => fila.estado === EstadoSolicitudRetiro.RETIRADA,
+    ).length,
+    monto: pagadas.reduce((total, fila) => total + (fila.monto ?? 0), 0),
     porCategoria: [...conteo.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([categoria, objetos]) => ({ categoria, objetos })),
