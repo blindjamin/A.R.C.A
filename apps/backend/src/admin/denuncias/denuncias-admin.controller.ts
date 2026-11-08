@@ -33,13 +33,17 @@ export class DenunciasAdminController {
   constructor(private readonly denunciasAdminService: DenunciasAdminService) {}
 
   @Get()
-  listar(@Query('estado') estado?: string) {
-    return this.denunciasAdminService.listar(estado);
+  listar(@CurrentUser() user: AuthUser, @Query('estado') estado?: string) {
+    return this.denunciasAdminService.listar(user, estado);
   }
 
   @Get(':id')
-  detalle(@Param('id', ParseIntPipe) id: number) {
-    return this.denunciasAdminService.detalle(id);
+  detalle(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
+    return this.denunciasAdminService.detalle(id, user, origenDe(req));
   }
 
   @Patch(':id')
