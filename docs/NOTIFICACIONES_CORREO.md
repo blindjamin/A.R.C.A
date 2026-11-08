@@ -122,6 +122,6 @@ Además del correo, el vecino tiene una **campanita** en la barra superior, en e
 **Qué no hay**
 
 - Los **mensajes de chat no crean filas** de aviso: ya tienen sus no leídos y su push, y la campanita los cuenta desde los no leídos del chat.
-- Los avisos **no repiten el texto de un mensaje ni un comentario** y nunca llevan correo, teléfono, RUN ni dirección. De las solicitudes solo llevan el número y el estado. Los nombres son de pila y los títulos de artículo largos se recortan.
+- Los avisos **no repiten el texto de un mensaje ni un comentario** y nunca llevan correo, teléfono, RUN ni dirección. De las solicitudes solo llevan el número y el estado y, al pedir cambios o rechazar, el motivo elegido de la lista (con la misma etiqueta que ve el funcionario; `otro` no se muestra); nunca el comentario libre. Los nombres son de pila y los títulos de artículo largos se recortan.
 - `CreditosService.otorgarPorPago` (créditos por retiro pagado) **todavía no tiene quien la llame**. Quien la conecte (la confirmación del pago, HU-44) debe llamar a `CreditosService.avisarAbono(movimiento)` **después del commit** de su transacción, para que un rollback no deje un aviso falso. Hoy `avisarAbono` solo se usa en la entrega y en la calificación.
 - La ruta de las solicitudes en el aviso es la lista `/mis-solicitudes`: no hay pantalla de detalle.
