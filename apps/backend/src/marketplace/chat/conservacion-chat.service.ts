@@ -16,16 +16,17 @@ import {
 } from '../../core';
 
 /**
- * Días que se conserva el chat de un artículo cerrado (completado o retirado)
- * o vencido sin entregar. Provisorio: lo confirma Miguel.
+ * Días que se conserva el chat de un artículo cerrado (completado, retirado o
+ * reservado sin entregar) o vencido sin entregar. Provisorio: lo confirma Miguel.
  */
 export const DIAS_CONSERVACION_CHAT = 30;
 
 const UN_DIA_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Borra mensajes e intereses de los artículos cerrados o vencidos hace más de
- * `DIAS_CONSERVACION_CHAT` días. Corre al arrancar y una vez al día.
+ * Borra mensajes e intereses de los artículos cerrados, reservados sin entregar
+ * o vencidos hace más de `DIAS_CONSERVACION_CHAT` días. Corre al arrancar y una
+ * vez al día.
  *
  * Los mensajes pueden contener datos personales (direcciones, teléfonos):
  * cerrado el intercambio no tienen finalidad (Ley 21.719).
@@ -65,13 +66,14 @@ export class ConservacionChatService
     );
     const condicion = `articulo_id IN (
       SELECT id FROM articulos_marketplace
-      WHERE (estado IN (:...cerrados) AND updated_at < :limite)
+      WHERE (estado IN (:...conPlazo) AND updated_at < :limite)
          OR (estado = :disponible AND fecha_expiracion < :limite)
     )`;
     const parametros = {
-      cerrados: [
+      conPlazo: [
         EstadoArticuloMarketplace.COMPLETADO,
         EstadoArticuloMarketplace.RETIRADO,
+        EstadoArticuloMarketplace.EN_NEGOCIACION,
       ],
       disponible: EstadoArticuloMarketplace.DISPONIBLE,
       limite,

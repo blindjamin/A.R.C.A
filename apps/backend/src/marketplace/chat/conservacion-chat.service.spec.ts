@@ -43,7 +43,7 @@ describe('ConservacionChatService', () => {
     return { service, m, i, auditoria };
   }
 
-  it('borra solo lo vencido: cerrados y disponibles vencidos hace más del plazo', async () => {
+  it('borra lo vencido: cerrados, reservados sin entregar y disponibles vencidos', async () => {
     const { service, m, i } = montar(7, 3);
 
     await expect(service.borrarChatsVencidos(AHORA)).resolves.toEqual({
@@ -56,12 +56,13 @@ describe('ConservacionChatService', () => {
     );
     for (const { qb } of [m, i]) {
       const [condicion, parametros] = qb.where.mock.calls[0];
-      expect(condicion).toContain('estado IN (:...cerrados) AND updated_at <');
+      expect(condicion).toContain('estado IN (:...conPlazo) AND updated_at <');
       expect(condicion).toContain('fecha_expiracion < :limite');
       expect(parametros).toEqual({
-        cerrados: [
+        conPlazo: [
           EstadoArticuloMarketplace.COMPLETADO,
           EstadoArticuloMarketplace.RETIRADO,
+          EstadoArticuloMarketplace.EN_NEGOCIACION,
         ],
         disponible: EstadoArticuloMarketplace.DISPONIBLE,
         limite,
