@@ -15,6 +15,7 @@ import {
   Like,
   MoreThan,
   QueryFailedError,
+  Raw,
   Repository,
 } from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
@@ -241,6 +242,11 @@ export class MarketplaceService {
       // Las de un vecino dado de baja se ocultan sin cambiar su estado, para
       // que reaparezcan si vuelve (decisión 011).
       usuarioPublicador: { activo: true },
+      // Y las de un vecino bloqueado (HU-18): su última fila es un bloqueo.
+      usuarioPublicadorId: Raw(
+        (col) =>
+          `NOT EXISTS (SELECT 1 FROM bloqueos_ciudadano b WHERE b.usuario_ciudadano_id = ${col} AND b.accion = 'bloqueo' AND b.id = (SELECT MAX(b2.id) FROM bloqueos_ciudadano b2 WHERE b2.usuario_ciudadano_id = b.usuario_ciudadano_id))`,
+      ),
     };
     if (filtros.tipo) base.tipo = filtros.tipo;
     if (filtros.categoria)

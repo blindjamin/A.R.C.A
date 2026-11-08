@@ -51,6 +51,16 @@ const FOOTER_HTML = `
   </table>
 `;
 
+/** Lo que escriben vecinos y funcionarios va como texto, nunca como HTML. */
+export function escaparHtml(texto: string): string {
+  return texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function generarHtmlCodigo(codigo: string): string {
   return `
 <!DOCTYPE html>
@@ -239,7 +249,7 @@ const ESTADOS_MAP: Record<string, EstadoVisualInfo> = {
 };
 
 export function generarHtmlCambioEstado(
-  solicitud: {
+  entrada: {
     id: number;
     residuoNombre?: string;
     categoria?: string;
@@ -247,8 +257,16 @@ export function generarHtmlCambioEstado(
     fechaSolicitud?: Date | string;
   },
   nuevoEstado: string,
-  comentario?: string | null,
+  comentarioOriginal?: string | null,
 ): string {
+  const solicitud = {
+    ...entrada,
+    residuoNombre: entrada.residuoNombre && escaparHtml(entrada.residuoNombre),
+    categoria: entrada.categoria && escaparHtml(entrada.categoria),
+    direccion: entrada.direccion && escaparHtml(entrada.direccion),
+  };
+  const comentario = comentarioOriginal && escaparHtml(comentarioOriginal);
+
   const info = ESTADOS_MAP[nuevoEstado] || {
     titulo: 'Actualización de Solicitud',
     badgeBg: '#E2E8F0',

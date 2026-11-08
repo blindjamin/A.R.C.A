@@ -66,6 +66,10 @@ export class CreateSolicitudRetiroDto {
   @IsString()
   longitudCapturada?: string;
 
+  /**
+   * Se acepta y se ignora: el frontend todavía lo manda. El correo del vecino
+   * solo se guarda al verificarlo con código en `/api/mail`.
+   */
   @IsOptional()
   @IsEmail({}, { message: 'El correo de contacto no es válido' })
   emailContacto?: string;

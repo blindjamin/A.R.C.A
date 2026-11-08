@@ -3,9 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  Optional,
 } from '@nestjs/common';
-import { MailService } from '../mail/mail.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import {
@@ -68,8 +66,6 @@ export class SolicitudesRetiroService {
     private readonly residuosService: ResiduosService,
     private readonly auditoriaService: AuditoriaService,
     private readonly archivosService: ArchivosService,
-    @Optional()
-    private readonly mailService?: MailService,
   ) {}
 
   async create(
@@ -167,12 +163,6 @@ export class SolicitudesRetiroService {
         datosNuevos: { estado: guardada.estado, objetos: objetos.length },
         origen,
       });
-
-      if (dto.emailContacto && this.mailService) {
-        this.mailService
-          .registrarCorreoCiudadano(user.ciudadanoId, dto.emailContacto)
-          .catch(() => {});
-      }
 
       return this.findOnePublica(guardada.id, user);
     } catch (error) {
