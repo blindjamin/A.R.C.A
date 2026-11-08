@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BadgeNoLeidos, IconBox, IconMail, IconPlus, IconStore } from '../../components/ui';
+import AvisoBloqueo from './AvisoBloqueo';
+import { useMiBloqueo } from './useMiBloqueo';
 import { useNoLeidos } from './chat/NoLeidosContext';
 
 export type MarketplaceTab = 'explorar' | 'mis-publicaciones' | 'mensajes';
@@ -79,6 +81,7 @@ export function MarketplaceHeader({
   tabActiva,
   mostrarBotonPublicar = true,
 }: MarketplaceHeaderProps) {
+  const bloqueo = useMiBloqueo();
   return (
     <div className="space-y-3">
       {/* Cabecera con botón de acción directa en mobile */}
@@ -91,7 +94,7 @@ export function MarketplaceHeader({
             {subtitulo}
           </p>
         </div>
-        {mostrarBotonPublicar && (
+        {mostrarBotonPublicar && !bloqueo?.bloqueado && (
           <Link
             to="/marketplace/subir"
             className="btn-gold shrink-0 flex min-h-[38px] items-center gap-1.5 py-2 px-3.5 text-xs sm:text-sm shadow-xs select-none touch-manipulation active:scale-95 transition-transform"
@@ -101,6 +104,8 @@ export function MarketplaceHeader({
           </Link>
         )}
       </div>
+
+      <AvisoBloqueo bloqueo={bloqueo} />
 
       {/* Navegación segmentada persistente */}
       <MarketplaceNav tabActiva={tabActiva} />

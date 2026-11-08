@@ -15,6 +15,8 @@ import {
   IconCamera,
   IconRecycle,
 } from '../../components/ui';
+import AvisoBloqueo from './AvisoBloqueo';
+import { useMiBloqueo } from './useMiBloqueo';
 import { useSession } from '../../auth/SessionContext';
 
 const TITULO_MIN = 3;
@@ -61,6 +63,7 @@ export default function PublicarArticulo() {
   const location = useLocation();
   const { sesion } = useSession();
   const usuarioCiudadanoId = sesion?.ciudadanoId;
+  const bloqueo = useMiBloqueo();
 
   const importarParam = (
     location.state as {
@@ -289,6 +292,7 @@ export default function PublicarArticulo() {
         title="Publicar artículo"
         subtitle="Dale una segunda vida: regálalo o intercámbialo con un vecino."
       />
+      <AvisoBloqueo bloqueo={bloqueo} />
 
       {/* Opción de importar desde solicitudes de retiro municipal */}
       {solicitudesVecino.length > 0 && (
@@ -504,7 +508,9 @@ export default function PublicarArticulo() {
 
       <button
         type="submit"
-        disabled={enviando || !!errorCatalogo || (intentado && hayErrores)}
+        disabled={
+          enviando || !!errorCatalogo || (intentado && hayErrores) || !!bloqueo?.bloqueado
+        }
         className="btn-primary w-full py-3.5"
       >
         {enviando ? 'Publicando…' : 'Publicar'}
