@@ -195,7 +195,8 @@ Reglas (spec §7), con **valores de prueba** en `src/creditos/reglas-creditos.ts
   otorgamientos simultáneos no leen el mismo saldo.
 - El 50 % por un retiro municipal se otorga **al pagarse la solicitud**
   (`CreditosService.otorgarPorPago`). Lo llama la confirmación de Webpay (HU-44), en la misma
-  transacción que deja el pago en `pagado`. Confirmar dos veces no otorga dos veces.
+  transacción que deja el pago en `pagado`. El aviso de la campanita (`avisarAbono`) sale
+  después de confirmar esa transacción. Confirmar dos veces no otorga ni avisa dos veces.
 
 La pantalla `/pago/:id` del frontend todavía es maqueta: no llama a estos endpoints. Sin el PR
 de front enlazado a #136, HU-44 no se prueba de punta a punta. El listado de pagadas del panel

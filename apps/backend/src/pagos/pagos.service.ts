@@ -20,6 +20,7 @@ import {
   PagoWebpay,
   SolicitudRetiro,
   TipoActorAuditoria,
+  TransaccionCircularCredits,
   origenesPermitidos,
   type AuthUser,
 } from '../core';
@@ -253,7 +254,14 @@ export class PagosService {
     token: string,
     confirmado: TransaccionConfirmada,
   ): Promise<{ solicitudId: number; resultado: ResultadoPago } | null> {
-    return this.dataSource.transaction(async (manager) => {
+    const cerrado = await this.dataSource.transaction(
+      async (
+        manager,
+      ): Promise<{
+        solicitudId: number;
+        resultado: ResultadoPago;
+        abono: TransaccionCircularCredits | null;
+      } | null> => {
       const pago = await manager.findOne(PagoWebpay, {
         where: { token },
         lock: { mode: 'pessimistic_write' },
@@ -263,6 +271,7 @@ export class PagosService {
         return {
           solicitudId: pago.solicitudRetiroId,
           resultado: resultadoDe(pago.estado) ?? 'rechazado',
+          abono: null,
         };
       }
 
@@ -290,6 +299,7 @@ export class PagosService {
         return {
           solicitudId: pago.solicitudRetiroId,
           resultado: 'rechazado',
+          abono: null,
         };
       }
 
@@ -311,6 +321,7 @@ export class PagosService {
         return {
           solicitudId: pago.solicitudRetiroId,
           resultado: 'rechazado',
+          abono: null,
         };
       }
 
@@ -321,10 +332,15 @@ export class PagosService {
       pago.fechaTransaccion = confirmado.transactionDate ?? new Date();
       await manager.save(solicitud);
       await manager.save(pago);
-      await this.creditos.otorgarPorPago(manager, solicitud);
+      const abono = await this.creditos.otorgarPorPago(manager, solicitud);
       await this.auditarResultado(solicitud.id, 'aprobado', pagoAnterior);
-      return { solicitudId: solicitud.id, resultado: 'aprobado' };
-    });
+      return { solicitudId: solicitud.id, resultado: 'aprobado', abono };
+    },
+    );
+    if (!cerrado) return null;
+    // Después del commit: un rollback no debe dejar el aviso de un abono que no quedó.
+    if (cerrado.abono) this.creditos.avisarAbono(cerrado.abono);
+    return { solicitudId: cerrado.solicitudId, resultado: cerrado.resultado };
   }
 
   private async intentarReversa(token: string, monto: number): Promise<void> {
