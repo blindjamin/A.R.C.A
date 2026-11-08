@@ -9,6 +9,7 @@ import {
   InteresadoMarketplace,
   MensajeMarketplace,
 } from '../core';
+import { BloqueosModule } from '../bloqueos/bloqueos.module';
 import { CreditosModule } from '../creditos/creditos.module';
 import { NotificacionesModule } from '../notificaciones/notificaciones.module';
 import { PushModule } from '../push/push.module';
@@ -38,6 +39,7 @@ import { UbicacionMarketplaceModule } from './ubicacion/ubicacion-marketplace.mo
     ArchivosModule,
     UbicacionMarketplaceModule,
     CreditosModule,
+    BloqueosModule,
   ],
   controllers: [MarketplaceController, MarketplaceChatController],
   providers: [

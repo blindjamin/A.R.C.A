@@ -20,6 +20,7 @@ import { SuscripcionPush } from './suscripcion-push.entity';
 import { Notificacion } from './notificacion.entity';
 import { PagoWebpay } from './pago-webpay.entity';
 import { Denuncia } from './denuncia.entity';
+import { BloqueoCiudadano } from './bloqueo-ciudadano.entity';
 
 export { RolAdministrador } from './rol-administrador.enum';
 export { UsuarioCiudadano } from './usuario-ciudadano.entity';
@@ -58,6 +59,10 @@ export { EstadoDenuncia } from './estado-denuncia.enum';
 export { MotivoDenuncia } from './motivo-denuncia.enum';
 export { OrigenDenuncia } from './origen-denuncia.enum';
 export { Denuncia, type MensajeAdjunto } from './denuncia.entity';
+export {
+  BloqueoCiudadano,
+  type AccionBloqueo,
+} from './bloqueo-ciudadano.entity';
 
 // Usado por apps/backend/src/database/data-source.ts: el glob __dirname +
 // '/../**/*.entity' que usaba antes de la migración no encuentra las
@@ -86,4 +91,5 @@ export const ENTIDADES = [
   Notificacion,
   PagoWebpay,
   Denuncia,
+  BloqueoCiudadano,
 ];

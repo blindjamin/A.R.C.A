@@ -10,8 +10,10 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { NoBloqueadoGuard } from '../../bloqueos/no-bloqueado.guard';
 import { CurrentUser, LimiteChat, type AuthUser } from '../../core';
 import { ConversacionDto, HistorialDto } from '../dto/conversacion.dto';
 import { EnviarMensajeDto } from '../dto/enviar-mensaje.dto';
@@ -27,6 +29,7 @@ export class MarketplaceChatController {
   }
 
   @Post('articulos/:id/interes')
+  @UseGuards(NoBloqueadoGuard)
   @HttpCode(HttpStatus.OK)
   registrarInteres(
     @Param('id', ParseIntPipe) id: number,
@@ -57,6 +60,7 @@ export class MarketplaceChatController {
   }
 
   @Post('articulos/:id/mensajes')
+  @UseGuards(NoBloqueadoGuard)
   @LimiteChat()
   enviar(
     @Param('id', ParseIntPipe) id: number,
