@@ -20,7 +20,9 @@ import {
 } from '../../../components/ui';
 import BotonDenunciar from '../../denuncias/BotonDenunciar';
 import BotonReservar from '../BotonReservar';
-import { metaDeEstadoArticulo } from '../formato';
+import AvisoBloqueo from '../AvisoBloqueo';
+import { mensajeDeError, metaDeEstadoArticulo } from '../formato';
+import { useMiBloqueo } from '../useMiBloqueo';
 import { useNoLeidos } from './NoLeidosContext';
 import type { EstadoArticulo } from '../../../api/marketplace';
 
@@ -96,6 +98,10 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
   const lista = useRef<HTMLDivElement>(null);
   const pegarAbajo = useRef(false);
   const siguienteTemp = useRef(-1);
+  const [versionBloqueo, setVersionBloqueo] = useState(0);
+  const bloqueo = useMiBloqueo(versionBloqueo);
+  const bloqueado = !!bloqueo?.bloqueado;
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
 
   const volver = () =>
     window.history.length > 1 ? navigate(-1) : navigate('/marketplace/mensajes');
@@ -209,7 +215,14 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
         });
       })
       .catch((e: Error) => {
-        if (e.message.startsWith('Error 409')) {
+        if (e.message.startsWith('Error 403')) {
+          // Lo bloquearon con la pantalla abierta: se explica y se refresca el aviso.
+          setErrorEnvio(mensajeDeError(e));
+          setVersionBloqueo((v) => v + 1);
+          setMensajes((previos) =>
+            previos.map((m) => (m.id === temp.id ? { ...m, estado: 'error' } : m)),
+          );
+        } else if (e.message.startsWith('Error 409')) {
           // Pasó a solo lectura mientras escribía.
           setMensajes((previos) => previos.filter((m) => m.id !== temp.id));
           cargar(false);
@@ -236,6 +249,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
     pegarAbajo.current = true;
     setMensajes((previos) => [...previos, temp]);
     setTexto('');
+    setErrorEnvio(null);
     transmitir(temp, permiso);
   };
 
@@ -360,6 +374,13 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
         )}
       </div>
 
+      {puedoEscribir && errorEnvio && (
+        <p role="alert" className="bg-rose-100 px-4 py-2 text-xs text-rose-600">
+          {errorEnvio}
+        </p>
+      )}
+      {puedoEscribir && <AvisoBloqueo bloqueo={bloqueo} compacto />}
+
       {puedoEscribir ? (
         <form
           onSubmit={(e) => {
@@ -372,7 +393,12 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
             rows={1}
             maxLength={1000}
             value={texto}
-            placeholder="Escribe un mensaje"
+            placeholder={
+              bloqueado
+                ? 'No puedes enviar mensajes mientras tu cuenta esté bloqueada'
+                : 'Escribe un mensaje'
+            }
+            disabled={bloqueado}
             aria-label="Mensaje"
             className="field resize-none"
             onChange={(e) => setTexto(e.target.value)}
@@ -392,7 +418,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
           <button
             type="submit"
             aria-label="Enviar mensaje"
-            disabled={!texto.trim()}
+            disabled={!texto.trim() || bloqueado}
             className="btn-primary h-11 w-11 shrink-0 !p-0"
           >
             <svg

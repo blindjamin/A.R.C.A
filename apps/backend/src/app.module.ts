@@ -24,6 +24,7 @@ import { PerfilModule } from './perfil/perfil.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { PagosModule } from './pagos/pagos.module';
 import { DenunciasModule } from './denuncias/denuncias.module';
+import { BloqueosModule } from './bloqueos/bloqueos.module';
 
 @Module({
   imports: [
@@ -79,6 +80,7 @@ import { DenunciasModule } from './denuncias/denuncias.module';
     PagadasAdminModule,
     MarketplaceAdminModule,
     DenunciasAdminModule,
+    BloqueosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

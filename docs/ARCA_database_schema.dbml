@@ -341,6 +341,16 @@ Table denuncias {
   updated_at timestamp [default: 'CURRENT_TIMESTAMP']
 }
 
+Table bloqueos_ciudadano {
+  id int [primary key, increment]
+  usuario_ciudadano_id varchar(36) [not null]
+  accion enum('bloqueo', 'desbloqueo') [not null, note: "El bloqueo vigente es la última fila del vecino, si es 'bloqueo'"]
+  motivo varchar(500) [not null, note: "Lo escribe el administrador y lo ve el vecino; no va a la auditoría"]
+  administrador_id varchar(36) [not null]
+  denuncia_id int
+  created_at timestamp [default: 'CURRENT_TIMESTAMP']
+}
+
 Table referidos {
   id int [primary key, increment]
   usuario_referidor_id varchar(36) [not null]
@@ -524,6 +534,9 @@ Ref: denuncias.usuario_denunciante_id > usuarios_ciudadanos.id
 Ref: denuncias.usuario_denunciado_id > usuarios_ciudadanos.id
 Ref: denuncias.articulo_id > articulos_marketplace.id
 Ref: denuncias.revisado_por_administrador_id > usuarios_administradores.id
+Ref: bloqueos_ciudadano.usuario_ciudadano_id > usuarios_ciudadanos.id
+Ref: bloqueos_ciudadano.administrador_id > usuarios_administradores.id
+Ref: bloqueos_ciudadano.denuncia_id > denuncias.id
 
 Ref: referidos.usuario_referidor_id > usuarios_ciudadanos.id
 

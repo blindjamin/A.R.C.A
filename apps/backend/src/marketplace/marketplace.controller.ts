@@ -11,6 +11,7 @@ import {
   Res,
   StreamableFile,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -20,6 +21,7 @@ import {
   type ArchivoSubido,
   TAMANO_MAXIMO_IMAGEN_BYTES,
 } from '../archivos/archivos.service';
+import { NoBloqueadoGuard } from '../bloqueos/no-bloqueado.guard';
 import { EntregarArticuloDto } from './dto/entregar-articulo.dto';
 import { ReservarArticuloDto } from './dto/reservar-articulo.dto';
 import { CalificarArticuloDto } from './dto/calificar-articulo.dto';
@@ -44,6 +46,7 @@ export class MarketplaceController {
   }
 
   @Post('articulos')
+  @UseGuards(NoBloqueadoGuard)
   @UseInterceptors(
     FileInterceptor('foto', {
       limits: { fileSize: TAMANO_MAXIMO_IMAGEN_BYTES, files: 1 },

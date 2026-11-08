@@ -10,6 +10,7 @@ import {
   type EstadoDenuncia,
 } from '../api/denuncias';
 import { BackButton, EmptyState } from '../components/ui';
+import BloqueoDenunciado from './BloqueoDenunciado';
 import { formatoFechaHora } from '../fechas';
 import { IconFlag, IconCheck, IconX } from '../../components/ui/Icons';
 
@@ -303,6 +304,8 @@ function DetalleDenuncia({ id, onVolver }: { id: number; onVolver: () => void })
           </p>
         </section>
       )}
+
+      <BloqueoDenunciado denunciaId={d.id} />
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
 
