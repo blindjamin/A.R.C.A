@@ -1,4 +1,9 @@
+import { config } from 'dotenv';
 import { Throttle } from '@nestjs/throttler';
+
+// Los decoradores leen el límite al cargar el módulo, antes de que Nest lea
+// `.env.local`. Sin esto, un cambio en el servidor no se vería hasta tocar código.
+config({ path: '.env.local' });
 
 /**
  * Límites de consultas (rate limiting) de las APIs de A.R.C.A.
@@ -15,15 +20,33 @@ import { Throttle } from '@nestjs/throttler';
 
 export const VENTANA_MS = 60_000;
 
+/** Pisos: un valor de entorno ausente o menor deja estos números. */
+const PISO_GENERAL = 120;
+const PISO_LOGIN = 10;
+const PISO_UBICACION = 90;
+const PISO_CHAT = 30;
+
+/**
+ * Límite por IP leído del entorno. Sirve para subir el tope en la Feria, donde
+ * muchos vecinos salen por la misma red, sin editar código. No baja el piso.
+ */
+export function limitePorIp(nombre: string, piso: number): number {
+  const crudo = process.env[nombre];
+  if (crudo === undefined || crudo.trim() === '') return piso;
+  const valor = Number(crudo);
+  if (!Number.isInteger(valor) || valor < piso) return piso;
+  return valor;
+}
+
 /** Límite general: cualquier ruta, por IP. Holgado para uso normal de la app. */
-export const LIMITE_GENERAL = 120;
+export const LIMITE_GENERAL = limitePorIp('LIMITE_IP_GENERAL', PISO_GENERAL);
 
 /**
  * Login con ClaveÚnica. Iniciar o cerrar sesión unas pocas veces por minuto es
  * normal; decenas no. Frena abusos del flujo OAuth (llenar de `state` al
  * servidor, forzar callbacks) sin afectar a un vecino real.
  */
-export const LIMITE_LOGIN = 10;
+export const LIMITE_LOGIN = limitePorIp('LIMITE_IP_LOGIN', PISO_LOGIN);
 
 /**
  * Consultas que devuelven una banda de distancia (Marketplace). Consultar un
@@ -35,14 +58,17 @@ export const LIMITE_LOGIN = 10;
  * vecino que probaba filtros seguidos recibía el error. 90 deja buscar con
  * holgura y sigue por debajo del límite general.
  */
-export const LIMITE_UBICACION = 90;
+export const LIMITE_UBICACION = limitePorIp(
+  'LIMITE_IP_UBICACION',
+  PISO_UBICACION,
+);
 
 /**
  * Envío de mensajes del chat del Marketplace (HU-06). Por IP, como los demás:
  * holgado para una conversación real (varios vecinos pueden compartir IP) y
  * corta el envío masivo.
  */
-export const LIMITE_CHAT = 30;
+export const LIMITE_CHAT = limitePorIp('LIMITE_IP_CHAT', PISO_CHAT);
 
 /**
  * Peticiones por minuto a enviar y verificar códigos de correo. Cada envío le
