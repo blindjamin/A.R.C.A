@@ -58,7 +58,7 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 | `MAIL_HOST` | `smtp.gmail.com` | Servidor SMTP para envío de correos |
 | `MAIL_PORT` | `465` | Puerto SMTP (465 SSL o 587 TLS) |
 | `MAIL_USER` | `soporte.arcaa@gmail.com` | Cuenta de correo emisora |
-| `MAIL_PASS` | opcional | Contraseña de aplicación de Google (si falta, activa modo simulación en consola) |
+| `MAIL_PASS` | **obligatoria en producción** | Contraseña de aplicación de Google. En local, si falta, activa el modo simulación; en producción, sin ella no se envían códigos y `enviar-codigo` responde 503 |
 | `MAIL_FROM` | `"A.R.C.A. <soporte.arcaa@gmail.com>"` | Nombre y dirección en cabecera From |
 
 `.env.local` **no se versiona** (está en `.gitignore`). La plantilla es `.env.example`.

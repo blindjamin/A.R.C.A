@@ -44,12 +44,22 @@ export const LIMITE_UBICACION = 90;
  */
 export const LIMITE_CHAT = 30;
 
+/**
+ * Peticiones por minuto a enviar y verificar códigos de correo. Cada envío le
+ * llega a un tercero, y un código tiene solo 6 dígitos.
+ */
+export const LIMITE_CORREO = 10;
+
 export const MENSAJE_LIMITE =
   'Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.';
 
 /** Aplica el límite del login con ClaveÚnica a un controlador o ruta. */
 export const LimiteLogin = () =>
   Throttle({ default: { limit: LIMITE_LOGIN, ttl: VENTANA_MS } });
+
+/** Aplica el límite de los códigos de correo a un controlador o ruta. */
+export const LimiteCorreo = () =>
+  Throttle({ default: { limit: LIMITE_CORREO, ttl: VENTANA_MS } });
 
 /** Aplica el límite de consultas de ubicación a un controlador o ruta. */
 export const LimiteUbicacion = () =>

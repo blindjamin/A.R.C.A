@@ -75,7 +75,9 @@ MAIL_PASS=xxxx-xxxx-xxxx-xxxx # Contraseña de aplicación de Google de 16 carac
 MAIL_FROM="A.R.C.A. Santo Domingo <soporte.arcaa@gmail.com>"
 ```
 
-> **Nota:** Si `MAIL_PASS` no está definido, el backend opera de forma automática en modo simulación (útil para pruebas locales sin conexión a internet).
+> **Nota:** Si `MAIL_PASS` no está definido, en local el backend opera en modo simulación y muestra el código en pantalla (útil para pruebas sin conexión a internet). **En producción nunca entrega el código:** sin credenciales o si falla el envío, `enviar-codigo` responde 503.
+>
+> Una cuenta puede pedir hasta 10 códigos por hora y cada IP hasta 10 peticiones por minuto a `/api/mail`. El correo del vecino solo se guarda al verificarlo: `emailContacto` en `POST /solicitudes-retiro` se ignora.
 
 ---
 
