@@ -8,8 +8,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * baja ya borra entera. No se copia el correo de la sesión: ese campo también
  * lo puede llenar ClaveÚnica y no prueba que el vecino lo haya verificado.
  */
-export class CorreoContacto1782165600000 implements MigrationInterface {
-  name = 'CorreoContacto1782165600000';
+export class CorreoContacto1782165700000 implements MigrationInterface {
+  name = 'CorreoContacto1782165700000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

@@ -432,7 +432,7 @@ siempre en una migración nueva.
 | `1782164800000` | `interes-reserva-marketplace` — tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo` y `fecha_reserva` en `articulos_marketplace` |
 | `1782165200000` | `moderacion-market-residuo-otro` — estados `pendiente_aprobacion` y `rechazado`, moderación municipal y residuo libre en solicitudes y marketplace |
 | `1782165300000` | `creditos-articulos-marketplace` — columna `creditos` en `articulos_marketplace` para asignación de Circular Credits |
-| `1782165600000` | `correo-contacto` — correo verificado en `contacto_ciudadano` (HU-37). La baja borra la fila |
+| `1782165700000` | `correo-contacto` — correo verificado en `contacto_ciudadano` (HU-37). La baja borra la fila |
 
 ### Se escriben a mano — no usar `migration:generate`
 
