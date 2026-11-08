@@ -104,7 +104,7 @@ Todos cuelgan del prefijo `/api`.
 | `GET` | `/api/perfil/baja` | Antes de darse de baja (HU-38): `{ puedeDarseDeBaja, solicitudesQueBloquean, articulosQueBloquean, solicitudesQueSeCancelan, horasParaVolver }` |
 | `POST` | `/api/perfil/baja` | Body `{ confirmo: true }`. Desactiva la cuenta con `fecha_baja`, cancela las solicitudes abiertas sin pagar, borra el contacto y el push, revoca las sesiones y borra la cookie. 409 si hay solicitudes pagadas o en retiro o intercambios reservados; 403 si es funcionario. Volver: entrar de nuevo pasadas 48 h |
 | `POST` | `/api/mail/enviar-codigo` | Solicitar código OTP (`{ email }`). El ciudadano se toma de la sesión, no del body |
-| `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y asociar correo a la sesión del vecino autenticado |
+| `POST` | `/api/mail/verificar-codigo` | Validar código (`{ email, codigo }`) y guardar el correo verificado en `contacto_ciudadano`. Sobrevive al reinicio; la baja borra la fila |
 | `POST` | `/api/pagos/solicitudes/:id` | Inicia Webpay Plus (HU-44) si la solicitud es del vecino, está `aprobada`, `estadoPago` es `pendiente` y `monto` > 0. Responde `{ url, token }`. El navegador debe enviar un formulario `POST` a `url` con el campo `token_ws` = `token`. `403` si no es suya, `404` si no existe, `409` si no hay cobro pendiente o ya está pagada |
 | `GET` | `/api/pagos/solicitudes/:id` | Comprobante del dueño: `{ estadoPago, monto, orden, codigoAutorizacion, fecha, resultado }`. `resultado` es `aprobado`, `anulado`, `agotado`, `rechazado` o `null` |
 | `GET`/`POST` | `/api/pagos/retorno` | Vuelta de Transbank, pública y exenta del chequeo de `Origin`. No usa la cookie: reconoce el intento por `token_ws`. Solo confirma si viene `token_ws` sin `TBK_TOKEN`. Anulación y tiempo agotado no confirman. Si el monto, la orden o el código no coinciden, no deja `pagado`, no otorga créditos y pide la reversa. Responde `302` a `{FRONTEND_URL}/pago/:id?resultado=aprobado\|anulado\|agotado\|rechazado` |
@@ -432,6 +432,7 @@ siempre en una migración nueva.
 | `1782164800000` | `interes-reserva-marketplace` — tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo` y `fecha_reserva` en `articulos_marketplace` |
 | `1782165200000` | `moderacion-market-residuo-otro` — estados `pendiente_aprobacion` y `rechazado`, moderación municipal y residuo libre en solicitudes y marketplace |
 | `1782165300000` | `creditos-articulos-marketplace` — columna `creditos` en `articulos_marketplace` para asignación de Circular Credits |
+| `1782165600000` | `correo-contacto` — correo verificado en `contacto_ciudadano` (HU-37). La baja borra la fila |
 
 ### Se escriben a mano — no usar `migration:generate`
 

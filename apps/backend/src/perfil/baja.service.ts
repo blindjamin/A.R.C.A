@@ -132,6 +132,13 @@ export class BajaService {
         { usuarioCiudadanoId: user.ciudadanoId, activa: true },
         { activa: false },
       );
+      // El correo verificado ya se fue con la fila de contacto. Esta columna
+      // quedó de cuando el correo vivía en la sesión: no debe sobrevivir la baja.
+      await em.update(
+        SesionCiudadano,
+        { usuarioCiudadanoId: user.ciudadanoId },
+        { emailSesion: null },
+      );
 
       return solicitudes.map((s) => s.id);
     });

@@ -27,6 +27,10 @@ export class ContactoCiudadano {
   @Column({ type: 'text', nullable: true })
   direccion: string | null;
 
+  /** Correo verificado con código (HU-37). No es el de ClaveÚnica. */
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  email: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
   createdAt: Date;
 
