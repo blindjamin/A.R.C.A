@@ -195,6 +195,13 @@ NODE_ENV=production
 FRONTEND_URL=https://arca.santodomingo.cl
 TRUST_PROXY=loopback
 
+# Opcionales. Pisos: 120, 10, 90 y 30 por minuto. Un número menor se ignora.
+# Subirlos si en la Feria mucha gente sale por la misma red, y reiniciar.
+# LIMITE_IP_GENERAL=120
+# LIMITE_IP_LOGIN=10
+# LIMITE_IP_UBICACION=90
+# LIMITE_IP_CHAT=30
+
 CLAVE_UNICA_CLIENT_ID=<entregado por Gobierno Digital>
 CLAVE_UNICA_CLIENT_SECRET=<entregado por Gobierno Digital>
 CLAVE_UNICA_REDIRECT_URI=https://arca.santodomingo.cl/
