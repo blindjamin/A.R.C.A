@@ -39,7 +39,10 @@ const articulo = (extra: Partial<ArticuloMarketplace> = {}) =>
     ...extra,
   }) as ArticuloMarketplace;
 
-const conversacion = { id: 7, articuloId: 10, usuarioInteresadoId: INTERESADO };
+const conversacion: Pick<
+  InteresadoMarketplace,
+  'id' | 'articuloId' | 'usuarioInteresadoId'
+> | null = { id: 7, articuloId: 10, usuarioInteresadoId: INTERESADO };
 
 const mensaje = (id: number, remitente: string) =>
   ({
@@ -53,7 +56,7 @@ const mensaje = (id: number, remitente: string) =>
 
 function montar({
   art = articulo(),
-  interes = conversacion as typeof conversacion | null,
+  interes = conversacion,
   repetidas = 0,
   hoy = 0,
   mensajes = [] as MensajeMarketplace[],
