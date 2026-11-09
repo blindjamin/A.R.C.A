@@ -94,9 +94,9 @@ src/
 
 > El panel municipal vive en `src/admin/` y se sirve en `/admin/*` de este mismo sitio
 > (SPEC-frontend-unificado): no es otro origen ni necesita una variable de entorno propia.
-> Cuenta con espacios separados para solicitudes de retiro (`/admin`) y moderación de marketplace
-> (`/admin/marketplace`), detección de coincidencias con artículos de vecinos y asignación de presupuesto final en la aprobación.
-> El botón "Modo funcionario" de `SeleccionInicio.tsx` navega a `/admin` con el router de React.
+> Cuenta con espacios separados para solicitudes de retiro (`/admin`), moderacion de marketplace
+> (`/admin/marketplace`), deteccion de coincidencias con articulos de vecinos y asignacion de presupuesto final en la aprobacion, y metricas de gestion (`/admin/metricas`) con selector de rango de fechas y exportacion CSV (HU-09).
+> El boton "Modo funcionario" de `SeleccionInicio.tsx` navega a `/admin` con el router de React.
 
 ### Chat del Marketplace (HU-06)
 

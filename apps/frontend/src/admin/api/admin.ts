@@ -446,6 +446,26 @@ export function fetchMetricas(dias: RangoMetricas): Promise<Metricas> {
   );
 }
 
+export interface ReporteGestion {
+  desde: string;
+  hasta: string;
+  solicitudesRecibidas: number;
+  retiros: number;
+  monto: number;
+  porCategoria: { categoria: string; objetos: number }[];
+}
+
+/** Reporte de gestion por rango de fechas (HU-09). */
+export function fetchReporte(
+  desde: string,
+  hasta: string,
+): Promise<ReporteGestion> {
+  const params = new URLSearchParams({ desde, hasta });
+  return apiFetch(`${API_URL}/admin/metricas/reporte?${params}`).then((r) =>
+    handle<ReporteGestion>(r),
+  );
+}
+
 // --- Mapa de calor ----------------------------------------------------------
 
 export interface SectorMapaCalor {
