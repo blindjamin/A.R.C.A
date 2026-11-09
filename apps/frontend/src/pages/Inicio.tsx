@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
+import { fetchResumenCreditos } from '../api/creditos';
 import { MODULOS, type Modulo, type ModuloIconKey } from '../config/modulos';
 import {
   IconBadge,
@@ -71,6 +73,21 @@ function ModuloCard({ modulo }: { modulo: Modulo }) {
 export default function Inicio() {
   const { sesion } = useSession();
   const navigate = useNavigate();
+  const [saldoCC, setSaldoCC] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    fetchResumenCreditos()
+      .then((res) => {
+        if (!cancelado) setSaldoCC(res.saldo);
+      })
+      .catch(() => {
+        if (!cancelado) setSaldoCC(0);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   // Activos primero, luego "próximamente". El orden se resuelve aquí, no en el config.
   const modulos = [...MODULOS].sort(
@@ -103,30 +120,21 @@ export default function Inicio() {
             </p>
           </div>
           <span className="flex items-center gap-1 text-xs font-medium text-white">
-            Canjear premios
+            Ver billetera
             <IconChevronRight className="h-3.5 w-3.5" />
           </span>
         </div>
 
         <div className="mt-2 flex items-baseline gap-2">
-          <p className="font-display text-4xl font-extrabold tracking-tight">120</p>
+          <p className="font-display text-4xl font-extrabold tracking-tight">
+            {saldoCC !== null ? saldoCC : '…'}
+          </p>
           <span className="text-xs font-medium text-white">créditos disponibles</span>
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-4 border-t border-white/15 pt-3.5 text-xs sm:grid-cols-3">
-          <div>
-            <p className="font-display text-base font-bold">312 kg</p>
-            <p className="text-white">CO₂ evitado</p>
-          </div>
-          <div>
-            <p className="font-display text-base font-bold">8 ítems</p>
-            <p className="text-white">Reutilizados</p>
-          </div>
-          <div className="hidden sm:block">
-            <p className="font-display text-base font-bold">Nivel 2</p>
-            <p className="text-white">Vecino Circular</p>
-          </div>
-        </div>
+        <p className="mt-3 border-t border-white/15 pt-3 text-xs text-green-50/90 leading-relaxed">
+          Gana Circular Credits al entregar artículos en el Marketplace o al pagar un retiro municipal.
+        </p>
       </section>
 
       <section>

@@ -134,7 +134,6 @@ export interface CrearSolicitudInput {
   direccionRetiro: string;
   foto: File;
   descripcion?: string;
-  emailContacto?: string;
 }
 
 export interface ReenviarSolicitudInput {

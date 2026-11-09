@@ -132,6 +132,17 @@ export default function Login() {
 
         {/* CTAs */}
         <div className="mx-auto shrink-0 pt-2 space-y-3 w-full max-w-md lg:mx-0 lg:bg-white/10 lg:backdrop-blur-md lg:p-8 lg:rounded-2xl lg:border lg:border-white/20">
+          {/* Banner de demostración para Feria de Software */}
+          <div className="rounded-xl border border-amber-300/40 bg-amber-500/20 p-3.5 text-xs text-amber-100 backdrop-blur">
+            <p className="font-bold flex items-center gap-1.5 text-amber-200 text-[13px]">
+              <span>⚠️</span>
+              <span>Versión de demostración</span>
+            </p>
+            <p className="mt-1 leading-relaxed text-amber-50/90">
+              Esta es una versión de prueba para la Feria de Software. Los datos ingresados se eliminarán después. Por favor, <strong>no uses tu dirección real ni una tarjeta bancaria real</strong>.
+            </p>
+          </div>
+
           {/* Botón oficial de ClaveÚnica. No reemplazar por uno propio ni
               cambiarle los estilos: la certificación exige este botón tal cual. */}
           {ingresoFallido && (

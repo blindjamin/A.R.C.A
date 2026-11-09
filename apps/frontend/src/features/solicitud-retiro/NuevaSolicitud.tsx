@@ -14,6 +14,7 @@ import { useSession } from '../../auth/SessionContext';
 import { fetchPerfil } from '../../api/perfil';
 import { VerificarCorreoModal } from './VerificarCorreoModal';
 import { CampoFoto } from './CampoFoto';
+import { GuiaFotoVariosObjetos } from './GuiaFotoVariosObjetos';
 import { useSolicitudFlow } from './SolicitudFlowContext';
 import { validarFoto } from './fotoSolicitud';
 
@@ -122,7 +123,7 @@ export default function NuevaSolicitud() {
     })
     .join(', ');
 
-  const ejecutarCreacion = async (emailContacto?: string) => {
+  const ejecutarCreacion = async () => {
     if (!residuoDefinido || !foto || !direccionLimpia) return;
     setSubmitting(true);
     setError(null);
@@ -148,7 +149,6 @@ export default function NuevaSolicitud() {
         direccionRetiro: direccionLimpia,
         foto,
         descripcion: descripcion.trim() || undefined,
-        emailContacto,
       });
 
       let publicadoEnMarket = false;
@@ -240,7 +240,7 @@ export default function NuevaSolicitud() {
       return;
     }
 
-    await ejecutarCreacion(email);
+    await ejecutarCreacion();
   };
 
   return (
@@ -354,15 +354,11 @@ export default function NuevaSolicitud() {
           )}
         </fieldset>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-semibold">
+        <div className="space-y-3">
+          <label className="block text-sm font-semibold">
             {variosObjetos ? 'Foto de los objetos' : 'Foto del objeto'}
           </label>
-          {variosObjetos && (
-            <p className="mb-2 text-xs text-slate">
-              Junta los objetos y sácales una sola foto donde se vean todos.
-            </p>
-          )}
+          {variosObjetos && <GuiaFotoVariosObjetos />}
           <CampoFoto
             preview={fotoPreview}
             onElegir={(archivo, preview) => {
@@ -448,9 +444,9 @@ export default function NuevaSolicitud() {
       {mostrarModalCorreo && (
         <VerificarCorreoModal
           ciudadanoId={usuarioCiudadanoId}
-          onVerificado={(emailVerificado) => {
+          onVerificado={() => {
             setMostrarModalCorreo(false);
-            void ejecutarCreacion(emailVerificado);
+            void ejecutarCreacion();
           }}
           onCerrar={() => setMostrarModalCorreo(false)}
         />
