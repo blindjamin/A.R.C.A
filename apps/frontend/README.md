@@ -61,7 +61,8 @@ backend comparten un único origen y no hace falta tocar CORS ni URLs absolutas 
 
 ```
 src/
-├── api/arca.ts                  # Capa única de acceso a la API (fetch tipado)
+├── api/arca.ts                  # Capa de acceso a la API (fetch tipado)
+├── api/creditos.ts              # Consulta de saldo e historial de Circular Credits (HU-11)
 ├── api/chat.ts · push.ts        # API del chat del Marketplace y de los avisos push (HU-06)
 ├── api/socket.ts                # Cliente socket.io único de la app (/api/socket.io)
 ├── pwa/                         # Instalación de la PWA y suscripción push (push.ts)
@@ -81,12 +82,12 @@ src/
 │   │   └── entrega/             # Entrega con código (HU-15): PanelEntrega y CodigoEntrega
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
 │       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
-│       ├── CampoFoto · fotoSolicitud.ts  # Foto obligatoria de la solicitud (JPG/PNG/WebP, 5 MB)
+│       ├── CampoFoto · GuiaFotoVariosObjetos · fotoSolicitud.ts  # Foto y guía de encuadre para varios objetos
 │       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada y su archivo)
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
 │   ├── Login · SeleccionInicio · Inicio · Perfil · CircularCredits
-│   └── MisSolicitudes · PantallaPago · Proximamente
+│   └── MisSolicitudes · PantallaPago · Proximamente · Ayuda
 ├── utils/                       # Utilidades transversales (perfilStorage.ts)
 ├── index.css                    # Tokens y clases utilitarias del UI Kit
 └── App.tsx                      # Router: arma las rutas y monta flujos

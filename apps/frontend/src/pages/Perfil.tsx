@@ -7,6 +7,11 @@ import {
   fetchPerfil,
   type PerfilVecino,
 } from '../api/perfil';
+import {
+  fetchResumenCreditos,
+  type MovimientoCreditos,
+  ETIQUETAS_ORIGEN,
+} from '../api/creditos';
 import { VerificarCorreoModal } from '../features/solicitud-retiro/VerificarCorreoModal';
 import {
   IconCircularCredits,
@@ -26,50 +31,6 @@ import {
   IconEye,
   IconEyeOff,
 } from '../components/ui/Icons';
-
-interface MovimientoCredito {
-  id: string;
-  concepto: string;
-  monto: number;
-  tipo: 'ingreso' | 'canje';
-  origen: string;
-  fecha: string;
-}
-
-const MOVIMIENTOS_DEMO: MovimientoCredito[] = [
-  {
-    id: 'm1',
-    concepto: 'Entrega confirmada en Marketplace (Sillón 2 cuerpos)',
-    monto: 50,
-    tipo: 'ingreso',
-    origen: 'Marketplace P2P',
-    fecha: '28 Sep 2026',
-  },
-  {
-    id: 'm2',
-    concepto: 'Calificación vecinal 5 estrellas ★',
-    monto: 20,
-    tipo: 'ingreso',
-    origen: 'Evaluación vecinal',
-    fecha: '28 Sep 2026',
-  },
-  {
-    id: 'm3',
-    concepto: 'Retiro domiciliario clasificado correctamente',
-    monto: 30,
-    tipo: 'ingreso',
-    origen: 'Recolección municipal',
-    fecha: '15 Sep 2026',
-  },
-  {
-    id: 'm4',
-    concepto: 'Acreditación vecinal inicial Santo Domingo',
-    monto: 20,
-    tipo: 'ingreso',
-    origen: 'Bono municipal',
-    fecha: '01 Sep 2026',
-  },
-];
 
 // Mismos topes que `ActualizarPerfilDto` en el backend.
 const LARGO_MAXIMO_TELEFONO = 20;
@@ -143,19 +104,11 @@ export default function Perfil() {
   const { sesion, salir } = useSession();
 
   const modalTitleId = useId();
-  const storageSaldoKey = `arca_cc_saldo_${sesion?.ciudadanoId || 'default'}`;
 
-  const [saldoCC] = useState<number>(() => {
-    try {
-      const guardado = localStorage.getItem(storageSaldoKey);
-      if (guardado !== null) {
-        return Number(guardado);
-      }
-    } catch {
-      // Ignorar fallback
-    }
-    return 120;
-  });
+  // Créditos reales desde el backend (HU-11)
+  const [saldoCC, setSaldoCC] = useState<number>(0);
+  const [movimientos, setMovimientos] = useState<MovimientoCreditos[]>([]);
+  const [cargandoCreditos, setCargandoCreditos] = useState(true);
 
   // El contacto se lee del servidor; el navegador no guarda datos personales.
   const [perfil, setPerfil] = useState<PerfilVecino | null>(null);
@@ -163,6 +116,8 @@ export default function Perfil() {
 
   useEffect(() => {
     borrarPerfilLocal();
+    let cancelado = false;
+
     fetchPerfil()
       .then(setPerfil)
       .catch((err: unknown) =>
@@ -170,6 +125,26 @@ export default function Perfil() {
           mensajeDeError(err, 'No pudimos cargar tus datos de contacto. Intenta de nuevo.'),
         ),
       );
+
+    fetchResumenCreditos()
+      .then((res) => {
+        if (!cancelado) {
+          setSaldoCC(res.saldo);
+          setMovimientos(res.movimientos);
+          setCargandoCreditos(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelado) {
+          setSaldoCC(0);
+          setMovimientos([]);
+          setCargandoCreditos(false);
+        }
+      });
+
+    return () => {
+      cancelado = true;
+    };
   }, []);
 
   // El nombre lo entrega ClaveÚnica: el vecino no lo edita.
@@ -346,14 +321,11 @@ export default function Perfil() {
                   Saldo de Circular Credits
                 </span>
               </div>
-              <span className="rounded-pill bg-white/20 px-2.5 py-0.5 text-[11px] font-semibold text-white">
-                Nivel 2 · Vecino Activo
-              </span>
             </div>
 
             <div className="mt-4 flex items-baseline gap-2">
               <span className="font-display text-5xl font-extrabold tracking-tight">
-                {saldoCC}
+                {cargandoCreditos ? '…' : saldoCC}
               </span>
               <span className="text-sm font-semibold uppercase text-gold-300">
                 CC (Circular Credits)
@@ -370,25 +342,12 @@ export default function Perfil() {
                 className="btn-gold py-1.5 px-3.5 text-xs font-bold inline-flex items-center gap-1.5 text-ink shadow-sm hover:opacity-95"
               >
                 <IconGift className="h-3.5 w-3.5" />
-                <span>Canjear premios en Santo Domingo</span>
+                <span>Ver billetera y premios</span>
               </Link>
-            </div>
-
-            <div className="mt-5 border-t border-white/20 pt-4">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="text-green-100/90 font-medium">Progreso a Nivel 3 (Vecino Embajador)</span>
-                <span className="font-bold text-white">{saldoCC} / 200 CC</span>
-              </div>
-              <div className="h-2 w-full overflow-hidden rounded-full bg-black/20">
-                <div
-                  className="h-full rounded-full bg-gold-400 transition-all duration-500"
-                  style={{ width: `${Math.min(100, Math.round((saldoCC / 200) * 100))}%` }}
-                />
-              </div>
             </div>
           </div>
 
-          {/* Métricas de Impacto */}
+          {/* Resumen de actividad */}
           <div className="card flex flex-col justify-between p-6 space-y-4">
             <div>
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-700">
@@ -396,33 +355,33 @@ export default function Perfil() {
                 <span>Impacto en la Comuna</span>
               </div>
               <h3 className="mt-1 text-base font-bold text-ink">
-                Aporte Ecológico
+                Participación Circular
               </h3>
             </div>
 
             <div className="space-y-3.5">
               <div className="flex items-center justify-between border-b border-line pb-2.5">
-                <span className="text-xs text-slate">CO₂ Evitado Estimado</span>
-                <span className="font-display text-base font-extrabold text-green-700">
-                  312 kg
+                <span className="text-xs text-slate">Movimientos registrados</span>
+                <span className="font-display text-base font-extrabold text-ink">
+                  {cargandoCreditos ? '…' : movimientos.length}
                 </span>
               </div>
               <div className="flex items-center justify-between border-b border-line pb-2.5">
-                <span className="text-xs text-slate">Objetos Reutilizados</span>
-                <span className="font-display text-base font-extrabold text-ink">
-                  8 unidades
+                <span className="text-xs text-slate">Comuna</span>
+                <span className="font-display text-sm font-bold text-green-700">
+                  Santo Domingo
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate">Reputación Vecinal</span>
-                <span className="font-display text-base font-extrabold text-gold-500 flex items-center gap-1">
-                  4.9 ★
+                <span className="text-xs text-slate">Identidad</span>
+                <span className="font-display text-xs font-bold text-green-700">
+                  Verificada con ClaveÚnica
                 </span>
               </div>
             </div>
 
             <div className="rounded-md bg-canvas p-2.5 text-[11px] text-slate leading-tight">
-              Cálculo estimado en base a la caracterización municipal de residuos Santo Domingo.
+              Tus créditos se actualizan automáticamente tras cada intercambio o retiro completado.
             </div>
           </div>
         </div>
@@ -546,34 +505,58 @@ export default function Perfil() {
               Historial de Circular Credits
             </h3>
           </div>
-          <span className="text-xs text-slate">{MOVIMIENTOS_DEMO.length} registros</span>
+          <span className="text-xs text-slate">
+            {cargandoCreditos
+              ? 'Cargando…'
+              : `${movimientos.length} ${movimientos.length === 1 ? 'registro' : 'registros'}`}
+          </span>
         </div>
 
-        <div className="divide-y divide-line">
-          {MOVIMIENTOS_DEMO.map((mov) => (
-            <div
-              key={mov.id}
-              className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
-            >
-              <div className="space-y-0.5">
-                <p className="text-sm font-semibold text-ink leading-tight">
-                  {mov.concepto}
-                </p>
-                <div className="flex items-center gap-2 text-xs text-slate">
-                  <span>{mov.origen}</span>
-                  <span>•</span>
-                  <span>{mov.fecha}</span>
+        {cargandoCreditos ? (
+          <p className="py-6 text-center text-sm text-slate">Cargando movimientos…</p>
+        ) : movimientos.length === 0 ? (
+          <div className="py-6 text-center">
+            <p className="text-sm font-semibold text-ink">Sin movimientos registrados</p>
+            <p className="mt-1 text-xs text-slate max-w-sm mx-auto">
+              Al entregar objetos en el Marketplace o al pagar un retiro municipal verás aquí el detalle de tus créditos acumulados.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-line">
+            {movimientos.map((mov) => {
+              const fechaStr = new Date(mov.fecha).toLocaleDateString('es-CL', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              });
+              const etiquetaOrigen = ETIQUETAS_ORIGEN[mov.origen] || mov.origen;
+
+              return (
+                <div
+                  key={mov.id}
+                  className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-semibold text-ink leading-tight">
+                      {mov.motivo || etiquetaOrigen}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-slate">
+                      <span>{etiquetaOrigen}</span>
+                      <span>•</span>
+                      <span>{fechaStr}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center gap-1 rounded-pill bg-gold-50 px-2.5 py-1 text-xs font-bold text-gold-600 border border-gold-100">
+                      <IconCircularCredits className="h-3 w-3 text-gold-500" />
+                      +{mov.monto} CC
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <span className="inline-flex items-center gap-1 rounded-pill bg-gold-50 px-2.5 py-1 text-xs font-bold text-gold-600 border border-gold-100">
-                  <IconCircularCredits className="h-3 w-3 text-gold-500" />
-                  +{mov.monto} CC
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* 4. ACCIONES Y ENLACES DE ACTIVIDAD */}

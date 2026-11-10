@@ -10,6 +10,14 @@ interface VerificarCorreoModalProps {
   onCerrar: () => void;
 }
 
+function mensajeErrorCorreo(err: unknown): string {
+  const msg = (err as Error)?.message ?? '';
+  if (msg.includes('503') || msg.toLowerCase().includes('service unavailable')) {
+    return 'El servicio de correo no está disponible en este momento. Inténtalo de nuevo en unos minutos.';
+  }
+  return msg || 'No se pudo procesar la solicitud de correo. Intenta nuevamente.';
+}
+
 export function VerificarCorreoModal({
   ciudadanoId,
   onVerificado,
@@ -42,7 +50,7 @@ export function VerificarCorreoModal({
       setMensajeExito(`Código enviado a ${emailLimpio}`);
       setPaso('codigo');
     } catch (err) {
-      setError((err as Error).message || 'No se pudo enviar el código. Intenta nuevamente.');
+      setError(mensajeErrorCorreo(err));
     } finally {
       setCargando(false);
     }
@@ -73,7 +81,7 @@ export function VerificarCorreoModal({
         setError(res.mensaje || 'El código ingresado no es válido');
       }
     } catch (err) {
-      setError((err as Error).message || 'Error al validar el código');
+      setError(mensajeErrorCorreo(err));
     } finally {
       setCargando(false);
     }

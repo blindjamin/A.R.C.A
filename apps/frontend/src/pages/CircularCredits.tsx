@@ -1,6 +1,11 @@
-import { useState, useId } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
+import {
+  fetchResumenCreditos,
+  type MovimientoCreditos,
+  ETIQUETAS_ORIGEN,
+} from '../api/creditos';
 import {
   IconCircularCredits,
   IconGift,
@@ -167,18 +172,39 @@ export default function CircularCredits() {
   const storageSaldoKey = `arca_cc_saldo_${sesion?.ciudadanoId || 'default'}`;
   const storageValesKey = `arca_vales_canjeados_${sesion?.ciudadanoId || 'default'}`;
 
-  // Saldo de créditos en tiempo real con persistencia
-  const [saldo, setSaldo] = useState<number>(() => {
+  // Saldo e historial reales desde el servidor (HU-11)
+  const [saldo, setSaldo] = useState<number>(0);
+  const [movimientos, setMovimientos] = useState<MovimientoCreditos[]>([]);
+  const [cargandoCreditos, setCargandoCreditos] = useState(true);
+
+  useEffect(() => {
     try {
-      const guardado = localStorage.getItem(storageSaldoKey);
-      if (guardado !== null) {
-        return Number(guardado);
-      }
+      localStorage.removeItem(storageSaldoKey);
     } catch {
-      // Ignorar fallback
+      // Ignorar
     }
-    return 120;
-  });
+
+    let cancelado = false;
+    fetchResumenCreditos()
+      .then((res) => {
+        if (!cancelado) {
+          setSaldo(res.saldo);
+          setMovimientos(res.movimientos);
+          setCargandoCreditos(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelado) {
+          setSaldo(0);
+          setMovimientos([]);
+          setCargandoCreditos(false);
+        }
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [storageSaldoKey]);
 
   // Lista de vales canjeados
   const [vales, setVales] = useState<ValeCanjeado[]>(() => {
@@ -193,8 +219,8 @@ export default function CircularCredits() {
     return [];
   });
 
-  // Pestaña activa (catálogo vs mis vales)
-  const [vista, setVista] = useState<'catalogo' | 'vales'>('catalogo');
+  // Pestaña activa (catálogo vs movimientos vs vales)
+  const [vista, setVista] = useState<'catalogo' | 'movimientos' | 'vales'>('catalogo');
   const [categoriaSeleccionada, setCategoriaSeleccionada] =
     useState<CategoriaPremio>('todos');
 
@@ -250,7 +276,6 @@ export default function CircularCredits() {
     setValeGenerado(nuevoVale);
 
     try {
-      localStorage.setItem(storageSaldoKey, String(nuevoSaldo));
       localStorage.setItem(storageValesKey, JSON.stringify(nuevosVales));
     } catch {
       // Ignorar fallback
@@ -327,7 +352,7 @@ export default function CircularCredits() {
 
             <div className="mt-3 flex items-baseline gap-2">
               <span className="font-display text-5xl font-extrabold tracking-tight">
-                {saldo}
+                {cargandoCreditos ? '…' : saldo}
               </span>
               <span className="text-sm font-semibold uppercase text-gold-300">
                 CC (Circular Credits)
@@ -339,26 +364,21 @@ export default function CircularCredits() {
           </div>
 
           <div className="rounded-lg bg-black/20 p-4 border border-white/10 sm:max-w-xs space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-green-100">Rango Actual:</span>
-              <span className="font-bold text-gold-300">Nivel 2 · Vecino Activo</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-black/30">
-              <div
-                className="h-full rounded-full bg-gold-400 transition-all duration-500"
-                style={{ width: `${Math.min(100, (saldo / 200) * 100)}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-green-100/80">
-              Desbloquea beneficios exclusivos de Nivel 3 al alcanzar los 200 CC.
+            <p className="text-xs font-semibold text-gold-300">¿Cómo ganar créditos?</p>
+            <p className="text-[11px] text-green-100/90 leading-relaxed">
+              • Entregando artículos en el Marketplace (+50 CC)
+              <br />
+              • Recibiendo 4 o 5 estrellas de evaluación (+20 CC)
+              <br />
+              • Pagando un retiro municipal (+30 CC)
             </p>
           </div>
         </div>
       </section>
 
-      {/* Selector de Vista (Catálogo vs Vales Canjeados) */}
-      <div className="flex items-center justify-between border-b border-line pb-2">
-        <div className="flex gap-2">
+      {/* Selector de Vista (Catálogo vs Movimientos vs Vales Canjeados) */}
+      <div className="flex flex-wrap items-center justify-between border-b border-line pb-2 gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => setVista('catalogo')}
@@ -369,6 +389,17 @@ export default function CircularCredits() {
             }`}
           >
             Premios Canjeables ({PREMIOS_MUNICIPALES.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setVista('movimientos')}
+            className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition-colors ${
+              vista === 'movimientos'
+                ? 'bg-green-700 text-white shadow-sm'
+                : 'bg-canvas text-slate hover:text-ink'
+            }`}
+          >
+            Historial de Movimientos ({cargandoCreditos ? '…' : movimientos.length})
           </button>
           <button
             type="button"
@@ -476,7 +507,69 @@ export default function CircularCredits() {
         </div>
       )}
 
-      {/* VISTA 2: MIS VALES CANJEADOS */}
+      {/* VISTA 2: HISTORIAL DE MOVIMIENTOS REALES (HU-11) */}
+      {vista === 'movimientos' && (
+        <div className="card p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-line pb-3">
+            <h2 className="font-bold text-ink text-base">
+              Historial de Transacciones
+            </h2>
+            <span className="text-xs text-slate">
+              {cargandoCreditos
+                ? 'Cargando…'
+                : `${movimientos.length} ${movimientos.length === 1 ? 'registro' : 'registros'}`}
+            </span>
+          </div>
+
+          {cargandoCreditos ? (
+            <p className="py-8 text-center text-sm text-slate">Cargando movimientos…</p>
+          ) : movimientos.length === 0 ? (
+            <div className="py-8 text-center space-y-1">
+              <p className="text-sm font-semibold text-ink">Sin movimientos registrados</p>
+              <p className="text-xs text-slate max-w-sm mx-auto">
+                Tus créditos aumentarán cuando entregues artículos reutilizables en el Marketplace o al abonar retiros municipales.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-line">
+              {movimientos.map((mov) => {
+                const fechaStr = new Date(mov.fecha).toLocaleDateString('es-CL', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                });
+                const etiquetaOrigen = ETIQUETAS_ORIGEN[mov.origen] || mov.origen;
+
+                return (
+                  <div
+                    key={mov.id}
+                    className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-semibold text-ink leading-tight">
+                        {mov.motivo || etiquetaOrigen}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-slate">
+                        <span>{etiquetaOrigen}</span>
+                        <span>•</span>
+                        <span>{fechaStr}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-flex items-center gap-1 rounded-pill bg-gold-50 px-2.5 py-1 text-xs font-bold text-gold-600 border border-gold-200">
+                        <IconCircularCredits className="h-3 w-3 text-gold-500" />
+                        +{mov.monto} CC
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VISTA 3: MIS VALES CANJEADOS */}
       {vista === 'vales' && (
         <div className="space-y-4">
           {vales.length > 0 ? (

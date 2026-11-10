@@ -330,6 +330,16 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
         />
       </header>
 
+      {/* HU-06: Aviso de seguridad previo a la reserva */}
+      {articulo.estado === 'disponible' && (
+        <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+          <span className="shrink-0 text-sm">🛡️</span>
+          <p className="leading-tight">
+            <strong>Por tu seguridad:</strong> no compartas tu dirección exacta en el chat antes de que el artículo esté reservado.
+          </p>
+        </div>
+      )}
+
       <div className="relative min-h-0 flex-1">
         <div
           ref={lista}

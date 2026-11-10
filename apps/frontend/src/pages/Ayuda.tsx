@@ -10,6 +10,7 @@ import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
  * por confirmar en vez de mostrar un número inventado.
  */
 export const TELEFONO_MUNICIPALIDAD: string | null = null;
+export const CORREO_MUNICIPALIDAD = 'soporte.arcaa@gmail.com';
 
 interface Pregunta {
   pregunta: string;
@@ -237,21 +238,37 @@ export default function Ayuda() {
           ))}
         </section>
 
-        <section id="contacto" className="card space-y-2 border-green-200 bg-green-50 p-5">
-          <h2 className="text-lg font-bold text-ink">¿Necesitas hablar con una persona?</h2>
-          <p className="text-sm text-ink-2">
-            Si no encontraste tu respuesta, llama a la Municipalidad de Santo Domingo.
-          </p>
-          {TELEFONO_MUNICIPALIDAD ? (
+        <section id="contacto" className="card space-y-4 border-green-200 bg-green-50 p-5">
+          <div>
+            <h2 className="text-lg font-bold text-ink">¿Necesitas hablar con una persona?</h2>
+            <p className="text-sm text-ink-2">
+              Si no encontraste tu respuesta, comunícate con el equipo municipal de A.R.C.A.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
             <a
-              href={`tel:${TELEFONO_MUNICIPALIDAD.replace(/\s/g, '')}`}
-              className="btn-primary inline-flex items-center gap-2 px-5 py-3"
+              href={`mailto:${CORREO_MUNICIPALIDAD}`}
+              className="btn-primary inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold"
             >
-              Llamar al {TELEFONO_MUNICIPALIDAD}
+              <span>✉️</span>
+              <span>Escribir a {CORREO_MUNICIPALIDAD}</span>
             </a>
-          ) : (
-            <p className="text-sm font-semibold text-ink">Número de contacto por confirmar.</p>
-          )}
+
+            {TELEFONO_MUNICIPALIDAD ? (
+              <a
+                href={`tel:${TELEFONO_MUNICIPALIDAD.replace(/\s/g, '')}`}
+                className="btn-outline inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold"
+              >
+                <span>📞</span>
+                <span>Llamar al {TELEFONO_MUNICIPALIDAD}</span>
+              </a>
+            ) : (
+              <div className="inline-flex items-center rounded-lg border border-line bg-white/70 px-4 py-2.5 text-xs text-slate">
+                📞 Teléfono de contacto por confirmar
+              </div>
+            )}
+          </div>
         </section>
       </main>
     </div>
