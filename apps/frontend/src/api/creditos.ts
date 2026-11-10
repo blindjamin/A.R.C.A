@@ -21,7 +21,7 @@ export interface ResumenCreditos {
 export const ETIQUETAS_ORIGEN: Record<string, string> = {
   entrega: 'Entrega en Marketplace',
   estrellas: 'Calificación con estrellas',
-  retiro: 'Retiro municipal',
+  retirada: 'Retiro municipal',
   bonificacion: 'Bonificación comunitaria',
   ajuste: 'Ajuste municipal',
 };

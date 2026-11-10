@@ -10,19 +10,19 @@ import {
   type ReporteGestion,
 } from '../api/admin';
 
-// Indicadores agregados de la gestion (docs/specs/SPEC-dashboard-metricas.md).
-// HU-09: Reporte de gestion por rango de fechas y exportacion CSV.
-// Barras hechas con CSS: no se agrega una libreria de graficos para esto.
+// Indicadores agregados de la gestión (docs/specs/SPEC-dashboard-metricas.md).
+// HU-09: Reporte de gestión por rango de fechas y exportación CSV.
+// Barras hechas con CSS: no se agrega una librería de gráficos para esto.
 
 const RANGOS: { dias: RangoMetricas; label: string }[] = [
-  { dias: 7, label: '7 dias' },
-  { dias: 30, label: '30 dias' },
-  { dias: 90, label: '90 dias' },
+  { dias: 7, label: '7 días' },
+  { dias: 30, label: '30 días' },
+  { dias: 90, label: '90 días' },
 ];
 
 const ETIQUETA_DECISION = {
   aprobada: 'Aprobadas',
-  requiere_modificacion: 'Modificacion pedida',
+  requiere_modificacion: 'Modificación pedida',
   rechazada: 'Rechazadas',
 } as const;
 
@@ -37,7 +37,7 @@ const formatoDia = (fecha: string): string => {
 const formatoHoras = (horas: number | null): string => {
   if (horas === null) return '—';
   if (horas < 48) return `${horas} h`;
-  return `${Math.round((horas / 24) * 10) / 10} dias`;
+  return `${Math.round((horas / 24) * 10) / 10} días`;
 };
 
 const obtenerHoy = (): string => {
@@ -61,14 +61,14 @@ function validarRangoFechas(desde: string, hasta: string): string | null {
   const tDesde = Date.parse(desde);
   const tHasta = Date.parse(hasta);
   if (Number.isNaN(tDesde) || Number.isNaN(tHasta)) {
-    return 'Formato de fecha invalido.';
+    return 'Formato de fecha inválido.';
   }
   const diff = (tHasta - tDesde) / DIA_MS;
   if (diff < 0) {
     return 'La fecha desde no puede ser posterior a la fecha hasta.';
   }
   if (diff > RANGO_MAXIMO_DIAS) {
-    return 'El rango maximo no puede superar un ano (366 dias).';
+    return 'El rango máximo no puede superar un año (366 días).';
   }
   return null;
 }
@@ -80,14 +80,14 @@ function exportarReporteCsv(rep: ReporteGestion): void {
   );
 
   const lineas: string[] = [
-    'Reporte de Gestion de Solicitudes - ARCA',
-    `Periodo;${rep.desde} a ${rep.hasta}`,
+    'Reporte de gestión de solicitudes - A.R.C.A.',
+    `Período;${rep.desde} a ${rep.hasta}`,
     `Solicitudes recibidas;${rep.solicitudesRecibidas}`,
     `Retiros realizados;${rep.retiros}`,
     `Monto total pagado (CLP);${rep.monto}`,
     `Total de objetos;${totalObjetos}`,
     '',
-    'Categoria;Cantidad de objetos;Porcentaje',
+    'Categoría;Cantidad de objetos;Porcentaje',
   ];
 
   for (const c of rep.porCategoria) {
@@ -180,13 +180,13 @@ export default function Metricas() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold">Metricas</h1>
+          <h1 className="text-2xl font-extrabold">Métricas</h1>
           <p className="text-sm text-slate">
             {pestana === 'dashboard'
               ? datos
                 ? `Del ${formatoDia(datos.desde)} al ${formatoDia(datos.hasta)}.`
-                : 'Como va la gestion de solicitudes.'
-              : 'Reporte de gestion por rango de fechas y exportacion CSV (HU-09).'}
+                : 'Cómo va la gestión de solicitudes.'
+              : 'Reporte de gestión por rango de fechas y exportación CSV (HU-09).'}
           </p>
         </div>
 
@@ -221,7 +221,7 @@ export default function Metricas() {
               : 'border-line bg-white text-slate hover:bg-canvas'
           }`}
         >
-          Metricas rapidas
+          Métricas rápidas
         </button>
         <button
           type="button"
@@ -241,39 +241,39 @@ export default function Metricas() {
           {error && <p className="text-sm text-rose-600">{error}</p>}
 
           {!datos ? (
-            !error && <p className="text-slate">Cargando metricas…</p>
+            !error && <p className="text-slate">Cargando métricas…</p>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Tarjeta valor={datos.recibidas} etiqueta="solicitudes recibidas" />
                 <Tarjeta
                   valor={datos.cola.enRevision}
-                  etiqueta="en revision ahora"
+                  etiqueta="en revisión ahora"
                   detalle={
                     datos.cola.atrasadas > 0
-                      ? `${datos.cola.atrasadas} con mas de 48 h`
+                      ? `${datos.cola.atrasadas} con más de 48 h`
                       : undefined
                   }
                   alerta={datos.cola.atrasadas > 0}
                 />
                 <Tarjeta
                   valor={formatoHoras(datos.horasPromedioRevision)}
-                  etiqueta="espera promedio hasta la primera revision"
+                  etiqueta="espera promedio hasta la primera revisión"
                 />
                 <Tarjeta
                   valor={formatearPrecio(datos.recaudacion)}
-                  etiqueta="pagos registrados (maqueta)"
+                  etiqueta="pagos registrados"
                 />
               </div>
 
               <div className="card space-y-3 p-5">
-                <h2 className="font-bold">Solicitudes recibidas por dia</h2>
+                <h2 className="font-bold">Solicitudes recibidas por día</h2>
                 <SerieDiaria serie={datos.serieDiaria} />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="card space-y-3 p-5">
-                  <h2 className="font-bold">Decisiones de revision</h2>
+                  <h2 className="font-bold">Decisiones de revisión</h2>
                   <Barras
                     filas={Object.entries(ETIQUETA_DECISION).map(
                       ([clave, label]) => ({
@@ -285,7 +285,7 @@ export default function Metricas() {
                       }),
                     )}
                   />
-                  <h3 className="pt-2 text-sm font-semibold">Motivos mas usados</h3>
+                  <h3 className="pt-2 text-sm font-semibold">Motivos más usados</h3>
                   <Barras
                     filas={datos.motivos.map((m) => ({
                       label: ETIQUETA_MOTIVO[m.motivo] ?? m.motivo,
@@ -296,7 +296,7 @@ export default function Metricas() {
                 </div>
 
                 <div className="card space-y-3 p-5">
-                  <h2 className="font-bold">Por categoria de residuo</h2>
+                  <h2 className="font-bold">Por categoría de residuo</h2>
                   <Barras
                     filas={datos.porCategoria.map((c) => ({
                       label: c.categoria,
@@ -308,7 +308,7 @@ export default function Metricas() {
               </div>
 
               <div className="card space-y-3 p-5">
-                <h2 className="font-bold">Derivacion a la empresa</h2>
+                <h2 className="font-bold">Derivación a la empresa</h2>
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <Tarjeta valor={datos.derivacion.lotes} etiqueta="lotes generados" />
                   <Tarjeta
@@ -334,7 +334,7 @@ export default function Metricas() {
       {pestana === 'reporte' && (
         <div className="space-y-4">
           <section
-            aria-label="Filtro de fechas y exportacion"
+            aria-label="Filtro de fechas y exportación"
             className="card border border-line bg-white p-4 space-y-3"
           >
             <div className="flex flex-wrap items-end gap-3">
@@ -365,7 +365,7 @@ export default function Metricas() {
                   disabled={cargandoReporte || Boolean(errorValidacion)}
                   className="pill border border-transparent bg-green-700 px-4 py-2 text-xs font-semibold text-white hover:bg-green-800 disabled:opacity-50"
                 >
-                  {cargandoReporte ? 'Consultando...' : 'Consultar reporte'}
+                  {cargandoReporte ? 'Consultando…' : 'Consultar reporte'}
                 </button>
                 <button
                   type="button"
@@ -386,7 +386,7 @@ export default function Metricas() {
           </section>
 
           {cargandoReporte && (
-            <p className="text-sm text-slate">Cargando reporte de gestion...</p>
+            <p className="text-sm text-slate">Cargando reporte de gestión…</p>
           )}
 
           {!cargandoReporte && reporte && (
@@ -395,7 +395,7 @@ export default function Metricas() {
                 <Tarjeta
                   valor={reporte.solicitudesRecibidas}
                   etiqueta="solicitudes recibidas"
-                  detalle="Creadas en el periodo"
+                  detalle="Creadas en el período"
                 />
                 <Tarjeta
                   valor={reporte.retiros}
@@ -405,18 +405,18 @@ export default function Metricas() {
                 <Tarjeta
                   valor={formatearPrecio(reporte.monto)}
                   etiqueta="monto recaudado"
-                  detalle="Pagos pagados"
+                  detalle="Solo pagos confirmados"
                 />
                 <Tarjeta
                   valor={totalObjetosReporte}
                   etiqueta="total de objetos"
-                  detalle={`${reporte.porCategoria.length} categorias`}
+                  detalle={`${reporte.porCategoria.length} categorías`}
                 />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="card space-y-3 p-5">
-                  <h2 className="font-bold">Distribucion por categoria</h2>
+                  <h2 className="font-bold">Distribución por categoría</h2>
                   <Barras
                     filas={reporte.porCategoria.map((c) => ({
                       label: c.categoria,
@@ -427,7 +427,7 @@ export default function Metricas() {
                 </div>
 
                 <div className="card space-y-3 p-5">
-                  <h2 className="font-bold">Detalle de participacion</h2>
+                  <h2 className="font-bold">Detalle de participación</h2>
                   {reporte.porCategoria.length === 0 ? (
                     <p className="text-sm text-slate">
                       Sin objetos en el rango seleccionado.
@@ -437,7 +437,7 @@ export default function Metricas() {
                       <table className="w-full text-left text-sm">
                         <thead>
                           <tr className="border-b border-line text-xs font-semibold text-slate-2">
-                            <th className="py-2 pr-3">Categoria</th>
+                            <th className="py-2 pr-3">Categoría</th>
                             <th className="py-2 px-3 text-right">Objetos</th>
                             <th className="py-2 pl-3 text-right">Porcentaje</th>
                           </tr>
@@ -474,11 +474,11 @@ export default function Metricas() {
 
               <div className="card border border-green-200/60 bg-green-50/50 p-4 text-xs text-green-900 space-y-1">
                 <p className="font-semibold">
-                  Periodo consultado: {reporte.desde} al {reporte.hasta}
+                  Período consultado: {reporte.desde} al {reporte.hasta}
                 </p>
                 <p className="text-slate">
-                  Reporte de gestion institucional para seguimiento municipal (HU-09).
-                  Los datos presentados son agregados y anonimizados segun la normativa
+                  Reporte de gestión institucional para seguimiento municipal (HU-09).
+                  Los datos presentados son agregados y anonimizados según la normativa
                   de privacidad.
                 </p>
               </div>
