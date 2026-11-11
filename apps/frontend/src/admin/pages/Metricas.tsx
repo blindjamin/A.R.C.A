@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ETIQUETA_MOTIVO,
   fetchMetricas,
@@ -9,10 +9,27 @@ import {
   type RangoMetricas,
   type ReporteGestion,
 } from '../api/admin';
+import {
+  Anillo,
+  AreaDiaria,
+  AZUL,
+  Cuadritos,
+  DORADO,
+  Dona,
+  GRIS,
+  ROJO,
+  Sparkline,
+  VERDE,
+  VERDE_CLARO,
+  type Porcion,
+} from '../components/GraficosMetricas';
+
+/** Orden fijo de colores por categoría (validado para daltonismo); el resto va a «Otras». */
+const COLORES_CATEGORIA = [VERDE, DORADO, AZUL, VERDE_CLARO];
 
 // Indicadores agregados de la gestión (docs/specs/SPEC-dashboard-metricas.md).
 // HU-09: Reporte de gestión por rango de fechas y exportación CSV.
-// Barras hechas con CSS: no se agrega una librería de gráficos para esto.
+// Gráficos en SVG propio (components/GraficosMetricas.tsx), sin librería.
 
 const RANGOS: { dias: RangoMetricas; label: string }[] = [
   { dias: 7, label: '7 días' },
@@ -25,6 +42,62 @@ const ETIQUETA_DECISION = {
   requiere_modificacion: 'Modificación pedida',
   rechazada: 'Rechazadas',
 } as const;
+
+type ClaveDecision = keyof typeof ETIQUETA_DECISION;
+
+// Colores de estado con etiqueta y número al lado: nunca solo el color.
+const COLOR_DECISION: Record<ClaveDecision, string> = {
+  aprobada: VERDE,
+  requiere_modificacion: DORADO,
+  rechazada: ROJO,
+};
+
+/** Las 4 categorías más grandes con color propio; el resto en gris como «Otros». */
+function gruposCategoria(filas: { categoria: string; total: number }[]): Porcion[] {
+  const ordenadas = [...filas].sort((a, b) => b.total - a.total);
+  const grupos: Porcion[] = ordenadas
+    .slice(0, COLORES_CATEGORIA.length)
+    .map((c, i) => ({
+      clave: c.categoria,
+      label: c.categoria,
+      total: c.total,
+      color: COLORES_CATEGORIA[i],
+    }));
+  const resto = ordenadas.slice(COLORES_CATEGORIA.length);
+  if (resto.length > 0) {
+    grupos.push({
+      clave: 'otros',
+      label: resto.length === 1 ? resto[0].categoria : `Otras (${resto.length})`,
+      total: resto.reduce((a, c) => a + c.total, 0),
+      color: GRIS,
+    });
+  }
+  return grupos;
+}
+
+/** Diferencia entre la segunda y la primera mitad del rango, en %. */
+function tendencia(serie: { total: number }[]): number | null {
+  const mitad = Math.floor(serie.length / 2);
+  const antes = serie.slice(0, mitad).reduce((a, p) => a + p.total, 0);
+  const despues = serie.slice(serie.length - mitad).reduce((a, p) => a + p.total, 0);
+  if (antes === 0) return null;
+  return Math.round(((despues - antes) / antes) * 100);
+}
+
+const porcentaje = (parte: number, total: number): number =>
+  total > 0 ? Math.round((parte / total) * 100) : 0;
+
+/** Motivos antiguos que ya no están en la lista: «residuo_no_aceptado» → «Residuo no aceptado». */
+const humanizar = (clave: string): string => {
+  const texto = clave.replace(/_/g, ' ');
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+};
+
+const promedioDiario = (serie: { total: number }[]): string => {
+  if (serie.length === 0) return '0';
+  const promedio = serie.reduce((a, p) => a + p.total, 0) / serie.length;
+  return promedio.toLocaleString('es-CL', { maximumFractionDigits: 1 });
+};
 
 const DIA_MS = 24 * 60 * 60 * 1000;
 const RANGO_MAXIMO_DIAS = 366;
@@ -245,86 +318,141 @@ export default function Metricas() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Tarjeta valor={datos.recibidas} etiqueta="solicitudes recibidas" />
+                <Tarjeta
+                  valor={datos.recibidas}
+                  etiqueta="Solicitudes recibidas"
+                  detalle={`${promedioDiario(datos.serieDiaria)} por día en promedio`}
+                  extra={<Sparkline valores={datos.serieDiaria.map((p) => p.total)} />}
+                />
                 <Tarjeta
                   valor={datos.cola.enRevision}
-                  etiqueta="en revisión ahora"
+                  etiqueta="En revisión ahora"
                   detalle={
                     datos.cola.atrasadas > 0
                       ? `${datos.cola.atrasadas} con más de 48 h`
-                      : undefined
+                      : 'Ninguna con más de 48 h'
                   }
                   alerta={datos.cola.atrasadas > 0}
+                  ok={datos.cola.atrasadas === 0}
+                  extra={
+                    datos.cola.enRevision > 0 && (
+                      <BarraProgreso
+                        fraccion={datos.cola.atrasadas / datos.cola.enRevision}
+                        color="bg-rose-600"
+                        titulo={`${porcentaje(datos.cola.atrasadas, datos.cola.enRevision)}% atrasadas`}
+                      />
+                    )
+                  }
                 />
                 <Tarjeta
                   valor={formatoHoras(datos.horasPromedioRevision)}
-                  etiqueta="espera promedio hasta la primera revisión"
+                  etiqueta="Espera hasta la primera revisión"
+                  detalle={
+                    datos.horasPromedioRevision === null
+                      ? 'Sin revisiones en el rango'
+                      : datos.horasPromedioRevision > 48
+                        ? 'Sobre 48 h en promedio'
+                        : 'Bajo 48 h en promedio'
+                  }
+                  alerta={(datos.horasPromedioRevision ?? 0) > 48}
+                  ok={
+                    datos.horasPromedioRevision !== null &&
+                    datos.horasPromedioRevision <= 48
+                  }
+                  extra={
+                    datos.horasPromedioRevision !== null && (
+                      <EscalaEspera horas={datos.horasPromedioRevision} />
+                    )
+                  }
                 />
                 <Tarjeta
                   valor={formatearPrecio(datos.recaudacion)}
-                  etiqueta="pagos registrados"
+                  etiqueta="Pagos registrados"
+                  detalle="Solo pagos confirmados"
                 />
               </div>
 
-              <div className="card space-y-3 p-5">
-                <h2 className="font-bold">Solicitudes recibidas por día</h2>
-                <SerieDiaria serie={datos.serieDiaria} />
+              <div className="card space-y-5 p-5">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold">Solicitudes recibidas por día</h2>
+                    <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                      <span className="font-display text-3xl font-extrabold tabular-nums text-ink">
+                        {datos.recibidas}
+                      </span>
+                      <span className="text-sm text-slate">en el período</span>
+                      <ChipTendencia valor={tendencia(datos.serieDiaria)} />
+                    </p>
+                  </div>
+                  <p className="text-xs text-slate">
+                    Recorre el gráfico con el cursor para ver cada día.
+                  </p>
+                </div>
+                <AreaDiaria serie={datos.serieDiaria} />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="card space-y-3 p-5">
-                  <h2 className="font-bold">Decisiones de revisión</h2>
-                  <Barras
-                    filas={Object.entries(ETIQUETA_DECISION).map(
-                      ([clave, label]) => ({
-                        label,
-                        total:
-                          datos.decisiones[
-                            clave as keyof typeof ETIQUETA_DECISION
-                          ] ?? 0,
-                      }),
-                    )}
-                  />
-                  <h3 className="pt-2 text-sm font-semibold">Motivos más usados</h3>
-                  <Barras
-                    filas={datos.motivos.map((m) => ({
-                      label: ETIQUETA_MOTIVO[m.motivo] ?? m.motivo,
-                      total: m.total,
-                    }))}
-                    vacio="Sin motivos registrados en el rango."
-                  />
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="card space-y-4 p-5">
+                  <div>
+                    <h2 className="font-bold">Decisiones de revisión</h2>
+                    <p className="text-xs text-slate">
+                      {totalDecisiones(datos.decisiones)} decisiones en el período
+                    </p>
+                  </div>
+                  {totalDecisiones(datos.decisiones) === 0 ? (
+                    <p className="text-sm text-slate">Sin decisiones en el rango.</p>
+                  ) : (
+                    <Dona
+                      porciones={(Object.keys(ETIQUETA_DECISION) as ClaveDecision[]).map(
+                        (clave) => ({
+                          clave,
+                          label: ETIQUETA_DECISION[clave],
+                          total: datos.decisiones[clave] ?? 0,
+                          color: COLOR_DECISION[clave],
+                        }),
+                      )}
+                      centro={`${porcentaje(
+                        datos.decisiones.aprobada ?? 0,
+                        totalDecisiones(datos.decisiones),
+                      )}%`}
+                      subtitulo="aprobadas"
+                    />
+                  )}
                 </div>
 
-                <div className="card space-y-3 p-5">
-                  <h2 className="font-bold">Por categoría de residuo</h2>
-                  <Barras
-                    filas={datos.porCategoria.map((c) => ({
-                      label: c.categoria,
-                      total: c.total,
-                    }))}
-                    vacio="Sin solicitudes en el rango."
-                  />
+                <div className="card space-y-4 p-5">
+                  <div>
+                    <h2 className="font-bold">Por categoría de residuo</h2>
+                    <p className="text-xs text-slate">Cada cuadrito es 1 % de las solicitudes</p>
+                  </div>
+                  <Cuadritos grupos={gruposCategoria(datos.porCategoria)} />
+                </div>
+
+                <div className="card space-y-4 p-5">
+                  <div>
+                    <h2 className="font-bold">Derivación a la empresa</h2>
+                    <p className="text-xs text-slate">Retiros cerrados en el período</p>
+                  </div>
+                  <Derivacion derivacion={datos.derivacion} />
                 </div>
               </div>
 
-              <div className="card space-y-3 p-5">
-                <h2 className="font-bold">Derivación a la empresa</h2>
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <Tarjeta valor={datos.derivacion.lotes} etiqueta="lotes generados" />
-                  <Tarjeta
-                    valor={datos.derivacion.derivadas}
-                    etiqueta="solicitudes derivadas"
-                  />
-                  <Tarjeta
-                    valor={datos.derivacion.retiradas}
-                    etiqueta="retiradas"
-                  />
-                  <Tarjeta
-                    valor={datos.derivacion.noRealizadas}
-                    etiqueta="no realizadas"
-                    alerta={datos.derivacion.noRealizadas > 0}
-                  />
+              <div className="card space-y-4 p-5">
+                <div>
+                  <h2 className="font-bold">Motivos más usados</h2>
+                  <p className="text-xs text-slate">
+                    Al pedir una modificación o rechazar una solicitud
+                  </p>
                 </div>
+                <Barras
+                  filas={datos.motivos.map((m) => ({
+                    label: ETIQUETA_MOTIVO[m.motivo] ?? humanizar(m.motivo),
+                    total: m.total,
+                  }))}
+                  limite={7}
+                  dosColumnas
+                  vacio="Sin motivos registrados en el rango."
+                />
               </div>
             </>
           )}
@@ -394,22 +522,22 @@ export default function Metricas() {
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Tarjeta
                   valor={reporte.solicitudesRecibidas}
-                  etiqueta="solicitudes recibidas"
+                  etiqueta="Solicitudes recibidas"
                   detalle="Creadas en el período"
                 />
                 <Tarjeta
                   valor={reporte.retiros}
-                  etiqueta="retiros realizados"
+                  etiqueta="Retiros realizados"
                   detalle="Estado retirada"
                 />
                 <Tarjeta
                   valor={formatearPrecio(reporte.monto)}
-                  etiqueta="monto recaudado"
+                  etiqueta="Monto recaudado"
                   detalle="Solo pagos confirmados"
                 />
                 <Tarjeta
                   valor={totalObjetosReporte}
-                  etiqueta="total de objetos"
+                  etiqueta="Total de objetos"
                   detalle={`${reporte.porCategoria.length} categorías`}
                 />
               </div>
@@ -495,83 +623,191 @@ function Tarjeta({
   etiqueta,
   detalle,
   alerta,
+  ok,
+  extra,
 }: {
   valor: number | string;
   etiqueta: string;
   detalle?: string;
   alerta?: boolean;
+  ok?: boolean;
+  extra?: ReactNode;
 }) {
   return (
-    <div className="card p-4">
-      <p className="text-3xl font-extrabold text-ink">{valor}</p>
-      <p className="text-xs text-slate">{etiqueta}</p>
+    <div className="card flex flex-col gap-1 p-4">
+      <p className="text-xs font-semibold text-slate">{etiqueta}</p>
+      <p className="font-display text-3xl font-extrabold tabular-nums text-ink">{valor}</p>
       {detalle && (
         <p
-          className={`mt-1 text-xs font-semibold ${
-            alerta ? 'text-rose-600' : 'text-slate-2'
+          className={`flex items-center gap-1 text-xs font-semibold ${
+            alerta ? 'text-rose-600' : ok ? 'text-green-700' : 'text-slate-2'
           }`}
         >
+          {alerta && <span aria-hidden="true">⚠</span>}
+          {ok && !alerta && <span aria-hidden="true">✓</span>}
           {detalle}
         </p>
       )}
+      {extra && <div className="mt-auto pt-2">{extra}</div>}
     </div>
   );
 }
 
+function BarraProgreso({
+  fraccion,
+  color,
+  titulo,
+}: {
+  fraccion: number;
+  color: string;
+  titulo: string;
+}) {
+  return (
+    <div title={titulo} className="h-1.5 overflow-hidden rounded-full bg-line-2">
+      <div
+        className={`h-full rounded-full ${color}`}
+        style={{ width: `${Math.min(100, fraccion * 100)}%` }}
+      />
+    </div>
+  );
+}
+
+/** Escala de 0 a 96 h: tramo verde hasta 48 h, rojo después, y una marca en el promedio. */
+function EscalaEspera({ horas }: { horas: number }) {
+  const MAX = 96;
+  const posicion = Math.min(100, (horas / MAX) * 100);
+  return (
+    <div>
+      <div className="relative h-1.5">
+        <div className="absolute inset-y-0 left-0 w-1/2 rounded-l-full bg-green-200" />
+        <div className="absolute inset-y-0 right-0 w-1/2 rounded-r-full bg-rose-100" />
+        <span
+          className="absolute top-1/2 h-3.5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-ink"
+          style={{ left: `${posicion}%` }}
+        />
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-slate-2">
+        <span>0 h</span>
+        <span>48 h</span>
+        <span>{horas > MAX ? `+${MAX} h` : `${MAX} h`}</span>
+      </div>
+    </div>
+  );
+}
+
+function ChipTendencia({ valor }: { valor: number | null }) {
+  if (valor === null) return null;
+  const sube = valor >= 0;
+  return (
+    <span
+      title="Segunda mitad del período frente a la primera"
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
+        sube ? 'bg-green-100 text-green-800' : 'bg-canvas text-slate'
+      }`}
+    >
+      <span aria-hidden="true">{sube ? '▲' : '▼'}</span>
+      {sube ? '+' : ''}
+      {valor}% vs. la primera mitad
+    </span>
+  );
+}
+
+const totalDecisiones = (d: DatosMetricas['decisiones']): number =>
+  (d.aprobada ?? 0) + (d.requiere_modificacion ?? 0) + (d.rechazada ?? 0);
+
+/**
+ * Las derivadas se cuentan por fecha del lote y las cerradas por fecha de
+ * cierre: son grupos distintos, así que no se muestran como embudo.
+ */
+function Derivacion({ derivacion }: { derivacion: DatosMetricas['derivacion'] }) {
+  const { lotes, derivadas, retiradas, noRealizadas } = derivacion;
+  const cerradas = retiradas + noRealizadas;
+  const filas = [
+    { label: 'Solicitudes derivadas', valor: derivadas },
+    { label: lotes === 1 ? 'Lote generado' : 'Lotes generados', valor: lotes },
+    { label: 'Retiradas', valor: retiradas, punto: 'bg-green-700' },
+    { label: 'No realizadas', valor: noRealizadas, punto: 'bg-rose-600' },
+  ];
+
+  return (
+    <div className="flex flex-col items-center gap-5 sm:flex-row lg:flex-col 2xl:flex-row">
+      {cerradas > 0 ? (
+        <Anillo valor={retiradas} total={cerradas} etiqueta="retiradas" />
+      ) : (
+        <p className="text-sm text-slate">Sin retiros cerrados en el rango.</p>
+      )}
+      <ul className="w-full flex-1 divide-y divide-line-2 text-sm">
+        {filas.map((f) => (
+          <li key={f.label} className="flex items-center gap-2 px-2 py-1.5">
+            {f.punto && (
+              <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${f.punto}`} />
+            )}
+            <span className="flex-1 text-ink">{f.label}</span>
+            <span className="font-semibold tabular-nums text-ink">{f.valor}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Barras horizontales con cantidad y participación. Con `limite`, lo que
+ * sobra se junta en «Otros» para que la lista no crezca sin fin.
+ */
 function Barras({
   filas,
+  limite,
+  dosColumnas,
   vacio = 'Sin datos en el rango.',
 }: {
   filas: { label: string; total: number }[];
+  limite?: number;
+  dosColumnas?: boolean;
   vacio?: string;
 }) {
-  const maximo = Math.max(0, ...filas.map((f) => f.total));
-  if (filas.length === 0 || maximo === 0) {
+  const total = filas.reduce((a, f) => a + f.total, 0);
+  if (total === 0) {
     return <p className="text-sm text-slate">{vacio}</p>;
   }
 
+  const ordenadas = [...filas].sort((a, b) => b.total - a.total);
+  const visibles =
+    limite && ordenadas.length > limite + 1
+      ? [
+          ...ordenadas.slice(0, limite),
+          {
+            label: `Otros (${ordenadas.length - limite})`,
+            total: ordenadas.slice(limite).reduce((a, f) => a + f.total, 0),
+          },
+        ]
+      : ordenadas;
+  const maximo = Math.max(...visibles.map((f) => f.total));
+  const esOtros = (i: number) => visibles !== ordenadas && i === visibles.length - 1;
+
   return (
-    <ul className="space-y-2">
-      {filas.map((f) => (
+    <ul className={dosColumnas ? 'grid gap-x-10 gap-y-3 md:grid-cols-2' : 'space-y-3'}>
+      {visibles.map((f, i) => (
         <li key={f.label} className="text-sm">
-          <div className="flex justify-between gap-2">
-            <span className="text-ink">{f.label}</span>
-            <span className="font-semibold">{f.total}</span>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className={esOtros(i) ? 'text-slate' : 'text-ink'}>{f.label}</span>
+            <span className="shrink-0 tabular-nums">
+              <span className="font-semibold text-ink">{f.total}</span>
+              <span className="ml-1.5 text-xs text-slate-2">
+                {porcentaje(f.total, total)}%
+              </span>
+            </span>
           </div>
-          <div className="mt-1 h-2 rounded-full bg-line-2">
+          <div className="mt-1.5 h-2.5 rounded-full bg-line-2">
             <div
-              className="h-2 rounded-full bg-green-700"
+              className={`h-2.5 rounded-full ${
+                esOtros(i) ? 'bg-slate-2/40' : 'bg-gradient-to-r from-green-600 to-green-700'
+              }`}
               style={{ width: `${(f.total / maximo) * 100}%` }}
             />
           </div>
         </li>
       ))}
     </ul>
-  );
-}
-
-function SerieDiaria({ serie }: { serie: { fecha: string; total: number }[] }) {
-  const maximo = Math.max(1, ...serie.map((p) => p.total));
-
-  return (
-    <div>
-      <div className="flex h-32 items-end gap-px">
-        {serie.map((p) => (
-          <div
-            key={p.fecha}
-            title={`${formatoDia(p.fecha)}: ${p.total}`}
-            className="flex-1 rounded-t bg-green-700/80"
-            style={{
-              height: `${(p.total / maximo) * 100}%`,
-              minHeight: p.total > 0 ? '4px' : '1px',
-            }}
-          />
-        ))}
-      </div>
-      <div className="mt-1 flex justify-between text-xs text-slate-2">
-        <span>{formatoDia(serie[0]?.fecha ?? '')}</span>
-        <span>{formatoDia(serie.at(-1)?.fecha ?? '')}</span>
-      </div>
-    </div>
   );
 }
