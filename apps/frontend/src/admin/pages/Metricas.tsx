@@ -26,6 +26,30 @@ const ETIQUETA_DECISION = {
   rechazada: 'Rechazadas',
 } as const;
 
+type ClaveDecision = keyof typeof ETIQUETA_DECISION;
+
+// Colores de estado con etiqueta y número al lado: nunca solo el color.
+const COLOR_DECISION: Record<ClaveDecision, string> = {
+  aprobada: 'bg-green-700',
+  requiere_modificacion: 'bg-gold-500',
+  rechazada: 'bg-rose-600',
+};
+
+const porcentaje = (parte: number, total: number): number =>
+  total > 0 ? Math.round((parte / total) * 100) : 0;
+
+/** Motivos antiguos que ya no están en la lista: «residuo_no_aceptado» → «Residuo no aceptado». */
+const humanizar = (clave: string): string => {
+  const texto = clave.replace(/_/g, ' ');
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+};
+
+const promedioDiario = (serie: { total: number }[]): string => {
+  if (serie.length === 0) return '0';
+  const promedio = serie.reduce((a, p) => a + p.total, 0) / serie.length;
+  return promedio.toLocaleString('es-CL', { maximumFractionDigits: 1 });
+};
+
 const DIA_MS = 24 * 60 * 60 * 1000;
 const RANGO_MAXIMO_DIAS = 366;
 
@@ -245,57 +269,76 @@ export default function Metricas() {
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <Tarjeta valor={datos.recibidas} etiqueta="solicitudes recibidas" />
+                <Tarjeta
+                  valor={datos.recibidas}
+                  etiqueta="Solicitudes recibidas"
+                  detalle={`${promedioDiario(datos.serieDiaria)} por día en promedio`}
+                />
                 <Tarjeta
                   valor={datos.cola.enRevision}
-                  etiqueta="en revisión ahora"
+                  etiqueta="En revisión ahora"
                   detalle={
                     datos.cola.atrasadas > 0
                       ? `${datos.cola.atrasadas} con más de 48 h`
-                      : undefined
+                      : 'Ninguna con más de 48 h'
                   }
                   alerta={datos.cola.atrasadas > 0}
+                  ok={datos.cola.atrasadas === 0}
                 />
                 <Tarjeta
                   valor={formatoHoras(datos.horasPromedioRevision)}
-                  etiqueta="espera promedio hasta la primera revisión"
+                  etiqueta="Espera hasta la primera revisión"
+                  detalle={
+                    datos.horasPromedioRevision === null
+                      ? 'Sin revisiones en el rango'
+                      : datos.horasPromedioRevision > 48
+                        ? 'Sobre 48 h en promedio'
+                        : 'Bajo 48 h en promedio'
+                  }
+                  alerta={(datos.horasPromedioRevision ?? 0) > 48}
+                  ok={
+                    datos.horasPromedioRevision !== null &&
+                    datos.horasPromedioRevision <= 48
+                  }
                 />
                 <Tarjeta
                   valor={formatearPrecio(datos.recaudacion)}
-                  etiqueta="pagos registrados"
+                  etiqueta="Pagos registrados"
+                  detalle="Solo pagos confirmados"
                 />
               </div>
 
-              <div className="card space-y-3 p-5">
-                <h2 className="font-bold">Solicitudes recibidas por día</h2>
+              <div className="card space-y-4 p-5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="font-bold">Solicitudes recibidas por día</h2>
+                  <p className="text-xs text-slate">
+                    Pasa el cursor sobre una barra para ver el día.
+                  </p>
+                </div>
                 <SerieDiaria serie={datos.serieDiaria} />
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="card space-y-3 p-5">
+                <div className="card space-y-4 p-5">
                   <h2 className="font-bold">Decisiones de revisión</h2>
-                  <Barras
-                    filas={Object.entries(ETIQUETA_DECISION).map(
-                      ([clave, label]) => ({
-                        label,
-                        total:
-                          datos.decisiones[
-                            clave as keyof typeof ETIQUETA_DECISION
-                          ] ?? 0,
-                      }),
-                    )}
-                  />
-                  <h3 className="pt-2 text-sm font-semibold">Motivos más usados</h3>
+                  <Decisiones decisiones={datos.decisiones} />
+                </div>
+
+                <div className="card space-y-4 p-5">
+                  <h2 className="font-bold">Motivos más usados</h2>
                   <Barras
                     filas={datos.motivos.map((m) => ({
-                      label: ETIQUETA_MOTIVO[m.motivo] ?? m.motivo,
+                      label: ETIQUETA_MOTIVO[m.motivo] ?? humanizar(m.motivo),
                       total: m.total,
                     }))}
+                    limite={5}
                     vacio="Sin motivos registrados en el rango."
                   />
                 </div>
+              </div>
 
-                <div className="card space-y-3 p-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="card space-y-4 p-5">
                   <h2 className="font-bold">Por categoría de residuo</h2>
                   <Barras
                     filas={datos.porCategoria.map((c) => ({
@@ -305,25 +348,10 @@ export default function Metricas() {
                     vacio="Sin solicitudes en el rango."
                   />
                 </div>
-              </div>
 
-              <div className="card space-y-3 p-5">
-                <h2 className="font-bold">Derivación a la empresa</h2>
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <Tarjeta valor={datos.derivacion.lotes} etiqueta="lotes generados" />
-                  <Tarjeta
-                    valor={datos.derivacion.derivadas}
-                    etiqueta="solicitudes derivadas"
-                  />
-                  <Tarjeta
-                    valor={datos.derivacion.retiradas}
-                    etiqueta="retiradas"
-                  />
-                  <Tarjeta
-                    valor={datos.derivacion.noRealizadas}
-                    etiqueta="no realizadas"
-                    alerta={datos.derivacion.noRealizadas > 0}
-                  />
+                <div className="card space-y-4 p-5">
+                  <h2 className="font-bold">Derivación a la empresa</h2>
+                  <Derivacion derivacion={datos.derivacion} />
                 </div>
               </div>
             </>
@@ -394,22 +422,22 @@ export default function Metricas() {
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <Tarjeta
                   valor={reporte.solicitudesRecibidas}
-                  etiqueta="solicitudes recibidas"
+                  etiqueta="Solicitudes recibidas"
                   detalle="Creadas en el período"
                 />
                 <Tarjeta
                   valor={reporte.retiros}
-                  etiqueta="retiros realizados"
+                  etiqueta="Retiros realizados"
                   detalle="Estado retirada"
                 />
                 <Tarjeta
                   valor={formatearPrecio(reporte.monto)}
-                  etiqueta="monto recaudado"
+                  etiqueta="Monto recaudado"
                   detalle="Solo pagos confirmados"
                 />
                 <Tarjeta
                   valor={totalObjetosReporte}
-                  etiqueta="total de objetos"
+                  etiqueta="Total de objetos"
                   detalle={`${reporte.porCategoria.length} categorías`}
                 />
               </div>
@@ -495,22 +523,26 @@ function Tarjeta({
   etiqueta,
   detalle,
   alerta,
+  ok,
 }: {
   valor: number | string;
   etiqueta: string;
   detalle?: string;
   alerta?: boolean;
+  ok?: boolean;
 }) {
   return (
-    <div className="card p-4">
-      <p className="text-3xl font-extrabold text-ink">{valor}</p>
-      <p className="text-xs text-slate">{etiqueta}</p>
+    <div className="card flex flex-col gap-1 p-4">
+      <p className="text-xs font-semibold text-slate">{etiqueta}</p>
+      <p className="text-3xl font-extrabold tabular-nums text-ink">{valor}</p>
       {detalle && (
         <p
-          className={`mt-1 text-xs font-semibold ${
-            alerta ? 'text-rose-600' : 'text-slate-2'
+          className={`flex items-center gap-1 text-xs font-semibold ${
+            alerta ? 'text-rose-600' : ok ? 'text-green-700' : 'text-slate-2'
           }`}
         >
+          {alerta && <span aria-hidden="true">⚠</span>}
+          {ok && !alerta && <span aria-hidden="true">✓</span>}
           {detalle}
         </p>
       )}
@@ -518,29 +550,54 @@ function Tarjeta({
   );
 }
 
+/**
+ * Barras horizontales con cantidad y participación. Con `limite`, lo que
+ * sobra se junta en «Otros» para que la lista no crezca sin fin.
+ */
 function Barras({
   filas,
+  limite,
   vacio = 'Sin datos en el rango.',
 }: {
   filas: { label: string; total: number }[];
+  limite?: number;
   vacio?: string;
 }) {
-  const maximo = Math.max(0, ...filas.map((f) => f.total));
-  if (filas.length === 0 || maximo === 0) {
+  const total = filas.reduce((a, f) => a + f.total, 0);
+  if (total === 0) {
     return <p className="text-sm text-slate">{vacio}</p>;
   }
 
+  const ordenadas = [...filas].sort((a, b) => b.total - a.total);
+  const visibles =
+    limite && ordenadas.length > limite + 1
+      ? [
+          ...ordenadas.slice(0, limite),
+          {
+            label: `Otros (${ordenadas.length - limite})`,
+            total: ordenadas.slice(limite).reduce((a, f) => a + f.total, 0),
+          },
+        ]
+      : ordenadas;
+  const maximo = Math.max(...visibles.map((f) => f.total));
+  const esOtros = (i: number) => visibles !== ordenadas && i === visibles.length - 1;
+
   return (
-    <ul className="space-y-2">
-      {filas.map((f) => (
+    <ul className="space-y-3">
+      {visibles.map((f, i) => (
         <li key={f.label} className="text-sm">
-          <div className="flex justify-between gap-2">
-            <span className="text-ink">{f.label}</span>
-            <span className="font-semibold">{f.total}</span>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className={esOtros(i) ? 'text-slate' : 'text-ink'}>{f.label}</span>
+            <span className="shrink-0 tabular-nums">
+              <span className="font-semibold text-ink">{f.total}</span>
+              <span className="ml-1.5 text-xs text-slate-2">
+                {porcentaje(f.total, total)}%
+              </span>
+            </span>
           </div>
-          <div className="mt-1 h-2 rounded-full bg-line-2">
+          <div className="mt-1.5 h-2 rounded-full bg-line-2">
             <div
-              className="h-2 rounded-full bg-green-700"
+              className={`h-2 rounded-full ${esOtros(i) ? 'bg-slate-2/40' : 'bg-green-700'}`}
               style={{ width: `${(f.total / maximo) * 100}%` }}
             />
           </div>
@@ -550,27 +607,233 @@ function Barras({
   );
 }
 
-function SerieDiaria({ serie }: { serie: { fecha: string; total: number }[] }) {
-  const maximo = Math.max(1, ...serie.map((p) => p.total));
+/** Aprobadas, con modificación pedida y rechazadas como una sola barra al 100 %. */
+function Decisiones({
+  decisiones,
+}: {
+  decisiones: DatosMetricas['decisiones'];
+}) {
+  const filas = (Object.keys(ETIQUETA_DECISION) as ClaveDecision[]).map(
+    (clave) => ({
+      clave,
+      label: ETIQUETA_DECISION[clave],
+      total: decisiones[clave] ?? 0,
+    }),
+  );
+  const total = filas.reduce((a, f) => a + f.total, 0);
+  if (total === 0) {
+    return <p className="text-sm text-slate">Sin decisiones en el rango.</p>;
+  }
 
   return (
-    <div>
-      <div className="flex h-32 items-end gap-px">
-        {serie.map((p) => (
-          <div
-            key={p.fecha}
-            title={`${formatoDia(p.fecha)}: ${p.total}`}
-            className="flex-1 rounded-t bg-green-700/80"
-            style={{
-              height: `${(p.total / maximo) * 100}%`,
-              minHeight: p.total > 0 ? '4px' : '1px',
-            }}
-          />
+    <div className="space-y-4">
+      <p>
+        <span className="text-3xl font-extrabold tabular-nums text-ink">
+          {porcentaje(decisiones.aprobada ?? 0, total)}%
+        </span>
+        <span className="ml-2 text-sm text-slate">
+          de {total} decisiones fueron aprobaciones
+        </span>
+      </p>
+
+      <div className="flex h-3 gap-[2px] overflow-hidden rounded-full">
+        {filas
+          .filter((f) => f.total > 0)
+          .map((f) => (
+            <div
+              key={f.clave}
+              title={`${f.label}: ${f.total} (${porcentaje(f.total, total)}%)`}
+              className={COLOR_DECISION[f.clave]}
+              style={{ width: `${(f.total / total) * 100}%` }}
+            />
+          ))}
+      </div>
+
+      <ul className="space-y-2 text-sm">
+        {filas.map((f) => (
+          <li key={f.clave} className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${COLOR_DECISION[f.clave]}`}
+            />
+            <span className="flex-1 text-ink">{f.label}</span>
+            <span className="font-semibold tabular-nums text-ink">{f.total}</span>
+            <span className="w-10 text-right text-xs tabular-nums text-slate-2">
+              {porcentaje(f.total, total)}%
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Las derivadas se cuentan por fecha del lote y las cerradas por fecha de
+ * cierre: son grupos distintos, así que no se muestran como embudo.
+ */
+function Derivacion({
+  derivacion,
+}: {
+  derivacion: DatosMetricas['derivacion'];
+}) {
+  const { lotes, derivadas, retiradas, noRealizadas } = derivacion;
+  const cerradas = retiradas + noRealizadas;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-md bg-card-2 p-3">
+          <p className="text-2xl font-extrabold tabular-nums text-ink">
+            {derivadas}
+          </p>
+          <p className="text-xs text-slate">solicitudes derivadas</p>
+        </div>
+        <div className="rounded-md bg-card-2 p-3">
+          <p className="text-2xl font-extrabold tabular-nums text-ink">{lotes}</p>
+          <p className="text-xs text-slate">
+            {lotes === 1 ? 'lote generado' : 'lotes generados'}
+          </p>
+        </div>
+      </div>
+
+      {cerradas === 0 ? (
+        <p className="text-sm text-slate">Sin retiros cerrados en el rango.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm text-ink">
+            <span className="font-semibold">
+              {porcentaje(retiradas, cerradas)}% retiradas
+            </span>{' '}
+            <span className="text-slate">de {cerradas} cerradas en el rango</span>
+          </p>
+          <div className="flex h-3 gap-[2px] overflow-hidden rounded-full">
+            {retiradas > 0 && (
+              <div
+                title={`Retiradas: ${retiradas}`}
+                className="bg-green-700"
+                style={{ width: `${(retiradas / cerradas) * 100}%` }}
+              />
+            )}
+            {noRealizadas > 0 && (
+              <div
+                title={`No realizadas: ${noRealizadas}`}
+                className="bg-rose-600"
+                style={{ width: `${(noRealizadas / cerradas) * 100}%` }}
+              />
+            )}
+          </div>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate">
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-green-700" />
+              Retiradas <span className="font-semibold text-ink">{retiradas}</span>
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-rose-600" />
+              No realizadas{' '}
+              <span className="font-semibold text-ink">{noRealizadas}</span>
+            </li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Tope del eje en 4 pasos enteros: 12 → 0, 3, 6, 9, 12. */
+function pasoEje(maximo: number): number {
+  const paso = Math.max(1, Math.ceil(maximo / 4));
+  return paso <= 5 ? paso : Math.ceil(paso / 5) * 5;
+}
+
+function SerieDiaria({ serie }: { serie: { fecha: string; total: number }[] }) {
+  const [activo, setActivo] = useState<number | null>(null);
+  const paso = pasoEje(Math.max(0, ...serie.map((p) => p.total)));
+  const tope = paso * 4;
+  const marcas = [4, 3, 2, 1, 0].map((k) => k * paso);
+  const promedio =
+    serie.length > 0 ? serie.reduce((a, p) => a + p.total, 0) / serie.length : 0;
+  const punto = activo === null ? null : serie[activo];
+  const medio = serie[Math.floor(serie.length / 2)];
+
+  return (
+    <div
+      role="img"
+      aria-label={`Solicitudes por día del ${formatoDia(serie[0]?.fecha ?? '')} al ${formatoDia(
+        serie.at(-1)?.fecha ?? '',
+      )}. Promedio ${promedioDiario(serie)} por día.`}
+      className="flex gap-2"
+    >
+      <div className="relative h-44 w-6 shrink-0 text-right text-[11px] tabular-nums text-slate-2">
+        {marcas.map((m) => (
+          <span
+            key={m}
+            className="absolute right-0 -translate-y-1/2"
+            style={{ top: `${100 - (m / tope) * 100}%` }}
+          >
+            {m}
+          </span>
         ))}
       </div>
-      <div className="mt-1 flex justify-between text-xs text-slate-2">
-        <span>{formatoDia(serie[0]?.fecha ?? '')}</span>
-        <span>{formatoDia(serie.at(-1)?.fecha ?? '')}</span>
+
+      <div className="min-w-0 flex-1">
+        <div className="relative h-44" onMouseLeave={() => setActivo(null)}>
+          {marcas.map((m) => (
+            <div
+              key={m}
+              className={`absolute inset-x-0 border-t ${m === 0 ? 'border-line' : 'border-line-2'}`}
+              style={{ top: `${100 - (m / tope) * 100}%` }}
+            />
+          ))}
+
+          {promedio > 0 && (
+            <div
+              className="pointer-events-none absolute inset-x-0 z-10 border-t border-dashed border-slate-2"
+              style={{ bottom: `${(promedio / tope) * 100}%` }}
+            >
+              <span className="absolute right-0 -top-4 bg-card px-1 text-[11px] text-slate-2">
+                promedio {promedioDiario(serie)}
+              </span>
+            </div>
+          )}
+
+          <div
+            className={`absolute inset-0 flex items-end ${serie.length > 31 ? 'gap-px' : 'gap-[2px]'}`}
+          >
+            {serie.map((p, i) => (
+              <div
+                key={p.fecha}
+                onMouseEnter={() => setActivo(i)}
+                className="flex h-full min-w-0 flex-1 items-end"
+              >
+                <div
+                  className={`w-full rounded-t-[4px] transition-colors ${
+                    activo === i ? 'bg-green-900' : 'bg-green-700'
+                  }`}
+                  style={{ height: `${(p.total / tope) * 100}%` }}
+                />
+              </div>
+            ))}
+          </div>
+
+          {punto && activo !== null && (
+            <div
+              className="pointer-events-none absolute -top-2 z-20 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-sm bg-ink px-2 py-1 text-xs text-white shadow"
+              style={{
+                left: `${Math.min(92, Math.max(8, ((activo + 0.5) / serie.length) * 100))}%`,
+              }}
+            >
+              <span className="font-semibold">{formatoDia(punto.fecha)}</span> ·{' '}
+              {punto.total} {punto.total === 1 ? 'solicitud' : 'solicitudes'}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-1.5 flex justify-between text-[11px] text-slate-2">
+          <span>{formatoDia(serie[0]?.fecha ?? '')}</span>
+          {serie.length > 2 && <span>{formatoDia(medio?.fecha ?? '')}</span>}
+          <span>{formatoDia(serie.at(-1)?.fecha ?? '')}</span>
+        </div>
       </div>
     </div>
   );
