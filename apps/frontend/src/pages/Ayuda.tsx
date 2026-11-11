@@ -10,7 +10,8 @@ import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
  * por confirmar en vez de mostrar un número inventado.
  */
 export const TELEFONO_MUNICIPALIDAD: string | null = null;
-export const CORREO_MUNICIPALIDAD = 'soporte.arcaa@gmail.com';
+/** Correo del equipo A.R.C.A. (no es de la Municipalidad). */
+export const CORREO_EQUIPO_ARCA = 'soporte.arcaa@gmail.com';
 
 interface Pregunta {
   pregunta: string;
@@ -242,17 +243,17 @@ export default function Ayuda() {
           <div>
             <h2 className="text-lg font-bold text-ink">¿Necesitas hablar con una persona?</h2>
             <p className="text-sm text-ink-2">
-              Si no encontraste tu respuesta, comunícate con el equipo municipal de A.R.C.A.
+              Si no encontraste tu respuesta, escríbele al equipo de A.R.C.A.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <a
-              href={`mailto:${CORREO_MUNICIPALIDAD}`}
+              href={`mailto:${CORREO_EQUIPO_ARCA}`}
               className="btn-primary inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold"
             >
               <span>✉️</span>
-              <span>Escribir a {CORREO_MUNICIPALIDAD}</span>
+              <span>Escribir a {CORREO_EQUIPO_ARCA}</span>
             </a>
 
             {TELEFONO_MUNICIPALIDAD ? (

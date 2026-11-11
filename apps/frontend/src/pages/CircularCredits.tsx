@@ -366,11 +366,11 @@ export default function CircularCredits() {
           <div className="rounded-lg bg-black/20 p-4 border border-white/10 sm:max-w-xs space-y-2">
             <p className="text-xs font-semibold text-gold-300">¿Cómo ganar créditos?</p>
             <p className="text-[11px] text-green-100/90 leading-relaxed">
-              • Entregando artículos en el Marketplace (+50 CC)
+              • Entregando un artículo en el Marketplace (+100 CC)
               <br />
-              • Recibiendo 4 o 5 estrellas de evaluación (+20 CC)
+              • Recibiendo 4 estrellas (+50 CC) o 5 estrellas (+100 CC)
               <br />
-              • Pagando un retiro municipal (+30 CC)
+              • Pagando un retiro municipal (+50 CC)
             </p>
           </div>
         </div>
