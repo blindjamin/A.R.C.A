@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { BarraAccesibilidad } from '../accesibilidad/BarraAccesibilidad';
 
 // HU-39: ayuda para vecinos. Pública como «Acerca de»: se llega desde el login
@@ -184,6 +184,9 @@ export default function Ayuda() {
             <a href="#guia" className="pill min-h-[44px] bg-green-50 font-semibold text-green-800">
               Guía paso a paso
             </a>
+            <a href="#manuales" className="pill min-h-[44px] bg-green-50 font-semibold text-green-800">
+              Manuales de uso
+            </a>
             <a href="#contacto" className="pill min-h-[44px] bg-green-50 font-semibold text-green-800">
               Hablar con una persona
             </a>
@@ -237,6 +240,23 @@ export default function Ayuda() {
               </ol>
             </div>
           ))}
+        </section>
+
+        <section id="manuales" className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-ink">Manuales de uso</h2>
+            <p className="text-sm text-ink-2">Guías con capturas de pantalla, para leer o imprimir.</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link to="/ayuda/manual-vecinos" className="card block min-h-[44px] p-5 hover:bg-green-50">
+              <h3 className="font-bold text-ink">Manual para vecinos</h3>
+              <p className="text-sm text-ink-2">Pedir un retiro, pagar, regalar objetos y ganar créditos.</p>
+            </Link>
+            <Link to="/ayuda/manual-funcionarios" className="card block min-h-[44px] p-5 hover:bg-green-50">
+              <h3 className="font-bold text-ink">Manual para funcionarios</h3>
+              <p className="text-sm text-ink-2">Revisar solicitudes, moderar, atender denuncias y ver métricas.</p>
+            </Link>
+          </div>
         </section>
 
         <section id="contacto" className="card space-y-4 border-green-200 bg-green-50 p-5">

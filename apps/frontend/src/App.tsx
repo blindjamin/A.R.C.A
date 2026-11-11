@@ -26,6 +26,8 @@ import { OfertaInstalacion } from './pwa/OfertaInstalacion';
 // Chunk aparte: el panel (páginas, api/admin.ts, leaflet) no debe pesar en la
 // PWA del vecino (SPEC-frontend-unificado §2.2, criterio 3).
 const AdminApp = lazy(() => import('./admin/AdminApp'));
+const ManualVecinos = lazy(() => import('./pages/ManualVecinos'));
+const ManualFuncionarios = lazy(() => import('./pages/ManualFuncionarios'));
 
 // Tras autenticar, decide a dónde va la persona según el rol de la sesión:
 //  - sin sesión                  → /login
@@ -49,6 +51,14 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/acerca-de" element={<AcercaDe />} />
             <Route path="/ayuda" element={<Ayuda />} />
+            <Route
+              path="/ayuda/manual-vecinos"
+              element={<Suspense fallback={<Cargando />}><ManualVecinos /></Suspense>}
+            />
+            <Route
+              path="/ayuda/manual-funcionarios"
+              element={<Suspense fallback={<Cargando />}><ManualFuncionarios /></Suspense>}
+            />
             <Route path="/privacidad" element={<Privacidad />} />
             <Route path="/" element={<Entrada />} />
             <Route path="/inicio" element={<Protected><Inicio /></Protected>} />

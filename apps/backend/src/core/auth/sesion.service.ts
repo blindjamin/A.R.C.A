@@ -200,6 +200,16 @@ export class SesionService {
   }
 
   /**
+   * Login de desarrollo: un vecino propio por nombre, para que varias personas
+   * prueben a la vez sin compartir datos. El nombre hace de identificador
+   * (`dev:<nombre>`), así que el mismo nombre vuelve al mismo vecino.
+   */
+  async vecinoDev(nombre: string, ip?: string | null): Promise<string> {
+    const clave = `dev:${nombre.trim().toLowerCase().replace(/\s+/g, ' ')}`;
+    return (await this.registrarIngreso(clave, ip)).id;
+  }
+
+  /**
    * Upsert por `clave_unica_id`. Un ciudadano desactivado no vuelve a entrar
    * aunque ClaveÚnica lo haya autenticado: la baja la decide ARCA, no ClaveÚnica.
    * La excepción es la baja voluntaria pasadas 48 h (`volverSiCorresponde`).

@@ -20,6 +20,9 @@ import { loginDevHabilitado } from './login-dev';
 import { SesionService } from './sesion.service';
 import { RolAdministrador } from '../entities/rol-administrador.enum';
 
+/** Vecino de prueba de las migraciones; el botón «Vecino» del login dev. */
+const VECINO_DEV_COMPARTIDO = '00000000-0000-4000-8000-000000000001';
+
 interface SesionRespuesta {
   ciudadanoId: string;
   nombre: string | null;
@@ -82,11 +85,18 @@ export class SesionController {
       throw new NotFoundException();
     }
 
+    const nombre = dto.nombre?.trim() || undefined;
+    // Vecino con nombre: uno propio por persona; sin nombre, el compartido.
+    const usuarioCiudadanoId =
+      dto.ciudadanoId === VECINO_DEV_COMPARTIDO && nombre
+        ? await this.sesionService.vecinoDev(nombre, req.ip)
+        : dto.ciudadanoId;
+
     await this.sesionService.revocar(leerCookie(req, COOKIE_SESION));
     const { valorCookie, maxAgeMs } = await this.sesionService.iniciar(
       {
-        usuarioCiudadanoId: dto.ciudadanoId,
-        nombre: dto.nombre?.trim() || undefined,
+        usuarioCiudadanoId,
+        nombre,
         ip: req.ip,
         userAgent: req.headers['user-agent'],
       },
