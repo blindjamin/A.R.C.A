@@ -4,11 +4,21 @@ Cómo publicar A.R.C.A. en el servidor municipal administrado con cPanel. Está 
 administra el servidor: la **Parte 1** la prepara el equipo COM Tech en un computador con el
 repositorio y entrega dos archivos `.zip`; la **Parte 2** se hace en el cPanel.
 
-> **Versión que se despliega:** `develop` en `864991c` (13-10-2026). Es la versión para la
-> **certificación de ClaveÚnica**: trae el botón oficial v2.0, la vuelta de ClaveÚnica por la
-> raíz del sitio (la dirección registrada) y el cierre de sesión que exige el manual. Además suma
-> el Marketplace con fotos, la accesibilidad y el panel municipal usable desde el celular.
-> Si el servidor tiene la versión anterior (`2eb03dd`), se actualiza con el procedimiento de §4.
+> **Versión que se despliega:** paquete del **10-11-2026**, `develop` en `8287e12` (incluye
+> hasta el PR #179). Suma, respecto de la versión de octubre (`864991c`): pago del retiro con
+> **Webpay Plus**, denuncias y bloqueo de vecinos en el Marketplace, Circular Credits con cifras
+> reales, reporte de gestión por fechas con exportación CSV, correo verificado del vecino, baja
+> voluntaria, manuales de uso y el panel de Métricas renovado.
+>
+> **Antes de instalar, revisar los cuatro cambios que piden acción en el servidor:**
+> 1. Variables nuevas de **Webpay** en `.env.local`: sin `WEBPAY_ENV` la API no arranca (2.2 c).
+> 2. Ahora son **26** migraciones (2.2 d).
+> 3. Desactivar las **cuentas de demostración** con `desactivar-cuentas-demo.sql` (§7.4).
+> 4. **Feria de Software (13-11-2026):** se usa una **base de datos de prueba** aparte, con
+>    límites por IP más altos y las fotos en otra carpeta. Después de la feria se borra todo y se
+>    vuelve a la base definitiva. Pasos en el **§8**.
+>
+> Si el servidor tiene una versión anterior, se actualiza con el procedimiento de §4.
 > Si tiene la estructura de dos apps (subdominio del panel y una segunda API), la sección **2.4**
 > explica cómo desmontarla.
 
@@ -199,12 +209,13 @@ MAIL_USER=<cuenta de correo emisora>
 MAIL_PASS=<contraseña de aplicación>
 MAIL_FROM=A.R.C.A. Santo Domingo <cuenta de correo emisora>
 
-# Opcionales. Pisos: 120, 10, 90 y 30 por minuto. Un número menor se ignora.
-# Subirlos si en la Feria mucha gente sale por la misma red, y reiniciar.
+# Opcionales. Pisos: 120, 10, 90, 30 y 10 por minuto. Un número menor se ignora.
+# En la Feria se suben (valores en el §8) y después se borran estas líneas.
 # LIMITE_IP_GENERAL=120
 # LIMITE_IP_LOGIN=10
 # LIMITE_IP_UBICACION=90
 # LIMITE_IP_CHAT=30
+# LIMITE_IP_CORREO=10
 
 CLAVE_UNICA_CLIENT_ID=<entregado por Gobierno Digital>
 CLAVE_UNICA_CLIENT_SECRET=<entregado por Gobierno Digital>
@@ -216,6 +227,13 @@ CLAVE_UNICA_PEPPER=<ver abajo>
 VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=mailto:<correo de contacto>
+
+# Obligatorias: pago del retiro con Webpay Plus (ver abajo)
+WEBPAY_ENV=integration
+WEBPAY_RETURN_URL=https://arca.santodomingo.cl/api/pagos/retorno
+# Solo con WEBPAY_ENV=production (los entrega Transbank a la Municipalidad):
+# WEBPAY_COMMERCE_CODE=
+# WEBPAY_API_KEY=
 ```
 
 - **No agregar `ALLOW_DEV_LOGIN`.** Si aparece con `NODE_ENV=production`, la API no arranca (§1).
@@ -244,6 +262,20 @@ VAPID_SUBJECT=mailto:<correo de contacto>
   `VAPID_PRIVATE_KEY`, y poner en `VAPID_SUBJECT` un `mailto:` o una URL `https:` de contacto.
   Si se cambian, todos los dispositivos dejan de recibir avisos hasta volver a suscribirse.
   Respaldar la clave privada como el pepper.
+- **Webpay Plus (pago del retiro).** Con `NODE_ENV=production`, **la API no arranca sin
+  `WEBPAY_ENV`** (el log dice «WEBPAY_ENV es obligatorio con NODE_ENV=production»). Es a
+  propósito: sin la variable se usarían las credenciales públicas de prueba y se marcarían
+  solicitudes como pagadas sin cobro real.
+  - `integration`: ambiente de **prueba** de Transbank. Los pagos se hacen con tarjetas de
+    prueba y **no se cobra dinero**. Sirve para la feria y para probar el flujo completo.
+  - `production`: cobro real. Exige `WEBPAY_COMMERCE_CODE` y `WEBPAY_API_KEY`, que Transbank
+    entrega a la Municipalidad al afiliar el comercio. Respaldarlos como el pepper.
+  - `WEBPAY_RETURN_URL` es la dirección a la que Transbank devuelve al vecino después de pagar.
+    En producción es obligatoria y tiene que ser `https`.
+- **Correo:** con `NODE_ENV=production`, si falta `MAIL_PASS` la API arranca, pero pedir un
+  código de verificación de correo responde error (en los computadores del equipo, el código
+  se muestra en pantalla; en el servidor no). `MAIL_PASS` es una **contraseña de aplicación**
+  de la cuenta emisora, no su contraseña normal.
 - **Fotos del Marketplace:** se guardan en `~/api/uploads/`, fuera de `public_html`, y solo se
   entregan por la API con sesión. No hace falta configurar nada (`UPLOADS_DIR` vacío).
 - Permisos del archivo: **600** (Administrador de archivos → Permisos).
@@ -262,9 +294,24 @@ npm run migration:run
 npm run migration:show
 ```
 
-Son **18** migraciones (la versión `2eb03dd` tenía 12; las nuevas crean las tablas del
-Marketplace y los Circular Credits, el contacto del vecino, el chat, la reserva con código y los avisos). Si ya se habían corrido,
-`migration:run` solo aplica las que falten. `migration:show` debe mostrar las 18 con `[X]`.
+Son **26** migraciones (la versión de octubre, `864991c`, tenía 18). Si ya se habían corrido,
+`migration:run` solo aplica las que falten. `migration:show` debe mostrar las 26 con `[X]`.
+
+Las 8 nuevas de esta versión, en orden:
+
+| Migración | Qué hace |
+|---|---|
+| `PagosWebpay1782165000000` | Crea `pagos_webpay`: el comprobante de cada intento de pago |
+| `BajaCiudadano1782165100000` | Agrega `fecha_baja` a `usuarios_ciudadanos` (baja voluntaria del vecino) |
+| `ModeracionMarketResiduoOtro1782165200000` | Moderación municipal del Marketplace y residuos fuera del catálogo escritos por el vecino |
+| `CreditosArticulosMarketplace1782165300000` | Agrega `creditos` a `articulos_marketplace` |
+| `ObjetosSolicitudRetiro1782165400000` | Crea `objetos_solicitud_retiro` (varios objetos por solicitud); cada solicitud existente queda con su objeto |
+| `Denuncias1782165500000` | Crea `denuncias` (denuncias entre vecinos del Marketplace) |
+| `BloqueosCiudadano1782165600000` | Crea `bloqueos_ciudadano` (historial de bloqueos y desbloqueos) |
+| `CorreoContacto1782165700000` | Agrega `email` a `contacto_ciudadano` (correo verificado del vecino) |
+
+Ninguna borra datos de vecinos. Como siempre, **respaldar la base antes** (cPanel → Copia de
+seguridad).
 
 La del chat (`ChatMarketplace1782164700000`) agrega `interesado_id` a `mensajes_marketplace` y
 crea `suscripciones_push`. Completa las filas sembradas y borra las que no tienen interlocutor.
@@ -338,6 +385,9 @@ Antes de la unificación, el panel tenía su propio subdominio y su propia API. 
 | Con credenciales de ClaveÚnica: entrar como funcionario o administrador (§7) | Ve la pantalla para elegir el modo y puede abrir el panel en `/admin` |
 | Botón **Salir** | Cierra la sesión de A.R.C.A. **y la de ClaveÚnica**, y vuelve a `/login` |
 | Ingreso que no se completa (por ejemplo, cancelar en ClaveÚnica) | Vuelve a `/login` con el aviso «No pudimos completar tu ingreso con ClaveÚnica» |
+| Vecino con una solicitud aprobada → **Pagar retiro** | Lleva al formulario de Webpay; al terminar, vuelve a `arca.santodomingo.cl/pago/...` con el resultado. Con `WEBPAY_ENV=integration` se paga con las tarjetas de prueba de Transbank |
+| `https://arca.santodomingo.cl/ayuda` | Aparecen los enlaces a los manuales de vecinos y funcionarios, y sus capturas cargan |
+| Después de §7.4: consulta de revisión del SQL | Las siete cuentas de demostración con `activo = 0` |
 | Si existía: `https://arcapanel.santodomingo.cl` | Redirige a `https://arca.santodomingo.cl/admin` |
 
 ---
@@ -346,14 +396,18 @@ Antes de la unificación, el panel tenía su propio subdominio y su propia API. 
 
 1. El equipo entrega los zips nuevos (Parte 1). Una versión nueva puede traer migraciones o
    dependencias adicionales, por eso el paso 4 no se puede saltar.
-2. Detener la aplicación en "Setup Node.js App".
+2. **Respaldar la base** (cPanel → Copia de seguridad) y detener la aplicación en
+   "Setup Node.js App".
 3. En `~/api`, reemplazar `dist/` y `package.json`. **No tocar `.env.local` ni `uploads/`**
    (ahí están las fotos que subieron los vecinos).
-4. En la Terminal (con el comando del entorno virtual):
-   - `npm install --omit=dev` si cambió `package.json`.
-   - `npm run migration:run`.
-5. **Restart** de la aplicación y verificar `/api/health`.
-6. Frontend: reemplazar los archivos de la raíz, **conservando `.htaccess`**.
+4. Revisar `~/api/.env.local` contra la lista de 2.2 c y agregar las variables nuevas de la
+   versión. **En la del 10-11-2026: las de Webpay**, sin las cuales la API no arranca.
+5. En la Terminal (con el comando del entorno virtual):
+   - `npm install --omit=dev` si cambió `package.json` (en la versión del 10-11-2026, sí).
+   - `npm run migration:run` y `npm run migration:show` (26 con `[X]`).
+6. **Restart** de la aplicación y verificar `/api/health`.
+7. Frontend: reemplazar los archivos de la raíz, **conservando `.htaccess`**.
+8. Si la versión trae `desactivar-cuentas-demo.sql` y aún no se ha corrido, correrlo (§7.4).
 
 ---
 
@@ -394,6 +448,9 @@ revisar que no traiga contraseñas.**
 | `429 Demasiadas solicitudes` a muchas personas a la vez | El límite de consultas agrupa a todos en una IP | Ver §6, Cloudflare |
 | En el chat, los mensajes solo llegan al recargar | El WebSocket no conecta (WAF o Cloudflare lo bloquean en `/api/socket.io/*`) o Passenger corre más de un proceso | Ver 4.1. En las herramientas del navegador (Red), `/api/socket.io/` no debe quedar en rojo |
 | El chat funciona pero no llegan avisos al celular | Faltan las variables `VAPID_*` (2.2 c) o el navegador no dio permiso de notificaciones | Revisar el log: «Notificaciones push deshabilitadas» |
+| `WEBPAY_ENV es obligatorio con NODE_ENV=production` o `WEBPAY_ENV debe ser integration o production` | Falta `WEBPAY_ENV` en `.env.local` o tiene otro valor | Agregarla (2.2 c) y reiniciar |
+| Al pagar, Webpay responde error o no vuelve a la app | `WEBPAY_RETURN_URL` mal escrita, sin `https`, o código y llave que no corresponden al ambiente | Revisar 2.2 c: con `production` van el código y la llave de la Municipalidad |
+| Pedir un código de verificación de correo responde «No pudimos enviar el código» | Falta `MAIL_PASS` o no es una contraseña de aplicación válida | Revisar 2.2 c y el log (`Error enviando código de verificación`) |
 | Botón ClaveÚnica responde error; en el log `Falta la variable de entorno CLAVE_UNICA_CLIENT_ID` | Faltan `CLAVE_UNICA_CLIENT_ID` / `CLIENT_SECRET` | Completarlas cuando lleguen las credenciales. El resto de la API sigue funcionando |
 
 ---
@@ -414,8 +471,8 @@ revisar que no traiga contraseñas.**
     final).
 - **Usuarios de prueba:** tres migraciones (`seed-operador-demo`, `seed-admin-demo`,
   `seed-operadores-prueba`) insertan usuarios de demostración con identificadores fijos. En
-  producción no se puede entrar con ellos (solo se entra por ClaveÚnica), pero **deben
-  desactivarse antes de la puesta en marcha real** (§7.4).
+  producción no se puede entrar con ellos (solo se entra por ClaveÚnica), pero **se
+  desactivan al instalar** con `desactivar-cuentas-demo.sql`, que viene junto a los zips (§7.4).
 - Respaldos periódicos de `<cuenta>_arca_db` (cPanel → Copia de seguridad).
 - **Cloudflare y el límite de consultas.** La API limita las consultas por IP de cada
   visitante. El sitio pasa por Cloudflare (se ve en las páginas de error del servidor), y si
@@ -519,8 +576,8 @@ consulta el rol en cada petición. Con `activo = 0`, la persona sigue entrando, 
 
 ### 7.4 Desactivar las cuentas de demostración
 
-**Una vez, antes de la puesta en marcha real** (después de la feria), en phpMyAdmin → SQL.
-Desactiva las siete cuentas que crean las migraciones (el vecino de desarrollo, Camila, Carlos
+**Una vez, al instalar la versión del 10-11-2026** (después de las migraciones), en phpMyAdmin →
+SQL. El mismo bloque viene como `desactivar-cuentas-demo.sql` junto a los zips. Desactiva las siete cuentas que crean las migraciones (el vecino de desarrollo, Camila, Carlos
 y los operadores de prueba) y cierra sus sesiones.
 
 Se desactivan y no se borran: tienen historial (solicitudes, revisiones, lotes) y entradas en la
@@ -568,3 +625,102 @@ Para deshacerlo, el mismo bloque con `SET c.activo = 1` y `SET a.activo = 1`, si
 No es una migración a propósito: una migración correría también en la base de cada integrante
 y apagaría los botones de desarrollo (Vecino, Funcionario y Admin entran con estas cuentas) y
 la demo de la feria.
+
+---
+
+## 8. Feria de Software (13-11-2026): base de prueba
+
+Para la feria, A.R.C.A. corre sobre una **base de datos aparte**, para que lo que hagan los
+visitantes (cuentas, solicitudes, fotos, pagos de prueba) no quede mezclado con la base
+definitiva. Después de la feria se borra todo y la aplicación vuelve a la base definitiva. El
+**pepper es el mismo** en las dos bases y **no se cambia** en ningún paso.
+
+### 8.1 Antes de la feria
+
+1. **Respaldar** la base definitiva (cPanel → Copia de seguridad) y descargar una copia de
+   `~/api/.env.local`.
+2. cPanel → **Bases de datos MySQL**:
+   - Crear la base `<cuenta>_arca_feria`.
+   - En «Añadir usuario a la base de datos», agregar el **mismo usuario** de `DB_USERNAME` a
+     `<cuenta>_arca_feria`, con **todos los privilegios**.
+3. Instalar los archivos de esta versión con el §4 (pasos 1 a 4: detener la aplicación,
+   reemplazar `dist/` y `package.json`, y agregar las variables de Webpay).
+4. En `~/api/.env.local`, cambiar o agregar estas dos líneas. **No tocar las demás**, y menos
+   `CLAVE_UNICA_PEPPER`:
+
+   ```
+   DB_DATABASE=<cuenta>_arca_feria
+   UPLOADS_DIR=uploads-feria
+   ```
+
+   `UPLOADS_DIR` deja las fotos de la feria en `~/api/uploads-feria/`, separadas de
+   `~/api/uploads/`, para borrarlas después sin riesgo.
+5. En la Terminal (con el comando del entorno virtual): `npm install --omit=dev`,
+   `npm run migration:run` y `npm run migration:show`. Tienen que aparecer las **26 con `[X]`**,
+   ahora en la base de la feria.
+6. phpMyAdmin → `<cuenta>_arca_feria` → SQL: correr `desactivar-cuentas-demo.sql` (§7.4).
+7. **Restart** y revisar `https://arca.santodomingo.cl/api/health` →
+   `{"status":"ok","db":"connected"}`.
+8. Frontend: borrar los archivos anteriores de la raíz **excepto `.htaccess`** y extraer
+   `frontend.zip` (2.3).
+9. Hacer la **prueba de Cloudflare del §6** ahora, con los límites normales. Si la API ve la IP
+   de Cloudflare, subir los límites no basta: primero hay que corregir `TRUST_PROXY`.
+10. **Subir los límites por IP.** Los visitantes conectados al **mismo wifi** salen a internet
+    con una sola IP, y la API los cuenta como una sola persona: con los valores normales (10
+    ingresos por minuto) se bloquearían entre ellos. Con **datos móviles** cada celular suele
+    tener su propia IP, aunque las compañías a veces agrupan a varios clientes en una. Agregar a
+    `~/api/.env.local`:
+
+    ```
+    # Solo durante la Feria: borrar después (§8.3)
+    LIMITE_IP_GENERAL=3000
+    LIMITE_IP_LOGIN=150
+    LIMITE_IP_UBICACION=1500
+    LIMITE_IP_CHAT=300
+    LIMITE_IP_CORREO=100
+    ```
+
+    Y hacer **Restart** (los límites se leen al arrancar). Si alguien igual ve «Demasiadas
+    solicitudes», se pueden subir más y reiniciar. `LIMITE_IP_CORREO` importa: para pedir un
+    retiro el vecino **tiene que verificar su correo**, y cada código se envía desde la cuenta de
+    `MAIL_USER`. Revisar antes de la feria que esa cuenta envíe bien (pedir un código de prueba).
+11. **Roles para la demo del panel:** las personas del equipo que muestren el panel entran
+    **una vez** con ClaveÚnica y después se les da el rol con el §7, **en
+    `<cuenta>_arca_feria`**. Los roles de esta base no pasan a la definitiva.
+12. Verificación final con la tabla del §3. Los pagos se hacen con las tarjetas de prueba de
+    Transbank (`WEBPAY_ENV=integration`): no se cobra dinero.
+
+### 8.2 Si ClaveÚnica no está activa en producción
+
+En el servidor solo se entra con ClaveÚnica. Si para el 12-11 Gobierno Digital no ha activado
+las credenciales de producción, los visitantes no pueden entrar con su ClaveÚnica. En ese caso:
+
+- La demo de la feria se hace en un computador del equipo, con la aplicación en local y el
+  acceso de desarrollo (que en el servidor no existe).
+- El servidor queda instalado igual, con esta versión. Cuando lleguen las credenciales se
+  cambian `CLAVE_UNICA_CLIENT_ID` y `CLAVE_UNICA_CLIENT_SECRET` y se reinicia (2.2 c); el pepper
+  no se cambia.
+- Si no hubo visitantes en el servidor, el §8.3 se hace igual para volver a la base definitiva.
+
+### 8.3 Después de la feria: volver a la base definitiva
+
+1. Detener la aplicación en «Setup Node.js App».
+2. En `~/api/.env.local`:
+   - `DB_DATABASE=<cuenta>_arca_db` (la definitiva).
+   - Borrar la línea `UPLOADS_DIR=uploads-feria`.
+   - Borrar las cinco líneas `LIMITE_IP_*` de la feria.
+   - **No cambiar `CLAVE_UNICA_PEPPER`** ni las demás variables.
+3. En la Terminal: `npm run migration:run` y `npm run migration:show` → **26 con `[X]`**, ahora
+   en la base definitiva.
+4. phpMyAdmin → `<cuenta>_arca_db` → SQL: correr `desactivar-cuentas-demo.sql`, si no se había
+   corrido en esa base.
+5. **Restart** y revisar `/api/health` y la tabla del §3.
+6. Dar los roles definitivos con el §7, en `<cuenta>_arca_db`.
+7. **Borrar los datos de la feria:**
+   - cPanel → Bases de datos MySQL → eliminar `<cuenta>_arca_feria`.
+   - Administrador de archivos → eliminar la carpeta `~/api/uploads-feria/` completa.
+   - Borrar las copias de `.env.local` descargadas en el paso 1 del §8.1.
+
+   Esa base y esa carpeta tienen datos de los visitantes (huellas de ClaveÚnica, nombres, fotos,
+   mensajes). Se borran completas: no se pasan a la base definitiva.
+8. Avisar al equipo que el servidor ya está en la base definitiva.
