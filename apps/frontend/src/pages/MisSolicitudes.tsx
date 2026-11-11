@@ -39,6 +39,17 @@ const conEstadoPago = (s: SolicitudRetiro): SolicitudRetiro => {
   return s;
 };
 
+// Lo que se muestra como valor de la solicitud: el monto que fijó el funcionario
+// o, mientras no lo fija, la suma del catálogo de todos los objetos. Antes se
+// mostraba solo el precio del primer objeto.
+const valorSolicitud = (s: SolicitudRetiro): string => {
+  const valor = s.monto ?? s.precioSugerido ?? s.residuoCatalogo?.precio ?? null;
+  return valor === null ? '' : formatearPrecio(valor);
+};
+
+const lineaCategoriaValor = (s: SolicitudRetiro): string =>
+  [s.residuoCatalogo?.categoria, valorSolicitud(s)].filter(Boolean).join(' · ');
+
 const CANCELABLES: EstadoSolicitud[] = [
   'en_revision',
   'requiere_modificacion',
@@ -492,10 +503,7 @@ export default function MisSolicitudes() {
                 {resumenObjetos(seleccion)}
               </h1>
               {categoria && (
-                <p className="text-sm text-ink-2">
-                  {categoria} ·{' '}
-                  {formatearPrecio(seleccion.residuoCatalogo?.precio ?? 0)}
-                </p>
+                <p className="text-sm text-ink-2">{lineaCategoriaValor(seleccion)}</p>
               )}
             </div>
             <div className="flex items-center gap-1.5 flex-wrap justify-end">
@@ -617,7 +625,6 @@ export default function MisSolicitudes() {
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visibles.map((s) => {
-            const categoria = s.residuoCatalogo?.categoria;
             return (
               <li key={s.id}>
                 <ListItemCard
@@ -639,9 +646,7 @@ export default function MisSolicitudes() {
                     </div>
                   }
                   lines={[
-                    <span className="text-ink-2">{`${categoria ? `${categoria} · ` : ''}${
-                      s.residuoCatalogo ? formatearPrecio(s.residuoCatalogo.precio) : ''
-                    }`}</span>,
+                    <span className="text-ink-2">{lineaCategoriaValor(s)}</span>,
                     <span className="text-ink-2">{fechaLarga(s.fechaSolicitud)}</span>,
                   ]}
                   trailing={<span className="text-ink-2">›</span>}
