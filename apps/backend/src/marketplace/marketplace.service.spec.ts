@@ -13,6 +13,7 @@ import {
   EstadoArticuloMarketplace,
   type InteresadoMarketplace,
   type ResiduoCatalogo,
+  RolAdministrador,
   type SesionService,
   TipoArticuloMarketplace,
   type UsuarioCiudadano,
@@ -877,6 +878,46 @@ describe('MarketplaceService.foto', () => {
       NotFoundException,
     );
     expect(archivos.abrir).not.toHaveBeenCalled();
+  });
+
+  const municipal = (rol: RolAdministrador | null): AuthUser => ({
+    ...usuario('00000000-0000-4000-8000-0000000000f1'),
+    esAdministrador: rol !== null,
+    administradorId: rol ? 'adm-1' : null,
+    rol,
+  });
+  const pendienteAjeno = () =>
+    articulo({
+      fotoPath: 'marketplace/pendiente.png',
+      estado: EstadoArticuloMarketplace.PENDIENTE_APROBACION,
+    });
+
+  it.each([RolAdministrador.FUNCIONARIO, RolAdministrador.ADMIN])(
+    'el equipo municipal (%s) ve la foto de un artículo pendiente de moderar',
+    async (rol) => {
+      const { service, archivos } = montar({ encontrado: pendienteAjeno() });
+
+      await service.foto(10, municipal(rol));
+
+      expect(archivos.abrir).toHaveBeenCalledWith('marketplace/pendiente.png');
+    },
+  );
+
+  it('un vecino que no lo publicó no ve la foto de un artículo pendiente', async () => {
+    const { service, archivos } = montar({ encontrado: pendienteAjeno() });
+
+    await expect(service.foto(10, municipal(null))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(archivos.abrir).not.toHaveBeenCalled();
+  });
+
+  it('404 al equipo municipal si el artículo no existe', async () => {
+    const { service } = montar({ encontrado: null });
+
+    await expect(
+      service.foto(10, municipal(RolAdministrador.FUNCIONARIO)),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 
