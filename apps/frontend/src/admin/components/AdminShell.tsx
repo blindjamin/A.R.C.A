@@ -15,6 +15,11 @@ import {
   IconX,
 } from '../../components/ui/Icons';
 
+// No hay icono de ayuda en Icons.tsx: un signo de interrogación basta.
+const IconAyuda = ({ className = '' }: { className?: string }) => (
+  <span aria-hidden="true" className={`${className} text-center text-sm font-bold leading-4`}>?</span>
+);
+
 const NAV = [
   { to: '/admin', label: 'Solicitudes', icon: IconClipboard, end: true, reqAdmin: false },
   { to: '/admin/marketplace', label: 'Marketplace', icon: IconMarketplace, end: false, reqAdmin: false },
@@ -24,6 +29,7 @@ const NAV = [
   { to: '/admin/pagadas', label: 'Pagadas', icon: IconCreditCard, end: false, reqAdmin: false },
   { to: '/admin/mapa-calor', label: 'Mapa de calor', icon: IconMap, end: false, reqAdmin: false },
   { to: '/admin/auditoria', label: 'Auditoría', icon: IconShield, end: false, reqAdmin: true },
+  { to: '/ayuda/manual-funcionarios', label: 'Ayuda', icon: IconAyuda, end: false, reqAdmin: false },
 ];
 
 // Layout del panel: barra lateral + contenido. Desde `lg` la barra queda fija;
