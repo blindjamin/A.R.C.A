@@ -273,6 +273,24 @@ export default function MisSolicitudes() {
         )}
 
         {/* Banner HU-03: Tu solicitud requiere cambios */}
+        {/* Rechazada: el vecino ve el motivo y el comentario (el aviso ya los trae). */}
+        {seleccion.estado === 'rechazada' && seleccion.ultimaRevision && (
+          <section className="rounded-lg border border-rose-200 bg-rose-50 p-4 space-y-1.5 text-sm">
+            <h2 className="font-bold text-rose-900">Tu solicitud fue rechazada</h2>
+            {etiquetaMotivo(seleccion.ultimaRevision.motivo) && (
+              <p className="text-rose-900">
+                Motivo:{' '}
+                <span className="font-semibold">
+                  {etiquetaMotivo(seleccion.ultimaRevision.motivo)}
+                </span>
+              </p>
+            )}
+            {seleccion.ultimaRevision.comentario && (
+              <p className="text-ink-2">«{seleccion.ultimaRevision.comentario}»</p>
+            )}
+          </section>
+        )}
+
         {requiereCambios && (
           <section className="rounded-lg border-2 border-sky-300 bg-sky-50/80 p-5 space-y-3.5">
             <div className="flex items-start justify-between gap-2">
@@ -623,7 +641,9 @@ export default function MisSolicitudes() {
           }
         />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        // grid-cols-1 (minmax(0, 1fr)): sin esto la columna toma el ancho del
+        // contenido más largo y en el celular las tarjetas se salen de la pantalla.
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visibles.map((s) => {
             return (
               <li key={s.id}>
