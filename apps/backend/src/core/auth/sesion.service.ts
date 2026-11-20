@@ -1,0 +1,424 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto';
+import { QueryFailedError, Repository } from 'typeorm';
+import { AuthService } from './auth.service';
+import { IdentidadCiudadano } from './clave-unica.types';
+import { AuthUser } from './interfaces/auth-user.interface';
+import { AuditoriaService } from '../auditoria/auditoria.service';
+import { OrigenPeticion } from '../auditoria/auditoria.types';
+import { AccionAuditoria } from '../entities/accion-auditoria.enum';
+import { SesionCiudadano } from '../entities/sesion-ciudadano.entity';
+import { TipoActorAuditoria } from '../entities/tipo-actor-auditoria.enum';
+import { UsuarioCiudadano } from '../entities/usuario-ciudadano.entity';
+
+// Tiempos de la decisión 2 del mapa de unificación. El municipal dura menos y
+// además caduca por inactividad porque su sesión abre el panel con datos de
+// todos los vecinos; la del vecino solo ve lo suyo y vive en su teléfono.
+export const DURACION_SESION_VECINO_MS = 7 * 24 * 60 * 60 * 1000;
+export const DURACION_SESION_MUNICIPAL_MS = 8 * 60 * 60 * 1000;
+export const INACTIVIDAD_MAXIMA_MUNICIPAL_MS = 30 * 60 * 1000;
+
+// Decisión 011: volver tras darse de baja es automático, pero no antes de 48 h,
+// para que la baja no se use para entrar y salir.
+export const ESPERA_VUELTA_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * El vecino se dio de baja hace menos de `ESPERA_VUELTA_MS`. Solo se lanza a
+ * quien ya se autenticó con ClaveÚnica, así que decirle por qué no entra no le
+ * revela nada de una cuenta ajena.
+ */
+export class BajaRecienteException extends UnauthorizedException {
+  constructor() {
+    super('Podrás volver a entrar 48 horas después de darte de baja.');
+  }
+}
+
+// `updated_at` se usa como "última actividad". Escribirlo en cada petición sería
+// una escritura por request; una vez por minuto basta para medir 30 minutos.
+export const INTERVALO_ACTIVIDAD_MS = 60 * 1000;
+
+// `<session_id>.<secreto>`: UUID v4 (lo que genera randomUUID) y 32 bytes en hex.
+// Se exige minúscula porque es lo único que emitimos: cualquier otra cosa no
+// salió de acá y no vale la pena ni consultar la base.
+const FORMATO_COOKIE =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([0-9a-f]{64})$/;
+
+export interface DatosNuevaSesion {
+  usuarioCiudadanoId: string;
+  nombre?: string | null;
+  apellido?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+/** Por dónde entró la persona; queda en la auditoría del `LOGIN`. */
+export type OrigenLogin = 'clave_unica' | 'dev';
+
+/** Lo que el controlador necesita para dejar la cookie `arca_sesion`. */
+export interface SesionIniciada {
+  valorCookie: string;
+  maxAgeMs: number;
+}
+
+function sha256(valor: string): string {
+  return createHash('sha256').update(valor).digest('hex');
+}
+
+function esClaveDuplicada(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) return false;
+  const { code } = error.driverError as { code?: string };
+  return code === 'ER_DUP_ENTRY';
+}
+
+/**
+ * Sesión de ARCA en servidor (SPEC-sesion-unica §2).
+ *
+ * La cookie lleva el id de la sesión y un secreto; la base guarda solo el hash
+ * del secreto. Así, quien obtenga un volcado de `sesiones_ciudadano` no puede
+ * armar una cookie válida, y revocar es cambiar `activa` en una fila.
+ *
+ * El secreto no se guarda ni se registra en ningún log: solo existe en la
+ * respuesta de `crear` y en el navegador.
+ */
+@Injectable()
+export class SesionService {
+  constructor(
+    @InjectRepository(SesionCiudadano)
+    private readonly sesiones: Repository<SesionCiudadano>,
+    @InjectRepository(UsuarioCiudadano)
+    private readonly usuarios: Repository<UsuarioCiudadano>,
+    private readonly authService: AuthService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
+
+  /**
+   * Reloj del servicio. Es un campo reemplazable para que las pruebas fijen la
+   * hora sin timers falsos: toda comparación de tiempos pasa por acá.
+   */
+  ahora = (): Date => new Date();
+
+  /**
+   * Cierra el callback de ClaveÚnica: busca o crea al ciudadano y le inicia
+   * sesión. Nombres y apellidos van solo a la sesión; de la identidad, lo único
+   * que se persiste en `usuarios_ciudadanos` es el identificador derivado.
+   */
+  async iniciarConClaveUnica(
+    identidad: IdentidadCiudadano,
+    origen: OrigenPeticion,
+  ): Promise<SesionIniciada> {
+    const ciudadano = await this.registrarIngreso(
+      identidad.identificador,
+      origen.ip,
+    );
+
+    return this.iniciar(
+      {
+        usuarioCiudadanoId: ciudadano.id,
+        nombre: identidad.nombres || null,
+        apellido: identidad.apellidos || null,
+        ip: origen.ip,
+        userAgent: origen.userAgent,
+      },
+      'clave_unica',
+    );
+  }
+
+  /**
+   * Crea la sesión y audita el `LOGIN` (SPEC-sesion-unica criterio 7). La
+   * auditoría lleva solo el origen: nunca el RUN, el nombre ni la cookie.
+   */
+  async iniciar(
+    datos: DatosNuevaSesion,
+    origenLogin: OrigenLogin,
+  ): Promise<SesionIniciada> {
+    const { valorCookie, usuario } = await this.emitir(datos);
+
+    // Un funcionario queda con su ficha municipal, para que el registro de
+    // auditoría lo muestre con nombre; un vecino, con su referencia opaca.
+    await this.auditoria.registrar({
+      tipoActor: usuario.esAdministrador
+        ? TipoActorAuditoria.ADMINISTRADOR
+        : TipoActorAuditoria.CIUDADANO,
+      actor: usuario,
+      entidad: 'sesiones_ciudadano',
+      accion: AccionAuditoria.LOGIN,
+      datosNuevos: { origen: origenLogin },
+      origen: { ip: datos.ip, userAgent: datos.userAgent },
+    });
+
+    return { valorCookie, maxAgeMs: this.duracionMaxima(usuario) };
+  }
+
+  /** Crea la sesión y devuelve el valor de la cookie `arca_sesion`. */
+  async crear(datos: DatosNuevaSesion): Promise<string> {
+    return (await this.emitir(datos)).valorCookie;
+  }
+
+  private async emitir(
+    datos: DatosNuevaSesion,
+  ): Promise<{ valorCookie: string; usuario: AuthUser }> {
+    const encontrado = await this.usuarios.findOne({
+      where: { id: datos.usuarioCiudadanoId },
+    });
+    if (!encontrado) {
+      throw new UnauthorizedException('No se pudo iniciar sesión.');
+    }
+    const ciudadano = await this.volverSiCorresponde(encontrado, this.ahora());
+
+    const usuario = await this.authService.resolveCiudadanoId(ciudadano.id);
+    const ahora = this.ahora();
+    const sessionId = randomUUID();
+    const secreto = randomBytes(32).toString('hex');
+
+    await this.sesiones.save(
+      this.sesiones.create({
+        sessionId,
+        usuarioCiudadanoId: ciudadano.id,
+        jwtTokenHash: sha256(secreto),
+        nombreSesion: datos.nombre ?? null,
+        apellidoSesion: datos.apellido ?? null,
+        ipSesion: datos.ip ?? null,
+        userAgent: datos.userAgent ?? null,
+        fechaInicio: ahora,
+        fechaExpiracion: new Date(
+          ahora.getTime() + this.duracionMaxima(usuario),
+        ),
+        // Se fija con el mismo reloj que después lo compara, en vez de dejar
+        // que la base ponga el suyo.
+        updatedAt: ahora,
+        activa: true,
+      }),
+    );
+
+    return { valorCookie: `${sessionId}.${secreto}`, usuario };
+  }
+
+  /**
+   * Login de desarrollo: un vecino propio por nombre, para que varias personas
+   * prueben a la vez sin compartir datos. El nombre hace de identificador
+   * (`dev:<nombre>`), así que el mismo nombre vuelve al mismo vecino.
+   */
+  async vecinoDev(nombre: string, ip?: string | null): Promise<string> {
+    const clave = `dev:${nombre.trim().toLowerCase().replace(/\s+/g, ' ')}`;
+    return (await this.registrarIngreso(clave, ip)).id;
+  }
+
+  /**
+   * Upsert por `clave_unica_id`. Un ciudadano desactivado no vuelve a entrar
+   * aunque ClaveÚnica lo haya autenticado: la baja la decide ARCA, no ClaveÚnica.
+   * La excepción es la baja voluntaria pasadas 48 h (`volverSiCorresponde`).
+   */
+  private async registrarIngreso(
+    claveUnicaId: string,
+    ip?: string | null,
+  ): Promise<UsuarioCiudadano> {
+    const ahora = this.ahora();
+    const existente = await this.usuarios.findOne({ where: { claveUnicaId } });
+    if (existente) return this.reingresar(existente, ahora);
+
+    try {
+      return await this.usuarios.save(
+        this.usuarios.create({
+          id: randomUUID(),
+          claveUnicaId,
+          fechaRegistro: ahora,
+          fechaUltimaActividad: ahora,
+          activo: true,
+          ipPrimeraLogin: ip ?? null,
+        }),
+      );
+    } catch (error) {
+      // Dos callbacks del mismo vecino nuevo en paralelo: el índice único de
+      // `clave_unica_id` frena al segundo insert, que entonces encuentra la
+      // fila del primero en vez de responder 500.
+      if (!esClaveDuplicada(error)) throw error;
+      const creado = await this.usuarios.findOne({ where: { claveUnicaId } });
+      if (!creado) throw error;
+      return this.reingresar(creado, ahora);
+    }
+  }
+
+  private async reingresar(
+    ciudadano: UsuarioCiudadano,
+    ahora: Date,
+  ): Promise<UsuarioCiudadano> {
+    const activo = await this.volverSiCorresponde(ciudadano, ahora);
+    await this.usuarios.update(
+      { id: activo.id },
+      { fechaUltimaActividad: ahora },
+    );
+    return activo;
+  }
+
+  /**
+   * Reactiva a un vecino dado de baja si ya pasaron `ESPERA_VUELTA_MS`
+   * (decisión 011). Una cuenta desactivada por la Municipalidad, sin
+   * `fecha_baja`, no vuelve sola.
+   */
+  private async volverSiCorresponde(
+    ciudadano: UsuarioCiudadano,
+    ahora: Date,
+  ): Promise<UsuarioCiudadano> {
+    if (ciudadano.activo) return ciudadano;
+    if (!ciudadano.fechaBaja) {
+      throw new UnauthorizedException('No se pudo iniciar sesión.');
+    }
+    if (ahora.getTime() - ciudadano.fechaBaja.getTime() < ESPERA_VUELTA_MS) {
+      throw new BajaRecienteException();
+    }
+
+    // Condicionado a `activo = false`: dos ingresos simultáneos reactivan una vez.
+    const { affected } = await this.usuarios.update(
+      { id: ciudadano.id, activo: false },
+      { activo: true, fechaBaja: null },
+    );
+    if (affected) {
+      await this.auditoria.registrar({
+        tipoActor: TipoActorAuditoria.CIUDADANO,
+        actor: await this.authService.resolveCiudadanoId(ciudadano.id),
+        entidad: 'usuarios_ciudadanos',
+        accion: AccionAuditoria.UPDATE,
+        datosAnteriores: { activo: false },
+        datosNuevos: { activo: true, motivo: 'vuelta_tras_baja' },
+      });
+    }
+    return { ...ciudadano, activo: true, fechaBaja: null };
+  }
+
+  /**
+   * Resuelve la identidad a partir de la cookie, o `null` si no vale.
+   *
+   * Nunca dice por qué falló: quien llama responde un 401 genérico, para no
+   * darle a un atacante pistas sobre qué parte de la cookie acertó.
+   */
+  async validar(valorCookie?: string): Promise<AuthUser | null> {
+    // Pasos 1 a 3: formato, fila activa y secreto.
+    const sesion = await this.buscarSesion(valorCookie);
+    if (!sesion) return null;
+
+    // Paso 4: la expiración fijada al emitirla. Un cambio de rol puede acortar
+    // la sesión (paso 6), pero nunca alargarla más allá de esta fecha.
+    const ahora = this.ahora().getTime();
+    if (ahora > sesion.fechaExpiracion.getTime()) return null;
+
+    // Paso 5: un ciudadano dado de baja pierde también las sesiones que ya
+    // tenía abiertas. Se revoca para que no revivan si lo reactivan.
+    const ciudadano = await this.usuarios.findOne({
+      where: { id: sesion.usuarioCiudadanoId, activo: true },
+    });
+    if (!ciudadano) {
+      await this.sesiones.update(
+        { sessionId: sesion.sessionId },
+        { activa: false },
+      );
+      return null;
+    }
+
+    // Paso 6: el límite sale del rol actual, no del que tenía al entrar. Si a
+    // un vecino lo hacen funcionario, su sesión pasa a durar 8 horas.
+    const usuario = await this.authService.resolveCiudadanoId(ciudadano.id);
+    if (ahora - sesion.fechaInicio.getTime() > this.duracionMaxima(usuario)) {
+      return null;
+    }
+
+    // Paso 7: inactividad, solo para el municipal. Se revoca en vez de solo
+    // rechazar para que la sesión no reviva aunque cambie el rol.
+    const inactividad = ahora - sesion.updatedAt.getTime();
+    if (
+      usuario.esAdministrador &&
+      inactividad > INACTIVIDAD_MAXIMA_MUNICIPAL_MS
+    ) {
+      await this.sesiones.update(
+        { sessionId: sesion.sessionId },
+        { activa: false },
+      );
+      return null;
+    }
+
+    // Paso 8: registrar actividad, como mucho una vez por minuto.
+    if (inactividad > INTERVALO_ACTIVIDAD_MS) {
+      await this.sesiones.update(
+        { sessionId: sesion.sessionId },
+        { updatedAt: new Date(ahora) },
+      );
+    }
+
+    // Paso 9.
+    return usuario;
+  }
+
+  /**
+   * Revoca la sesión de la cookie. Exige el secreto: conocer solo el id (que
+   * podría aparecer en un log o en la base) no alcanza para cerrarle la sesión
+   * a otro. Si la cookie no corresponde a nada, no hace nada.
+   */
+  async revocar(valorCookie?: string): Promise<void> {
+    const sesion = await this.buscarSesion(valorCookie);
+    if (!sesion) return;
+
+    await this.sesiones.update(
+      { sessionId: sesion.sessionId },
+      { activa: false },
+    );
+  }
+
+  private async buscarSesion(
+    valorCookie?: string,
+  ): Promise<SesionCiudadano | null> {
+    const partes = FORMATO_COOKIE.exec(valorCookie ?? '');
+    if (!partes) return null;
+    const [, sessionId, secreto] = partes;
+
+    // Se busca por PK: no hace falta un índice sobre el hash.
+    const sesion = await this.sesiones.findOne({
+      where: { sessionId, activa: true },
+    });
+    if (!sesion?.jwtTokenHash) return null;
+
+    // Comparación en tiempo constante: con `===`, el tiempo de respuesta
+    // revelaría cuántos caracteres del hash coinciden. Los dos lados son hex
+    // de 64 caracteres; el chequeo de largo solo protege de filas antiguas con
+    // otro contenido en la columna, porque timingSafeEqual lanza si difieren.
+    const esperado = Buffer.from(sesion.jwtTokenHash);
+    const recibido = Buffer.from(sha256(secreto));
+    if (
+      esperado.length !== recibido.length ||
+      !timingSafeEqual(esperado, recibido)
+    ) {
+      return null;
+    }
+
+    return sesion;
+  }
+
+  /**
+   * Duración de la cookie según el rol actual (SPEC-sesion-unica §2.3): la
+   * usan tanto `crear`/`validar` como el controlador, para que el `maxAge` de
+   * la cookie sea siempre el mismo número que decide cuándo expira la fila.
+   */
+  duracionMaxima(usuario: AuthUser): number {
+    return usuario.esAdministrador
+      ? DURACION_SESION_MUNICIPAL_MS
+      : DURACION_SESION_VECINO_MS;
+  }
+
+  /**
+   * `nombre_sesion` de la sesión activa más reciente del ciudadano, o `null`
+   * si no tiene ninguna (o quedó vacío, como en el login de desarrollo). Lo
+   * usa `GET /sesion` para vecinos y funcionarios sin ficha en
+   * `usuarios_administradores` (SPEC-sesion-unica §2.4).
+   */
+  async nombreSesionActiva(usuarioCiudadanoId: string): Promise<string | null> {
+    const sesion = await this.sesiones.findOne({
+      where: { usuarioCiudadanoId, activa: true },
+      order: { fechaInicio: 'DESC' },
+    });
+    return sesion?.nombreSesion ?? null;
+  }
+}

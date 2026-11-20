@@ -5,15 +5,25 @@ PWA mobile-first del proyecto A.R.C.A. Construida con **React 18 + TypeScript + 
 > Documentación detallada de la fase actual: [`docs/FRONTEND_FASE1.md`](../../docs/FRONTEND_FASE1.md)
 > Roadmap y pendientes por fase: [`docs/PLAN_FRONTEND.md`](../../docs/PLAN_FRONTEND.md)
 
+> ⚠️ **Replanteo del 2026-09-17: el núcleo, la base y el panel ya cambiaron, la PWA todavía no.**
+> La empresa que ejecuta los retiros es **externa**: A.R.C.A. no asigna operadores; el funcionario
+> **revisa, aprueba y deriva** las solicitudes.
+> Estados nuevos: `en_revision` · `requiere_modificacion` · `aprobada` · `rechazada` · `derivada` · `retirada` · `no_realizada` · `cancelada`.
+> Por hacer en la PWA (Ana o Maxi): tipos en `api/arca.ts`, etiquetas para el vecino en `estadoMeta.ts`
+> y Cancelar solo en `en_revision`, `requiere_modificacion` o `aprobada` **sin pagar**. Después vienen la
+> pantalla «tu solicitud requiere cambios», la subida de fotos, los datos de contacto y el pago maqueteado.
+> Detalle: [pendientes del equipo §5](../../docs/PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](../../docs/specs/SPEC-ciclo-solicitud.md)
+
 ---
 
 ## Arrancar en local
 
-Si es la primera vez en este PC, corré el script de la raíz que deja todo listo
+Si es la primera vez en este PC, corré desde la raíz el script que deja todo listo
 (MySQL, dependencias, `.env.local`, migraciones y ambos servidores):
 
 ```powershell
-.\setup.ps1
+.\scripts\setup.ps1
 ```
 
 Manual, solo el frontend:
@@ -51,33 +61,88 @@ backend comparten un único origen y no hace falta tocar CORS ni URLs absolutas 
 
 ```
 src/
-├── api/arca.ts                  # Capa única de acceso a la API (fetch tipado)
+├── api/arca.ts                  # Capa de acceso a la API (fetch tipado)
+├── api/creditos.ts              # Consulta de saldo e historial de Circular Credits (HU-11)
+├── api/chat.ts · push.ts        # API del chat del Marketplace y de los avisos push (HU-06)
+├── api/socket.ts                # Cliente socket.io único de la app (/api/socket.io)
+├── pwa/                         # Instalación de la PWA y suscripción push (push.ts)
 ├── auth/SessionContext.tsx      # Identidad temporal (mock hasta ClaveÚnica real)
 ├── components/
 │   ├── AppShell.tsx             # Shell mobile: header, TabBar, Protected
 │   └── ui/                      # UI Kit — primitivos reutilizables
-│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader
-│       ├── EmptyState · BackButton · PriceTag
+│       ├── Icons.tsx            # Sistema de íconos vectoriales SVG sobrios
+│       ├── IconBadge · EstadoPill · ListItemCard · ScreenHeader · IconoCategoria · ComboboxResiduo
+│       ├── EmptyState · BackButton · PriceTag · BotonClaveUnica · Estrellas · EstrellasInput
 │       ├── estadoMeta.ts        # Metadata (label/color) por estado de solicitud
-│       └── index.ts             # Punto de import único: import { ScreenHeader } from '../../components/ui'
+│       └── index.ts             # Punto de import único: import { ScreenHeader, IconUser } from '../../components/ui'
 ├── config/modulos.ts            # Configuración del hub de Inicio (tarjetas por módulo)
 ├── features/
+│   ├── marketplace/             # Marketplace P2P (listado, detalle, publicar, mis publicaciones, MarketplaceNav, calificar)
+│   │   ├── chat/                # Chat (HU-06): Chat, Bandeja y NoLeidosContext
+│   │   └── entrega/             # Entrega con código (HU-15): PanelEntrega y CodigoEntrega
 │   └── solicitud-retiro/        # Flujo completo "Solicitar retiro" (EP-01)
-│       ├── CapturaResiduo · AnalizandoIA · SugerenciasIA
-│       ├── Catalogo · NuevaSolicitud · SolicitudCreada
-│       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada)
+│       ├── Catalogo · NuevaSolicitud · SolicitudCreada · VerificarCorreoModal
+│       ├── CampoFoto · GuiaFotoVariosObjetos · fotoSolicitud.ts  # Foto y guía de encuadre para varios objetos
+│       ├── SolicitudFlowContext.tsx  # Estado efímero del flujo (foto capturada y su archivo)
 │       └── routes.tsx           # Bloque de rutas del flujo, montado por App.tsx
 ├── pages/                       # Pantallas fuera del flujo de solicitud
-│   ├── Login · SeleccionInicio · Inicio
-│   └── MisSolicitudes · Proximamente
+│   ├── Login · SeleccionInicio · Inicio · Perfil · CircularCredits
+│   └── MisSolicitudes · PantallaPago · Proximamente · Ayuda
+├── utils/                       # Utilidades transversales (perfilStorage.ts)
 ├── index.css                    # Tokens y clases utilitarias del UI Kit
-└── App.tsx                      # Router: arma las rutas y monta solicitudRetiroRoutes
+└── App.tsx                      # Router: arma las rutas y monta flujos
 ```
 
-> Las pantallas de panel admin (`AdminSolicitudes`, `AdminAuditoria`) se movieron a
-> `apps/admin-web` en la migración de separación del panel admin (2026-09-01). El botón
-> "Modo funcionario" de `SeleccionInicio.tsx` navega a `VITE_ADMIN_URL` con
-> `window.location.href` — es otro origen, no una ruta de este router.
+> El panel municipal vive en `src/admin/` y se sirve en `/admin/*` de este mismo sitio
+> (SPEC-frontend-unificado): no es otro origen ni necesita una variable de entorno propia.
+> Cuenta con espacios separados para solicitudes de retiro (`/admin`), moderacion de marketplace
+> (`/admin/marketplace`), deteccion de coincidencias con articulos de vecinos y asignacion de presupuesto final en la aprobacion, y metricas de gestion (`/admin/metricas`) con selector de rango de fechas y exportacion CSV (HU-09).
+> El boton "Modo funcionario" de `SeleccionInicio.tsx` navega a `/admin` con el router de React.
+
+### Chat del Marketplace (HU-06)
+
+- **`Chat`** (`/marketplace/:id/chat` y `/marketplace/:id/chat/:conversacionId`): pantalla completa, sin el
+  header ni la TabBar (`RequireSession` en vez de `Protected`). La cabecera muestra el nombre del otro vecino; quien publica, con el artículo disponible, ve «Reservar» (`BotonReservar`). El interesado entra sin id de
+  conversación; quien publica entra con el `conversacionId` opaco (el id del interés). Envía por REST con el mensaje
+  pendiente en pantalla, y recibe por socket. Si la conversación pasa a solo lectura, oculta el campo de texto.
+- **`Bandeja`** (`/marketplace/mensajes`): lista de conversaciones con el último mensaje y los no leídos.
+- **`NoLeidosContext`**: abre el socket con la sesión, carga `GET /marketplace/conversaciones` y la
+  vuelve a pedir ante cada evento (`mensaje`, `leidos`, `connect`). De ahí salen los avisos de
+  mensajes sin leer (`BadgeNoLeidos`) en la pestaña Mercado, en «Mensajes», en «Mis publicaciones» y
+  en el detalle del artículo.
+- **`api/socket.ts`**: un único cliente `socket.io-client` en `/api/socket.io`, mismo origen (la
+  cookie viaja sola). Solo recibe; enviar va por `api/chat.ts`. En desarrollo, `vite.config.ts` proxea
+  `/api` con `ws: true`; `API_PROXY_TARGET` cambia el destino si el 3000 está reservado.
+- **`pwa/push.ts`** y `public/sw.js`: al primer envío se pide el permiso de notificaciones
+  dentro del gesto del botón (después de un `await` Safari lo rechaza) y, si se concede, se
+  registra la suscripción Web Push. El service worker muestra el aviso y, al tocarlo, abre solo
+  rutas propias del sitio. Al cerrar sesión se borra la suscripción del servidor.
+
+### Campanita de avisos (HU-23)
+
+En la barra superior (`AppShell`), en el lugar del botón de perfil, que sigue en la pestaña «Perfil». Su contador suma los mensajes de chat sin leer y los avisos sin leer (`NoLeidosContext`); el badge de la pestaña Mercado se quitó. Lleva a `/avisos` (`pages/Avisos.tsx`, `api/notificaciones.ts`), que lista los mensajes sin leer y las novedades y marca los avisos como leídos al abrirla. Se actualiza en vivo con el evento socket `notificacion`.
+
+### Interés, reserva y entrega con código
+
+`DetalleArticulo` (con `api/marketplace.ts`: `registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`):
+
+- **Vecino, artículo disponible:** «Me interesa» (regalo) o «Quiero intercambiar» registra el interés y navega al chat; si ya tiene interés, dice «Ver conversación» con los no leídos.
+- **Quien publica, disponible:** lista «Interesados» (nombre, estrellas, «Identidad verificada», último mensaje) con «Chatear» y «Reservar»; reservar pide confirmar con el nombre.
+- **Quien publica, reservado:** `entrega/PanelEntrega`: «Entrega pendiente» con el nombre de quien recibe y el sector, «Pedir el código por chat» (manda un mensaje al receptor y dispara su aviso), el código de 6 dígitos con confirmación en dos pasos y «Liberar reserva». Un código equivocado muestra el error del backend y deja reintentar.
+- **Quien recibe, reservado:** `entrega/CodigoEntrega`: «Reservado para ti» con el sector y el código en una ventana aparte, en grande, para dictarlo en el momento. El texto pide no dictarlo por chat antes de recibir el artículo.
+- **Después de entregar:** «Entrega confirmada» para quien publicó y «Recibiste este artículo» para quien recibe. Quien recibió califica con estrellas (1–5) y comentario opcional (`CalificarIntercambio` + `components/ui/EstrellasInput`, radios nativos). El backend solo lo permite una vez y con el artículo completado (`puedoCalificar`).
+- **Mis publicaciones:** bloque «Entregas pendientes» con los artículos en `en_negociacion`, para llegar al código sin buscarlos en la lista.
+- **Chat:** el título de la cabecera enlaza al artículo, para volver al código desde la conversación.
+
+### Darse de baja (HU-38)
+
+`/perfil/baja` (`pages/DarseDeBaja.tsx`, `api/baja.ts`), enlazada al pie del perfil solo para el rol
+`vecino`. Primero pide `GET /api/perfil/baja` y muestra qué pasa (cuenta desactivada, publicaciones
+ocultas, contacto borrado, qué solicitudes sin pagar se cancelan) y qué la bloquea (solicitudes pagadas
+o en retiro, intercambios reservados), con enlaces a cada una. La confirmación exige marcar la casilla.
+Tras `POST /api/perfil/baja` navega a `/login?baja=<fecha de vuelta>`, que muestra desde cuándo puede
+volver; si intenta entrar antes de 48 h, el backend vuelve a `/login?error=baja-reciente`. A un
+funcionario la pantalla le explica que su baja la hace TI.
 
 ### Criterio de organización
 
@@ -93,7 +158,8 @@ src/
 - Componentes como funciones, props tipadas con TypeScript, hooks modernos.
 - Estilos con Tailwind + las clases utilitarias del UI Kit (`.card`, `.btn-primary`,
   `.btn-gold`, `.btn-outline`, `.btn-ghost`, `.pill`, `.field`, `.chip`).
-- **Todas** las llamadas HTTP pasan por `src/api/arca.ts`; ninguna pantalla hace `fetch` directo.
+- **Todas** las llamadas HTTP pasan por la capa `src/api/` (`arca.ts`, `marketplace.ts`, `chat.ts`,
+  `push.ts`, que reutilizan `apiFetch`); ninguna pantalla hace `fetch` directo.
 - Tokens de diseño (colores, radios, sombras, tipografías) en
   [`tailwind.config.js`](tailwind.config.js) e [`index.css`](src/index.css).
 

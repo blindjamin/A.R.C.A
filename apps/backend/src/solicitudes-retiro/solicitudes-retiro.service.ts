@@ -7,18 +7,48 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import {
+  AccionAuditoria,
+  aplicarTransicion,
+  AuditoriaService,
   type AuthUser,
+  EstadoPagoSolicitud,
   EstadoSolicitudRetiro,
+  FotoRetiro,
+  leerObjetosPedidos,
+  ObjetoSolicitudRetiro,
+  type ObjetoPedido,
+  ObjetosInvalidosError,
+  type OrigenPeticion,
+  ResiduoCatalogo,
+  RevisionSolicitud,
   RolAdministrador,
   SolicitudRetiro,
-  UsuarioAdministrador,
+  TipoActorAuditoria,
+  TipoFotoRetiro,
+  TransicionInvalidaError,
   UsuarioCiudadano,
-} from '@arca/core';
+} from '../core';
+import {
+  ArchivosService,
+  type ArchivoParaEnviar,
+  type ArchivoSubido,
+} from '../archivos/archivos.service';
 import { ResiduosService } from '../residuos/residuos.service';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
-import { UpdateSolicitudRetiroDto } from './dto/update-solicitud-retiro.dto';
+import { ReenviarSolicitudRetiroDto } from './dto/reenviar-solicitud-retiro.dto';
+import {
+  aSolicitudPublica,
+  fotoAntesPath,
+  type RevisionVisible,
+  type SolicitudPublica,
+} from './solicitud-publica';
+
+export type { RevisionVisible, SolicitudPublica };
+
+/** Subcarpeta de `UPLOADS_DIR` para las fotos de solicitudes. */
+const SUBCARPETA_FOTOS = 'solicitudes-retiro';
 
 @Injectable()
 export class SolicitudesRetiroService {
@@ -27,19 +57,36 @@ export class SolicitudesRetiroService {
     private readonly solicitudRetiroRepository: Repository<SolicitudRetiro>,
     @InjectRepository(UsuarioCiudadano)
     private readonly usuarioCiudadanoRepository: Repository<UsuarioCiudadano>,
-    @InjectRepository(UsuarioAdministrador)
-    private readonly usuarioAdministradorRepository: Repository<UsuarioAdministrador>,
+    @InjectRepository(RevisionSolicitud)
+    private readonly revisionRepository: Repository<RevisionSolicitud>,
+    @InjectRepository(FotoRetiro)
+    private readonly fotoRetiroRepository: Repository<FotoRetiro>,
+    @InjectRepository(ObjetoSolicitudRetiro)
+    private readonly objetoRepository: Repository<ObjetoSolicitudRetiro>,
     private readonly residuosService: ResiduosService,
+    private readonly auditoriaService: AuditoriaService,
+    private readonly archivosService: ArchivosService,
   ) {}
 
   async create(
     dto: CreateSolicitudRetiroDto,
+    foto: ArchivoSubido | undefined,
     user: AuthUser,
-  ): Promise<SolicitudRetiro> {
+    origen?: OrigenPeticion,
+  ): Promise<SolicitudPublica> {
     if (dto.usuarioCiudadanoId !== user.ciudadanoId) {
       throw new ForbiddenException(
         'No puedes crear solicitudes en nombre de otro ciudadano',
       );
+    }
+
+    if (!foto) {
+      throw new BadRequestException('La foto de la solicitud es obligatoria');
+    }
+
+    const direccionRetiro = dto.direccionRetiro.trim();
+    if (!direccionRetiro) {
+      throw new BadRequestException('La dirección de retiro es obligatoria');
     }
 
     const usuario = await this.usuarioCiudadanoRepository.findOne({
@@ -56,34 +103,78 @@ export class SolicitudesRetiroService {
       throw new BadRequestException('El usuario ciudadano no está activo');
     }
 
-    const residuo = await this.residuosService.findCatalogoById(
-      dto.residuoCatalogoId,
+    const objetos = await this.objetosValidados(dto.objetos, dto);
+    const principal = objetos[0];
+
+    // Puente temporal: panel/Excel/mail aún leen direccionAnonimizada.
+    const direccionAnonimizada = (
+      dto.direccionAnonimizada?.trim() || direccionRetiro
+    ).slice(0, 255);
+
+    const fotoPath = await this.archivosService.guardarImagen(
+      foto,
+      SUBCARPETA_FOTOS,
     );
 
-    if (!residuo) {
-      throw new NotFoundException(
-        `Residuo de catálogo ${dto.residuoCatalogoId} no encontrado`,
+    try {
+      const solicitud = this.solicitudRetiroRepository.create({
+        usuarioCiudadanoId: dto.usuarioCiudadanoId,
+        residuoCatalogoId: principal.residuoCatalogoId,
+        nombreResiduoOtro: principal.nombreOtro,
+        descripcion: dto.descripcion ?? null,
+        direccionRetiro,
+        direccionAnonimizada,
+        latitudCapturada: dto.latitudCapturada ?? null,
+        longitudCapturada: dto.longitudCapturada ?? null,
+        fechaSolicitud: new Date(),
+        estado: EstadoSolicitudRetiro.EN_REVISION,
+        estadoPago: EstadoPagoSolicitud.NO_APLICA,
+      });
+
+      // La solicitud y sus objetos se guardan juntos: una solicitud sin objetos
+      // no tendría qué revisar ni qué cobrar.
+      const guardada = await this.solicitudRetiroRepository.manager.transaction(
+        async (m) => {
+          const nueva = await m.save(solicitud);
+          await m.save(
+            ObjetoSolicitudRetiro,
+            this.filasDeObjetos(nueva.id, objetos),
+          );
+          return nueva;
+        },
       );
+
+      await this.fotoRetiroRepository.save(
+        this.fotoRetiroRepository.create({
+          solicitudRetiroId: guardada.id,
+          rutaArchivo: fotoPath,
+          tipoFoto: TipoFotoRetiro.ANTES,
+          hashIntegridad: null,
+          fechaCaptura: new Date(),
+        }),
+      );
+
+      await this.auditoriaService.registrar({
+        tipoActor: TipoActorAuditoria.CIUDADANO,
+        actor: user,
+        entidad: 'solicitudes_retiro',
+        entidadId: guardada.id,
+        accion: AccionAuditoria.CREATE,
+        datosNuevos: { estado: guardada.estado, objetos: objetos.length },
+        origen,
+      });
+
+      return this.findOnePublica(guardada.id, user);
+    } catch (error) {
+      await this.archivosService.borrar(fotoPath);
+      throw error;
     }
-
-    const solicitud = this.solicitudRetiroRepository.create({
-      usuarioCiudadanoId: dto.usuarioCiudadanoId,
-      residuoCatalogoId: dto.residuoCatalogoId,
-      descripcion: dto.descripcion ?? null,
-      direccionAnonimizada: dto.direccionAnonimizada ?? null,
-      latitudCapturada: dto.latitudCapturada ?? null,
-      longitudCapturada: dto.longitudCapturada ?? null,
-      fechaSolicitud: new Date(),
-      estado: EstadoSolicitudRetiro.PENDIENTE,
-    });
-
-    return this.solicitudRetiroRepository.save(solicitud);
   }
 
-  findAll(
+  async findAll(
     filtros: FilterSolicitudesRetiroDto = {},
     user?: AuthUser,
-  ): Promise<SolicitudRetiro[]> {
+  ): Promise<SolicitudPublica[]> {
     const where: FindOptionsWhere<SolicitudRetiro> = {};
 
     if (user && !this.tieneAccesoLecturaMunicipal(user)) {
@@ -96,11 +187,17 @@ export class SolicitudesRetiroService {
       where.estado = filtros.estado;
     }
 
-    return this.solicitudRetiroRepository.find({
+    const filas = await this.solicitudRetiroRepository.find({
       where,
-      relations: { residuoCatalogo: true },
-      order: { fechaSolicitud: 'DESC' },
+      relations: {
+        residuoCatalogo: true,
+        fotos: true,
+        objetos: { residuoCatalogo: true },
+      },
+      order: { fechaSolicitud: 'DESC', objetos: { orden: 'ASC' } },
     });
+
+    return filas.map((s) => aSolicitudPublica(s));
   }
 
   async findOne(id: number, user?: AuthUser): Promise<SolicitudRetiro> {
@@ -109,7 +206,7 @@ export class SolicitudesRetiroService {
       relations: {
         residuoCatalogo: true,
         usuarioCiudadano: true,
-        operadorAsignado: true,
+        fotos: true,
       },
     });
 
@@ -124,41 +221,190 @@ export class SolicitudesRetiroService {
     return solicitud;
   }
 
-  // PENDIENTE (avisar a Javier, HU-13): sin llamador desde que el @Patch(':id')
-  // del controller se movió a apps/backend-admin (Fase 3, migración admin). No
-  // se borra por cuenta propia (regla A.4) — la lógica de cambio de estado es
-  // suya; que decida si queda, se borra o se comparte con el nuevo service.
-  async update(
+  async findOnePublica(id: number, user: AuthUser): Promise<SolicitudPublica> {
+    const solicitud = await this.findOne(id, user);
+    // Aparte y no como relación de `findOne`: esa entidad también se guarda.
+    solicitud.objetos = await this.cargarObjetos(id);
+    return aSolicitudPublica(solicitud, {
+      ultimaRevision: await this.ultimaRevision(id),
+    });
+  }
+
+  /** Detalle con la última decisión de revisión. */
+  async findOneConUltimaRevision(
     id: number,
-    dto: UpdateSolicitudRetiroDto,
-  ): Promise<SolicitudRetiro> {
-    const solicitud = await this.findOne(id);
+    user: AuthUser,
+  ): Promise<SolicitudPublica> {
+    return this.findOnePublica(id, user);
+  }
 
-    if (dto.operadorAsignadoId !== undefined) {
-      await this.validarOperador(dto.operadorAsignadoId);
-      solicitud.operadorAsignadoId = dto.operadorAsignadoId;
+  async foto(id: number, user: AuthUser): Promise<ArchivoParaEnviar> {
+    const solicitud = await this.findOne(id, user);
+    const ruta = fotoAntesPath(solicitud);
+    if (!ruta) {
+      throw new NotFoundException('Foto no encontrada');
+    }
+    return this.archivosService.abrir(ruta);
+  }
+
+  /**
+   * El vecino corrige y reenvía una solicitud en `requiere_modificacion`: vuelve
+   * a `en_revision` por el ciclo del núcleo, con actor `vecino`.
+   */
+  async reenviarPorCiudadano(
+    id: number,
+    dto: ReenviarSolicitudRetiroDto,
+    foto: ArchivoSubido | undefined,
+    user: AuthUser,
+    origen?: OrigenPeticion,
+  ): Promise<SolicitudPublica> {
+    const solicitud = await this.solicitudRetiroRepository.findOne({
+      where: { id },
+      relations: { fotos: true },
+    });
+
+    if (!solicitud) {
+      throw new NotFoundException(`Solicitud de retiro ${id} no encontrada`);
     }
 
-    if (dto.fechaProgramada !== undefined) {
-      solicitud.fechaProgramada = new Date(dto.fechaProgramada);
+    if (solicitud.usuarioCiudadanoId !== user.ciudadanoId) {
+      throw new ForbiddenException(
+        'No puedes reenviar una solicitud que no es tuya',
+      );
     }
 
-    if (dto.razonRechazo !== undefined) {
-      solicitud.razonRechazo = dto.razonRechazo;
+    const estadoAnterior = solicitud.estado;
+    const residuoAnterior = solicitud.residuoCatalogoId;
+
+    try {
+      aplicarTransicion(solicitud, EstadoSolicitudRetiro.EN_REVISION, {
+        actor: 'vecino',
+        ahora: new Date(),
+      });
+    } catch (error) {
+      throw this.comoHttp(error);
     }
 
-    if (dto.estado !== undefined) {
-      this.aplicarCambioEstado(solicitud, dto);
+    // `objetos` reemplaza la lista completa. Solo `residuoCatalogoId` corrige
+    // el objeto principal y deja los demás como estaban.
+    let objetosNuevos: ObjetoPedido[] | null = null;
+    let principalCorregido: ObjetoPedido | null = null;
+    if (dto.objetos !== undefined) {
+      objetosNuevos = await this.objetosValidados(dto.objetos, {});
+      solicitud.residuoCatalogoId = objetosNuevos[0].residuoCatalogoId;
+      solicitud.nombreResiduoOtro = objetosNuevos[0].nombreOtro;
+    } else if (dto.residuoCatalogoId !== undefined) {
+      [principalCorregido] = await this.objetosValidados(undefined, {
+        residuoCatalogoId: dto.residuoCatalogoId,
+      });
+      solicitud.residuoCatalogoId = principalCorregido.residuoCatalogoId;
+      solicitud.nombreResiduoOtro = null;
     }
 
-    return this.solicitudRetiroRepository.save(solicitud);
+    if (dto.descripcion !== undefined) {
+      solicitud.descripcion = dto.descripcion;
+    }
+
+    if (dto.direccionRetiro !== undefined) {
+      const direccionRetiro = dto.direccionRetiro.trim();
+      if (!direccionRetiro) {
+        throw new BadRequestException(
+          'La dirección de retiro no puede quedar vacía',
+        );
+      }
+      solicitud.direccionRetiro = direccionRetiro;
+      solicitud.direccionAnonimizada = direccionRetiro.slice(0, 255);
+    }
+
+    let fotoNuevaPath: string | undefined;
+    const fotoAntes = solicitud.fotos?.find(
+      (f) => f.tipoFoto === TipoFotoRetiro.ANTES,
+    );
+
+    if (foto) {
+      fotoNuevaPath = await this.archivosService.guardarImagen(
+        foto,
+        SUBCARPETA_FOTOS,
+      );
+    }
+
+    try {
+      await this.solicitudRetiroRepository.manager.transaction(async (m) => {
+        await m.save(solicitud);
+        if (objetosNuevos) {
+          await m.delete(ObjetoSolicitudRetiro, { solicitudRetiroId: id });
+          await m.save(
+            ObjetoSolicitudRetiro,
+            this.filasDeObjetos(id, objetosNuevos),
+          );
+        } else if (principalCorregido) {
+          await m.update(
+            ObjetoSolicitudRetiro,
+            { solicitudRetiroId: id, orden: 0 },
+            {
+              residuoCatalogoId: principalCorregido.residuoCatalogoId,
+              nombreOtro: null,
+            },
+          );
+        }
+      });
+
+      if (fotoNuevaPath) {
+        if (fotoAntes) {
+          const rutaVieja = fotoAntes.rutaArchivo;
+          fotoAntes.rutaArchivo = fotoNuevaPath;
+          fotoAntes.fechaCaptura = new Date();
+          await this.fotoRetiroRepository.save(fotoAntes);
+          await this.archivosService.borrar(rutaVieja);
+        } else {
+          await this.fotoRetiroRepository.save(
+            this.fotoRetiroRepository.create({
+              solicitudRetiroId: id,
+              rutaArchivo: fotoNuevaPath,
+              tipoFoto: TipoFotoRetiro.ANTES,
+              hashIntegridad: null,
+              fechaCaptura: new Date(),
+            }),
+          );
+        }
+      }
+    } catch (error) {
+      if (fotoNuevaPath) {
+        await this.archivosService.borrar(fotoNuevaPath);
+      }
+      throw error;
+    }
+
+    const datosAnteriores: Record<string, unknown> = { estado: estadoAnterior };
+    const datosNuevos: Record<string, unknown> = { estado: solicitud.estado };
+    if (solicitud.residuoCatalogoId !== residuoAnterior) {
+      datosAnteriores.residuoCatalogoId = residuoAnterior;
+      datosNuevos.residuoCatalogoId = solicitud.residuoCatalogoId;
+    }
+    if (objetosNuevos) {
+      datosNuevos.objetos = objetosNuevos.length;
+    }
+
+    await this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: user,
+      entidad: 'solicitudes_retiro',
+      entidadId: id,
+      accion: AccionAuditoria.UPDATE,
+      datosAnteriores,
+      datosNuevos,
+      origen,
+    });
+
+    return this.findOnePublica(id, user);
   }
 
   async cancelarPorCiudadano(
     id: number,
     dto: CancelarSolicitudRetiroDto,
     user: AuthUser,
-  ): Promise<SolicitudRetiro> {
+    origen?: OrigenPeticion,
+  ): Promise<SolicitudPublica> {
     const solicitud = await this.findOne(id);
 
     if (solicitud.usuarioCiudadanoId !== user.ciudadanoId) {
@@ -173,72 +419,131 @@ export class SolicitudesRetiroService {
       );
     }
 
-    const cancelablesPorCiudadano = [
-      EstadoSolicitudRetiro.PENDIENTE,
-      EstadoSolicitudRetiro.ASIGNADA,
-    ];
+    const estadoAnterior = solicitud.estado;
 
-    if (!cancelablesPorCiudadano.includes(solicitud.estado)) {
-      throw new BadRequestException(
-        `No se puede cancelar una solicitud en estado "${solicitud.estado}"`,
-      );
+    try {
+      aplicarTransicion(solicitud, EstadoSolicitudRetiro.CANCELADA, {
+        actor: 'vecino',
+        ahora: new Date(),
+      });
+    } catch (error) {
+      throw this.comoHttp(error);
     }
 
-    solicitud.estado = EstadoSolicitudRetiro.CANCELADA;
-    solicitud.razonRechazo = dto.motivo ?? 'Cancelada por el ciudadano';
-
-    return this.solicitudRetiroRepository.save(solicitud);
-  }
-
-  private aplicarCambioEstado(
-    solicitud: SolicitudRetiro,
-    dto: UpdateSolicitudRetiroDto,
-  ): void {
-    const nuevoEstado = dto.estado as EstadoSolicitudRetiro;
-
-    if (nuevoEstado === solicitud.estado) {
-      return;
+    if (dto.motivo !== undefined) {
+      solicitud.razonRechazo = dto.motivo;
+    } else if (!solicitud.razonRechazo) {
+      solicitud.razonRechazo = 'Cancelada por el ciudadano';
     }
 
-    // El panel municipal puede mover el estado en cualquier dirección (incl.
-    // revertir) para operar/probar. Solo se conservan invariantes de datos:
-    if (
-      nuevoEstado === EstadoSolicitudRetiro.ASIGNADA &&
-      !solicitud.operadorAsignadoId
-    ) {
-      throw new BadRequestException(
-        'Para asignar la solicitud debe indicar un operador (operadorAsignadoId)',
-      );
-    }
+    // Una cancelada no se reabre: la dirección de retiro (que puede ser de
+    // un tercero) ya no tiene finalidad y se borra ahora (decisión 016).
+    solicitud.direccionRetiro = null;
+    solicitud.direccionAnonimizada = null;
 
-    if (nuevoEstado === EstadoSolicitudRetiro.COMPLETADA) {
-      solicitud.fechaCompletada = new Date();
-    } else {
-      // Al salir de "completada" la fecha de cierre deja de tener sentido.
-      solicitud.fechaCompletada = null;
-    }
+    const guardada = await this.solicitudRetiroRepository.save(solicitud);
 
-    solicitud.estado = nuevoEstado;
-  }
-
-  private async validarOperador(operadorId: string): Promise<void> {
-    const operador = await this.usuarioAdministradorRepository.findOne({
-      where: { id: operadorId },
+    await this.auditoriaService.registrar({
+      tipoActor: TipoActorAuditoria.CIUDADANO,
+      actor: user,
+      entidad: 'solicitudes_retiro',
+      entidadId: guardada.id,
+      accion: AccionAuditoria.UPDATE,
+      datosAnteriores: { estado: estadoAnterior },
+      datosNuevos: { estado: guardada.estado },
+      origen,
     });
 
-    if (!operador) {
-      throw new NotFoundException(`Operador ${operadorId} no encontrado`);
-    }
-
-    if (!operador.activo) {
-      throw new BadRequestException('El operador asignado no está activo');
-    }
+    return this.findOnePublica(guardada.id, user);
   }
 
   findByUsuarioCiudadanoId(
     usuarioCiudadanoId: string,
-  ): Promise<SolicitudRetiro[]> {
+  ): Promise<SolicitudPublica[]> {
     return this.findAll({ usuarioCiudadanoId });
+  }
+
+  private async ultimaRevision(
+    solicitudRetiroId: number,
+  ): Promise<RevisionVisible | null> {
+    const revision = await this.revisionRepository.findOne({
+      where: { solicitudRetiroId },
+      select: {
+        decision: true,
+        motivo: true,
+        comentario: true,
+        createdAt: true,
+      },
+      order: { createdAt: 'DESC', id: 'DESC' },
+    });
+
+    if (!revision) return null;
+
+    return {
+      decision: revision.decision,
+      motivo: revision.motivo,
+      comentario: revision.comentario,
+      fecha: revision.createdAt,
+    };
+  }
+
+  /**
+   * Lee la lista que mandó el vecino y comprueba que cada objeto del catálogo
+   * exista. Se valida antes de guardar la foto o tocar la solicitud.
+   */
+  private async objetosValidados(
+    objetosJson: string | undefined,
+    anterior: { residuoCatalogoId?: number; nombreResiduoOtro?: string },
+  ): Promise<ObjetoPedido[]> {
+    let objetos: ObjetoPedido[];
+    try {
+      objetos = leerObjetosPedidos(objetosJson, anterior);
+    } catch (error) {
+      if (error instanceof ObjetosInvalidosError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+
+    const ids = new Set(
+      objetos
+        .map((o) => o.residuoCatalogoId)
+        .filter((id): id is number => id !== null),
+    );
+    for (const id of ids) {
+      const residuo: ResiduoCatalogo | null =
+        await this.residuosService.findCatalogoById(id);
+      if (!residuo) {
+        throw new NotFoundException(`Residuo de catálogo ${id} no encontrado`);
+      }
+    }
+    return objetos;
+  }
+
+  private filasDeObjetos(
+    solicitudRetiroId: number,
+    objetos: ObjetoPedido[],
+  ): Partial<ObjetoSolicitudRetiro>[] {
+    return objetos.map((o, orden) => ({ ...o, solicitudRetiroId, orden }));
+  }
+
+  private cargarObjetos(
+    solicitudRetiroId: number,
+  ): Promise<ObjetoSolicitudRetiro[]> {
+    return this.objetoRepository.find({
+      where: { solicitudRetiroId },
+      relations: { residuoCatalogo: true },
+      order: { orden: 'ASC' },
+    });
+  }
+
+  private comoHttp(error: unknown): Error {
+    if (error instanceof TransicionInvalidaError) {
+      return error.motivo === 'actor'
+        ? new ForbiddenException(error.message)
+        : new BadRequestException(error.message);
+    }
+    return error instanceof Error ? error : new Error(String(error));
   }
 
   private tieneAccesoLecturaMunicipal(user: AuthUser): boolean {
@@ -246,11 +551,9 @@ export class SolicitudesRetiroService {
       return false;
     }
 
-    return [
-      RolAdministrador.ADMIN,
-      RolAdministrador.OPERADOR,
-      RolAdministrador.PATROCINADOR,
-    ].includes(user.rol);
+    return [RolAdministrador.ADMIN, RolAdministrador.FUNCIONARIO].includes(
+      user.rol,
+    );
   }
 
   private verificarAccesoLectura(

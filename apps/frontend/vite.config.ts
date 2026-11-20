@@ -12,8 +12,11 @@ export default defineConfig({
       // y backend queden detras de un unico origen (necesario para ngrok
       // con un solo dominio fijo).
       '/api': {
-        target: 'http://localhost:3000',
+        // API_PROXY_TARGET: por si Windows reserva el 3000 (rango de Hyper-V).
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:3000',
         changeOrigin: true,
+        // ws: el socket del chat vive en /api/socket.io
+        ws: true,
       },
     },
   },

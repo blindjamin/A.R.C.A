@@ -45,7 +45,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 | Login (ClaveÚnica) | `/login` | ✅ **backend** | Primera vista. Mock: accesos dev Vecino / Funcionario |
 | Gate login diferido | `/` | ✅ **backend** | Funcionario → selección; solo ciudadano → `/inicio` |
 | Selección de contexto | `/` (admin) | ✅ **backend** | Solo funcionarios: App ciudadana / Panel municipal |
-| Panel admin | `/admin` | ✅ **backend** | `RequireAdmin`. Listar/filtrar/detalle + estado **reversible** (EP-03 base) |
+| Panel admin | `/admin` | ✅ **backend** | `RequireAdmin`. Listar/filtrar/detalle + estado **reversible** (EP-03 base). 🔄 Replanteo aprobado: ver [`docs/specs/`](specs/MAPA_PANEL_MUNICIPAL.md) |
 | Inicio / Dashboard | `/inicio` | ✅ | Tarjeta de créditos/impacto **estática** (demo, falta EP-04) |
 | Captura residuo | `/solicitar` | ✅ esqueleto | Cámara/galería **solo visual** (no obligatoria) |
 | Analizando IA | `/solicitar/analizando` | ✅ esqueleto | Scan animado mock (~2.2s) |
@@ -55,7 +55,15 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 | Solicitud creada | `/solicitud/creada` | ✅ esqueleto | SuccessRing + 2 CTAs (retiro / marketplace) |
 | Mis solicitudes | `/mis-solicitudes` | ✅ **backend** | Lista → detalle (descripción) + cancelar; oculta local |
 | Retiro municipal | `/retiro-municipal` | ✅ placeholder | "Próximamente" (EP-03) |
-| Subir a Marketplace | `/marketplace/subir` | ✅ placeholder | "Próximamente" (EP-02) |
+| Marketplace — listado | `/marketplace` | ✅ datos de ejemplo | Tarjetas con banda de distancia y reputación; filtros tipo/categoría + búsqueda |
+| Marketplace — detalle | `/marketplace/:id` | ✅ datos de ejemplo | Créditos, publicador; "Me interesa" desactivado hasta el chat; retirar si es propio |
+| Marketplace — publicar | `/marketplace/subir` | ✅ datos de ejemplo | Tipo, título, residuo del catálogo (real), descripción, foto con vista previa local |
+| Mis publicaciones | `/marketplace/mis-publicaciones` | ✅ datos de ejemplo | Artículos propios en todos sus estados |
+
+> **Marketplace sin backend todavía.** `api/marketplace.ts` es el contrato con los endpoints de
+> Javier y responde con datos de ejemplo detrás del interruptor `USAR_DATOS_DE_EJEMPLO`. La
+> distancia se muestra solo en bandas que calcula el backend; la API nunca entrega la coordenada
+> del artículo ni el id de quien publica (ver comentario de cabecera del archivo).
 
 > **Precio: ya es real.** Viene de la columna `precio` de `residuos_catalogo`
 > (migración `1782163600000-replace-catalogo-precios-reales`), no del front.
@@ -78,6 +86,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [ ] **Detalle / Tracking de retiro** con Timeline de 4 pasos (UI Kit: `Timeline + PulseRing`). Ruta `/solicitud/:id`.
 - [ ] Conectar la tarjeta de créditos/impacto del Inicio a datos reales (EP-04) — hoy es estática.
 - [x] **Precio real:** columna `precio` en el backend; el overlay de precio salió de `api/arca.ts`.
+- [x] **HU-03 Reenviar solicitud:** pantalla "Tu solicitud requiere cambios" con motivo/comentario del funcionario y formulario de corrección y reenvío (Maxi).
 - [ ] **Ícono real:** agregar la columna al backend y quitar `iconoPorCategoria` de `api/arca.ts`.
 - [ ] Estados de carga con `Spinner` / skeletons y manejo de error consistente.
 - [ ] Iconografía: migrar emojis → `lucide-react` (acordado en `config/modulos.ts`).
@@ -88,28 +97,34 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 - [ ] Clasificación local con TensorFlow.js → reemplaza la detección mock.
 - [ ] Confirmación con foto, GPS aproximado y nota (campos ya soportados por el DTO).
 - [ ] "+5 créditos" real al crear (depende de EP-04).
-- [ ] Pantallas reales de "Retiro municipal" y "Subir al Marketplace" (hoy placeholders).
+- [ ] Pantalla real de "Retiro municipal" (hoy placeholder). "Subir al Marketplace" ya es real.
 
-### Fase 3 — Marketplace P2P (EP-02)
-- [ ] Listado: vista Grid 2 col + vista Lista, con `SearchBar` y chips Regalo/Intercambio/Categorías.
-- [ ] `ArticleCard` + `StatePill` + `HeartBtn` + distancia.
-- [ ] Detalle de artículo: galería, `ModalidadBadge`, vecino con `RatingBadge`/`ShieldVerified`.
-- [ ] Publicar: foto + título + chips categoría + modalidad.
-- [ ] CTA Gold “¿Aún sirve? Regálalo”.
+### Fase 3 — Marketplace P2P (EP-02) — Sprint 3, PR #48
+- [x] Listado en grid (2 col móvil / 4 escritorio) con búsqueda y chips Regalo/Intercambio/Categorías.
+- [x] `ArticuloCard` + `Estrellas` (reputación de quien publica) + banda de distancia.
+- [x] Detalle de artículo con créditos y bloque del vecino.
+- [x] Publicar: foto (vista previa local) + título + residuo del catálogo + modalidad.
+- [x] Mis publicaciones + retirar publicación.
+- [x] Conectar a los endpoints reales (cambiar `USAR_DATOS_DE_EJEMPLO` en `api/marketplace.ts`).
+- [x] Pestaña Marketplace y botón (+) central en la barra inferior (`AppShell.tsx`, Maxi).
+- [ ] "Me interesa" → negociación, chat y calificación (Ana).
+- [ ] Vista Lista, favoritos (`HeartBtn`), galería de varias fotos.
 
 ### Fase 4 — Chat entre vecinos (EP-02)
 - [ ] `ChatInput` + burbujas (propias verde / ajenas blanco) + `ReservaBanner` gold.
 - [ ] Integrar Socket.io-client (gateways NestJS).
 
 ### Fase 5 — Perfil & Impacto (EP-04)
-- [ ] `ProfileHeader` verde + avatar.
-- [ ] `BalanceCard` Circular Credits + `ImpactCard` (CO₂, litros, barra de hito).
-- [ ] Historial `TransactionRow`, ranking `TrophyRanking`, `SettingRows`.
-- [ ] Añadir 4ª pestaña **Perfil** a la TabBar.
+- [x] `ProfileHeader` verde + avatar y datos verificados.
+- [x] `BalanceCard` Circular Credits + `ImpactCard` (CO₂ evitado, objetos reutilizados, reputación vecinal).
+- [x] Historial de transacciones de créditos y accesos directos de actividad.
+- [x] Datos de contacto y municipales opcionales (correo, teléfono, dirección, sector, canal de aviso) con renderizado condicional estricto (se omiten campos vacíos).
+- [x] Pestaña **Perfil** integrada a la TabBar y navegación ciudadana.
+- [x] Pantalla dedicada **Circular Credits** (`/circular-credits`): catálogo de premios canjeables (cafeterías, vivero municipal, descuentos y kits) con emisión de vales digitales.
 
 ### Fase 6 — Panel Municipal (desktop · EP-03)
 > App separada / layout desktop: `Sidebar + Topbar`.
-- [x] **Login diferido** (`/login` → gate `/`): ClaveÚnica primero; según `perfil-acceso`
+- [x] **Login diferido** (`/login` → gate `/`): ClaveÚnica primero; según el rol de la sesión (`GET /api/sesion`)
       el funcionario elige contexto y el ciudadano va directo a la PWA. `/admin` con `RequireAdmin`.
 - [x] **Gestión de solicitudes base** (`/admin`): listar, filtrar por estado, detalle y
       cambiar estado en cualquier dirección (reversible, para pruebas). Falta layout desktop pulido.
@@ -123,7 +138,7 @@ Clases utilitarias listas: `.card`, `.btn-primary`, `.btn-gold`, `.btn-outline`,
 
 ## 🔧 Deuda técnica / infraestructura
 - [ ] Estado global: migrar fetch manual → **Redux Toolkit + RTK Query** (roadmap B.3).
-- [ ] Auth real: ClaveÚnica (OAuth2) + JWT, reemplazar `SessionContext` mock.
+- [x] Auth real: ClaveÚnica (OAuth2) + sesión con cookie; `SessionContext` lee `GET /api/sesion` (unificación, 2026-09-26). Falta probar ClaveÚnica con las credenciales del municipio.
 - [ ] PWA: manifest + service worker (offline catálogo).
 - [ ] Tests de UI (Vitest + Testing Library) por componente.
 - [ ] `docs/UI_KIT.md`: documentar tokens y componentes con referencias al standalone.

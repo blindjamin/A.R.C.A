@@ -1,0 +1,61 @@
+# Reglas A.13 y A.8 de AGENTS.md, verificadas en GitHub.
+#
+# El hook commit-msg valida A.13 en cada computador, pero se salta con --no-verify o si
+# no se instalo. Este job repite la validacion sobre los commits del pull request, y de
+# paso revisa que la rama se llame fecha-persona-descripcion (A.8), que ningun hook mira.
+
+name: Regla A.13
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  trazabilidad:
+    name: A.13 trazabilidad de commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const errores = [];
+
+            const rama = pr.head.ref;
+            if (!/^\d{4}-\d{2}-\d{2}-[a-z]+-[a-z0-9-]+$/.test(rama))
+              errores.push(`Rama '${rama}': tiene que llamarse fecha-persona-descripcion (A.8), p. ej. 2026-10-21-maxi-catalogo-filtros.`);
+
+            const { owner, repo } = context.repo;
+            const commits = await github.paginate(github.rest.pulls.listCommits,
+              { owner, repo, pull_number: pr.number });
+
+            const campo = (msg, nombre) => {
+              const m = msg.match(new RegExp(`^${nombre}:[ \\t]*(.+)$`, 'm'));
+              return m ? m[1].trim() : '';
+            };
+
+            for (const c of commits) {
+              if (c.parents.length > 1) continue; // merges de develop en la rama
+              const msg = c.commit.message;
+              if (/^(Revert |fixup!|squash!)/.test(msg)) continue;
+              const fallas = [];
+              if (!['agente', 'asistido', 'no'].includes(campo(msg, 'IA'))) fallas.push('IA');
+              if (!/^(HU-\d{1,2}|ninguna)$/.test(campo(msg, 'HU'))) fallas.push('HU');
+              if (!campo(msg, 'Revisor')) fallas.push('Revisor');
+              if (fallas.length)
+                errores.push(`${c.sha.slice(0, 7)} ${msg.split('\n')[0]} -> falta o no es valido: ${fallas.join(', ')}`);
+            }
+
+            if (errores.length) {
+              core.setFailed(
+                'Regla A.13 de AGENTS.md:\n- ' + errores.join('\n- ') +
+                '\n\nPara corregir un commit: git rebase -i develop, marcar "reword" y completar las lineas IA, HU y Revisor.' +
+                '\nSi el hook no esta instalado: powershell -ExecutionPolicy Bypass -File .\\scripts\\instalar-reglas.ps1');
+              return;
+            }
+            core.info(`${commits.length} commits con IA, HU y Revisor. Rama conforme a A.8.`);

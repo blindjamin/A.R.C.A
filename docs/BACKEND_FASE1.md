@@ -7,6 +7,13 @@
 
 Documento de hito que resume la primera implementación del backend y la infraestructura local compartida.
 
+> **Histórico en cuanto a estructura (sitio único, 2026-09-26).** Las menciones a
+> `packages/arca-core`, `apps/backend-admin`, el puerto 3001 y el Bearer UUID describen cómo era el
+> repo en su momento. Hoy el núcleo vive en `apps/backend/src/core/`, el panel en
+> `apps/backend/src/admin/` y la autenticación es ClaveÚnica + sesión con cookie. Para el estado
+> actual ver [`../apps/backend/README.md`](../apps/backend/README.md) y
+> [`SEGURIDAD_ARQUITECTURA.md`](./SEGURIDAD_ARQUITECTURA.md).
+
 ---
 
 ## Objetivo de esta fase
@@ -27,8 +34,8 @@ Dejar operativa la **base del MVP backend (Fase 1)**:
 A.R.C.A/
 ├── docker-compose.yml          # MySQL 8 local
 ├── .gitignore                  # node_modules, dist, .env.local
-├── ARCA_database_schema.dbml   # Schema completo (22 tablas — referencia)
 ├── docs/
+│   ├── ARCA_database_schema.dbml # Schema completo (22 tablas — referencia)
 │   ├── BACKEND_FASE1.md        # Este archivo
 │   └── SETUP_LOCAL.md          # Guía setup para el equipo
 ├── packages/
@@ -73,6 +80,10 @@ A.R.C.A/
 | `1782163400000-create-solicitudes-retiro` | `solicitudes_retiro` + usuario dev de prueba |
 | `1782163500000-seed-operador-demo` | Usuario demo **doble rol** (ciudadano `…0002` + operador `…00A2`) |
 | `1782163600000-replace-catalogo-precios-reales` | Columna `precio` (CLP) en `residuos_catalogo`; catálogo reemplazado por los **26 ítems reales** de `costo retiro Voluminosos.xlsx` (Municipalidad de Santo Domingo). Borra las `solicitudes_retiro` existentes (datos de prueba dependientes del catálogo viejo por FK). |
+| `1782164900000-notificaciones` | Tabla `notificaciones` de la campanita de avisos (HU-23): vecino, tipo, título, cuerpo, ruta y fecha de lectura. Detalle: [`NOTIFICACIONES_CORREO.md`](NOTIFICACIONES_CORREO.md) §6 |
+| `1782164800000-interes-reserva-marketplace` | Tabla `interesados_marketplace` (su id es el `conversacionId`) y `codigo_entrega`, `intentos_codigo`, `fecha_reserva` en `articulos_marketplace`. Detalle: [spec `marketplace`](specs/SPEC-marketplace.md) §3.3.2 |
+| `1782164700000-chat-marketplace` | `mensajes_marketplace.interesado_id` (NOT NULL, FK, índices) y `suscripciones_push` (una fila por dispositivo Web Push). Detalle: [spec `marketplace`](specs/SPEC-marketplace.md) §3.3. Las migraciones intermedias están en [`apps/backend/README.md`](../apps/backend/README.md#migraciones) |
+| `1782164000000-remove-rol-patrocinador` | Quita `patrocinador` de `usuarios_administradores.rol`: quedan `admin` y `operador`. Se detiene si alguna fila todavía usa ese valor. |
 
 **Comando:** `npm run migration:run` (desde `apps/backend/`)
 
@@ -85,7 +96,7 @@ Desde la migración de separación del panel admin (2026-09-01), entidades y `au
 
 | Fuente | Entidades / exports |
 |---|---|
-| `@arca/core` (`entities/`) | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador`, `ResiduoCatalogo`, `SolicitudRetiro`, `EstadoSolicitudRetiro`, `ENTIDADES` (usado por `data-source.ts`) |
+| `@arca/core` (`entities/`) | `UsuarioCiudadano`, `SesionCiudadano`, `UsuarioAdministrador`, `SesionAdministrador`, `RolAdministrador`, `ResiduoCatalogo`, `SolicitudRetiro`, `EstadoSolicitudRetiro`, `ArticuloMarketplace`, `Calificacion` (tabla `ratings`), `MensajeMarketplace`, `SuscripcionPush`, `TransaccionCircularCredits` y sus enums (2026-09-29, [spec `marketplace`](specs/SPEC-marketplace.md)), `ENTIDADES` (usado por `data-source.ts`) |
 | `@arca/core` (`auth/`) | `AuthGuard`, `RolesGuard`, `AuthModule`, `AuthService`, `@Public`, `@Roles`, `@CurrentUser`, `PERFIL_ACCESO_RESOLVER` |
 | `@arca/core` (`health/`) | `HealthModule` — sin lógica propia de este backend, compartido para no duplicarlo |
 | `apps/backend/src/users/` | `UsersService`, `UsersController`, `UsersModule` — el módulo que provee `PERFIL_ACCESO_RESOLVER` para este backend (ver README del core) |
@@ -106,18 +117,41 @@ proxy; ver `docs/SETUP_LOCAL.md`).
 | `POST` | `/api/solicitudes-retiro` | Crear solicitud de retiro |
 | `GET` | `/api/solicitudes-retiro` | Listar solicitudes (con acceso municipal, sin filtro por dueño) |
 | `GET` | `/api/solicitudes-retiro?usuarioCiudadanoId={uuid}` | Solicitudes de un ciudadano |
-| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + operador) |
-| `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud |
-| `GET` | `/api/usuarios/{ciudadanoId}/perfil-acceso` | Login diferido: `{ esAdministrador, administrador }` (**requiere auth**, solo el propio id) |
+| `GET` | `/api/solicitudes-retiro/{id}` | Detalle (ciudadano + residuo + `ultimaRevision` visible para el vecino) |
+| `PATCH` | `/api/solicitudes-retiro/{id}/reenviar` | **Ciudadano:** reenviar corregida su solicitud en `requiere_modificacion` (vía `aplicarTransicion`) |
+| `PATCH` | `/api/solicitudes-retiro/{id}/cancelar` | **Ciudadano:** cancelar su propia solicitud (vía `aplicarTransicion`) |
+| `POST` | `/api/marketplace/articulos` | **Marketplace:** publicar (`multipart/form-data`, foto opcional de hasta 5 MB) |
+| `GET` | `/api/marketplace/articulos` | **Marketplace:** disponibles y vigentes, con filtros y banda de distancia |
+| `GET` | `/api/marketplace/articulos/{id}` · `…/{id}/foto` | **Marketplace:** detalle y foto (404 si la sesión no puede verlo) |
+| `PATCH` | `/api/marketplace/articulos/{id}/retirar` | **Marketplace:** quien publicó lo retira |
+| `GET` | `/api/marketplace/mis-articulos` | **Marketplace:** lo publicado por la sesión |
+| `PATCH` | `/api/marketplace/articulos/{id}/reservar` | **Marketplace:** quien publicó elige a un interesado; genera el código de entrega (solo lo ve quien recibe) |
+| `PATCH` | `/api/marketplace/articulos/{id}/liberar` · `…/entregar` | **Marketplace:** quien publicó rechaza al interesado o cierra el intercambio (`entregar` exige el código de 6 dígitos) |
+| `POST` | `/api/marketplace/articulos/{id}/calificacion` | **Marketplace:** quien recibió califica de 1 a 5, una vez |
+| `GET` · `PATCH` | `/api/notificaciones` · `/api/notificaciones/leidas` | **Campanita (HU-23):** avisos del vecino y marcarlos como leídos |
+| `POST` · `GET` | `/api/marketplace/articulos/{id}/interes` · `…/interesados` | **Interés (HU-06):** «Me interesa» abre el chat (tope de 20 por día); la lista de interesados es solo de quien publicó |
+| `GET` · `POST` · `PATCH` | `/api/marketplace/conversaciones` · `…/articulos/{id}/mensajes` · `…/mensajes/leidos` | **Chat (HU-06):** bandeja, historial, envío y marcar leídos. Tiempo real por socket.io en `/api/socket.io` |
+| `GET` · `POST` · `DELETE` | `/api/push/clave-publica` · `/api/push/suscripciones` | **Chat (HU-06):** avisos push (Web Push, claves `VAPID_*` opcionales) |
+| `GET` | `/api/creditos` | **Circular Credits:** saldo y movimientos de la sesión (entregar y calificar con 4 o 5 estrellas otorgan) |
 
-> **Movido a `apps/backend-admin` (2026-09-01):** `PATCH /api/solicitudes-retiro/{id}` (cambiar
-> estado/operador/fecha/razón) vive ahora en `PATCH /api/admin/solicitudes/{id}`, puerto 3001.
-> El método `update()` sigue en `solicitudes-retiro.service.ts` sin llamador — pendiente que
-> Javier decida si se borra o se comparte con el service nuevo (no se tocó de paso, regla A.4).
+Detalle del marketplace: [`apps/backend/README.md`](../apps/backend/README.md#endpoints-del-marketplace-hu-04-hu-05-hu-15)
+y [spec `marketplace`](specs/SPEC-marketplace.md).
+
+**Chat (HU-06), dependencias nuevas:** `@nestjs/websockets`, `@nestjs/platform-socket.io` y `web-push`. Llevan el backend de 15 a 18 dependencias de producción. La migración `1782164700000-chat-marketplace` agrega `interesado_id` a `mensajes_marketplace` y crea `suscripciones_push`.
+
+> **Movido a `apps/backend-admin` (2026-09-01):** el cambio de estado municipal vive en
+> `PATCH /api/admin/solicitudes/{id}` y `POST …/revision` (puerto 3001).
+> **Eliminado (replanteo 2026-09-17 / §2 2026-09-21):** `GET /api/operadores` y el método
+> `update()` del service ciudadano (sin llamador). El vecino solo crea, lista, ve y cancela.
 
 ### Control de acceso por roles (HU-13)
 
 Rama `2026-08-31-javier-hu13-control-acceso` · módulo `src/auth/`.
+
+> ⚠️ **Nota histórica (2026-09-27).** El `Bearer <uuid>` descrito abajo **ya no existe** (SU-4): la
+> identidad viaja solo en la cookie `arca_sesion` y el header `Authorization` se ignora. Ver
+> [`apps/backend/README.md`](../apps/backend/README.md) § Autenticación y
+> [spec `sesion-unica`](specs/SPEC-sesion-unica.md).
 
 Hasta que Benjamín integre ClaveÚnica/JWT (HU-12), en **desarrollo** las rutas protegidas
 exigen:
@@ -126,14 +160,13 @@ exigen:
 Authorization: Bearer <uuid-usuario-ciudadano>
 ```
 
-UUIDs de demo (migraciones): ciudadano `…0001`, doble rol operador `…0002`.
+UUIDs de demo (migraciones): ciudadano `…0001`, doble rol funcionario `…0002`.
 
 | Ruta | Acceso |
 |---|---|
 | `GET /health`, `GET /residuos/catalogo`, `GET /` | Público |
 | `POST/GET solicitudes-retiro`, `PATCH …/cancelar` | Ciudadano autenticado (propias, o municipal sin filtro) |
-| `GET perfil-acceso` | Solo el propio `ciudadanoId` |
-| `PATCH admin/solicitudes/{id}` (en `apps/backend-admin`, :3001) | Rol `admin` u `operador` |
+| `PATCH admin/solicitudes/{id}` (en `apps/backend-admin`, :3001) | Rol `admin` o `funcionario` |
 
 En `NODE_ENV=production` el Bearer UUID dev está deshabilitado hasta JWT real.
 
@@ -144,24 +177,33 @@ Detalle de implementación: [`apps/backend/README.md`](../apps/backend/README.md
 
 ### Cambio de estado (PATCH admin)
 
-> Esta lógica corre hoy en `apps/backend-admin` (`PATCH /api/admin/solicitudes/{id}`), no acá
-> — se documenta igual porque el criterio de negocio es el mismo y sigue siendo válido.
+> ⚠️ **Nota histórica (replanteo del 2026-09-17).** Lo descrito abajo (estado libre y reversible,
+> `asignada` con operador) **ya se reemplazó** en `apps/backend-admin` por la tabla de transiciones de
+> `@arca/core`, con permisos por actor (vecino, funcionario, admin). En el backend ciudadano (§2,
+> 2026-09-21): crear nace en `en_revision`, cancelar usa `aplicarTransicion`, y `GET /api/operadores`
+> ya no existe.
+> Detalle: [pendientes del equipo](PENDIENTES_EQUIPO.md) ·
+> [spec `ciclo-solicitud`](specs/SPEC-ciclo-solicitud.md)
 
-El panel municipal puede fijar **cualquier** estado, incluido **revertir** (ej.
-`completada → pendiente`), para operar y probar el flujo. El backend solo conserva
-invariantes de datos:
+> Esta lógica de cambio de estado municipal corre en `apps/backend-admin`
+> (`PATCH /api/admin/solicitudes/{id}` y revisión), no acá.
 
-- `asignada` exige `operadorAsignadoId` de un administrador **activo**.
-- `completada` setea `fechaCompletada`; al **salir** de completada se limpia.
-- La cancelación del ciudadano solo procede sobre **sus** solicitudes en estado
+El texto siguiente describe el **modelo viejo** (solo contexto histórico):
+
+- `asignada` exigía `operadorAsignadoId` de un administrador **activo**.
+- `completada` seteaba `fechaCompletada`; al **salir** de completada se limpiaba.
+- La cancelación del ciudadano solo procedía sobre **sus** solicitudes en estado
   `pendiente` o `asignada` (valida propiedad → `403` si es ajena).
 
-> Nota: la máquina de estados estricta (`pendiente→asignada→en_proceso→completada`)
-> se relajó a propósito para esta fase. Endurecerla queda como pendiente (flag/permiso).
+> **Hoy:** cancelar solo en `en_revision` · `requiere_modificacion` · `aprobada` sin pago `pagado`,
+> vía el núcleo. Ver `apps/backend/README.md`.
 
 ### Login diferido
 
-`GET /api/usuarios/{ciudadanoId}/perfil-acceso` resuelve si una identidad base además
+> **Eliminado el 13-10-2026:** el frontend usa `GET /api/sesion`, que ya trae el rol. La ruta
+> salió para reducir superficie; el servicio `getPerfilAcceso` sigue, lo usa la sesión.
+
+`GET /api/usuarios/{ciudadanoId}/perfil-acceso` resolvía si una identidad base además
 tiene extensión de administrador activa. El frontend lo usa tras autenticar para
 decidir el destino: funcionario → selección de contexto; solo ciudadano → PWA directa.
 
@@ -180,7 +222,68 @@ usuario autenticado (mismo `ciudadanoId` que el Bearer).
 
 `residuoCatalogoId` tiene que ser un id real del catálogo vigente (`GET /api/residuos/catalogo`
 — los ids cambiaron con la migración de precios reales, no asumir valores fijos).
-Campos opcionales: `direccionAnonimizada`, `latitudCapturada`, `longitudCapturada`.
+Crear es `multipart/form-data`: obligatorios `direccionRetiro` y archivo `foto`; opcionales `descripcion`, coords, `emailContacto`. La dirección se copia también a `direccionAnonimizada` (puente temporal para panel/Excel).
+
+---
+
+## Rate limiting y ubicación del Marketplace
+
+Decisiones de Miguel Segovia (encargado de seguridad), 2026-09-25.
+
+### Límite de consultas (ambos backends)
+
+`SeguridadModule` (`packages/arca-core/src/seguridad/`) usa `@nestjs/throttler` y cuenta
+peticiones **por IP en ventanas de un minuto**. Se importa en cada `AppModule` **antes que
+`AuthModule`**, para que el límite corte también las peticiones sin sesión (probado en
+`apps/backend/src/seguridad-rate-limit.spec.ts`).
+
+| Límite | Peticiones / min | Dónde |
+|---|---|---|
+| General | 120 | Todas las rutas de `apps/backend` y `apps/backend-admin` |
+| Login ClaveÚnica | 10 | `@LimiteLogin()` en `ClaveUnicaController` |
+| Consultas de ubicación | 90 | `@LimiteUbicacion()` en el listado y el detalle del Marketplace |
+
+Al superarlo se responde **429** con el mensaje *"Demasiadas solicitudes. Espera un momento e
+inténtalo de nuevo."*
+
+- **IP real tras el proxy de cPanel:** `configurarProxyConfiable(app)` en `main.ts` aplica
+  `trust proxy` según `TRUST_PROXY` (por defecto `loopback`). Sin esto todos los vecinos
+  compartirían el contador de `127.0.0.1`; con `true`, cualquiera podría inventar su IP.
+  Además confía en las conexiones por **socket local** (`confiarEnSocketLocal`): en cPanel,
+  Passenger conecta con la app por un socket unix sin dirección de origen, y sin esto `req.ip`
+  quedaba vacío para todos y el límite se compartía entre todos los vecinos (probado en
+  `src/seguridad-socket-local.spec.ts`). Solo procesos de la misma máquina usan ese socket.
+  Si el sitio pasa por Cloudflare, sus rangos se agregan a `TRUST_PROXY` separados por coma
+  (ver `docs/DEPLOY_CPANEL.md` §6).
+- **Memoria del proceso:** con una instancia por backend basta. Con varias, habría que pasar
+  el almacenamiento a Redis.
+- **Dependencia nueva:** `@nestjs/throttler` (exige Node ≥ 20.19). Suma un paquete al listado
+  de librerías comprometido con el municipio.
+
+### Ubicación en el Marketplace (`apps/backend/src/marketplace/ubicacion/`)
+
+La distancia entre vecinos se muestra solo en bandas (menos de 1 km, 1 a 5, 5 a 10, más de
+10) y **la API nunca devuelve la coordenada del artículo**. Como el punto de quien consulta
+lo manda el cliente, alguien podría consultar desde muchos puntos falsos y triangular. Las
+defensas:
+
+1. **Grilla de 250 m** (`GRILLA_MARKETPLACE_M`). El artículo se guarda ya aproximado
+   (`aproximarParaGuardar`) y el origen se re-aproxima en el servidor. Dos casas de la misma
+   celda dan siempre la misma banda: por muchas consultas que se hagan, lo máximo que se
+   recupera es el sector, no la vivienda. Es la garantía de fondo.
+2. **Límite de orígenes distintos por vecino** (`LimiteOrigenesService`): hasta 10 celdas
+   distintas por hora. Pasado el límite la consulta sigue funcionando pero sin banda (`null`),
+   sin error que indique cómo esquivarlo.
+3. **Límite de consultas** de 90 por minuto (`@LimiteUbicacion()`). Con 30, filtrar varias
+   veces seguidas en el listado ya daba error a un vecino normal.
+
+**Descartado:** desplazar los bordes de las bandas con un valor fijo por artículo. El borde
+sigue siendo un círculo centrado en el artículo, y tres puntos bastan para hallar su centro.
+
+**Para el módulo del Marketplace:** importar `UbicacionMarketplaceModule`, calcular cada
+banda con `LimiteOrigenesService.bandaPara(ciudadanoId, origen, articulo)` (nunca con
+`calcularBanda` directo), guardar la coordenada con `aproximarParaGuardar` y decorar las
+rutas de listado y detalle con `@LimiteUbicacion()`.
 
 ---
 
@@ -240,14 +343,14 @@ d44f15f feat(backend): entidades TypeORM de identidad y UsersModule
 | Auth ClaveÚnica + JWT | Benjamín (HU-12) | Reemplazar Bearer UUID dev en `AuthService`; requiere aprobación organismo |
 | Front: header `Authorization` | Maximiliano | PR aparte tras merge HU-13; sin esto la PWA da `401` en rutas protegidas |
 | Frontend React PWA | Maximiliano | Ver `docs/SETUP_LOCAL.md` |
-| Migraciones restantes del DBML | Javier | horarios, fotos, marketplace, credits, etc. |
-| Subida de fotos | Javier | Fase posterior |
-| ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados) |
-| ~~Cancelación por ciudadano~~ | ✅ Hecho | Rama `admin-municipal` (`PATCH /:id/cancelar`) |
-| ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | `GET /usuarios/:id/perfil-acceso` |
+| Migraciones restantes del DBML | Javier | horarios, fotos de retiro, dashboard, etc. Marketplace y créditos: ✅ `1782164400000` (2026-09-29) |
+| Subida de fotos | Javier | Marketplace: ✅ `src/archivos/`. Solicitudes: ✅ `foto_retiro` + `POST/GET …/solicitudes-retiro` (Sprint 4) |
+| ~~PATCH estado solicitud (operador)~~ | ✅ Hecho | Rama `admin-municipal` (máquina de estados); hoy ciclo de revisión en `backend-admin` |
+| ~~Cancelación por ciudadano~~ | ✅ Hecho | `aplicarTransicion` + estados nuevos (§2, 2026-09-21) |
+| ~~Login diferido (perfil-acceso)~~ | ✅ Hecho | Hoy `GET /api/sesion` (la ruta `perfil-acceso` se eliminó el 13-10) |
 | ~~Control de acceso por roles (HU-13)~~ | ✅ Hecho | `auth/`: guards, `@Roles`, auth dev Bearer UUID |
-| Endurecer máquina de estados | Pendiente | Hoy reversible para pruebas; reponer con flag/permiso |
-| `GET /api/operadores` | Javier (HU-08) | Listar administradores activos para modal de asignación |
+| ~~Adaptar backend al ciclo nuevo (§2)~~ | ✅ Hecho | Crear `en_revision`, sin `operadores/`, rol `funcionario` |
+| ~~`GET /api/operadores`~~ | ❌ Eliminado | Replanteo: no hay asignación de operadores |
 | PR merge HU-13 a `develop` | Javier | Rama `2026-08-31-javier-hu13-control-acceso` |
 
 ---

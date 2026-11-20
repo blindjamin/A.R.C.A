@@ -1,0 +1,46 @@
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
+import {
+  DECISIONES_REVISION,
+  type DecisionRevision,
+  MotivoRevision,
+} from '../../../core';
+
+/**
+ * Qué combinación de motivo, comentario y checklist exige cada decisión lo
+ * valida `validarRevision` en `src/core`; acá solo se chequean los tipos.
+ */
+export class RevisarSolicitudDto {
+  @IsIn(DECISIONES_REVISION)
+  decision: DecisionRevision;
+
+  @IsOptional()
+  @IsEnum(MotivoRevision)
+  motivo?: MotivoRevision;
+
+  /** Lo ve el vecino. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  comentario?: string;
+
+  @IsOptional()
+  @IsObject()
+  checklist?: Record<string, boolean>;
+
+  /** Presupuesto/monto final en CLP asignado por el funcionario al aprobar. */
+  @IsOptional()
+  @IsInt()
+  @Min(1, { message: 'El presupuesto mínimo es $1' })
+  @Max(5000000, { message: 'El presupuesto no puede superar $5.000.000' })
+  montoFinal?: number;
+}

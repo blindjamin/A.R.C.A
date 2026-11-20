@@ -8,7 +8,7 @@
 > - **Parte A — Reglas para el agente de IA:** cómo debe comportarse la IA al trabajar en este repo.
 > - **Parte B — Política de uso para el equipo:** cómo debe usar la IA el equipo COM Tech.
 >
-> Contexto técnico completo del proyecto: [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) ·
+> Contexto técnico completo del proyecto: [`docs/CLAUDE_proyecto.md`](docs/CLAUDE_proyecto.md) ·
 > Ramas y workflow: [`CLAUDE.md`](CLAUDE.md)
 
 ---
@@ -35,8 +35,8 @@ consultar primero los archivos. **No responder de memoria** si hay documentació
 Orden de precedencia de las fuentes de verdad:
 
 1. **Código del repositorio** — lo que realmente corre, gana siempre.
-2. **Documentación del repositorio** — `README.md`, `CLAUDE_proyecto.md`, `docs/`,
-   `ARCA_database_schema.dbml`.
+2. **Documentación del repositorio** — `README.md`, `docs/CLAUDE_proyecto.md`, `docs/`,
+   `docs/ARCA_database_schema.dbml`.
 3. **Google Drive** — carpeta "Feria de Software".
 4. **GitHub** — issues y GitHub Projects.
 
@@ -63,7 +63,7 @@ Si durante la tarea aparece un problema fuera de alcance (un bug, un documento d
 
 ## A.5 RESPETAR LAS DECISIONES YA TOMADAS
 
-Las decisiones de stack de [`CLAUDE_proyecto.md` §5](CLAUDE_proyecto.md) son **definitivas** y
+Las decisiones de stack de [`docs/CLAUDE_proyecto.md` §5](docs/CLAUDE_proyecto.md) son **definitivas** y
 tienen contexto de negocio real (restricciones de la infraestructura municipal). No sugerir
 revertirlas — volver a PostgreSQL, meter Docker en producción, usar Cloud Vision, agregar Redis
 al MVP — salvo que algún integrante de COM Tech abra explícitamente esa discusión.
@@ -79,14 +79,14 @@ sin modismos regionales, salvo que un integrante del equipo indique lo contrario
 
 | Área | Alcance |
 |---|---|
-| **Backend ciudadano** | `apps/backend/` — API, servicios, entidades propias, DTOs (Miguel + Javier) |
-| **Frontend ciudadano** | `apps/frontend/` — PWA, pantallas, UI Kit, capa de API del cliente (Ana + Maxi) |
-| **Backend admin** | `apps/backend-admin/` — API del panel municipal (Benjamín) |
-| **Frontend admin** | `apps/admin-web/` — panel municipal (Benjamín) |
-| **Núcleo compartido** | `packages/arca-core/` — entidades TypeORM y `AuthModule` que ambos backends importan. Cambia solo por **PR revisado por alguien de backend ciudadano** (regla A.7 abajo) |
-| **Base de datos** | `ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`, ningún otro proyecto corre migraciones) |
-| **DevOps / infra** | `docker-compose.yml`, `setup.ps1`, `package.json` raíz (workspaces), CI |
-| **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `CLAUDE_proyecto.md`, `AGENTS.md` |
+| **Backend ciudadano** | `apps/backend/` salvo `src/admin/` y `src/core/` — API del vecino, servicios, DTOs (Miguel + Javier) |
+| **Frontend ciudadano** | `apps/frontend/` salvo `src/admin/` — PWA, pantallas, UI Kit, capa de API del cliente (Ana + Maxi) |
+| **Backend admin** | `apps/backend/src/admin/` — API del panel municipal, `/api/admin/*` (Benjamín) |
+| **Frontend admin** | `apps/frontend/src/admin/` — panel municipal en `/admin/*`, cargado aparte según el rol (Benjamín) |
+| **Núcleo** | `apps/backend/src/core/` — entidades TypeORM, `AuthModule` (ClaveÚnica, sesión, guards), auditoría y ciclo de la solicitud, que usan la API del vecino y la del panel. Cambia solo por **PR revisado por alguien de backend ciudadano** (regla A.7 abajo) |
+| **Base de datos** | `docs/ARCA_database_schema.dbml` y las migraciones que lo reflejan (viven en `apps/backend/`) |
+| **DevOps / infra** | `docker-compose.yml`, `scripts/setup.ps1`, `package.json` raíz (workspaces), CI |
+| **Documentación** | `README.md`, `docs/`, `CLAUDE.md`, `docs/CLAUDE_proyecto.md`, `AGENTS.md` |
 
 Una vez definida el área, **el trabajo se limita a esa área**. No abrir ni modificar archivos
 de otra sin autorización, aunque parezca una mejora obvia.
@@ -141,24 +141,11 @@ hay que pedirlo antes de ejecutar `git checkout -b`. No inventar el nombre ni su
 - Antes de integrar a `develop`, correr localmente (todavía no hay CI configurado):
 
 ```bash
-npm run build:core
-cd packages/arca-core   && npm run test
-```
-
-```bash
 cd apps/backend         && npm run lint && npm run test && npm run build
 ```
 
 ```bash
-cd apps/backend-admin   && npm run lint && npm run build
-```
-
-```bash
 cd apps/frontend        && npm run lint && npm run build
-```
-
-```bash
-cd apps/admin-web       && npm run lint && npm run build
 ```
 
 ## A.9 CONFIRMAR ANTES DE COMMITEAR O INTEGRAR
@@ -177,12 +164,12 @@ los `.md` que hayan quedado desfasados por lo que se hizo:
 | Si se tocó… | Revisar |
 |---|---|
 | Endpoints, entidades o migraciones del ciudadano | `apps/backend/README.md`, `docs/BACKEND_FASE1.md` |
-| Endpoints del panel admin | `apps/backend-admin/README.md` |
-| Entidades o `AuthModule` compartidos | `packages/arca-core/README.md` |
+| Endpoints del panel admin | `apps/backend/README.md` (§ Endpoints del panel) |
+| Entidades, `AuthModule` o sesión (`src/core/`) | `apps/backend/README.md`, `docs/SEGURIDAD_ARQUITECTURA.md` |
 | Pantallas, UI Kit, estructura de `src/` ciudadano | `apps/frontend/README.md`, `docs/FRONTEND_FASE1.md`, `docs/PLAN_FRONTEND.md` |
-| Pantallas del panel admin | `apps/admin-web/README.md` |
+| Pantallas del panel admin | `apps/frontend/README.md` |
 | Setup, scripts, Docker | `docs/SETUP_LOCAL.md`, `README.md` |
-| Estructura del repo o del stack | `README.md`, `CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
+| Estructura del repo o del stack | `README.md`, `docs/CLAUDE_proyecto.md` (mapa de archivos y estado actual) |
 | Ramas, workflow o convenciones | `CLAUDE.md` |
 | Reglas de IA | Este archivo |
 
@@ -225,10 +212,11 @@ con esa misma regla.
 | No tocar | Por qué |
 |---|---|
 | `.env`, `.env.local` | Contienen credenciales; no se versionan ni se muestran en respuestas |
+| Datos del servidor municipal en el repo | El repo es público: nombres de cuentas cPanel, SSH o MySQL, rutas `/home/...` y hosts internos van como marcador (`<cuenta>`), nunca el valor real |
 | Migraciones ya aplicadas | Se corrigen con una **migración nueva**, jamás editando una existente |
-| `ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
+| `docs/ARCA_database_schema.dbml` | Fuente de verdad del esquema; se cambia solo con acuerdo del equipo |
 | Sistema CAS Chile (Power Builder + Sybase) | Está fuera del alcance de ARCA. No integrar |
-| Ramas `master` y `develop` en directo | Siempre vía rama temporal + merge |
+| Ramas `master` y `develop` en directo | Siempre vía rama temporal + pull request (regla A.14) |
 | Archivos de un área que no es la de la sesión | Ver regla A.7 — requiere avisar y abrir un PR |
 
 ## A.13 DECLARAR EN CADA COMMIT CÓMO SE PRODUJO EL CAMBIO
@@ -272,7 +260,7 @@ permite priorizar dónde poner atención al revisar.
 Una sola vez, desde cualquier carpeta dentro del repositorio:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\instalar-reglas.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\instalar-reglas.ps1
 ```
 
 Desde ahí las tres líneas aparecen solas cada vez que se abre el editor de commit; solo hay que
@@ -280,6 +268,53 @@ completarlas. Un hook las valida: si falta una, el commit no pasa y el mensaje d
 exactamente qué corregir.
 
 Los merges, los reverts y los `fixup!` quedan exentos: esos mensajes los genera git.
+
+## A.14 UN PULL REQUEST SE INTEGRA CON LA APROBACIÓN DE SU REVISOR
+
+Todo pull request hacia `develop` termina su descripción con tres líneas:
+
+```
+IA: agente
+HU: HU-07
+Revisor: Starossta
+```
+
+| Línea | Valores |
+|---|---|
+| `IA:` | `agente` · `asistido` · `no`. Si algún commit del PR es `agente`, el PR es `agente` |
+| `HU:` | `HU-07` · `HU-07, HU-08` · `ninguna` |
+| `Revisor:` | usuario de GitHub de quien revisa. **No puede ser quien abre el PR** |
+
+El PR **no se integra hasta que esa persona lo apruebe**. Si después de la aprobación entran
+commits nuevos, la aprobación deja de valer y hay que pedirla otra vez: se aprueba lo que se
+leyó, no lo que llegó después.
+
+### Por qué
+
+Hasta ahora casi ningún PR tuvo revisión de otra persona: se abrían y se integraban en minutos.
+El trailer `Revisor:` de A.13 declara quién *debería* revisar, pero nada comprobaba que lo
+hiciera. Esta regla convierte esa declaración en una aprobación real, registrada en GitHub.
+
+Revisar un cambio generado por un agente no es buscar errores de tipeo: es comprobar que lo que
+supone existe de verdad. Tres preguntas mínimas antes de aprobar un PR con `IA: agente`:
+
+1. ¿Los endpoints, tablas y columnas que usa existen realmente en el repositorio?
+2. ¿Respeta las decisiones de stack ya tomadas (regla A.5)?
+3. ¿Quien lo abrió puede explicar qué hace (regla B.1)?
+
+### Cómo se cumple
+
+- **Con Claude Code:** pedir "abre el PR". La skill `abrir-pr` pregunta los tres datos, muestra
+  el aviso de esta regla y crea el PR con el revisor ya solicitado.
+- **Desde la web de GitHub:** la plantilla trae las tres líneas; solo hay que completarlas. Si
+  el revisor no quedó solicitado, el check lo solicita solo.
+- **Con otra herramienta de IA:** al pedir un PR, el agente sigue las instrucciones de
+  `.claude/skills/abrir-pr/SKILL.md`. Este párrafo es el que se lo indica, porque Cursor,
+  Copilot y Claude Code leen `AGENTS.md`.
+- **A mano:** completar las tres líneas. El check valida igual.
+
+Si falta un dato o el revisor no ha aprobado, el check **A.14 revisor declarado** aparece en
+rojo con el motivo, y el botón de merge queda bloqueado.
 
 ---
 
@@ -338,4 +373,4 @@ sale más caro que consultar.
 
 ---
 
-**Última actualización:** 2026-08-29 · Equipo COM Tech
+**Última actualización:** 2026-09-27 · Equipo COM Tech

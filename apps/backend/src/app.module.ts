@@ -3,10 +3,28 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule, HealthModule } from '@arca/core';
+import { AuthModule, ENTIDADES, HealthModule, SeguridadModule } from './core';
 import { ResiduosModule } from './residuos/residuos.module';
 import { SolicitudesRetiroModule } from './solicitudes-retiro/solicitudes-retiro.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { PushModule } from './push/push.module';
+import { CreditosModule } from './creditos/creditos.module';
 import { UsersModule } from './users/users.module';
+import { SolicitudesAdminModule } from './admin/solicitudes/solicitudes-admin.module';
+import { MapaCalorModule } from './admin/mapa-calor/mapa-calor.module';
+import { AuditoriaAdminModule } from './admin/auditoria/auditoria-admin.module';
+import { ResiduosAdminModule } from './admin/residuos/residuos-admin.module';
+import { DerivacionesAdminModule } from './admin/derivaciones/derivaciones-admin.module';
+import { MetricasAdminModule } from './admin/metricas/metricas-admin.module';
+import { PagadasAdminModule } from './admin/pagadas/pagadas-admin.module';
+import { MarketplaceAdminModule } from './admin/marketplace/marketplace-admin.module';
+import { DenunciasAdminModule } from './admin/denuncias/denuncias-admin.module';
+import { MailModule } from './mail/mail.module';
+import { PerfilModule } from './perfil/perfil.module';
+import { NotificacionesModule } from './notificaciones/notificaciones.module';
+import { PagosModule } from './pagos/pagos.module';
+import { DenunciasModule } from './denuncias/denuncias.module';
+import { BloqueosModule } from './bloqueos/bloqueos.module';
 
 @Module({
   imports: [
@@ -21,14 +39,48 @@ import { UsersModule } from './users/users.module';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_DATABASE,
-      autoLoadEntities: true,
+      // Sin esto, mysql2 convierte los `Date` de JS a la hora LOCAL del proceso
+      // (por default del sistema, no UTC) antes de mandarlos como texto: el
+      // servidor los guarda tal cual, como si ya fueran UTC. Detectado en
+      // SU-2 comparando `fecha_inicio` de una sesión recién creada contra
+      // NOW() de MySQL: quedaban 3 horas atrás (offset de Chile). 'Z' fuerza
+      // UTC en los dos sentidos, que es lo que ya asume el resto del código
+      // (`SesionService.ahora()` usa `new Date()`).
+      timezone: 'Z',
+      // Entidades explícitas, no autoLoadEntities: con autoLoadEntities, TypeORM
+      // solo conoce las entidades que algún módulo registra vía forFeature(), y
+      // acá no todas se registran (el panel no toca sesiones). Sin la entidad
+      // relacionada completa, construir los metadatos de las relaciones
+      // (p. ej. UsuarioCiudadano.sesiones) revienta al arrancar.
+      entities: ENTIDADES,
       synchronize: false,
     }),
+    // Antes que AuthModule: el rate limiting corta el abuso antes de resolver
+    // la sesión (los guards globales corren en orden de registro).
+    SeguridadModule,
     AuthModule,
     HealthModule,
+    MailModule,
+    PerfilModule,
+    NotificacionesModule,
+    PagosModule,
     UsersModule,
     ResiduosModule,
     SolicitudesRetiroModule,
+    MarketplaceModule,
+    DenunciasModule,
+    PushModule,
+    CreditosModule,
+    SolicitudesAdminModule,
+    MapaCalorModule,
+    AuditoriaAdminModule,
+    ResiduosAdminModule,
+    DerivacionesAdminModule,
+    MetricasAdminModule,
+    PagadasAdminModule,
+    MarketplaceAdminModule,
+    DenunciasAdminModule,
+    BloqueosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

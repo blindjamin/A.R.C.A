@@ -1,0 +1,102 @@
+import { config } from 'dotenv';
+import { Throttle } from '@nestjs/throttler';
+
+// Los decoradores leen el límite al cargar el módulo, antes de que Nest lea
+// `.env.local`. Sin esto, un cambio en el servidor no se vería hasta tocar código.
+config({ path: '.env.local' });
+
+/**
+ * Límites de consultas (rate limiting) de las APIs de A.R.C.A.
+ *
+ * Se cuentan por IP de origen y en ventanas de un minuto. Tras un proxy
+ * (cPanel/Passenger) la IP real sale de `X-Forwarded-For`, pero solo si
+ * `TRUST_PROXY` lo permite: ver `configurarProxyConfiable`.
+ *
+ * El conteo vive en la memoria del proceso. Con una sola instancia por
+ * backend (el despliegue actual) es suficiente; si algún día hay varias
+ * instancias, cada una contaría por separado y habría que moverlo a un
+ * almacenamiento compartido (Redis).
+ */
+
+export const VENTANA_MS = 60_000;
+
+/** Pisos: un valor de entorno ausente o menor deja estos números. */
+const PISO_GENERAL = 120;
+const PISO_LOGIN = 10;
+const PISO_UBICACION = 90;
+const PISO_CHAT = 30;
+const PISO_CORREO = 10;
+
+/**
+ * Límite por IP leído del entorno. Sirve para subir el tope en la Feria, donde
+ * muchos vecinos salen por la misma red, sin editar código. No baja el piso.
+ */
+export function limitePorIp(nombre: string, piso: number): number {
+  const crudo = process.env[nombre];
+  if (crudo === undefined || crudo.trim() === '') return piso;
+  const valor = Number(crudo);
+  if (!Number.isInteger(valor) || valor < piso) return piso;
+  return valor;
+}
+
+/** Límite general: cualquier ruta, por IP. Holgado para uso normal de la app. */
+export const LIMITE_GENERAL = limitePorIp('LIMITE_IP_GENERAL', PISO_GENERAL);
+
+/**
+ * Login con ClaveÚnica. Iniciar o cerrar sesión unas pocas veces por minuto es
+ * normal; decenas no. Frena abusos del flujo OAuth (llenar de `state` al
+ * servidor, forzar callbacks) sin afectar a un vecino real.
+ */
+export const LIMITE_LOGIN = limitePorIp('LIMITE_IP_LOGIN', PISO_LOGIN);
+
+/**
+ * Consultas que devuelven una banda de distancia (Marketplace). Consultar un
+ * mismo artículo desde muchos puntos permite triangular su ubicación; este
+ * límite lo encarece. La defensa de fondo está en la grilla de 250 m y en el
+ * límite de orígenes distintos por vecino (apps/backend/src/marketplace/ubicacion).
+ *
+ * Cada cambio de filtro del listado es una consulta: con 30 por minuto, un
+ * vecino que probaba filtros seguidos recibía el error. 90 deja buscar con
+ * holgura y sigue por debajo del límite general.
+ */
+export const LIMITE_UBICACION = limitePorIp(
+  'LIMITE_IP_UBICACION',
+  PISO_UBICACION,
+);
+
+/**
+ * Envío de mensajes del chat del Marketplace (HU-06). Por IP, como los demás:
+ * holgado para una conversación real (varios vecinos pueden compartir IP) y
+ * corta el envío masivo.
+ */
+export const LIMITE_CHAT = limitePorIp('LIMITE_IP_CHAT', PISO_CHAT);
+
+/**
+ * Peticiones por minuto a enviar y verificar códigos de correo. Cada envío le
+ * llega a un tercero, y un código tiene solo 6 dígitos.
+ *
+ * Verificar el correo es obligatorio para pedir un retiro, así que en la Feria,
+ * con muchos vecinos en el mismo wifi, 10 por minuto para toda la red se queda
+ * corto: por eso se puede subir con `LIMITE_IP_CORREO`. El tope por vecino
+ * (`MailService`) y los intentos por código siguen igual.
+ */
+export const LIMITE_CORREO = limitePorIp('LIMITE_IP_CORREO', PISO_CORREO);
+
+export const MENSAJE_LIMITE =
+  'Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.';
+
+/** Aplica el límite del login con ClaveÚnica a un controlador o ruta. */
+export const LimiteLogin = () =>
+  Throttle({ default: { limit: LIMITE_LOGIN, ttl: VENTANA_MS } });
+
+/** Aplica el límite de los códigos de correo a un controlador o ruta. */
+export const LimiteCorreo = () =>
+  Throttle({ default: { limit: LIMITE_CORREO, ttl: VENTANA_MS } });
+
+/** Aplica el límite de consultas de ubicación a un controlador o ruta. */
+export const LimiteUbicacion = () =>
+  Throttle({ default: { limit: LIMITE_UBICACION, ttl: VENTANA_MS } });
+
+/** Aplica el límite de envío de mensajes del chat a una ruta. */
+export const LimiteChat = () =>
+  Throttle({ default: { limit: LIMITE_CHAT, ttl: VENTANA_MS } });

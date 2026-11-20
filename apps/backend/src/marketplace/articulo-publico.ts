@@ -1,0 +1,223 @@
+import {
+  type ArticuloMarketplace,
+  EstadoArticuloMarketplace,
+  EstadoPagoSolicitud,
+  EstadoSolicitudRetiro,
+  type TipoArticuloMarketplace,
+} from '../core';
+import { sectorMasCercano } from '../admin/mapa-calor/sectores.constants';
+import { creditosPorEntrega } from '../creditos/reglas-creditos';
+import type {
+  BandaDistancia,
+  Coordenadas,
+} from './ubicacion/ubicacion-marketplace';
+
+/**
+ * Nombre que se muestra de quien publica hasta que se guarde el nombre real
+ * de ClaveÚnica (spec `marketplace`, decisión 5; toca el núcleo y HU-38).
+ */
+export const NOMBRE_PUBLICADOR_PROVISORIO = 'Vecino de Santo Domingo';
+
+/** Recorta por caracteres y no por unidades UTF-16: no parte emojis. */
+export function recortar(texto: string, largo: number): string {
+  return Array.from(texto).slice(0, largo).join('');
+}
+
+/** Largo del título de un artículo dentro de un aviso. */
+export const LARGO_TITULO_AVISO = 40;
+
+/** Primer nombre de la sesión ClaveÚnica; sin sesión activa, el nombre provisorio. */
+export function primerNombre(nombreSesion: string | null): string {
+  return nombreSesion?.trim().split(/\s+/)[0] || NOMBRE_PUBLICADOR_PROVISORIO;
+}
+
+/** Días que un artículo queda publicado antes de vencer. */
+export const DIAS_VIGENCIA_ARTICULO = 30;
+
+const MS_POR_DIA = 24 * 60 * 60 * 1000;
+
+export interface Reputacion {
+  /** Promedio de 1 a 5 con un decimal; null si nunca lo han calificado. */
+  calificacionPromedio: number | null;
+  cantidadCalificaciones: number;
+}
+
+const SIN_CALIFICACIONES: Reputacion = {
+  calificacionPromedio: null,
+  cantidadCalificaciones: 0,
+};
+
+/**
+ * Lo que la API muestra de un artículo: el contrato de
+ * `apps/frontend/src/api/marketplace.ts` más los campos de la spec §5.3.
+ * Nunca la coordenada, la ruta de la foto ni el id de ningún vecino.
+ */
+export interface ArticuloPublico {
+  id: number;
+  tipo: TipoArticuloMarketplace;
+  titulo: string;
+  descripcion: string | null;
+  estado: EstadoArticuloMarketplace;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
+  categoria: string;
+  fotoUrl: string | null;
+  creditos: number;
+  banda: BandaDistancia | null;
+  publicador: { nombre: string } & Reputacion;
+  esPropio: boolean;
+  fechaPublicacion: Date;
+  fechaExpiracion: Date;
+  soyReceptor: boolean;
+  puedoCalificar: boolean;
+  /** Solo para quien recibe y solo mientras está reservado. Nunca para quien publicó. */
+  codigoEntrega: string | null;
+  /** Solo para los dos participantes, reservado o entregado. */
+  sector: string | null;
+  /** Nombre de quien recibe; solo para quien publicó, mientras está reservado. */
+  reservadoPara: string | null;
+}
+
+export interface ContextoPresentacion {
+  ciudadanoId: string;
+  banda: BandaDistancia | null;
+  reputacion?: Reputacion;
+  /** La sesión ya calificó este artículo. */
+  yaCalifico?: boolean;
+  /** Primer nombre del receptor, ya resuelto por el servicio. */
+  reservadoPara?: string | null;
+}
+
+export function fechaExpiracionDesde(publicacion: Date): Date {
+  return new Date(publicacion.getTime() + DIAS_VIGENCIA_ARTICULO * MS_POR_DIA);
+}
+
+export function estaVencido(
+  articulo: Pick<ArticuloMarketplace, 'fechaExpiracion'>,
+  ahora: Date,
+): boolean {
+  return articulo.fechaExpiracion.getTime() <= ahora.getTime();
+}
+
+/**
+ * Un artículo disponible y vigente lo ve cualquier vecino; en cualquier otro
+ * caso, solo quien lo publicó y quien lo reservó (spec §4).
+ */
+export function esVisiblePara(
+  articulo: Pick<
+    ArticuloMarketplace,
+    'estado' | 'fechaExpiracion' | 'usuarioPublicadorId' | 'usuarioCompradorId'
+  >,
+  ciudadanoId: string,
+  ahora: Date,
+): boolean {
+  if (
+    articulo.estado === EstadoArticuloMarketplace.DISPONIBLE &&
+    !estaVencido(articulo, ahora)
+  ) {
+    return true;
+  }
+  return (
+    articulo.usuarioPublicadorId === ciudadanoId ||
+    articulo.usuarioCompradorId === ciudadanoId
+  );
+}
+
+/** Coordenada guardada del artículo (ya aproximada), o null si no tiene. */
+export function coordenadasDe(
+  articulo: Pick<ArticuloMarketplace, 'latitud' | 'longitud'>,
+): Coordenadas | null {
+  if (articulo.latitud === null || articulo.longitud === null) return null;
+  return {
+    latitud: Number(articulo.latitud),
+    longitud: Number(articulo.longitud),
+  };
+}
+
+/** Promedio y cantidad de estrellas por vecino calificado. */
+export function calcularReputaciones(
+  calificaciones: { usuarioCalificadoId: string; puntuacion: number }[],
+): Map<string, Reputacion> {
+  const sumas = new Map<string, { suma: number; cantidad: number }>();
+  for (const { usuarioCalificadoId, puntuacion } of calificaciones) {
+    const actual = sumas.get(usuarioCalificadoId) ?? { suma: 0, cantidad: 0 };
+    sumas.set(usuarioCalificadoId, {
+      suma: actual.suma + puntuacion,
+      cantidad: actual.cantidad + 1,
+    });
+  }
+
+  const reputaciones = new Map<string, Reputacion>();
+  for (const [id, { suma, cantidad }] of sumas) {
+    reputaciones.set(id, {
+      calificacionPromedio: Math.round((suma / cantidad) * 10) / 10,
+      cantidadCalificaciones: cantidad,
+    });
+  }
+  return reputaciones;
+}
+
+export function aArticuloPublico(
+  articulo: ArticuloMarketplace,
+  contexto: ContextoPresentacion,
+): ArticuloPublico {
+  const soyReceptor = articulo.usuarioCompradorId === contexto.ciudadanoId;
+  const esPropio = articulo.usuarioPublicadorId === contexto.ciudadanoId;
+  const reservado =
+    articulo.estado === EstadoArticuloMarketplace.EN_NEGOCIACION;
+  const coordenadas = coordenadasDe(articulo);
+
+  return {
+    id: articulo.id,
+    tipo: articulo.tipo,
+    titulo: articulo.titulo,
+    descripcion: articulo.descripcion,
+    estado: articulo.estado,
+    residuoCatalogoId: articulo.residuoCatalogoId,
+    nombreResiduoOtro: articulo.nombreResiduoOtro ?? null,
+    categoria: articulo.residuoCatalogo?.categoria ?? 'Otro',
+    fotoUrl: articulo.fotoPath
+      ? `/api/marketplace/articulos/${articulo.id}/foto`
+      : null,
+    creditos: articulo.creditos ?? creditosPorEntrega(),
+    banda: contexto.banda,
+    publicador: {
+      nombre: NOMBRE_PUBLICADOR_PROVISORIO,
+      ...(contexto.reputacion ?? SIN_CALIFICACIONES),
+    },
+    esPropio,
+    fechaPublicacion: articulo.fechaPublicacion,
+    fechaExpiracion: articulo.fechaExpiracion,
+    soyReceptor,
+    puedoCalificar:
+      soyReceptor &&
+      articulo.estado === EstadoArticuloMarketplace.COMPLETADO &&
+      !contexto.yaCalifico,
+    codigoEntrega: soyReceptor && reservado ? articulo.codigoEntrega : null,
+    sector:
+      (esPropio || soyReceptor) &&
+      (reservado || articulo.estado === EstadoArticuloMarketplace.COMPLETADO) &&
+      coordenadas
+        ? sectorMasCercano(coordenadas.latitud, coordenadas.longitud).nombre
+        : null,
+    reservadoPara:
+      esPropio && reservado ? (contexto.reservadoPara ?? null) : null,
+  };
+}
+
+const ESTADOS_PUBLICABLES: EstadoSolicitudRetiro[] = [
+  EstadoSolicitudRetiro.EN_REVISION,
+  EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+  EstadoSolicitudRetiro.APROBADA,
+];
+
+/**
+ * Una solicitud solo sirve de origen para publicar mientras siga abierta y sin
+ * pagar: pagada, derivada, retirada, rechazada o cancelada ya no se ofrece.
+ */
+export const solicitudPublicable = (s: {
+  estado: EstadoSolicitudRetiro;
+  estadoPago: EstadoPagoSolicitud;
+}): boolean =>
+  ESTADOS_PUBLICABLES.includes(s.estado) &&
+  s.estadoPago !== EstadoPagoSolicitud.PAGADO;

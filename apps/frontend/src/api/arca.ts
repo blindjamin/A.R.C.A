@@ -1,13 +1,10 @@
 // Capa de API de A.R.C.A. — fetch simple sobre los endpoints del backend (EP-01).
 // Cuando el estado crezca, migrar a Redux Toolkit + RTK Query (ver roadmap B.3).
 
-const API_URL = import.meta.env.VITE_API_URL as string;
+import { apiFetch } from './apiFetch';
+export { apiFetch };
 
-// Clave de localStorage donde SessionContext guarda la identidad de la sesión.
-// Vive acá y no en SessionContext porque `apiFetch` la necesita para armar el
-// header Authorization, y SessionContext ya importa de este módulo: al revés
-// quedaría un import circular.
-export const STORAGE_KEY_SESION = 'arca.usuarioCiudadanoId';
+const API_URL = import.meta.env.VITE_API_URL as string;
 
 export interface ResiduoCatalogo {
   id: number;
@@ -24,37 +21,144 @@ export interface ResiduoCatalogo {
   updatedAt: string;
 }
 
+// Ciclo de la solicitud: packages/arca-core/src/entities/estado-solicitud-retiro.enum.ts
+// (docs/specs/SPEC-ciclo-solicitud.md).
 export type EstadoSolicitud =
-  | 'pendiente'
-  | 'asignada'
-  | 'en_proceso'
-  | 'completada'
+  | 'en_revision'
+  | 'requiere_modificacion'
+  | 'aprobada'
+  | 'rechazada'
+  | 'derivada'
+  | 'retirada'
+  | 'no_realizada'
   | 'cancelada';
+
+export type EstadoPago = 'no_aplica' | 'pendiente' | 'pagado';
+
+export interface RevisionVisible {
+  decision: string;
+  motivo?: string | null;
+  comentario?: string | null;
+  fecha: string;
+}
+
+/**
+ * Etiqueta del motivo de revisión que ve el vecino. Debe coincidir con
+ * ETIQUETA_MOTIVO de admin/api/admin.ts y con avisos-solicitud.ts del backend.
+ * `otro` (o un valor desconocido) no tiene etiqueta: queda el comentario.
+ */
+const ETIQUETA_MOTIVO_VECINO: Record<string, string> = {
+  foto_insuficiente: 'La foto no permite ver el residuo',
+  categoria_incorrecta: 'Categoría incorrecta',
+  descripcion_incompleta: 'Descripción incompleta',
+  direccion_incompleta: 'Dirección incompleta',
+  fuera_de_comuna: 'Dirección fuera de la comuna',
+  residuo_no_admitido: 'Residuo no admitido',
+  duplicada: 'Solicitud duplicada',
+  contenido_inapropiado: 'Contenido inapropiado',
+};
+
+export function etiquetaMotivo(motivo?: string | null): string | undefined {
+  return motivo ? ETIQUETA_MOTIVO_VECINO[motivo] : undefined;
+}
+
+/** Un objeto de la solicitud, como lo devuelve el backend (HU-01). */
+export interface ObjetoSolicitud {
+  residuoCatalogoId: number | null;
+  /** Nombre del catálogo o el que escribió el vecino. */
+  nombre: string;
+  categoria: string | null;
+  cantidad: number;
+  /** null si está fuera del catálogo. */
+  precioUnitario: number | null;
+}
+
+/** Un objeto tal como lo agrega el vecino al crear la solicitud. */
+export interface ObjetoNuevo {
+  residuoCatalogoId?: number;
+  nombreOtro?: string;
+  cantidad: number;
+}
 
 export interface SolicitudRetiro {
   id: number;
   usuarioCiudadanoId: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId: number | null;
+  nombreResiduoOtro?: string | null;
   estado: EstadoSolicitud;
+  estadoPago: EstadoPago;
+  monto: number | null;
   descripcion: string | null;
+  direccionRetiro?: string | null;
   direccionAnonimizada?: string | null;
   latitudCapturada?: string | null;
   longitudCapturada?: string | null;
   fechaSolicitud: string;
-  fechaProgramada?: string | null;
-  fechaCompletada?: string | null;
-  operadorAsignadoId?: string | null;
+  fechaRevision?: string | null;
+  fechaCierre?: string | null;
   razonRechazo?: string | null;
   createdAt: string;
   updatedAt: string;
   // El GET incluye la relación anidada; en el POST puede no venir.
   residuoCatalogo?: ResiduoCatalogo;
+  // Ruta protegida de la foto (`/api/solicitudes-retiro/:id/foto`), o null.
+  fotoUrl?: string | null;
+  // Detalle de la última revisión del funcionario municipal (para corregir)
+  ultimaRevision?: RevisionVisible | null;
+  // Objetos a retirar; las solicitudes de antes traen uno.
+  objetos?: ObjetoSolicitud[];
+  // Suma de precio × cantidad; null si algo está fuera del catálogo.
+  precioSugerido?: number | null;
+}
+
+/** «Sillón ×2, Refrigerador», o el residuo de antes si no vienen los objetos. */
+export function resumenObjetos(s: {
+  objetos?: ObjetoSolicitud[];
+  residuoCatalogo?: { nombre: string } | null;
+  nombreResiduoOtro?: string | null;
+}): string {
+  if (s.objetos?.length) {
+    return s.objetos
+      .map((o) => (o.cantidad > 1 ? `${o.nombre} ×${o.cantidad}` : o.nombre))
+      .join(', ');
+  }
+  return s.residuoCatalogo?.nombre ?? s.nombreResiduoOtro ?? 'Residuo';
 }
 
 export interface CrearSolicitudInput {
   usuarioCiudadanoId: string;
-  residuoCatalogoId: number;
+  residuoCatalogoId?: number | null;
+  nombreResiduoOtro?: string;
+  /** Todos los objetos; el primero también va en `residuoCatalogoId` o `nombreResiduoOtro`. */
+  objetos?: ObjetoNuevo[];
+  direccionRetiro: string;
+  foto: File;
   descripcion?: string;
+  /** Ubicación del dispositivo si el vecino dio permiso; opcional. */
+  latitudCapturada?: string;
+  longitudCapturada?: string;
+}
+
+export interface ReenviarSolicitudInput {
+  descripcion?: string;
+  residuoCatalogoId?: number | null;
+  nombreResiduoOtro?: string;
+  direccionRetiro?: string;
+  foto?: File;
+}
+
+// El backend recibe la solicitud como multipart/form-data: la foto va como
+// archivo en el campo `foto` y el resto como texto. Sin `Content-Type` a
+// mano: el navegador lo arma con el separador del multipart.
+function aFormData(
+  campos: Record<string, string | number | File | null | undefined>,
+): FormData {
+  const form = new FormData();
+  for (const [clave, valor] of Object.entries(campos)) {
+    if (valor === undefined || valor === null) continue;
+    form.append(clave, valor instanceof File ? valor : String(valor));
+  }
+  return form;
 }
 
 // --- Overlay visual ---------------------------------------------------------
@@ -81,28 +185,7 @@ export const formatearPrecio = (clp: number): string =>
     maximumFractionDigits: 0,
   });
 
-// Header requerido cuando se accede vía tunel ngrok (free tier): sin el, ngrok
-// intercepta el request y devuelve una pagina HTML de advertencia en vez de
-// dejarlo pasar al backend. Inofensivo cuando no se usa ngrok.
-function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const usuarioCiudadanoId = localStorage.getItem(STORAGE_KEY_SESION);
-
-  return fetch(path, {
-    ...init,
-    headers: {
-      ...init?.headers,
-      'ngrok-skip-browser-warning': 'true',
-      // Identidad de la sesión. Hoy es el UUID del ciudadano que guarda
-      // SessionContext al entrar; cuando HU-12 emita el JWT, acá viaja el token
-      // firmado sin que cambie nada más de esta capa.
-      ...(usuarioCiudadanoId
-        ? { Authorization: `Bearer ${usuarioCiudadanoId}` }
-        : {}),
-    },
-  });
-}
-
-async function handle<T>(res: Response): Promise<T> {
+export async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Error ${res.status}: ${body || res.statusText}`);
@@ -130,10 +213,14 @@ export function fetchCatalogo(): Promise<ResiduoCatalogo[]> {
 export function crearSolicitudRetiro(
   data: CrearSolicitudInput,
 ): Promise<SolicitudRetiro> {
+  const { objetos, ...campos } = data;
   return apiFetch(`${API_URL}/solicitudes-retiro`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    // La lista viaja como JSON en un campo de texto del multipart.
+    body: aFormData({
+      ...campos,
+      objetos: objetos ? JSON.stringify(objetos) : undefined,
+    }),
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
@@ -144,27 +231,6 @@ export function fetchMisSolicitudes(
   return apiFetch(`${API_URL}/solicitudes-retiro?${params}`).then((r) =>
     handle<SolicitudRetiro[]>(r),
   );
-}
-
-// --- Identidad / login diferido ---------------------------------------------
-
-export interface PerfilAcceso {
-  usuarioCiudadanoId: string;
-  esAdministrador: boolean;
-  administrador: {
-    id: string;
-    nombre: string;
-    apellido: string;
-    rol: string;
-  } | null;
-}
-
-export function fetchPerfilAcceso(
-  usuarioCiudadanoId: string,
-): Promise<PerfilAcceso> {
-  return apiFetch(
-    `${API_URL}/usuarios/${usuarioCiudadanoId}/perfil-acceso`,
-  ).then((r) => handle<PerfilAcceso>(r));
 }
 
 export function cancelarSolicitud(
@@ -179,6 +245,60 @@ export function cancelarSolicitud(
   }).then((r) => handle<SolicitudRetiro>(r));
 }
 
-// Los fetchers de admin (solicitudes globales, auditoría) viven ahora en
-// apps/admin-web/src/api/admin.ts — se movieron con la migración del panel.
+export function fetchSolicitud(id: number): Promise<SolicitudRetiro> {
+  return apiFetch(`${API_URL}/solicitudes-retiro/${id}`).then((r) =>
+    handle<SolicitudRetiro>(r),
+  );
+}
+
+export function reenviarSolicitud(
+  id: number,
+  cambios: ReenviarSolicitudInput,
+): Promise<SolicitudRetiro> {
+  return apiFetch(`${API_URL}/solicitudes-retiro/${id}/reenviar`, {
+    method: 'PATCH',
+    body: aFormData({ ...cambios }),
+  }).then((r) => handle<SolicitudRetiro>(r));
+}
+
+
+// Los fetchers de admin (solicitudes globales, auditoría) viven en
+// admin/api/admin.ts — se movieron con la migración del panel.
+
+export interface EnviarCodigoRespuesta {
+  ok: boolean;
+  mensaje: string;
+  codigoDev?: string;
+}
+
+export interface VerificarCodigoRespuesta {
+  ok: boolean;
+  verificado: boolean;
+  mensaje: string;
+}
+
+export async function solicitarCodigoCorreo(
+  email: string,
+  usuarioCiudadanoId?: string,
+): Promise<EnviarCodigoRespuesta> {
+  const res = await apiFetch(`${API_URL}/mail/enviar-codigo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, usuarioCiudadanoId }),
+  });
+  return handle<EnviarCodigoRespuesta>(res);
+}
+
+export async function verificarCodigoCorreo(
+  email: string,
+  codigo: string,
+  usuarioCiudadanoId?: string,
+): Promise<VerificarCodigoRespuesta> {
+  const res = await apiFetch(`${API_URL}/mail/verificar-codigo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, codigo, usuarioCiudadanoId }),
+  });
+  return handle<VerificarCodigoRespuesta>(res);
+}
 

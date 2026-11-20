@@ -1,0 +1,600 @@
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  enviarMensaje,
+  enviarMensajeConImagen,
+  marcarLeidos,
+  obtenerMensajes,
+  type EventoLeidos,
+  type EventoMensaje,
+  type HistorialChat,
+  type MensajeChat,
+} from '../../../api/chat';
+import { conectarSocket } from '../../../api/socket';
+import { activarPush, pedirPermisoEnGesto } from '../../../pwa/push';
+import {
+  BackButton,
+  EmptyState,
+  IconChevronRight,
+  IconImage,
+  IconMarketplace,
+  IconSearch,
+  IconX,
+  VisorFoto,
+} from '../../../components/ui';
+import BotonDenunciar from '../../denuncias/BotonDenunciar';
+import BotonReservar from '../BotonReservar';
+import AvisoBloqueo from '../AvisoBloqueo';
+import { mensajeDeError, metaDeEstadoArticulo } from '../formato';
+import { useMiBloqueo } from '../useMiBloqueo';
+import { useNoLeidos } from './NoLeidosContext';
+import type { EstadoArticulo } from '../../../api/marketplace';
+
+type MensajeLocal = MensajeChat & { estado?: 'enviando' | 'error' };
+
+type Cabecera = Omit<HistorialChat, 'mensajes'>;
+
+const MAX_LINEAS_INPUT = 4;
+const FOTO_MAX_MB = 5;
+
+const AVISO_SOLO_LECTURA: Record<EstadoArticulo, string> = {
+  pendiente_aprobacion: 'Esta publicación está en revisión municipal.',
+  en_negociacion: 'Este artículo fue reservado por otro vecino.',
+  retirado: 'Quien publicó retiró este artículo.',
+  completado: 'Este intercambio ya se completó.',
+  disponible: 'Esta publicación venció.',
+  rechazado: 'Esta publicación fue rechazada por moderación municipal.',
+};
+
+const hora = (iso: string): string =>
+  new Date(iso).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+
+function etiquetaDia(iso: string): string {
+  const d = new Date(iso);
+  const hoy = new Date();
+  if (d.toDateString() === hoy.toDateString()) return 'Hoy';
+  hoy.setDate(hoy.getDate() - 1);
+  if (d.toDateString() === hoy.toDateString()) return 'Ayer';
+  return d.toLocaleDateString('es-CL');
+}
+
+// Los pendientes (id negativo) sobreviven a una recarga del historial.
+const conPendientes = (previos: MensajeLocal[], servidor: MensajeChat[]): MensajeLocal[] => [
+  ...servidor,
+  ...previos.filter((m) => m.id < 0),
+];
+
+function Burbuja({ m, onReintentar }: { m: MensajeLocal; onReintentar: () => void }) {
+  const [ampliada, setAmpliada] = useState(false);
+  return (
+    <div className={`flex ${m.esMio ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+          m.esMio ? 'bg-green-700 text-white' : 'card'
+        } ${m.estado === 'enviando' ? 'opacity-70' : ''}`}
+      >
+        {m.imagenUrl && (
+          <button
+            type="button"
+            onClick={() => setAmpliada(true)}
+            aria-label="Ampliar foto"
+            className="mb-1 block cursor-zoom-in overflow-hidden rounded-md"
+          >
+            <img
+              src={m.imagenUrl}
+              alt="Foto enviada en el chat"
+              className="max-h-60 w-full object-cover"
+            />
+          </button>
+        )}
+        {ampliada && m.imagenUrl && (
+          <VisorFoto
+            url={m.imagenUrl}
+            alt="Foto enviada en el chat"
+            onCerrar={() => setAmpliada(false)}
+          />
+        )}
+        {m.contenido && <p className="whitespace-pre-wrap break-words">{m.contenido}</p>}
+        <p className={`mt-1 text-right text-[11px] ${m.esMio ? 'text-green-100' : 'text-slate-2'}`}>
+          {hora(m.fecha)}
+          {m.esMio && !m.estado && (m.leido ? ' ✓✓' : ' ✓')}
+          {m.estado === 'enviando' && ' …'}
+        </p>
+        {m.estado === 'error' && (
+          <p className="mt-1 text-right text-xs">
+            No se envió.{' '}
+            <button onClick={onReintentar} className="font-semibold underline">
+              Reintentar
+            </button>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRuta?: number }) {
+  const navigate = useNavigate();
+  const { refrescar } = useNoLeidos();
+  const [cabecera, setCabecera] = useState<Cabecera | null>(null);
+  const [mensajes, setMensajes] = useState<MensajeLocal[]>([]);
+  const [noDisponible, setNoDisponible] = useState(false);
+  const [texto, setTexto] = useState('');
+  const [hayNuevos, setHayNuevos] = useState(false);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const lista = useRef<HTMLDivElement>(null);
+  const pegarAbajo = useRef(false);
+  const siguienteTemp = useRef(-1);
+  const [versionBloqueo, setVersionBloqueo] = useState(0);
+  const bloqueo = useMiBloqueo(versionBloqueo);
+  const bloqueado = !!bloqueo?.bloqueado;
+  const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
+  const [adjunto, setAdjunto] = useState<{ archivo: File; url: string } | null>(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const inputFoto = useRef<HTMLInputElement>(null);
+
+  const volver = () =>
+    window.history.length > 1 ? navigate(-1) : navigate('/marketplace/mensajes');
+
+  const irAbajo = useCallback(() => {
+    const el = lista.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, []);
+
+  // Tras pintar: baja si se pidió (carga, envío, mensaje con el usuario abajo).
+  useLayoutEffect(() => {
+    if (pegarAbajo.current) {
+      pegarAbajo.current = false;
+      irAbajo();
+    }
+  }, [mensajes, irAbajo]);
+
+  const marcar = useCallback(() => {
+    marcarLeidos(id, conversacionRuta).then(refrescar, () => {});
+  }, [id, conversacionRuta, refrescar]);
+
+  // Última página: carga inicial y reconexión del socket.
+  const cargar = useCallback(
+    (inicial: boolean) => {
+      obtenerMensajes(id, { conversacionId: conversacionRuta })
+        .then(({ mensajes: servidor, ...resto }) => {
+          if (inicial) pegarAbajo.current = true;
+          setCabecera(resto);
+          setMensajes((previos) => conPendientes(previos, servidor));
+          if (servidor.some((m) => !m.esMio && !m.leido)) marcar();
+        })
+        .catch((e: Error) => {
+          if (inicial && e.message.startsWith('Error 404')) setNoDisponible(true);
+        });
+    },
+    [id, conversacionRuta, marcar],
+  );
+
+  useEffect(() => {
+    cargar(true);
+  }, [cargar]);
+
+  const soyPublicador = cabecera?.soyPublicador;
+  useEffect(() => {
+    if (soyPublicador === undefined) return;
+    const socket = conectarSocket();
+    const alMensaje = (e: EventoMensaje) => {
+      if (e.articuloId !== id) return;
+      if (soyPublicador && e.conversacionId !== conversacionRuta) return;
+      if (!soyPublicador) {
+        // El interesado conoce su conversacionId recién con el primer mensaje.
+        setCabecera((c) =>
+          c && c.conversacionId === null ? { ...c, conversacionId: e.conversacionId } : c,
+        );
+      }
+      const el = lista.current;
+      const abajo = !el || el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      if (abajo) pegarAbajo.current = true;
+      else if (!e.mensaje.esMio) setHayNuevos(true);
+      setMensajes((previos) =>
+        previos.some((m) => m.id === e.mensaje.id) ? previos : [...previos, e.mensaje],
+      );
+      if (!e.mensaje.esMio && document.visibilityState === 'visible') marcar();
+    };
+    const alLeer = (e: EventoLeidos) => {
+      if (e.articuloId !== id) return;
+      if (soyPublicador && e.conversacionId !== conversacionRuta) return;
+      setMensajes((previos) => previos.map((m) => (m.esMio ? { ...m, leido: true } : m)));
+    };
+    const alReconectar = () => cargar(false);
+    socket.on('mensaje', alMensaje);
+    socket.on('leidos', alLeer);
+    socket.on('connect', alReconectar);
+    return () => {
+      socket.off('mensaje', alMensaje);
+      socket.off('leidos', alLeer);
+      socket.off('connect', alReconectar);
+    };
+  }, [id, conversacionRuta, soyPublicador, marcar, cargar]);
+
+  const verAnteriores = () => {
+    const primero = mensajes.find((m) => m.id > 0);
+    if (!primero || cargandoMas) return;
+    setCargandoMas(true);
+    obtenerMensajes(id, { conversacionId: conversacionRuta, antesDe: primero.id })
+      .then((h) => {
+        setCabecera((c) => (c ? { ...c, hayMas: h.hayMas } : c));
+        setMensajes((previos) => [...h.mensajes, ...previos]);
+      })
+      .catch(() => {})
+      .finally(() => setCargandoMas(false));
+  };
+
+  const transmitir = (
+    temp: MensajeLocal,
+    permiso: Promise<NotificationPermission> | null = null,
+  ) => {
+    setMensajes((previos) =>
+      previos.map((m) => (m.id === temp.id ? { ...m, estado: 'enviando' } : m)),
+    );
+    enviarMensaje(id, temp.contenido, conversacionRuta)
+      .then((r) => {
+        void activarPush(permiso);
+        setCabecera((c) =>
+          c && c.conversacionId === null ? { ...c, conversacionId: r.conversacionId } : c,
+        );
+        // El socket puede haber entregado ya el mensaje real: se evita duplicarlo.
+        setMensajes((previos) => {
+          const sinTemp = previos.filter((m) => m.id !== temp.id);
+          return sinTemp.some((m) => m.id === r.mensaje.id) ? sinTemp : [...sinTemp, r.mensaje];
+        });
+      })
+      .catch((e: Error) => {
+        if (e.message.startsWith('Error 403')) {
+          // Lo bloquearon con la pantalla abierta: se explica y se refresca el aviso.
+          setErrorEnvio(mensajeDeError(e));
+          setVersionBloqueo((v) => v + 1);
+          setMensajes((previos) =>
+            previos.map((m) => (m.id === temp.id ? { ...m, estado: 'error' } : m)),
+          );
+        } else if (e.message.startsWith('Error 409')) {
+          // Pasó a solo lectura mientras escribía.
+          setMensajes((previos) => previos.filter((m) => m.id !== temp.id));
+          cargar(false);
+        } else {
+          setMensajes((previos) =>
+            previos.map((m) => (m.id === temp.id ? { ...m, estado: 'error' } : m)),
+          );
+        }
+      });
+  };
+
+  const quitarAdjunto = () => {
+    if (adjunto) URL.revokeObjectURL(adjunto.url);
+    setAdjunto(null);
+  };
+
+  const elegirFoto = (archivo: File | undefined) => {
+    if (!archivo) return;
+    setErrorEnvio(null);
+    if (!archivo.type.startsWith('image/')) {
+      setErrorEnvio('El archivo debe ser una imagen.');
+      return;
+    }
+    if (archivo.size > FOTO_MAX_MB * 1024 * 1024) {
+      setErrorEnvio(`La foto no puede pesar más de ${FOTO_MAX_MB} MB.`);
+      return;
+    }
+    quitarAdjunto();
+    setAdjunto({ archivo, url: URL.createObjectURL(archivo) });
+  };
+
+  const enviarFoto = () => {
+    if (!adjunto || enviandoFoto) return;
+    const { archivo } = adjunto;
+    setEnviandoFoto(true);
+    setErrorEnvio(null);
+    enviarMensajeConImagen(id, archivo, texto.trim(), conversacionRuta)
+      .then((r) => {
+        setCabecera((c) =>
+          c && c.conversacionId === null ? { ...c, conversacionId: r.conversacionId } : c,
+        );
+        pegarAbajo.current = true;
+        // El socket puede haber entregado ya el mensaje real: se evita duplicarlo.
+        setMensajes((previos) =>
+          previos.some((m) => m.id === r.mensaje.id) ? previos : [...previos, r.mensaje],
+        );
+        quitarAdjunto();
+        setTexto('');
+      })
+      .catch((e: Error) => {
+        setErrorEnvio(mensajeDeError(e));
+        if (e.message.startsWith('Error 403')) setVersionBloqueo((v) => v + 1);
+      })
+      .finally(() => setEnviandoFoto(false));
+  };
+
+  const enviar = () => {
+    if (adjunto) {
+      enviarFoto();
+      return;
+    }
+    const contenido = texto.trim();
+    if (!contenido) return;
+    const permiso = pedirPermisoEnGesto();
+    const temp: MensajeLocal = {
+      id: siguienteTemp.current--,
+      contenido,
+      fecha: new Date().toISOString(),
+      esMio: true,
+      leido: false,
+      imagenUrl: null,
+      estado: 'enviando',
+    };
+    pegarAbajo.current = true;
+    setMensajes((previos) => [...previos, temp]);
+    setTexto('');
+    setErrorEnvio(null);
+    transmitir(temp, permiso);
+  };
+
+  const ajustarAltura = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    const linea = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    // Tope: 4 líneas más el relleno vertical y el borde.
+    const tope = linea * MAX_LINEAS_INPUT + (el.offsetHeight - el.clientHeight) + 24;
+    el.style.height = `${Math.min(el.scrollHeight, tope)}px`;
+  };
+
+  if (noDisponible) {
+    return (
+      <div className="mx-auto w-full max-w-2xl space-y-4 p-4">
+        <BackButton onClick={volver} />
+        <EmptyState
+          icon={<IconSearch className="h-8 w-8 text-slate" />}
+          message="Esta conversación no está disponible."
+          action={
+            <button onClick={() => navigate('/marketplace/mensajes')} className="btn-primary">
+              Ver mis mensajes
+            </button>
+          }
+        />
+      </div>
+    );
+  }
+  if (!cabecera) {
+    return <p className="p-4 text-slate">Cargando conversación…</p>;
+  }
+
+  const { articulo, soyPublicador: esPublicador, otroNombre, puedoEscribir, hayMas } = cabecera;
+
+  return (
+    <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col bg-canvas">
+      <header className="flex items-center gap-3 border-b border-line bg-card px-4 py-3">
+        <BackButton onClick={volver} />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-green-50">
+          {articulo.fotoUrl ? (
+            <img src={articulo.fotoUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <IconMarketplace className="h-5 w-5 text-green-700" />
+          )}
+        </div>
+        <Link
+          to={`/marketplace/${articulo.id}`}
+          aria-label={`Ver el artículo ${articulo.titulo}`}
+          className="min-w-0 flex-1 rounded-md hover:bg-canvas focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <div className="flex items-center gap-2">
+            <h1 className="truncate text-base font-bold">{articulo.titulo}</h1>
+            {articulo.estado !== 'disponible' && (
+              <span className={`pill shrink-0 ${metaDeEstadoArticulo(articulo.estado).clase}`}>
+                {metaDeEstadoArticulo(articulo.estado).etiqueta}
+              </span>
+            )}
+            <IconChevronRight className="h-4 w-4 shrink-0 text-slate-2" />
+          </div>
+          <p className="truncate text-xs text-slate-2">{otroNombre}</p>
+        </Link>
+        {esPublicador && articulo.estado === 'disponible' && conversacionRuta && (
+          <BotonReservar
+            articuloId={id}
+            conversacionId={conversacionRuta}
+            nombre={otroNombre}
+            onReservado={() => cargar(false)}
+            className="btn-primary shrink-0 px-4 py-2"
+          />
+        )}
+        <BotonDenunciar
+          articuloId={id}
+          origen="chat"
+          nombre={otroNombre}
+          conversacion={esPublicador ? conversacionRuta : undefined}
+          mensajes={mensajes}
+          compacto
+          className="shrink-0"
+        />
+      </header>
+
+      {/* HU-06: Aviso de seguridad previo a la reserva */}
+      {articulo.estado === 'disponible' && (
+        <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+          <span className="shrink-0 text-sm">🛡️</span>
+          <p className="leading-tight">
+            <strong>Por tu seguridad:</strong> no compartas tu dirección exacta en el chat antes de que el artículo esté reservado.
+          </p>
+        </div>
+      )}
+
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={lista}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) setHayNuevos(false);
+          }}
+          className="h-full space-y-2 overflow-y-auto px-4 py-3"
+        >
+          {hayMas && (
+            <button
+              onClick={verAnteriores}
+              disabled={cargandoMas}
+              className="btn-ghost mx-auto py-1.5"
+            >
+              {cargandoMas ? 'Cargando…' : 'Ver mensajes anteriores'}
+            </button>
+          )}
+          {mensajes.length === 0 && (
+            <p className="py-8 text-center text-sm text-slate">
+              Pregunta lo que necesites: estado, horario de retiro, medidas…
+            </p>
+          )}
+          {mensajes.map((m, i) => {
+            const dia = etiquetaDia(m.fecha);
+            const separador = i === 0 || dia !== etiquetaDia(mensajes[i - 1].fecha);
+            return (
+              <div key={m.id} className="space-y-2">
+                {separador && <p className="py-1 text-center text-xs text-slate-2">{dia}</p>}
+                <Burbuja m={m} onReintentar={() => transmitir(m)} />
+              </div>
+            );
+          })}
+        </div>
+        {hayNuevos && (
+          <button
+            onClick={irAbajo}
+            className="btn-primary absolute bottom-3 left-1/2 -translate-x-1/2 px-4 py-2"
+          >
+            ↓ Nuevos
+          </button>
+        )}
+      </div>
+
+      {puedoEscribir && errorEnvio && (
+        <p role="alert" className="bg-rose-100 px-4 py-2 text-xs text-rose-600">
+          {errorEnvio}
+        </p>
+      )}
+      {puedoEscribir && <AvisoBloqueo bloqueo={bloqueo} compacto />}
+
+      {puedoEscribir ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            enviar();
+          }}
+          className="flex flex-wrap items-end gap-2 border-t border-line bg-card p-3"
+        >
+          {adjunto && (
+            <div className="flex w-full items-center gap-3 rounded-md border border-line bg-canvas p-2">
+              <img
+                src={adjunto.url}
+                alt="Vista previa de la foto que vas a enviar"
+                className="h-16 w-16 shrink-0 rounded-md object-cover"
+              />
+              <p className="min-w-0 flex-1 truncate text-xs text-slate-2">
+                {enviandoFoto ? 'Enviando foto…' : adjunto.archivo.name}
+              </p>
+              <button
+                type="button"
+                onClick={quitarAdjunto}
+                disabled={enviandoFoto}
+                aria-label="Quitar foto"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-line"
+              >
+                <IconX className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          <input
+            ref={inputFoto}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(e) => {
+              elegirFoto(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => inputFoto.current?.click()}
+            disabled={bloqueado || enviandoFoto}
+            aria-label="Adjuntar foto"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-green-700 hover:bg-green-50 disabled:opacity-50"
+          >
+            <IconImage className="h-5 w-5" aria-hidden="true" />
+          </button>
+          <textarea
+            rows={1}
+            maxLength={1000}
+            value={texto}
+            placeholder={
+              bloqueado
+                ? 'No puedes enviar mensajes mientras tu cuenta esté bloqueada'
+                : 'Escribe un mensaje'
+            }
+            disabled={bloqueado}
+            aria-label="Mensaje"
+            className="field min-w-0 flex-1 resize-none"
+            onChange={(e) => setTexto(e.target.value)}
+            onInput={(e) => ajustarAltura(e.currentTarget)}
+            onKeyDown={(e) => {
+              // En el celular Enter es salto de línea; solo con puntero preciso envía.
+              if (
+                e.key === 'Enter' &&
+                !e.shiftKey &&
+                window.matchMedia('(pointer: fine)').matches
+              ) {
+                e.preventDefault();
+                enviar();
+              }
+            }}
+          />
+          <button
+            type="submit"
+            aria-label={enviandoFoto ? 'Enviando foto' : 'Enviar mensaje'}
+            disabled={(!texto.trim() && !adjunto) || bloqueado || enviandoFoto}
+            className="btn-primary h-11 w-11 shrink-0 !p-0"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />
+            </svg>
+          </button>
+        </form>
+      ) : (
+        <p className="border-t border-line bg-card p-4 text-center text-sm text-slate">
+          {AVISO_SOLO_LECTURA[articulo.estado] ?? 'Esta conversación está en modo solo lectura.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function Chat() {
+  const { id: idParam, conversacionId: convParam } = useParams();
+  const navigate = useNavigate();
+  const id = Number(idParam);
+  const conv = convParam === undefined ? undefined : Number(convParam);
+  const valido =
+    Number.isInteger(id) && id > 0 && (conv === undefined || (Number.isInteger(conv) && conv > 0));
+
+  if (!valido) {
+    return (
+      <div className="mx-auto w-full max-w-2xl space-y-4 p-4">
+        <BackButton onClick={() => navigate('/marketplace/mensajes')} />
+        <EmptyState
+          icon={<IconSearch className="h-8 w-8 text-slate" />}
+          message="Esta conversación no está disponible."
+        />
+      </div>
+    );
+  }
+  // key: al cambiar de conversación se reinicia todo el estado.
+  return <ChatConversacion key={`${id}-${conv ?? ''}`} id={id} conversacionRuta={conv} />;
+}

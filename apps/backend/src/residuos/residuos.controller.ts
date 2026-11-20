@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { Public } from '@arca/core';
+import { Public } from '../core';
 import { ResiduosService } from './residuos.service';
 
 @Controller('residuos')

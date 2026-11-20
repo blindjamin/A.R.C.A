@@ -7,12 +7,32 @@ import {
   Patch,
   Post,
   Query,
+  Req,
+  Res,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { CurrentUser, type AuthUser } from '@arca/core';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request, Response } from 'express';
+import { CurrentUser, type AuthUser, type OrigenPeticion } from '../core';
+import {
+  type ArchivoSubido,
+  TAMANO_MAXIMO_IMAGEN_BYTES,
+} from '../archivos/archivos.service';
 import { CancelarSolicitudRetiroDto } from './dto/cancelar-solicitud-retiro.dto';
 import { CreateSolicitudRetiroDto } from './dto/create-solicitud-retiro.dto';
 import { FilterSolicitudesRetiroDto } from './dto/filter-solicitudes-retiro.dto';
+import { ReenviarSolicitudRetiroDto } from './dto/reenviar-solicitud-retiro.dto';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
+
+/**
+ * Datos de la petición que acompañan a las acciones auditadas (HU-14).
+ */
+const origenDe = (req: Request): OrigenPeticion => ({
+  ip: req.ip ?? null,
+  userAgent: req.headers['user-agent'] ?? null,
+});
 
 @Controller('solicitudes-retiro')
 export class SolicitudesRetiroController {
@@ -21,8 +41,18 @@ export class SolicitudesRetiroController {
   ) {}
 
   @Post()
-  create(@Body() dto: CreateSolicitudRetiroDto, @CurrentUser() user: AuthUser) {
-    return this.solicitudesRetiroService.create(dto, user);
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      limits: { fileSize: TAMANO_MAXIMO_IMAGEN_BYTES, files: 1 },
+    }),
+  )
+  create(
+    @Body() dto: CreateSolicitudRetiroDto,
+    @UploadedFile() foto: ArchivoSubido | undefined,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
+    return this.solicitudesRetiroService.create(dto, foto, user, origenDe(req));
   }
 
   @Get()
@@ -33,25 +63,63 @@ export class SolicitudesRetiroController {
     return this.solicitudesRetiroService.findAll(filtros, user);
   }
 
+  @Get(':id/foto')
+  async foto(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { stream, mime } = await this.solicitudesRetiroService.foto(id, user);
+    res.set({
+      'Content-Type': mime,
+      'Cache-Control': 'private, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return new StreamableFile(stream);
+  }
+
   @Get(':id')
   findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.solicitudesRetiroService.findOne(id, user);
+    return this.solicitudesRetiroService.findOneConUltimaRevision(id, user);
   }
 
-  // PATCH /:id (cambio de estado / asignar operador, @Roles ADMIN|OPERADOR) se
-  // movió a apps/backend-admin (Fase 3 de la migración admin): es la única ruta
-  // de este controller que se elimina. Sigue en pie en
-  // apps/backend-admin/src/solicitudes/solicitudes-admin.controller.ts.
+  @Patch(':id/reenviar')
+  @UseInterceptors(
+    FileInterceptor('foto', {
+      limits: { fileSize: TAMANO_MAXIMO_IMAGEN_BYTES, files: 1 },
+    }),
+  )
+  reenviar(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReenviarSolicitudRetiroDto,
+    @UploadedFile() foto: ArchivoSubido | undefined,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
+    return this.solicitudesRetiroService.reenviarPorCiudadano(
+      id,
+      dto,
+      foto,
+      user,
+      origenDe(req),
+    );
+  }
 
   @Patch(':id/cancelar')
   cancelar(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: CancelarSolicitudRetiroDto,
     @CurrentUser() user: AuthUser,
+    @Req() req: Request,
   ) {
-    return this.solicitudesRetiroService.cancelarPorCiudadano(id, dto, user);
+    return this.solicitudesRetiroService.cancelarPorCiudadano(
+      id,
+      dto,
+      user,
+      origenDe(req),
+    );
   }
 }

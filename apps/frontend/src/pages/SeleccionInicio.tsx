@@ -1,10 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../auth/SessionContext';
+import { IconUser, IconShield } from '../components/ui';
 
 export default function SeleccionInicio() {
   const navigate = useNavigate();
-  const { perfil, logout } = useSession();
-  const nombre = perfil?.administrador?.nombre;
+  const { sesion, salir } = useSession();
+  const nombre = sesion?.nombre;
+  // Mismo panel para ambos roles; el admin además ve la auditoría.
+  const esAdmin = sesion?.rol === 'admin';
 
   return (
     <div
@@ -16,9 +19,7 @@ export default function SeleccionInicio() {
       <div className="relative mx-auto flex min-h-screen w-full flex-col justify-between overflow-hidden px-7 py-12 md:min-h-0 md:h-auto md:flex-row md:items-center md:justify-between md:max-w-5xl md:px-16 md:py-20 md:gap-16">
         {/* Hero */}
         <div className="mt-16 md:mt-0 text-center md:text-left md:max-w-lg">
-          <div className="mx-auto md:mx-0 mb-6 flex h-20 w-20 items-center justify-center rounded-xl bg-white/15 text-4xl backdrop-blur">
-            🌿
-          </div>
+          <img src="/isotipo.svg" alt="" className="mx-auto md:mx-0 mb-6 h-20 w-20" />
           <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight">
             {nombre ? `Hola, ${nombre}` : 'A.R.C.A.'}
           </h1>
@@ -33,8 +34,8 @@ export default function SeleccionInicio() {
             onClick={() => navigate('/inicio')}
             className="flex w-full items-center gap-4 rounded-2xl bg-white/10 p-4 text-left backdrop-blur transition-colors hover:bg-white/15"
           >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-2xl">
-              📱
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
+              <IconUser className="h-6 w-6" />
             </span>
             <span>
               <span className="block text-base font-bold">Modo vecino</span>
@@ -45,24 +46,26 @@ export default function SeleccionInicio() {
           </button>
 
           <button
-            onClick={() => {
-              window.location.href = import.meta.env.VITE_ADMIN_URL as string;
-            }}
+            onClick={() => navigate('/admin')}
             className="flex w-full items-center gap-4 rounded-2xl bg-white/10 p-4 text-left backdrop-blur transition-colors hover:bg-white/15"
           >
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-2xl">
-              🏛️
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
+              <IconShield className="h-6 w-6" />
             </span>
             <span>
-              <span className="block text-base font-bold">Modo funcionario</span>
+              <span className="block text-base font-bold">
+                {esAdmin ? 'Modo administrador' : 'Modo funcionario'}
+              </span>
               <span className="block text-sm text-green-50/80">
-                Panel municipal: revisa y gestiona solicitudes
+                {esAdmin
+                  ? 'Panel municipal: gestiona solicitudes y revisa la auditoría'
+                  : 'Panel municipal: revisa y gestiona solicitudes'}
               </span>
             </span>
           </button>
 
           <button
-            onClick={logout}
+            onClick={() => void salir()}
             className="w-full pt-2 text-center text-xs text-green-100/70 hover:text-white"
           >
             Cerrar sesión

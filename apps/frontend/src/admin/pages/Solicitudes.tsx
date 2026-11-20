@@ -1,0 +1,530 @@
+import { useEffect, useState } from 'react';
+import { resumenObjetos } from '../../api/arca';
+import {
+  actualizarSolicitud,
+  fetchSolicitud,
+  fetchSolicitudesAdmin,
+  formatearPrecio,
+  liberarSolicitud,
+  mensajeDeError,
+  tomarSolicitud,
+  type EstadoPago,
+  type EstadoSolicitud,
+  type SolicitudDetalle,
+  type SolicitudRetiro,
+} from '../api/admin';
+import {
+  BackButton,
+  EmptyState,
+  EstadoPill,
+  ListItemCard,
+} from '../components/ui';
+import {
+  HistorialYNotas,
+  TarjetaRevision,
+} from '../components/RevisionSolicitud';
+import { IconMarketplace, IconTruck } from '../../components/ui/Icons';
+
+const FILTROS: { value: EstadoSolicitud | 'todas'; label: string }[] = [
+  { value: 'todas', label: 'Todas' },
+  { value: 'en_revision', label: 'En revisión' },
+  { value: 'requiere_modificacion', label: 'Modificación pedida' },
+  { value: 'aprobada', label: 'Aprobadas' },
+  { value: 'derivada', label: 'Derivadas' },
+  { value: 'retirada', label: 'Retiradas' },
+  { value: 'no_realizada', label: 'No realizadas' },
+  { value: 'rechazada', label: 'Rechazadas' },
+  { value: 'cancelada', label: 'Canceladas' },
+];
+
+// Texto del botón según el estado destino. El panel nunca ofrece `cancelada`
+// (es acción del vecino), pero el Record exige todas las claves.
+const ACCION: Record<EstadoSolicitud, { label: string; peligro?: boolean }> = {
+  en_revision: { label: 'Reabrir', peligro: true },
+  requiere_modificacion: { label: 'Pedir modificación' },
+  aprobada: { label: 'Aprobar' },
+  rechazada: { label: 'Rechazar', peligro: true },
+  derivada: { label: 'Marcar como derivada' },
+  retirada: { label: 'Marcar como retirada' },
+  no_realizada: { label: 'Marcar como no realizada', peligro: true },
+  cancelada: { label: 'Cancelar', peligro: true },
+};
+
+const ETIQUETA_PAGO: Record<EstadoPago, string> = {
+  no_aplica: 'Sin cobro',
+  pendiente: 'Pago pendiente',
+  pagado: 'Pagado',
+};
+
+const ETIQUETAS_ESTADO_MARKETPLACE: Record<string, string> = {
+  pendiente_aprobacion: 'Pendiente de aprobación',
+  disponible: 'Disponible',
+  en_negociacion: 'En negociación',
+  retirado: 'Retirado',
+  completado: 'Completado',
+  rechazado: 'Rechazado',
+};
+
+const formatoEstadoMarketplace = (estado: string): string => {
+  const clave = estado.toLowerCase();
+  return ETIQUETAS_ESTADO_MARKETPLACE[clave] ?? estado;
+};
+
+// Plazo tras el cual una solicitud en revisión se marca como atrasada.
+const HORAS_ATRASO = 48;
+
+const atrasada = (s: SolicitudRetiro): boolean =>
+  s.estado === 'en_revision' &&
+  Date.now() - new Date(s.fechaSolicitud).getTime() >
+    HORAS_ATRASO * 60 * 60 * 1000;
+
+const formatoFecha = (iso?: string | null): string =>
+  iso
+    ? new Date(iso).toLocaleString('es-CL', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '—';
+
+export default function Solicitudes() {
+  const [filtro, setFiltro] = useState<EstadoSolicitud | 'todas'>(
+    'en_revision',
+  );
+  const [items, setItems] = useState<SolicitudRetiro[]>([]);
+  const [seleccionId, setSeleccionId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const cargar = () => {
+    setLoading(true);
+    fetchSolicitudesAdmin(filtro === 'todas' ? undefined : filtro)
+      .then(setItems)
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    let cancelado = false;
+    Promise.resolve().then(() => {
+      if (!cancelado) cargar();
+    });
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtro]);
+
+  if (seleccionId !== null) {
+    return (
+      <DetalleSolicitud
+        id={seleccionId}
+        onVolver={() => {
+          setSeleccionId(null);
+          cargar();
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-2xl font-extrabold">Solicitudes de retiro</h1>
+        <p className="text-sm text-slate">
+          Revisa cada solicitud y deriva las aprobadas a la empresa operadora.
+        </p>
+      </header>
+
+      {/* En pantallas chicas, lista desplegable: los nueve estados no caben y
+          deslizarlos hacia el lado no deja ver que hay más. */}
+      <select
+        value={filtro}
+        onChange={(e) => setFiltro(e.target.value as EstadoSolicitud | 'todas')}
+        className="field lg:hidden"
+        aria-label="Filtrar por estado"
+      >
+        {FILTROS.map((f) => (
+          <option key={f.value} value={f.value}>
+            {f.label}
+          </option>
+        ))}
+      </select>
+      <div className="hidden flex-wrap gap-2 lg:flex">
+        {FILTROS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setFiltro(f.value)}
+            className={`pill shrink-0 border ${
+              filtro === f.value
+                ? 'border-transparent bg-green-700 text-white'
+                : 'border-green-200 bg-green-50 text-green-700 hover:bg-green-100'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <p className="text-slate">Cargando solicitudes…</p>
+      ) : error ? (
+        <p className="text-rose-600">{error}</p>
+      ) : items.length === 0 ? (
+        <EmptyState message="No hay solicitudes en este estado." />
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((s) => (
+            <li key={s.id}>
+              <ListItemCard
+                icon={<IconTruck className="h-5 w-5 text-emerald-700" />}
+                title={
+                  <>
+                    <span className="pill bg-emerald-100 text-emerald-800 text-[10px] font-bold py-0.5 px-1.5 mr-1.5">
+                      Retiro
+                    </span>
+                    #{s.id} ·{' '}
+                    {resumenObjetos(s)}
+                  </>
+                }
+                titleBadge={<EstadoPill estado={s.estado} />}
+                lines={[
+                  s.descripcion ?? 'Sin descripción',
+                  <>
+                    {formatoFecha(s.fechaSolicitud)}
+                    {atrasada(s) && (
+                      <span className="font-semibold text-rose-600">
+                        {' '}· +{HORAS_ATRASO} h sin revisar
+                      </span>
+                    )}
+                  </>,
+                ]}
+                onClick={() => setSeleccionId(s.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// --- Detalle + acciones -----------------------------------------------------
+
+function DetalleSolicitud({
+  id,
+  onVolver,
+}: {
+  id: number;
+  onVolver: () => void;
+}) {
+  const [solicitud, setSolicitud] = useState<SolicitudDetalle | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  // Acción elegida esperando confirmación.
+  const [porConfirmar, setPorConfirmar] = useState<EstadoSolicitud | null>(null);
+  // La tiene tomada otro funcionario: la revisión queda en solo lectura.
+  const [tomadaPorOtro, setTomadaPorOtro] = useState(false);
+  // Sube cada vez que la solicitud cambia, para recargar historial y notas.
+  const [version, setVersion] = useState(0);
+
+  const cargar = () =>
+    fetchSolicitud(id)
+      .then((s) => {
+        setSolicitud(s);
+        setVersion((v) => v + 1);
+      })
+      .catch((e: Error) => setError(e.message));
+
+  // Al abrir una solicitud en revisión el panel la toma, para que dos
+  // funcionarios no la revisen a la vez, y la libera al salir del detalle.
+  useEffect(() => {
+    let cancelado = false;
+    let tomada = false;
+
+    const abrir = async () => {
+      try {
+        const s = await fetchSolicitud(id);
+        // Si ya se salió (o StrictMode desmontó), no se toma: soltarla después
+        // podría liberar la toma del montaje que sí sigue abierto.
+        if (cancelado) return;
+        if (s.estado === 'en_revision') {
+          try {
+            await tomarSolicitud(id);
+            tomada = true;
+            if (cancelado) void liberarSolicitud(id);
+          } catch (e) {
+            if (!(e as Error).message.startsWith('Error 409')) throw e;
+            if (!cancelado) setTomadaPorOtro(true);
+          }
+        }
+        // Se vuelve a leer para mostrar quién la tiene tomada.
+        const actual = s.estado === 'en_revision' ? await fetchSolicitud(id) : s;
+        if (!cancelado) setSolicitud(actual);
+      } catch (e) {
+        if (!cancelado) setError(mensajeDeError(e));
+      }
+    };
+    void abrir();
+
+    return () => {
+      cancelado = true;
+      if (tomada) void liberarSolicitud(id);
+    };
+  }, [id]);
+
+  const confirmar = async () => {
+    if (!porConfirmar) return;
+    setGuardando(true);
+    setError(null);
+    try {
+      await actualizarSolicitud(id, { estado: porConfirmar });
+      setPorConfirmar(null);
+      await cargar();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  if (!solicitud) {
+    return (
+      <div className="mx-auto w-full max-w-3xl space-y-4">
+        <BackButton onClick={onVolver}>← Volver al listado</BackButton>
+        {error ? (
+          <p className="text-sm text-rose-600">{error}</p>
+        ) : (
+          <p className="text-slate">Cargando solicitud…</p>
+        )}
+      </div>
+    );
+  }
+
+  const revisor = solicitud.revisadoPor
+    ? `${solicitud.revisadoPor.nombre} ${solicitud.revisadoPor.apellido}`
+    : null;
+
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-4">
+      <BackButton onClick={onVolver}>← Volver al listado</BackButton>
+
+      <div className="card space-y-3 p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="pill bg-emerald-100 text-emerald-800 text-xs font-bold py-0.5 px-2 flex items-center gap-1">
+                <IconTruck className="h-3.5 w-3.5" /> Retiro Municipal
+              </span>
+              <h1 className="text-xl font-extrabold">Solicitud #{solicitud.id}</h1>
+            </div>
+            <p className="text-sm text-slate">
+              {resumenObjetos(solicitud)}
+            </p>
+          </div>
+          <EstadoPill estado={solicitud.estado} />
+        </div>
+
+        {solicitud.coincidenciaMarketplace && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900 shadow-xs space-y-1.5">
+            <div className="flex items-center gap-2 font-bold text-sm text-amber-950">
+              <IconMarketplace className="h-4 w-4 text-amber-700" />
+              <span>Coincidencia detectada con publicación en Marketplace</span>
+            </div>
+            <p className="text-xs text-amber-900 leading-relaxed">
+              El mismo vecino tiene una publicación activa o en revisión en el Marketplace:{' '}
+              <strong>«{solicitud.coincidenciaMarketplace.titulo}»</strong> (Art. #{solicitud.coincidenciaMarketplace.id}, estado:{' '}
+              <span className="font-semibold text-[11px] text-amber-950 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
+                {formatoEstadoMarketplace(solicitud.coincidenciaMarketplace.estado)}
+              </span>),
+              publicada el {new Date(solicitud.coincidenciaMarketplace.fechaPublicacion).toLocaleDateString('es-CL')}.
+            </p>
+            <p className="text-[11px] text-amber-800">
+              Verifica si corresponde al mismo artículo para coordinar con el vecino si prefiere retiro municipal o publicación en Marketplace.
+            </p>
+          </div>
+        )}
+
+        <FotoSolicitud solicitud={solicitud} />
+
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+          <Dato
+            label="Categoría"
+            valor={
+              solicitud.residuoCatalogo?.categoria ??
+              (solicitud.nombreResiduoOtro
+                ? `Otro (${solicitud.nombreResiduoOtro})`
+                : '—')
+            }
+          />
+          {/* Referencia seudónima, igual que en la auditoría: el panel no necesita saber quién es. */}
+          <Dato
+            label="Vecino"
+            valor={`Vecino · ${solicitud.usuarioCiudadanoId.slice(0, 8)}`}
+          />
+          <Dato label="Solicitada" valor={formatoFecha(solicitud.fechaSolicitud)} />
+          <Dato
+            label="Revisión"
+            valor={
+              solicitud.fechaRevision
+                ? `${formatoFecha(solicitud.fechaRevision)}${revisor ? ` · ${revisor}` : ''}`
+                : null
+            }
+          />
+          <Dato
+            label="Pago"
+            valor={
+              solicitud.monto !== null
+                ? `${ETIQUETA_PAGO[solicitud.estadoPago]} · ${formatearPrecio(solicitud.monto)}`
+                : ETIQUETA_PAGO[solicitud.estadoPago]
+            }
+          />
+          <Dato label="Cierre" valor={formatoFecha(solicitud.fechaCierre)} />
+          <Dato label="Dirección" valor={solicitud.direccionAnonimizada} full />
+          {solicitud.latitudCapturada && solicitud.longitudCapturada && (
+            <div className="col-span-2">
+              <dt className="text-xs uppercase tracking-wide text-slate-2">Ubicación</dt>
+              <dd className="text-ink">
+                {Number(solicitud.latitudCapturada).toFixed(5)}, {Number(solicitud.longitudCapturada).toFixed(5)}{' '}
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${solicitud.latitudCapturada}&mlon=${solicitud.longitudCapturada}#map=17/${solicitud.latitudCapturada}/${solicitud.longitudCapturada}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-green-800 underline"
+                >
+                  Ver en el mapa
+                </a>
+              </dd>
+            </div>
+          )}
+          <Dato label="Descripción" valor={solicitud.descripcion} full />
+          {solicitud.razonRechazo && (
+            <Dato label="Motivo" valor={solicitud.razonRechazo} full />
+          )}
+        </dl>
+      </div>
+
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+
+      {solicitud.estado === 'en_revision' && (
+        <>
+          {tomadaPorOtro && (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              {solicitud.tomadaPor
+                ? `${solicitud.tomadaPor.nombre} ${solicitud.tomadaPor.apellido} está revisando esta solicitud.`
+                : 'Otro funcionario está revisando esta solicitud.'}{' '}
+              Puedes verla, pero no decidir hasta que la libere.
+            </p>
+          )}
+          <TarjetaRevision
+            solicitud={solicitud}
+            soloLectura={tomadaPorOtro}
+            onCambio={cargar}
+          />
+        </>
+      )}
+
+      {(solicitud.estado !== 'en_revision' ||
+        solicitud.transicionesDisponibles.length > 0) && (
+        <div className="card space-y-3 p-5">
+          <h2 className="font-bold">Acciones</h2>
+
+          {solicitud.transicionesDisponibles.length === 0 ? (
+            <p className="text-sm text-slate">
+              No hay acciones disponibles para tu perfil en este estado.
+            </p>
+          ) : porConfirmar ? (
+            <div className="space-y-3">
+              <p className="text-sm text-ink">
+                ¿Confirmas la acción <strong>«{ACCION[porConfirmar].label}»</strong> para la
+                solicitud #{solicitud.id}?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={confirmar}
+                  disabled={guardando}
+                  className="btn-primary"
+                >
+                  {guardando ? 'Guardando…' : 'Confirmar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPorConfirmar(null)}
+                  disabled={guardando}
+                  className="btn-ghost text-black hover:text-green-800"
+                >
+                  Volver
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {solicitud.transicionesDisponibles.map((estado) => (
+                <button
+                  key={estado}
+                  type="button"
+                  onClick={() => setPorConfirmar(estado)}
+                  className={`pill border px-4 py-2 text-sm ${
+                    ACCION[estado].peligro
+                      ? 'border-rose-300 bg-rose-50 text-rose-600 hover:border-rose-600 hover:bg-rose-600 hover:text-white'
+                      : 'border-green-700 text-green-700 hover:bg-green-50'
+                  }`}
+                >
+                  {ACCION[estado].label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {solicitud.estado === 'aprobada' && solicitud.estadoPago === 'pendiente' && (
+            <p className="text-xs text-slate-2">
+              Se podrá derivar cuando el vecino complete el pago.
+            </p>
+          )}
+        </div>
+      )}
+
+      <HistorialYNotas solicitudId={solicitud.id} version={version} />
+    </div>
+  );
+}
+
+// La URL de la foto no cambia cuando el vecino sube otra al corregir, y la
+// respuesta se cachea 5 minutos: `updatedAt` en el query fuerza la nueva.
+function FotoSolicitud({ solicitud }: { solicitud: SolicitudDetalle }) {
+  if (!solicitud.fotoUrl) {
+    return <p className="text-sm text-slate-2">La solicitud no tiene foto.</p>;
+  }
+  const src = `${solicitud.fotoUrl}?v=${encodeURIComponent(solicitud.updatedAt)}`;
+  return (
+    <a href={src} target="_blank" rel="noreferrer" className="block">
+      <img
+        src={src}
+        alt={`Foto del vecino: ${solicitud.residuoCatalogo?.nombre ?? 'residuo'}`}
+        className="max-h-80 w-full rounded-md border border-line bg-canvas object-contain"
+      />
+      <span className="mt-1 block text-xs text-slate-2">
+        Abrir en tamaño completo
+      </span>
+    </a>
+  );
+}
+
+function Dato({
+  label,
+  valor,
+  full,
+}: {
+  label: string;
+  valor?: string | null;
+  full?: boolean;
+}) {
+  return (
+    <div className={full ? 'col-span-2' : ''}>
+      <dt className="text-xs uppercase tracking-wide text-slate-2">{label}</dt>
+      <dd className="break-words text-ink">{valor || '—'}</dd>
+    </div>
+  );
+}

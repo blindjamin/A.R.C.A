@@ -1,5 +1,5 @@
 import type { EstadoSolicitud } from '../../api/arca';
-import { ESTADO_META } from './estadoMeta';
+import { metaDeEstado } from './estadoMeta';
 
 interface EstadoPillProps {
   estado: EstadoSolicitud;
@@ -7,6 +7,6 @@ interface EstadoPillProps {
 }
 
 export default function EstadoPill({ estado, className = '' }: EstadoPillProps) {
-  const meta = ESTADO_META[estado];
+  const meta = metaDeEstado(estado);
   return <span className={`pill ${meta.cls} ${className}`.trim()}>{meta.label}</span>;
 }

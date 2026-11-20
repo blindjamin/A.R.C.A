@@ -46,7 +46,7 @@ La plataforma prioriza la **economía circular**: antes de que un objeto sea ret
 > Se listan en **orden de roadmap**, no numérico.
 
 ### EP-01 — Fundación y Seguridad
-Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, administrador, operador, patrocinador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
+Base de toda la plataforma. Integración con **ClaveÚnica** (OAuth2 estatal) como único método de autenticación. Control de acceso por roles (vecino, funcionario y administrador) y registro auditable de todas las acciones críticas. Incluye el primer flujo ciudadano —registrar un residuo con foto— y la gestión que la persona hace de su propia cuenta: editar perfil y eliminar cuenta.
 
 ### EP-02 — Interfaz Ciudadana
 Completa la experiencia del vecino. La clasificación por IA se ejecuta localmente en el navegador con **TensorFlow.js**, funcionando como **apoyo y no como decisión final**: el usuario siempre confirma o corrige la categoría sugerida, y puede clasificar manualmente desde el catálogo cuando la IA no detecta el residuo. Suma el seguimiento de la solicitud, las notificaciones de cambio de estado, el feedback post-retiro y una FAQ por categoría.
@@ -55,7 +55,15 @@ Completa la experiencia del vecino. La clasificación por IA se ejecuta localmen
 Espacio para que vecinos publiquen e intercambien artículos antes de que sean retirados por el municipio. Incluye chat en tiempo real (WebSocket) y trazabilidad de entregas. Absorbe el sistema de incentivos **Circular Credits**: los créditos se otorgan al confirmar la entrega y son consultables con historial desde el perfil, junto con las estadísticas de CO₂ ahorrado y el ranking de impacto.
 
 ### EP-04 — Dashboard Administrativo Municipal
-Panel para funcionarios con métricas en tiempo real, mapa georreferenciado de solicitudes, asignación de retiros a operadores y reportes exportables en PDF/CSV. Incorpora el ciclo operativo del retiro: marcar «en ruta», subir la foto del retiro con GPS y marcar «retirado».
+Panel para funcionarios que actúan como **último filtro** de cada solicitud: revisan las fotos y los datos, y aprueban, piden una modificación o rechazan. Las solicitudes aprobadas se **derivan a la empresa operadora externa** en un Excel generado con un botón, y el resultado del retiro se registra después. Incluye métricas del ciclo, mapa por sector, pago maqueteado y reportes.
+
+> ✅ **Replanteo del 2026-09-17: implementado en el núcleo, la base de datos y el panel.**
+> La empresa que ejecuta los retiros es **externa** a la municipalidad: A.R.C.A. no asigna
+> operadores; el funcionario **revisa, aprueba y deriva** las solicitudes. Rol `operador` → `funcionario`.
+> Los retiros en terreno («en ruta», foto con GPS, rutas) quedan **fuera del alcance**.
+> Backend ciudadano (§2) y estados en la PWA adaptados. Faltan las pantallas nuevas de la PWA (§5) y lo post-merge (§3).
+> Detalle: [pendientes del equipo](docs/PENDIENTES_EQUIPO.md) ·
+> [mapa del panel](docs/specs/MAPA_PANEL_MUNICIPAL.md)
 
 ### EP-06 — Confianza y Comunidad
 Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante calificaciones, denuncia de incumplimientos y moderación municipal con bloqueo de usuarios.
@@ -121,7 +129,6 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 
 | Tecnología | Uso previsto |
 |---|---|
-| `@nestjs/jwt` + ClaveÚnica OAuth2 | Autenticación — **no habrá contraseñas locales** |
 | Socket.io (Gateways de NestJS) | Chat y notificaciones en tiempo real |
 | Winston | Logs estructurados |
 
@@ -131,12 +138,12 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 
 > **Superficie actual de la API:** 9 endpoints REST bajo el prefijo `/api` (health, catálogo de
 > residuos, CRUD de solicitudes de retiro y perfil de acceso). Las **6 tablas** de esta primera etapa
-> se crean solas con las migraciones; el esquema completo en `ARCA_database_schema.dbml` contempla
+> se crean solas con las migraciones; el esquema completo en `docs/ARCA_database_schema.dbml` contempla
 > **22 tablas** para las etapas siguientes, todas dentro de la misma base.
 
 > **Almacenamiento de imágenes:** las fotos se guardan como **archivos en un directorio protegido** del servidor (fuera del directorio público) y se sirven a través de la API con autenticación; en la base de datos solo se almacena la ruta. Esto resguarda los datos personales y de ubicación de los usuarios.
 
-> **Principio de estructura:** arquitectura modular de NestJS — controladores delgados que delegan la lógica de negocio a *services* independientes. Cuando entren la autenticación y el tiempo real se sumarán *Guards* para el control de acceso por roles y *Gateways* para WebSocket, sin reestructurar lo existente. Facilita el mantenimiento y los tests.
+> **Principio de estructura:** arquitectura modular de NestJS — controladores delgados que delegan la lógica de negocio a *services* independientes. El control de acceso por roles ya corre con *Guards*; cuando entre el tiempo real se sumarán *Gateways* para WebSocket, sin reestructurar lo existente. Facilita el mantenimiento y los tests.
 
 ### DevOps
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat&logo=github-actions&logoColor=white)
@@ -150,7 +157,7 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 | GitHub Actions | CI (lint / test / build) y despliegue vía SSH — **planificado**, aún sin workflows en el repo |
 | Git | Control de versiones |
 
-> **Mejoras futuras de escalado:** Redis (caché y adaptador de Socket.io para múltiples procesos) y monitoreo con Sentry quedan planteados como mejora futura. El MVP corre en **un solo proceso** de Node (150–300 MB de RAM), con autenticación *stateless* vía JWT.
+> **Mejoras futuras de escalado:** Redis (caché y adaptador de Socket.io para múltiples procesos) y monitoreo con Sentry quedan planteados como mejora futura. El MVP corre en **un solo proceso** de Node (150–300 MB de RAM), con sesión guardada en la base de datos (cookie `arca_sesion`), sin estado en memoria.
 
 ---
 
@@ -162,23 +169,23 @@ Garantiza la confianza entre vecinos en el intercambio P2P: reputación mediante
 git clone https://github.com/blindjamin/A.R.C.A.git
 cd A.R.C.A
 git checkout develop
-.\setup.ps1
+.\scripts\setup.ps1
 ```
 
-`setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias (workspaces
-para el núcleo compartido y los dos backends; `npm install` propio para cada frontend), crea los
-`.env.local`, corre las migraciones y abre los cuatro proyectos en ventanas separadas.
+`scripts/setup.ps1` verifica prerrequisitos, levanta MySQL en Docker, instala dependencias (`npm install`
+en la raíz para el backend y otro propio para el frontend), crea los `.env.local`, corre las
+migraciones y abre el backend y el frontend en ventanas separadas.
 
 | Servicio | URL |
 |---|---|
-| Frontend (Vite) | http://localhost:5173 |
-| Panel admin (Vite) | http://localhost:5174 |
-| Backend ciudadano (NestJS) | http://localhost:3000/api |
-| Backend admin (NestJS) | http://localhost:3001/api |
+| Frontend — PWA ciudadana (Vite) | http://localhost:5173 |
+| Panel municipal (mismo frontend) | http://localhost:5173/admin |
+| Backend — API ciudadana y del panel (NestJS) | http://localhost:3000/api |
 | MySQL (Docker) | `localhost:3306` · base `arca_dev` |
 
-El panel admin se usa **en local**: no hay túnel público para él. Lo que se demuestra a la
-municipalidad es la PWA ciudadana.
+Para entrar en local sin ClaveÚnica, el backend necesita `ALLOW_DEV_LOGIN=true` en
+`apps/backend/.env.local` (habilita los accesos de desarrollo; nunca en el servidor).
+`scripts/setup.ps1` lo agrega solo al crear el `.env.local`.
 
 > Setup manual paso a paso, otros sistemas operativos y problemas frecuentes:
 > [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md)
@@ -189,21 +196,15 @@ municipalidad es la PWA ciudadana.
 
 ```
 A.R.C.A/
-├── package.json                 # npm workspaces: packages/arca-core + apps/backend(-admin)
-├── packages/
-│   └── arca-core/                # Entidades TypeORM + AuthModule compartidos (@arca/core)
+├── package.json                 # npm workspaces: apps/backend
 ├── apps/
-│   ├── backend/                  # API ciudadana — NestJS + TypeORM + MySQL
-│   ├── backend-admin/             # API del panel municipal — misma base de datos
-│   ├── frontend/                 # PWA ciudadana — React 19 + Vite 8 + Tailwind
-│   └── admin-web/                 # Panel municipal — React 19 + Vite 8 + Tailwind
-├── docs/                        # Documentación técnica del proyecto
-├── ARCA_database_schema.dbml    # Schema de la base de datos (fuente de verdad)
+│   ├── backend/                  # NestJS + TypeORM + MySQL — API ciudadana, panel (src/admin) y núcleo (src/core)
+│   └── frontend/                 # React 19 + Vite 8 + Tailwind — PWA ciudadana y panel municipal (src/admin, /admin)
+├── docs/                        # Documentación técnica, contexto del proyecto (CLAUDE_proyecto.md) y esquema BD (ARCA_database_schema.dbml)
 ├── docker-compose.yml           # MySQL 8 para desarrollo local
-├── setup.ps1                    # Setup local automatizado (Windows)
+├── scripts/                     # setup.ps1 (setup local automatizado) e instalar-reglas.ps1 (hook de commits)
 ├── AGENTS.md                    # Reglas de IA: comportamiento del agente + política del equipo
-├── CLAUDE.md                    # Ramas, workflow del equipo y convenciones
-└── CLAUDE_proyecto.md           # Contexto técnico completo del proyecto
+└── CLAUDE.md                    # Ramas, workflow del equipo y convenciones
 ```
 
 ---
@@ -216,13 +217,14 @@ Fase 1 (MVP) en curso. Lo que ya corre end-to-end:
 |---|---|
 | **Catálogo de residuos** | ✅ `GET /api/residuos/catalogo` con **precios reales** en base de datos |
 | **Solicitud de retiro** | ✅ Crear, listar, ver detalle y cancelar — conectado al backend |
-| **Panel municipal (EP-04 base)** | ✅ Listar, filtrar por estado, detalle y cambio de estado reversible |
-| **Login diferido** | ✅ Gate por `perfil-acceso`: funcionario elige contexto, ciudadano va directo a la PWA |
+| **Panel municipal (EP-04)** | ✅ Revisión con checklist, motivos, toma y notas internas · derivación a la empresa en Excel · métricas · mapa de calor · auditoría ([mapa](docs/specs/MAPA_PANEL_MUNICIPAL.md)) |
+| **Ciclo de solicitud nuevo** | 🟡 Núcleo, BD, panel, backend ciudadano y estados de la PWA listos · faltan pantallas nuevas de la PWA ([pendientes](docs/PENDIENTES_EQUIPO.md) §5) |
+| **Login diferido** | ✅ Según el rol de la sesión (`GET /api/sesion`): funcionario o admin elige contexto, vecino va directo a la PWA |
 | **Flujo "Solicitar con IA"** | 🟡 Esqueleto navegable — cámara y TensorFlow.js todavía mock |
 | **UI Kit** | ✅ Primitivos en `components/ui/` + tokens de diseño en Tailwind |
-| **Autenticación ClaveÚnica** | ⛔ Pendiente — hoy `SessionContext` es una identidad temporal |
-| **Marketplace P2P (EP-03)** | ⛔ Pendiente — placeholders "Próximamente" |
-| **Circular Credits (HU-10, HU-11 en EP-03)** | ⛔ Pendiente — la tarjeta de impacto del Inicio es estática |
+| **Autenticación ClaveÚnica** | 🟡 Flujo OAuth2 y sesión con cookie implementados · falta probarlo con las credenciales del municipio; mientras tanto, accesos de desarrollo (`ALLOW_DEV_LOGIN`) |
+| **Marketplace P2P (EP-03)** | 🟡 Backend: publicar con foto, buscar, detalle, retirar, "Lo quiero", entrega y calificación · la PWA tiene listado, detalle, publicar y mis publicaciones con datos de ejemplo, sin conectar al backend todavía ([spec](docs/specs/SPEC-marketplace.md)) |
+| **Circular Credits (HU-10, HU-11 en EP-03)** | 🟡 Backend: créditos por entrega y por estrellas, con topes mensual y por pareja, y `GET /api/creditos` (valores de prueba) · falta la billetera en la PWA; la tarjeta de impacto del Inicio sigue estática |
 | **Confianza y Comunidad (EP-06)** | ⛔ Pendiente — ratings, denuncias y moderación no iniciados |
 
 Detalle por capa: [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) ·
@@ -237,16 +239,18 @@ roadmap por fases en [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md)
 |---|---|
 | [`AGENTS.md`](AGENTS.md) | **Reglas de IA:** cómo debe comportarse el agente en el repo y cómo debe usar IA el equipo |
 | [`CLAUDE.md`](CLAUDE.md) | Estructura de ramas, workflow de colaboración y convenciones de código |
-| [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) | Contexto técnico completo: stack confirmado, decisiones de arquitectura y su porqué |
+| [`docs/CLAUDE_proyecto.md`](docs/CLAUDE_proyecto.md) | Contexto técnico completo: stack confirmado, decisiones de arquitectura y su porqué |
 | [`docs/SETUP_LOCAL.md`](docs/SETUP_LOCAL.md) | Levantar el proyecto desde cero, por rol, y troubleshooting |
+| [`docs/DEPLOY_CPANEL.md`](docs/DEPLOY_CPANEL.md) | Despliegue en el servidor municipal (cPanel): paquetes, APIs, frontends y verificación |
 | [`docs/BACKEND_FASE1.md`](docs/BACKEND_FASE1.md) | Qué se implementó en el backend ciudadano: endpoints, entidades, migraciones |
 | [`docs/FRONTEND_FASE1.md`](docs/FRONTEND_FASE1.md) | Qué se implementó en el frontend ciudadano: UI Kit, pantallas, capa de API |
 | [`docs/PLAN_FRONTEND.md`](docs/PLAN_FRONTEND.md) | Roadmap del frontend por fases y deuda técnica |
-| [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API ciudadana: scripts, entorno, endpoints, migraciones |
-| [`apps/backend-admin/README.md`](apps/backend-admin/README.md) | Guía de la API del panel: scripts, entorno, endpoints |
-| [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA: scripts, estructura de `src/`, convenciones |
-| [`apps/admin-web/README.md`](apps/admin-web/README.md) | Guía del panel: scripts, estructura de `src/`, deuda declarada |
-| [`packages/arca-core/README.md`](packages/arca-core/README.md) | Qué vive en el núcleo compartido y la regla de PR revisado para tocarlo |
+| [`docs/specs/MAPA_PANEL_MUNICIPAL.md`](docs/specs/MAPA_PANEL_MUNICIPAL.md) | Replanteo del panel municipal: módulos, decisiones y specs de cada uno |
+| [`docs/specs/SPEC-marketplace.md`](docs/specs/SPEC-marketplace.md) | Backend del marketplace y Circular Credits (Sprint 3): tablas, estados, endpoints, reglas de créditos y plan de PRs |
+| [`docs/PENDIENTES_EQUIPO.md`](docs/PENDIENTES_EQUIPO.md) | Qué falta revisar, arreglar e implementar del replanteo, por área |
+| [`apps/backend/README.md`](apps/backend/README.md) | Guía de la API (ciudadana y del panel): scripts, entorno, autenticación, endpoints, migraciones |
+| [`apps/frontend/README.md`](apps/frontend/README.md) | Guía de la PWA y del panel: scripts, estructura de `src/`, convenciones |
+| [`docs/SEGURIDAD_ARQUITECTURA.md`](docs/SEGURIDAD_ARQUITECTURA.md) | Arquitectura de seguridad del sitio único: sesión, control de acceso, auditoría |
 
 ---
 
@@ -288,15 +292,16 @@ inicial para las fotografías.
 
 Gestionado en **[GitHub Projects](https://github.com/users/blindjamin/projects/2)**.
 
-**27 historias de usuario en 5 épicas activas**, según el refinamiento de agosto de 2026. La
-numeración es la del tablero de GitHub: EP-05 está cerrada y EP-06 está por crearse.
+**27 historias de usuario vigentes en 5 épicas activas**: las del refinamiento de agosto de 2026,
+más HU-43 y HU-44 del replanteo del panel, menos HU-31 y HU-32, que quedaron fuera de alcance. La
+numeración es la del tablero de GitHub, donde cada épica e historia tiene su issue; EP-05 está cerrada.
 
 | ID | Épica | HUs | Fase |
 |---|---|---|---|
 | EP-01 | Fundación y Seguridad | HU-12, HU-13, HU-14, HU-01, HU-37, HU-38 | 1 — MVP |
 | EP-02 | Interfaz Ciudadana | HU-02, HU-03, HU-17, HU-23, HU-39 | 1 — MVP |
 | EP-03 | Marketplace e Incentivos | HU-04, HU-05, HU-06, HU-10, HU-11, HU-19, HU-20 | 2 — Core |
-| EP-04 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09, HU-31, HU-32, HU-33 | 2 — Core |
+| EP-04 | Dashboard Administrativo Municipal | HU-07, HU-08, HU-09, HU-33, HU-43, HU-44 · ~~HU-31, HU-32~~ | 2 — Core |
 | EP-06 | Confianza y Comunidad | HU-15, HU-16, HU-18 | 3 — Polish |
 | ~~EP-05~~ | ~~Seguridad, Autenticación y Trazabilidad~~ | **Cerrada** — HU-12, HU-13 y HU-14 pasaron a EP-01 | — |
 
@@ -309,7 +314,7 @@ numeración es la del tablero de GitHub: EP-05 está cerrada y EP-06 está por c
 |---|---|---|
 | HU-26 | Preferencias de notificaciones | Complementa a HU-23, que sí se incorpora |
 | HU-27, HU-28, HU-29 | Referidos: generar código, registro con código, bonificación | Tabla `referidos` |
-| HU-30 | Ver ruta asignada en mapa | Sin ella el operador trabaja desde un listado en vez de un mapa |
+| HU-30 | Ver ruta asignada en mapa | Con el replanteo del 2026-09-17 las rutas las gestiona la empresa externa; el PO debe reclasificarla |
 
 **Propuestas para eliminar:**
 

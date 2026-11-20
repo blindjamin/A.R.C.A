@@ -1,0 +1,824 @@
+import { useEffect, useState, useId } from 'react';
+import { Link } from 'react-router-dom';
+import { useSession } from '../auth/SessionContext';
+import {
+  actualizarPerfil,
+  borrarPerfilLocal,
+  fetchPerfil,
+  type PerfilVecino,
+} from '../api/perfil';
+import {
+  fetchResumenCreditos,
+  type MovimientoCreditos,
+  ETIQUETAS_ORIGEN,
+} from '../api/creditos';
+import { VerificarCorreoModal } from '../features/solicitud-retiro/VerificarCorreoModal';
+import {
+  IconCircularCredits,
+  IconMarketplace,
+  IconGift,
+  IconLeaf,
+  IconShield,
+  IconClipboard,
+  IconLogout,
+  IconChevronRight,
+  IconMail,
+  IconPhone,
+  IconMapPin,
+  IconPencil,
+  IconX,
+  IconCheck,
+  IconEye,
+  IconEyeOff,
+} from '../components/ui/Icons';
+
+// Mismos topes que `ActualizarPerfilDto` en el backend.
+const LARGO_MAXIMO_TELEFONO = 20;
+const LARGO_MAXIMO_DIRECCION = 2000;
+
+/**
+ * Validador estricto: devuelve true solo si el campo existe y tiene texto no vacío.
+ * Si es null, undefined o solo espacios en blanco, devuelve false (para NO mostrar en pantalla).
+ */
+function tieneValor(valor?: string | null): valor is string {
+  return typeof valor === 'string' && valor.trim().length > 0;
+}
+
+/** Deja ver solo el comienzo del correo: «mi•••@correo.cl». */
+function ocultarCorreo(email: string): string {
+  const [usuario, dominio] = email.split('@');
+  if (!dominio) return '••••••';
+  return `${usuario.slice(0, 2)}•••@${dominio}`;
+}
+
+/** Deja ver solo los últimos cuatro dígitos: «•••• 4321». */
+function ocultarTelefono(telefono: string): string {
+  const digitos = telefono.replace(/\D/g, '');
+  return digitos.length > 4 ? `•••• ${digitos.slice(-4)}` : '••••';
+}
+
+/** Muestra el error del servidor en palabras del vecino, sin el detalle técnico. */
+function mensajeDeError(err: unknown, porDefecto: string): string {
+  const texto = err instanceof Error ? err.message : '';
+  if (texto.startsWith('Error 400')) {
+    return 'Revisa los datos: el teléfono admite hasta 20 caracteres.';
+  }
+  if (texto.startsWith('Error 401')) {
+    return 'Tu sesión expiró. Vuelve a iniciar sesión.';
+  }
+  return porDefecto;
+}
+
+/** Valor oculto por defecto, con un botón «ojo» para verlo. */
+function DatoOculto({
+  valor,
+  oculto,
+  etiqueta,
+}: {
+  valor: string;
+  oculto: string;
+  etiqueta: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <span className="flex items-center gap-2">
+      <span className="truncate">{visible ? valor : oculto}</span>
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? `Ocultar ${etiqueta}` : `Mostrar ${etiqueta}`}
+        aria-pressed={visible}
+        className="shrink-0 rounded-md p-1 text-slate hover:bg-canvas hover:text-green-700"
+      >
+        {visible ? (
+          <IconEyeOff className="h-4 w-4" />
+        ) : (
+          <IconEye className="h-4 w-4" />
+        )}
+      </button>
+    </span>
+  );
+}
+
+export default function Perfil() {
+  const { sesion, salir } = useSession();
+
+  const modalTitleId = useId();
+
+  // Créditos reales desde el backend (HU-11)
+  const [saldoCC, setSaldoCC] = useState<number>(0);
+  const [movimientos, setMovimientos] = useState<MovimientoCreditos[]>([]);
+  const [cargandoCreditos, setCargandoCreditos] = useState(true);
+
+  // El contacto se lee del servidor; el navegador no guarda datos personales.
+  const [perfil, setPerfil] = useState<PerfilVecino | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+
+  useEffect(() => {
+    borrarPerfilLocal();
+    let cancelado = false;
+
+    fetchPerfil()
+      .then(setPerfil)
+      .catch((err: unknown) =>
+        setErrorCarga(
+          mensajeDeError(err, 'No pudimos cargar tus datos de contacto. Intenta de nuevo.'),
+        ),
+      );
+
+    fetchResumenCreditos()
+      .then((res) => {
+        if (!cancelado) {
+          setSaldoCC(res.saldo);
+          setMovimientos(res.movimientos);
+          setCargandoCreditos(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelado) {
+          setSaldoCC(0);
+          setMovimientos([]);
+          setCargandoCreditos(false);
+        }
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  // El nombre lo entrega ClaveÚnica: el vecino no lo edita.
+  const nombre = perfil?.nombre || sesion?.nombre || 'Vecino de Santo Domingo';
+
+  // Estado del modal de edición
+  const [editando, setEditando] = useState(false);
+  const [cambiandoCorreo, setCambiandoCorreo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
+
+  // Formulario temporal de edición
+  const [formTelefono, setFormTelefono] = useState('');
+  const [formDireccion, setFormDireccion] = useState('');
+
+  const mostrarExito = (mensaje: string) => {
+    setMensajeExito(mensaje);
+    setTimeout(() => setMensajeExito(null), 3500);
+  };
+
+  const abrirEditor = () => {
+    // Sin el perfil cargado, guardar el formulario vacío borraría el contacto.
+    if (!perfil) return;
+    setFormTelefono(perfil?.telefono ?? '');
+    setFormDireccion(perfil?.direccion ?? '');
+    setErrorGuardar(null);
+    setEditando(true);
+  };
+
+  const guardarCambios = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGuardando(true);
+    setErrorGuardar(null);
+    try {
+      // Un texto vacío borra el dato: el vecino puede dejar de compartirlo.
+      const actualizado = await actualizarPerfil({
+        telefono: formTelefono.trim(),
+        direccion: formDireccion.trim(),
+      });
+      setPerfil(actualizado);
+      setEditando(false);
+      mostrarExito('Datos de perfil actualizados correctamente.');
+    } catch (err) {
+      setErrorGuardar(
+        mensajeDeError(err, 'No pudimos guardar tus datos. Intenta de nuevo.'),
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const correoVerificado = (email: string) => {
+    setCambiandoCorreo(false);
+    setPerfil((actual) => (actual ? { ...actual, email } : actual));
+    mostrarExito('Correo verificado y actualizado.');
+  };
+
+  const iniciales = nombre
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]?.toUpperCase())
+    .join('');
+
+  // Identificador acotado y seguro para visualización
+  const idMostrable = sesion?.ciudadanoId
+    ? `${sesion.ciudadanoId.slice(0, 8)}...${sesion.ciudadanoId.slice(-4)}`
+    : 'ARCA-SD-2026';
+
+  // Verificar si hay algún dato de contacto opcional con contenido real
+  const hayDatosContacto =
+    tieneValor(perfil?.email) ||
+    tieneValor(perfil?.telefono) ||
+    tieneValor(perfil?.direccion);
+
+  return (
+    <div className="page-text-contrast space-y-6 max-w-4xl mx-auto pb-10">
+      <div>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">
+              Perfil del Vecino
+            </h1>
+            <p className="text-sm text-slate">
+              Identificación ciudadana y registro de impacto circular en Santo Domingo.
+            </p>
+          </div>
+          <span className="inline-flex items-center gap-1.5 self-start rounded-pill border border-green-200 bg-green-50 px-3 py-1 text-xs font-semibold text-green-800 sm:self-auto">
+            <IconShield className="h-3.5 w-3.5 text-green-700" />
+            Identidad Verificada
+          </span>
+        </div>
+      </div>
+
+      {mensajeExito && (
+        <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800 animate-fadeIn">
+          <IconCheck className="h-4 w-4 text-green-700 shrink-0" />
+          <span>{mensajeExito}</span>
+        </div>
+      )}
+
+      {/* Tarjeta de Identificación Principal */}
+      <section className="card overflow-hidden p-6 sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-green-700 text-xl font-display font-bold text-white shadow-sm sm:h-20 sm:w-20 sm:text-2xl">
+              {iniciales || 'VS'}
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold text-ink sm:text-2xl">
+                {nombre}
+              </h2>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate">
+                <span className="font-medium text-ink-2">Vecino Acreditado</span>
+                <span>•</span>
+                <span>Comuna de Santo Domingo</span>
+              </div>
+              <p className="text-xs font-mono text-slate-2">
+                ID Vecino: <span className="text-ink-2">{idMostrable}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
+            <button
+              type="button"
+              onClick={abrirEditor}
+              className="btn-outline flex items-center gap-1.5 py-1.5 px-3 text-xs font-semibold text-ink-2 hover:border-green-400 hover:text-green-800"
+            >
+              <IconPencil className="h-3.5 w-3.5 text-green-700" />
+              <span>Editar datos</span>
+            </button>
+            <span className="pill bg-green-100 text-green-800 text-xs">
+              Cuenta Activa
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* 1. SECCIÓN CIRCULAR CREDITS (Sale primero como sección principal) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <IconCircularCredits className="h-4 w-4 text-green-700" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-ink">
+              Circular Credits
+            </h2>
+          </div>
+          <Link
+            to="/circular-credits"
+            className="text-xs font-semibold text-green-700 hover:underline inline-flex items-center gap-1"
+          >
+            <span>Canjear premios y beneficios</span>
+            <IconChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          {/* Tarjeta principal de créditos */}
+          <div
+            className="card relative overflow-hidden rounded-lg p-6 text-white shadow-green md:col-span-2"
+            style={{
+              backgroundImage:
+                'linear-gradient(140deg, #156f4a 0%, #0f6b45 55%, #0a4f37 100%)',
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white">
+                  <IconCircularCredits className="h-4 w-4 text-gold-400" />
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-green-100">
+                  Saldo de Circular Credits
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-baseline gap-2">
+              <span className="font-display text-5xl font-extrabold tracking-tight">
+                {cargandoCreditos ? '…' : saldoCC}
+              </span>
+              <span className="text-sm font-semibold uppercase text-gold-300">
+                CC (Circular Credits)
+              </span>
+            </div>
+
+            <p className="mt-2 text-xs text-green-100/90 leading-relaxed max-w-lg">
+              Los Circular Credits son reconocimientos por reducir y reutilizar residuos voluminosos en la comuna. Acumulas entregando objetos en el Marketplace o disponiendo adecuadamente tus retiros.
+            </p>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Link
+                to="/circular-credits"
+                className="btn-gold py-1.5 px-3.5 text-xs font-bold inline-flex items-center gap-1.5 text-ink shadow-sm hover:opacity-95"
+              >
+                <IconGift className="h-3.5 w-3.5" />
+                <span>Ver billetera y premios</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Resumen de actividad */}
+          <div className="card flex flex-col justify-between p-6 space-y-4">
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-green-700">
+                <IconLeaf className="h-3.5 w-3.5" />
+                <span>Impacto en la Comuna</span>
+              </div>
+              <h3 className="mt-1 text-base font-bold text-ink">
+                Participación Circular
+              </h3>
+            </div>
+
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between border-b border-line pb-2.5">
+                <span className="text-xs text-slate">Movimientos registrados</span>
+                <span className="font-display text-base font-extrabold text-ink">
+                  {cargandoCreditos ? '…' : movimientos.length}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-line pb-2.5">
+                <span className="text-xs text-slate">Comuna</span>
+                <span className="font-display text-sm font-bold text-green-700">
+                  Santo Domingo
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate">Identidad</span>
+                <span className="font-display text-xs font-bold text-green-700">
+                  Verificada con ClaveÚnica
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-md bg-canvas p-2.5 text-[11px] text-slate leading-tight">
+              Tus créditos se actualizan automáticamente tras cada intercambio o retiro completado.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. DATOS MUNICIPALES Y DE CONTACTO */}
+      {/* REGLA ESTRICTA: Solo se renderizan los campos que tengan contenido. Si están vacíos, no se muestran */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate">
+              Datos Municipales y de Contacto
+            </h2>
+            <p className="text-xs text-slate-2">
+              Información para coordinación de retiros y marketplace. Los campos no registrados se omiten.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={abrirEditor}
+            className="text-xs font-semibold text-green-700 hover:underline"
+          >
+            Modificar
+          </button>
+        </div>
+
+        {errorCarga ? (
+          <div className="card p-6 text-center" role="alert">
+            <p className="text-sm font-medium text-rose-600">{errorCarga}</p>
+          </div>
+        ) : !perfil ? (
+          <div className="card p-6 text-center">
+            <p className="text-sm text-slate">Cargando tus datos de contacto…</p>
+          </div>
+        ) : hayDatosContacto ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {/* Correo y teléfono se muestran ocultos hasta que el vecino toca el «ojo». */}
+            {tieneValor(perfil.email) && (
+              <div className="card flex items-start gap-3 p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
+                  <IconMail className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
+                    Correo Electrónico
+                  </span>
+                  <div className="text-sm font-semibold text-ink">
+                    <DatoOculto
+                      valor={perfil.email}
+                      oculto={ocultarCorreo(perfil.email)}
+                      etiqueta="correo"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tieneValor(perfil.telefono) && (
+              <div className="card flex items-start gap-3 p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
+                  <IconPhone className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
+                    Teléfono de Contacto
+                  </span>
+                  <div className="text-sm font-semibold text-ink">
+                    <DatoOculto
+                      valor={perfil.telefono}
+                      oculto={ocultarTelefono(perfil.telefono)}
+                      etiqueta="teléfono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dirección de Retiro (opcional: solo si está relleno) */}
+            {tieneValor(perfil.direccion) && (
+              <div className="card flex items-start gap-3 p-4">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-green-50 text-green-700">
+                  <IconMapPin className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate">
+                    Dirección Domiciliaria
+                  </span>
+                  <p className="truncate text-sm font-semibold text-ink">
+                    {perfil.direccion}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="card p-6 text-center border-dashed">
+            <p className="text-sm font-medium text-slate">
+              No tienes datos de contacto opcionales registrados.
+            </p>
+            <p className="mt-1 text-xs text-slate-2">
+              Los campos no completados no se muestran en pantalla para mantener tu ficha limpia.
+            </p>
+            <button
+              type="button"
+              onClick={abrirEditor}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-pill bg-green-50 px-4 py-2 text-xs font-semibold text-green-800 hover:bg-green-100 transition-colors"
+            >
+              <IconPencil className="h-3.5 w-3.5" />
+              <span>Registrar datos opcionales</span>
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* 3. HISTORIAL DE TRANSACCIONES DE CIRCULAR CREDITS */}
+      <section className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <IconCircularCredits className="h-4 w-4 text-green-700" />
+            <h3 className="text-base font-bold text-ink">
+              Historial de Circular Credits
+            </h3>
+          </div>
+          <span className="text-xs text-slate">
+            {cargandoCreditos
+              ? 'Cargando…'
+              : `${movimientos.length} ${movimientos.length === 1 ? 'registro' : 'registros'}`}
+          </span>
+        </div>
+
+        {cargandoCreditos ? (
+          <p className="py-6 text-center text-sm text-slate">Cargando movimientos…</p>
+        ) : movimientos.length === 0 ? (
+          <div className="py-6 text-center">
+            <p className="text-sm font-semibold text-ink">Sin movimientos registrados</p>
+            <p className="mt-1 text-xs text-slate max-w-sm mx-auto">
+              Al entregar objetos en el Marketplace o al pagar un retiro municipal verás aquí el detalle de tus créditos acumulados.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-line">
+            {movimientos.map((mov) => {
+              const fechaStr = new Date(mov.fecha).toLocaleDateString('es-CL', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              });
+              const etiquetaOrigen = ETIQUETAS_ORIGEN[mov.origen] || mov.origen;
+
+              return (
+                <div
+                  key={mov.id}
+                  className="flex items-center justify-between py-3.5 first:pt-0 last:pb-0"
+                >
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-semibold text-ink leading-tight">
+                      {mov.motivo || etiquetaOrigen}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-slate">
+                      <span>{etiquetaOrigen}</span>
+                      <span>•</span>
+                      <span>{fechaStr}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center gap-1 rounded-pill bg-gold-50 px-2.5 py-1 text-xs font-bold text-gold-600 border border-gold-100">
+                      <IconCircularCredits className="h-3 w-3 text-gold-500" />
+                      +{mov.monto} CC
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* 4. ACCIONES Y ENLACES DE ACTIVIDAD */}
+      <section className="space-y-3">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate">
+          Gestión y Enlaces de Actividad
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            to="/mis-solicitudes"
+            className="card flex items-center justify-between p-4 transition-all hover:border-green-300 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-green-50 text-green-700">
+                <IconClipboard className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-ink">Mis Solicitudes de Retiro</p>
+                <p className="text-xs text-slate">Revisa el estado de tus solicitudes</p>
+              </div>
+            </div>
+            <IconChevronRight className="h-4 w-4 text-slate-2" />
+          </Link>
+
+          <Link
+            to="/marketplace"
+            className="card flex items-center justify-between p-4 transition-all hover:border-green-300 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-green-50 text-green-700">
+                <IconMarketplace className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-ink">Marketplace P2P</p>
+                <p className="text-xs text-slate">Intercambia o regala con tus vecinos</p>
+              </div>
+            </div>
+            <IconChevronRight className="h-4 w-4 text-slate-2" />
+          </Link>
+
+          <Link
+            to="/privacidad"
+            className="card flex items-center justify-between p-4 transition-all hover:border-green-300 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-green-50 text-green-700">
+                <IconShield className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-ink">Privacidad y tus datos</p>
+                <p className="text-xs text-slate">Qué datos usamos y cuáles son tus derechos</p>
+              </div>
+            </div>
+            <IconChevronRight className="h-4 w-4 text-slate-2" />
+          </Link>
+
+          <Link
+            to="/ayuda"
+            className="card flex items-center justify-between p-4 transition-all hover:border-green-300 hover:shadow-sm"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-green-50 text-green-700">
+                <IconPhone className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="text-sm font-bold text-ink">Ayuda</p>
+                <p className="text-xs text-slate">Preguntas frecuentes, guía y contacto</p>
+              </div>
+            </div>
+            <IconChevronRight className="h-4 w-4 text-slate-2" />
+          </Link>
+        </div>
+      </section>
+
+      {/* 5. CIERRE DE SESIÓN Y SOPORTE */}
+      <section className="card border-green-200 bg-green-50 p-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-ink">
+            Municipalidad de Santo Domingo · Plataforma A.R.C.A.
+          </p>
+          <p className="text-xs text-slate">
+            ¿Dudas sobre tus solicitudes o Circular Credits? Contacta a la Dirección de Medio Ambiente.
+          </p>
+        </div>
+        <button
+          onClick={() => void salir()}
+          type="button"
+          className="btn-outline flex items-center justify-center gap-2 border-line text-slate hover:text-rose-600 hover:border-rose-300"
+        >
+          <IconLogout className="h-4 w-4" />
+          <span>Cerrar sesión segura</span>
+        </button>
+      </section>
+
+      <p className="text-center">
+        <Link
+          to="/denuncias"
+          className="text-xs text-slate underline underline-offset-2 hover:text-ink"
+        >
+          Mis denuncias
+        </Link>
+      </p>
+
+      {sesion?.rol === 'vecino' && (
+        <p className="text-center">
+          <Link
+            to="/perfil/baja"
+            className="text-xs text-slate underline underline-offset-2 hover:text-rose-700"
+          >
+            Darme de baja de A.R.C.A.
+          </Link>
+        </p>
+      )}
+
+      {/* Modal / Formulario de Edición de Datos */}
+      {editando && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={modalTitleId}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fadeIn"
+        >
+          <div className="card w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white p-6 shadow-xl sm:p-7">
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div>
+                <h3 id={modalTitleId} className="text-lg font-bold text-ink">
+                  Editar Datos del Vecino
+                </h3>
+                <p className="text-xs text-slate">
+                  Los campos vacíos no se mostrarán en la ficha ciudadana.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditando(false)}
+                className="rounded-md p-1.5 text-slate hover:bg-canvas hover:text-ink transition-colors"
+                aria-label="Cerrar modal"
+              >
+                <IconX className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => void guardarCambios(e)} className="mt-5 space-y-4">
+              {/* Nombre: lo entrega ClaveÚnica, no se edita */}
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
+                  Nombre Completo
+                </label>
+                <input
+                  type="text"
+                  readOnly
+                  value={nombre}
+                  className="field cursor-not-allowed text-slate"
+                />
+                <p className="mt-1 text-[11px] text-slate-2">
+                  Viene de ClaveÚnica y no se puede modificar.
+                </p>
+              </div>
+
+              {/* Correo: se cambia solo verificándolo con un código. */}
+              <div>
+                <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate">
+                  Correo Electrónico
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={perfil?.email ? ocultarCorreo(perfil.email) : 'Sin correo registrado'}
+                    className="field cursor-not-allowed text-slate"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCambiandoCorreo(true)}
+                    className="btn-outline shrink-0 py-2 px-3 text-xs font-semibold"
+                  >
+                    {perfil?.email ? 'Cambiar' : 'Agregar'}
+                  </button>
+                </div>
+                <p className="mt-1 text-[11px] text-slate-2">
+                  Te enviaremos un código para verificarlo.
+                </p>
+              </div>
+
+              {/* Teléfono (opcional) */}
+              <div>
+                <label
+                  htmlFor="perfil-telefono"
+                  className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate"
+                >
+                  Teléfono de Contacto <span className="font-normal text-slate-2">(opcional)</span>
+                </label>
+                <input
+                  id="perfil-telefono"
+                  type="tel"
+                  value={formTelefono}
+                  onChange={(e) => setFormTelefono(e.target.value)}
+                  maxLength={LARGO_MAXIMO_TELEFONO}
+                  placeholder="+56 9 1234 5678"
+                  className="field"
+                />
+                <p className="mt-1 text-[11px] text-slate-2">
+                  Si lo dejas vacío, se borra de A.R.C.A.
+                </p>
+              </div>
+
+              {/* Dirección Domiciliaria (opcional) */}
+              <div>
+                <label
+                  htmlFor="perfil-direccion"
+                  className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate"
+                >
+                  Dirección Domiciliaria <span className="font-normal text-slate-2">(opcional)</span>
+                </label>
+                <input
+                  id="perfil-direccion"
+                  type="text"
+                  value={formDireccion}
+                  onChange={(e) => setFormDireccion(e.target.value)}
+                  maxLength={LARGO_MAXIMO_DIRECCION}
+                  placeholder="Calle, pasaje o avenida y número"
+                  className="field"
+                />
+                <p className="mt-1 text-[11px] text-slate-2">
+                  Se propone al pedir un retiro; puedes cambiarla en cada solicitud.
+                </p>
+              </div>
+
+              {errorGuardar && (
+                <p role="alert" className="pill w-full bg-rose-100 text-rose-600">
+                  {errorGuardar}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-line">
+                <button
+                  type="button"
+                  onClick={() => setEditando(false)}
+                  className="btn-ghost py-2 px-4 text-xs font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="btn-primary py-2 px-5 text-xs font-semibold disabled:opacity-60"
+                >
+                  {guardando ? 'Guardando…' : 'Guardar cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {cambiandoCorreo && (
+        <VerificarCorreoModal
+          ciudadanoId={sesion?.ciudadanoId ?? null}
+          onVerificado={correoVerificado}
+          onCerrar={() => setCambiandoCorreo(false)}
+        />
+      )}
+    </div>
+  );
+}

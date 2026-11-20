@@ -1,13 +1,18 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ArchivosModule } from '../archivos/archivos.module';
 import { ResiduosModule } from '../residuos/residuos.module';
 import {
+  AuditoriaModule,
   AuthModule,
+  FotoRetiro,
+  ObjetoSolicitudRetiro,
+  RevisionSolicitud,
   SolicitudRetiro,
-  UsuarioAdministrador,
   UsuarioCiudadano,
-} from '@arca/core';
+} from '../core';
 import { SolicitudesRetiroController } from './solicitudes-retiro.controller';
+import { ConservacionDireccionesService } from './conservacion-direcciones.service';
 import { SolicitudesRetiroService } from './solicitudes-retiro.service';
 
 @Module({
@@ -15,12 +20,16 @@ import { SolicitudesRetiroService } from './solicitudes-retiro.service';
     TypeOrmModule.forFeature([
       SolicitudRetiro,
       UsuarioCiudadano,
-      UsuarioAdministrador,
+      RevisionSolicitud,
+      FotoRetiro,
+      ObjetoSolicitudRetiro,
     ]),
     ResiduosModule,
     AuthModule,
+    AuditoriaModule,
+    ArchivosModule,
   ],
   controllers: [SolicitudesRetiroController],
-  providers: [SolicitudesRetiroService],
+  providers: [SolicitudesRetiroService, ConservacionDireccionesService],
 })
 export class SolicitudesRetiroModule {}

@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
+
 interface IconBadgeProps {
-  icon: string;
+  icon: ReactNode;
   className?: string;
 }
 

@@ -1,7 +1,7 @@
 # Frontend Fase 1 — Resumen de implementación
 
 > **Integrado en:** `develop` (rama de trabajo `mvp` + sprint 2)
-> **Última actualización:** 2026-08-31
+> **Última actualización:** 2026-09-03
 > **Equipo:** COM Tech — Feria de Software 2026
 
 Documento de hito que resume la implementación del frontend (PWA ciudadana y panel de administración) y
@@ -12,8 +12,13 @@ pantallas y épicas, extender las secciones correspondientes.
 > administrativo que describe este documento (`AdminSolicitudes`, `AdminAuditoria`,
 > `AsignarRetiroModal`) **ya no viven en `apps/frontend`** — se movieron a `apps/admin-web`,
 > una app independiente (puerto 5174). El contenido de abajo describe el trabajo tal como se
-> hizo (sigue siendo válido como historia), pero las rutas de archivo ya no aplican; ver
-> [`../apps/admin-web/README.md`](../apps/admin-web/README.md) por la ubicación actual.
+> hizo (sigue siendo válido como historia), pero las rutas de archivo ya no aplican.
+>
+> **Sitio único (2026-09-26):** `apps/admin-web` también dejó de existir. El panel volvió a
+> `apps/frontend`, en `src/admin/` bajo `/admin/*`, protegido por rol; ya no hay puerto 5174 ni
+> `VITE_ADMIN_URL`, y la identidad sale de `GET /api/sesion` (ClaveÚnica + sesión con cookie, no
+> JWT). Todas las menciones a `apps/admin-web` y al login temporal de abajo son históricas; ver
+> [`../apps/frontend/README.md`](../apps/frontend/README.md) por la ubicación actual.
 
 ---
 
@@ -28,7 +33,7 @@ ciudadano y administrativo de punta a punta:
 - Flujo "Solicitar retiro" con **esqueleto de IA** (captura → análisis → sugerencia → éxito)
 - Catálogo, creación y seguimiento de solicitudes contra el backend real
 - **Login temporal y diferido** según perfil (`vecino` vs `funcionario`)
-- **Panel administrativo:** gestión y cambio de estados de solicitudes, asignación/programación con operadores (HU-08) y registro de auditoría con KPIs (HU-13)
+- **Panel administrativo:** gestión y cambio de estados de solicitudes y registro de auditoría con KPIs (HU-13). *(La asignación de operadores se eliminó con el replanteo del 2026-09-17.)*
 
 ---
 
@@ -41,6 +46,7 @@ ciudadano y administrativo de punta a punta:
 | Estilos | Tailwind CSS **v3** | tokens del UI Kit en `tailwind.config.js` |
 | Ruteo | react-router-dom | rutas protegidas por sesión y rol admin |
 | Estado/API | `fetch` nativo + Context | migrar a Redux Toolkit cuando crezca el estado |
+| Tiempo real | `socket.io-client` | Chat del Marketplace (HU-06): `src/api/socket.ts`, ruta `/api/socket.io` |
 
 ---
 
@@ -79,7 +85,11 @@ apps/frontend/
     ├── App.tsx                 # router: rutas propias, /admin, /admin/auditoria + features
     ├── index.css               # base + clases de componentes + animaciones (scan/success)
     ├── api/
-    │   └── arca.ts             # capa fetch tipada (catálogo, solicitudes, auditoría, robustez JSON)
+    │   ├── arca.ts             # capa fetch tipada (catálogo, solicitudes, auditoría, robustez JSON)
+    │   ├── chat.ts, push.ts    # chat del Marketplace y avisos push (HU-06)
+    │   └── socket.ts           # cliente socket.io único (/api/socket.io)
+    ├── pwa/
+    │   └── push.ts             # permiso de notificaciones y suscripción Web Push
     ├── auth/
     │   └── SessionContext.tsx  # login temporal (usuario dev en localStorage y roles)
     ├── components/
@@ -96,6 +106,12 @@ apps/frontend/
     │       ├── SolicitudFlowContext.tsx
     │       ├── CapturaResiduo.tsx, AnalizandoIA.tsx, SugerenciasIA.tsx,
     │       └── Catalogo.tsx, NuevaSolicitud.tsx, SolicitudCreada.tsx
+    │   └── marketplace/
+    │       ├── routes.tsx              # mismo patrón que solicitud-retiro
+    │       ├── Listado.tsx, DetalleArticulo.tsx, PublicarArticulo.tsx, MisPublicaciones.tsx
+    │       ├── chat/                   # HU-06: Chat.tsx, Bandeja.tsx, NoLeidosContext.tsx
+    │       ├── distancia.ts            # bandas, redondeo a 20 m y useOrigenAproximado()
+    │       └── formato.ts              # etiquetas de estado/tipo y fecha relativa
     └── pages/
         ├── Login.tsx              # hero verde + CTA dorado ClaveÚnica (responsive layout)
         ├── SeleccionInicio.tsx    # login diferido: elegir modo vecino/funcionario
@@ -103,7 +119,7 @@ apps/frontend/
         ├── MisSolicitudes.tsx     # listado y detalle de solicitudes ciudadanas
         ├── AdminSolicitudes.tsx   # panel municipal: listar/filtrar/estados + modal HU-08
         ├── AdminAuditoria.tsx     # panel municipal: logs de trazabilidad y KPIs
-        └── Proximamente.tsx       # placeholder reutilizable (retiro municipal, marketplace)
+        └── Proximamente.tsx       # placeholder reutilizable (hoy: retiro municipal)
 ```
 
 > **Por qué `features/` separado de `pages/`:** el flujo de solicitud (6 pantallas + su
@@ -126,9 +142,21 @@ Expone funciones tipadas e interfaces del dominio (`ResiduoCatalogo`, `Solicitud
 | `fetchSolicitudesAdmin(estado?)` | `GET /api/admin/solicitudes?estado={estado}` (hoy en `apps/admin-web/src/api/admin.ts`, contra `apps/backend-admin`) | Panel de administración |
 | `actualizarSolicitud(id, data)` | `PATCH /api/solicitudes-retiro/{id}` | Cambio de estado / asignación (HU-08) |
 | `cancelarSolicitud(id, uuid, motivo?)` | `PATCH /api/solicitudes-retiro/{id}/cancelar` | Cancelación de solicitud |
-| `fetchPerfilAcceso(uuid)` | `GET /api/usuarios/{uuid}/perfil-acceso` | Roles y contexto (vecino/funcionario) |
 | `fetchAuditoriaLogs()` | Mock / Endpoint trazabilidad | Lista de logs de auditoría (HU-13) |
 | `fetchAuditoriaStats()` | Mock / Endpoint trazabilidad | Resumen y KPIs de auditoría |
+
+El Marketplace tiene su propia capa, `src/api/marketplace.ts`, que reutiliza `apiFetch` y
+`handle` de `arca.ts`. Define el contrato con el backend (`listarArticulos`, `obtenerArticulo`,
+`publicarArticulo`, `listarMisPublicaciones`, `retirarArticulo`) y, hasta que existan los
+endpoints, responde con datos de ejemplo detrás de `USAR_DATOS_DE_EJEMPLO`. Los endpoints
+esperados y las reglas de privacidad están en el comentario de cabecera del archivo.
+
+El chat (HU-06) tiene `src/api/chat.ts`, `src/api/push.ts` y `src/api/socket.ts`, contra el backend real
+(sin datos de ejemplo). `chat.ts` espeja los tipos de `apps/backend/src/marketplace/chat/reglas-chat.ts`
+(`listarConversaciones`, `obtenerMensajes`, `enviarMensaje`, `marcarLeidos`); la conversación se
+identifica con un `conversacionId` opaco (el id del interés), nunca con el id del otro vecino. El interés, la reserva y la entrega con código están en `api/marketplace.ts` (`registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`); «Lo quiero» ya no existe. `socket.ts` expone
+`conectarSocket()` y `desconectarSocket()` y solo recibe los eventos `mensaje` y `leidos`: enviar va por
+REST. `push.ts` llama a `/api/push/*`; la lógica de suscripción vive en `src/pwa/push.ts`.
 
 `API_URL` es `/api` (ruta relativa) — Vite la proxea a `localhost:3000`. Todas las llamadas
 mandan el header `ngrok-skip-browser-warning` (inofensivo fuera de ngrok, necesario cuando
@@ -182,7 +210,14 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
 | `MisSolicitudes` | `pages/` | `/mis-solicitudes` | `GET /api/solicitudes-retiro?usuarioCiudadanoId=` | **backend** |
 | `AdminSolicitudes` | `pages/` | `/admin` | `GET/PATCH /api/solicitudes-retiro` | **backend** + HU-08 |
 | `AdminAuditoria` | `pages/` | `/admin/auditoria` | Logs y estadísticas de auditoría | **admin** (HU-13) |
-| `Proximamente` | `pages/` | `/retiro-municipal`, `/marketplace/subir` | — | placeholder |
+| `Listado` | `features/marketplace/` | `/marketplace` | `listarArticulos` | datos de ejemplo |
+| `DetalleArticulo` | `features/marketplace/` | `/marketplace/:id` | `obtenerArticulo`, `retirarArticulo`; interés, reserva, liberar, entregar con código y calificar (`registrarInteres`, `listarInteresados`, `reservar`, `liberar`, `entregar`, `calificar`) | datos de ejemplo + **backend** (HU-06, HU-15) |
+| `PublicarArticulo` | `features/marketplace/` | `/marketplace/subir` | `publicarArticulo` + `GET /api/residuos/catalogo` | datos de ejemplo |
+| `MisPublicaciones` | `features/marketplace/` | `/marketplace/mis-publicaciones` | `listarMisPublicaciones` | datos de ejemplo |
+| `Avisos` | `pages/` | `/avisos` | `GET/PATCH /api/notificaciones` + mensajes sin leer del chat | **backend** (HU-23) |
+| `Bandeja` | `features/marketplace/chat/` | `/marketplace/mensajes` | `listarConversaciones` + eventos socket | **backend** (HU-06) |
+| `Chat` | `features/marketplace/chat/` | `/marketplace/:id/chat` · `/marketplace/:id/chat/:conversacionId` | `obtenerMensajes`, `enviarMensaje`, `marcarLeidos` + eventos socket; pantalla completa, sin Shell | **backend** (HU-06) |
+| `Proximamente` | `pages/` | `/retiro-municipal` | — | placeholder |
 
 - Las rutas (salvo `/login`) están envueltas en `RequireSession`: sin sesión → redirige a `/login`.
 - ~~Las rutas `/admin` y `/admin/auditoria` están protegidas por `RequireAdmin`~~ — en realidad
@@ -204,7 +239,7 @@ de `login()` (guardar token, derivar el id del token) y se deja de enviar
                                                                     ↓ POST (backend)
                                                           /solicitud/creada
                                                               ├─ Retiro municipal (placeholder)
-                                                              ├─ Subir a Marketplace (placeholder)
+                                                              ├─ Subir a Marketplace (/marketplace/subir)
                                                               └─ Ver mis solicitudes
 ```
 
@@ -217,9 +252,10 @@ La pantalla `Inicio` es el menú central de la app y se construye sola a partir 
 arreglo `MODULOS`. Cada módulo declara: `id`, `titulo`, `descripcion`, `icono`, `ruta?`,
 `activo` y `epica`.
 
-- Tarjetas **activas** (hoy: Solicitar retiro, Mis solicitudes — EP-01) son clickeables.
+- Tarjetas **activas** (hoy: Solicitar retiro, Mis solicitudes — EP-01; Marketplace — EP-02)
+  son clickeables.
 - Tarjetas **`activo: false`** se muestran atenuadas con badge "Próximamente"
-  (Marketplace EP-02, Mis créditos EP-04, Panel municipal EP-03).
+  (Mis créditos EP-04, Panel municipal EP-03).
 - El orden (activos primero) se resuelve en el render, no en el config.
 
 **Cómo agregar un módulo nuevo:** añadir un objeto a `MODULOS`. Cuando su endpoint exista,
@@ -230,11 +266,21 @@ cambiar `activo: false → true` y completar `ruta`. **`Inicio.tsx` no se modifi
 ## Panel Administrativo y Asignación (EP-03 / Sprint 2)
 
 ### 1. Asignación y Programación de Retiros (HU-08)
-Implementado mediante el componente interactivo `AsignarRetiroModal.tsx` integrado en el detalle de cada solicitud en `AdminSolicitudes.tsx`:
-- **Selección de fecha:** Selector de fecha de retiro programada.
-- **Franjas horarias:** Selección rápida entre turnos *Mañana (09:00 - 13:00)*, *Tarde (14:00 - 18:00)* o *Personalizada* con selector manual de hora.
-- **Operador asignado:** Selector dinámico de operadores municipales en servicio.
-- **Persistencia:** Al confirmar, se invoca `actualizarSolicitud()` actualizando `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada` en formato ISO.
+
+> ⚠️ **Obsoleto desde el replanteo del 2026-09-17.** La asignación de operadores, la programación
+> de fecha y franja y `AsignarRetiroModal.tsx` **se eliminaron** del panel: los retiros los ejecuta
+> una empresa externa. Se conserva como historia. Estado actual:
+> [`apps/admin-web/README.md`](../apps/admin-web/README.md) ·
+> [mapa del panel](specs/MAPA_PANEL_MUNICIPAL.md)
+>
+> **Ya no aplica** el cableado a `GET /api/operadores` ni `OPERADORES_DEMO`: ese endpoint se
+> eliminó del backend ciudadano (§2) y el modal de asignación salió del panel.
+
+~~Implementado en `apps/admin-web` (`AsignarRetiroModal.tsx` + detalle en `Solicitudes.tsx`):~~
+- ~~**Selección de fecha:** Selector de fecha de retiro programada.~~
+- ~~**Franjas horarias:** Selección rápida entre turnos *Mañana*, *Tarde*, *Noche* o *Personalizada*.~~
+- ~~**Operador asignado:** Select en el modal con `OPERADORES_DEMO` / `GET /api/operadores`.~~
+- ~~**Persistencia:** `PATCH` con `estado: 'asignada'`, `operadorAsignadoId` y `fechaProgramada`.~~
 
 ### 2. Trazabilidad y Logs de Auditoría (HU-13)
 Pantalla `/admin/auditoria` (`AdminAuditoria.tsx`) accesible desde la barra superior de navegación del panel administrativo:
@@ -282,7 +328,7 @@ npm run dev        # abre http://localhost:5173
 >
 > Nota: `VITE_API_URL` es una ruta **relativa** — Vite la proxea a `localhost:3000`
 > (`vite.config.ts`), así el mismo valor funciona en local y detrás de un túnel ngrok
-> (ver `SETUP_LOCAL.md` §10). El script `setup.ps1` en la raíz del repo automatiza todo
+> (ver `SETUP_LOCAL.md` §10). El script `scripts/setup.ps1` automatiza todo
 > este setup (Docker, backend y frontend) de punta a punta.
 
 ### Comandos útiles
@@ -306,7 +352,7 @@ npm run lint      # ESLint
 ## Verificación (flujo end-to-end EP-01 y EP-03)
 
 1. Backend OK (`GET /api/health` → `{"status":"ok","db":"connected"}`).
-2. Abrir `http://localhost:5173` → "Entrar como vecino (dev)" o "Ingresar con ClaveÚnica".
+2. Abrir `http://localhost:5173` → "Vecino (dev)" (pide nombre y RUT de prueba) o el botón de ClaveÚnica.
 3. Caer en **Inicio**: tarjeta de impacto (demo) + grid de módulos.
 4. Tab **Solicitar** (📷) → captura → "Analizar con IA" → pantalla de análisis →
    resultado con la detección mock sobre el catálogo real.
@@ -317,7 +363,7 @@ npm run lint      # ESLint
    (leído desde `GET /api/solicitudes-retiro`).
 8. Ingresar como funcionario municipal → el botón "Modo funcionario" navega a `VITE_ADMIN_URL`
    (`apps/admin-web`, http://localhost:5174 en local) para gestionar solicitudes, cambiar
-   estados o programar asignación con operador (HU-08).
+   estados, revisar solicitudes y derivarlas a la empresa operadora.
 9. Dentro del panel, ir a "Auditoría" → consultar KPIs y registros de actividad del sistema (HU-13).
 
 ---
@@ -336,12 +382,12 @@ los endpoints correspondientes.
 | PWA | Service Worker (Workbox) + manifest para modo offline |
 | Auth real (EP-05) | Reemplazar login temporal por JWT/ClaveÚnica en `SessionContext` |
 | Redux Toolkit + RTK Query | Cuando crezca el estado (marketplace, credits, sesión) |
-| EP-02 Marketplace | Listado/publicación, chat en tiempo real (`socket.io-client`), ratings |
+| EP-02 Marketplace | Listado/publicación y ratings. Chat en tiempo real (`socket.io-client`) ✅ HU-06 |
 | EP-04 Circular Credits | Saldo + historial en perfil |
-| EP-03 Dashboard municipal | ✅ Base hecha (`/admin`: listar/filtrar/detalle + estados, modal de asignación HU-08 y auditoría HU-13). Falta panel funcionario completo, mapa de calor (**Leaflet** + OpenStreetMap), reportes |
-| Programación con operadores | ✅ Hecho: Modal `AsignarRetiroModal` con fecha, franja y operador asignado (HU-08) |
+| EP-03 Dashboard municipal | ✅ En `apps/admin-web`: revisión de solicitudes, derivación en Excel, métricas, auditoría y mapa de calor con **Leaflet**. Falta reportes y configuración |
+| Programación con operadores | ❌ **Descartada** (replanteo 2026-09-17): los retiros los ejecuta una empresa externa. Ya eliminada del panel ([pendientes](PENDIENTES_EQUIPO.md)) |
 | Log de Auditoría | ✅ Hecho: Pantalla `/admin/auditoria` con métricas, búsqueda y filtros (HU-13) |
-| Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por `perfil-acceso` |
+| Login diferido | ✅ Hecho: ClaveÚnica primero (`/login`) → gate `/` decide por el rol de `GET /api/sesion` |
 | Proteger el panel admin | ⛔ Sin gate de sesión en `apps/admin-web` (deuda declarada, migración 2026-09-01). Falta login ClaveÚnica propio + guard real |
 | Cancelar desde detalle (ciudadano) | ✅ Mis solicitudes: tocar → detalle → cancelar; oculta local |
 | Tests | Vitest + React Testing Library |
@@ -354,4 +400,4 @@ los endpoints correspondientes.
 - [`SETUP_LOCAL.md`](./SETUP_LOCAL.md) — Cómo levantar el entorno completo
 - [`BACKEND_FASE1.md`](./BACKEND_FASE1.md) — Qué expone el backend hoy
 - [`../README.md`](../README.md) — Producto, stack y roadmap
-- [`../CLAUDE_proyecto.md`](../CLAUDE_proyecto.md) — Contexto general del proyecto
+- [`CLAUDE_proyecto.md`](CLAUDE_proyecto.md) — Contexto general del proyecto
