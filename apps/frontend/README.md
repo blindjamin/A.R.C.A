@@ -40,6 +40,14 @@ Requiere `apps/frontend/.env.local` con:
 VITE_API_URL=/api
 ```
 
+Contacto de la Municipalidad en la página de Ayuda (opcionales, se fijan **al compilar**, una
+vez por municipalidad; sin ninguno la página dice «Contacto por confirmar»):
+
+```
+VITE_CORREO_CONTACTO=<correo de la Municipalidad para dudas de vecinos>
+VITE_TELEFONO_CONTACTO=<teléfono de atención>
+```
+
 El dev server queda en `http://localhost:5173` y hace **proxy de `/api` hacia el backend**
 (`http://localhost:3000`), configurado en [`vite.config.ts`](vite.config.ts). Por eso frontend y
 backend comparten un único origen y no hace falta tocar CORS ni URLs absolutas en desarrollo.
