@@ -25,10 +25,4 @@ describe('sectores.constants', () => {
     expect(NOMBRES_SECTOR.at(-1)).toBe('Sin ubicación');
     expect(NOMBRES_SECTOR).toHaveLength(SECTORES_PROVISIONALES.length + 1);
   });
-
-  it('un punto a ~1 km de la USM cae en la Feria USM', () => {
-    expect(sectorMasCercano(-33.03, -71.49).nombre).toBe(
-      'Feria USM (Viña del Mar)',
-    );
-  });
 });

@@ -70,23 +70,34 @@ export class MailService {
     this.codigosPedidos.set(usuarioCiudadanoId, recientes);
   }
 
+  /** `MAIL_FROM`, o la misma casilla que envía (`MAIL_USER`) con el nombre de la app. */
+  private remitente(): string {
+    const from = this.configService.get<string>('MAIL_FROM');
+    if (from) return from;
+    const user =
+      this.configService.get<string>('MAIL_USER') ||
+      this.configService.get<string>('GMAIL_USER');
+    return `A.R.C.A. <${user ?? ''}>`;
+  }
+
   private inicializarTransporte() {
     const host =
       this.configService.get<string>('MAIL_HOST') || 'smtp.gmail.com';
     const port = Number(this.configService.get<string>('MAIL_PORT') || 465);
+    // Sin valor por defecto: cada municipalidad envía desde su propia casilla
+    // (en Santo Domingo, noresponder@santodomingo.cl).
     const user =
       this.configService.get<string>('MAIL_USER') ||
-      this.configService.get<string>('GMAIL_USER') ||
-      'soporte.arcaa@gmail.com';
+      this.configService.get<string>('GMAIL_USER');
     const pass =
       this.configService.get<string>('MAIL_PASS') ||
       this.configService.get<string>('GMAIL_APP_PASSWORD');
 
-    if (!pass) {
+    if (!user || !pass) {
       this.logger.warn(
         this.enProduccion
-          ? 'MAIL_PASS / GMAIL_APP_PASSWORD no configurado: en producción no se enviarán correos ni códigos de verificación.'
-          : 'MAIL_PASS / GMAIL_APP_PASSWORD no configurado en entorno. Se utilizará modo SIMULACIÓN para el envío de correos.',
+          ? 'MAIL_USER o MAIL_PASS no configurado: en producción no se enviarán correos ni códigos de verificación.'
+          : 'MAIL_USER o MAIL_PASS no configurado en entorno. Se utilizará modo SIMULACIÓN para el envío de correos.',
       );
       this.transporter = null;
       return;
@@ -151,9 +162,7 @@ export class MailService {
     this.otps.set(clave, { codigo, expira, intentos: 0 });
 
     const html = generarHtmlCodigo(codigo);
-    const from =
-      this.configService.get<string>('MAIL_FROM') ||
-      'A.R.C.A. Santo Domingo <soporte.arcaa@gmail.com>';
+    const from = this.remitente();
 
     if (this.transporter) {
       try {
@@ -315,9 +324,7 @@ export class MailService {
   ): Promise<boolean> {
     const normalizado = email.trim().toLowerCase();
     const html = generarHtmlCambioEstado(solicitud, nuevoEstado, comentario);
-    const from =
-      this.configService.get<string>('MAIL_FROM') ||
-      'A.R.C.A. Santo Domingo <soporte.arcaa@gmail.com>';
+    const from = this.remitente();
 
     if (!this.transporter) {
       this.logger.log(

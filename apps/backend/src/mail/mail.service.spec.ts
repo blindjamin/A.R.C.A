@@ -39,7 +39,7 @@ describe('MailService', () => {
     correos.clear();
     configService = {
       get: jest.fn().mockImplementation((key: string) => {
-        if (key === 'MAIL_USER') return 'soporte.arcaa@gmail.com';
+        if (key === 'MAIL_USER') return 'noresponder@santodomingo.cl';
         return undefined;
       }),
     };
