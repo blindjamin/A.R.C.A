@@ -25,6 +25,7 @@ const PISO_GENERAL = 120;
 const PISO_LOGIN = 10;
 const PISO_UBICACION = 90;
 const PISO_CHAT = 30;
+const PISO_CORREO = 10;
 
 /**
  * Límite por IP leído del entorno. Sirve para subir el tope en la Feria, donde
@@ -73,8 +74,13 @@ export const LIMITE_CHAT = limitePorIp('LIMITE_IP_CHAT', PISO_CHAT);
 /**
  * Peticiones por minuto a enviar y verificar códigos de correo. Cada envío le
  * llega a un tercero, y un código tiene solo 6 dígitos.
+ *
+ * Verificar el correo es obligatorio para pedir un retiro, así que en la Feria,
+ * con muchos vecinos en el mismo wifi, 10 por minuto para toda la red se queda
+ * corto: por eso se puede subir con `LIMITE_IP_CORREO`. El tope por vecino
+ * (`MailService`) y los intentos por código siguen igual.
  */
-export const LIMITE_CORREO = 10;
+export const LIMITE_CORREO = limitePorIp('LIMITE_IP_CORREO', PISO_CORREO);
 
 export const MENSAJE_LIMITE =
   'Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.';

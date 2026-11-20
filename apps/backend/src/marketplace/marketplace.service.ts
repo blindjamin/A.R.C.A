@@ -29,6 +29,7 @@ import {
   InteresadoMarketplace,
   type OrigenPeticion,
   ResiduoCatalogo,
+  RolAdministrador,
   SesionService,
   SolicitudRetiro,
   TipoActorAuditoria,
@@ -93,6 +94,12 @@ const origenDe = ({ lat, lon }: OrigenDto): Coordenadas | null =>
   lat !== undefined && lon !== undefined
     ? { latitud: lat, longitud: lon }
     : null;
+
+/** Funcionario o administrador con sesión del panel municipal. */
+const esEquipoMunicipal = (user: AuthUser): boolean =>
+  user.esAdministrador &&
+  (user.rol === RolAdministrador.ADMIN ||
+    user.rol === RolAdministrador.FUNCIONARIO);
 
 /** Escapa los comodines de LIKE para que el texto se busque tal cual. */
 const patronLike = (texto: string): string =>
@@ -610,14 +617,19 @@ export class MarketplaceService {
     };
   }
 
-  /** La foto del artículo, con la misma visibilidad que el detalle. */
+  /**
+   * La foto del artículo, con la misma visibilidad que el detalle. El equipo
+   * municipal la ve aunque el artículo no esté publicado: la necesita para
+   * moderar las publicaciones pendientes y revisar las denuncias.
+   */
   async foto(id: number, user: AuthUser): Promise<ArchivoParaEnviar> {
-    // El personal municipal modera artículos pendientes: necesita ver la foto
-    // antes de aprobar (F11). Al vecino se le sigue aplicando la visibilidad.
-    const articulo = user.esAdministrador
+    const articulo = esEquipoMunicipal(user)
       ? await this.articuloRepository.findOne({ where: { id } })
       : await this.buscarVisible(id, user, false);
-    if (!articulo?.fotoPath) {
+    if (!articulo) {
+      throw new NotFoundException(`Artículo ${id} no encontrado`);
+    }
+    if (!articulo.fotoPath) {
       throw new NotFoundException('Foto no encontrada');
     }
     return this.archivosService.abrir(articulo.fotoPath);
