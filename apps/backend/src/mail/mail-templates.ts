@@ -41,7 +41,20 @@ const LOGO_HEADER_HTML = `
   </table>
 `;
 
-const FOOTER_HTML = `
+/**
+ * Línea de contacto del pie. `MAIL_CONTACTO` es el correo de la Municipalidad
+ * para dudas de los vecinos (no el del equipo A.R.C.A.); sin él, se remite a la
+ * Municipalidad sin dirección.
+ */
+export function lineaContacto(
+  contacto = process.env.MAIL_CONTACTO?.trim() ?? '',
+): string {
+  return contacto
+    ? `Para dudas comunícate a ${escaparHtml(contacto)}`
+    : 'Para dudas comunícate con la Municipalidad';
+}
+
+const piePagina = (): string => `
   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 24px;">
     <tr>
       <td align="center" style="font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; font-size: 13px; color: #64748B; line-height: 1.6;">
@@ -53,7 +66,7 @@ const FOOTER_HTML = `
     <tr>
       <td align="center" style="padding-top: 12px; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; font-size: 11px; color: #94A3B8;">
         Este es un mensaje institucional automático generado por la plataforma A.R.C.A.<br>
-        Por favor no respondas directamente a este correo. Para dudas comunícate a soporte.arcaa@gmail.com
+        Por favor no respondas directamente a este correo. ${lineaContacto()}
       </td>
     </tr>
   </table>
@@ -161,7 +174,7 @@ export function generarHtmlCodigo(codigo: string): string {
           <!-- Pie de página institucional -->
           <tr>
             <td>
-              ${FOOTER_HTML}
+              ${piePagina()}
             </td>
           </tr>
 
@@ -453,7 +466,7 @@ export function generarHtmlCambioEstado(
           <!-- Pie de página institucional -->
           <tr>
             <td>
-              ${FOOTER_HTML}
+              ${piePagina()}
             </td>
           </tr>
 

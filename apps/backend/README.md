@@ -57,9 +57,10 @@ Verificación rápida: `curl http://localhost:3000/api/health`
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | vacías | Avisos push del chat. Opcionales: vacías, el chat funciona sin avisos. Generar el par una vez con `npx web-push generate-vapid-keys`; `VAPID_SUBJECT` es un `mailto:` o `https:` de contacto |
 | `MAIL_HOST` | `smtp.gmail.com` | Servidor SMTP para envío de correos |
 | `MAIL_PORT` | `465` | Puerto SMTP (465 SSL o 587 TLS) |
-| `MAIL_USER` | `soporte.arcaa@gmail.com` | Cuenta de correo emisora |
+| `MAIL_USER` | **obligatoria en producción** | Casilla que envía, de la Municipalidad (en Santo Domingo, `noresponder@santodomingo.cl`). Sin ella no se envían correos |
 | `MAIL_PASS` | **obligatoria en producción** | Contraseña de aplicación de Google. En local, si falta, activa el modo simulación; en producción, sin ella no se envían códigos y `enviar-codigo` responde 503 |
-| `MAIL_FROM` | `"A.R.C.A. <soporte.arcaa@gmail.com>"` | Nombre y dirección en cabecera From |
+| `MAIL_FROM` | `A.R.C.A. <MAIL_USER>` | Nombre y dirección en cabecera From |
+| `MAIL_CONTACTO` | vacío | Correo de la Municipalidad para dudas de vecinos, en el pie de los correos. Vacío: «comunícate con la Municipalidad» |
 
 `.env.local` **no se versiona** (está en `.gitignore`). La plantilla es `.env.example`.
 
