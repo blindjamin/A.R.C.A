@@ -382,6 +382,22 @@ function DetalleSolicitud({
           />
           <Dato label="Cierre" valor={formatoFecha(solicitud.fechaCierre)} />
           <Dato label="Dirección" valor={solicitud.direccionAnonimizada} full />
+          {solicitud.latitudCapturada && solicitud.longitudCapturada && (
+            <div className="col-span-2">
+              <dt className="text-xs uppercase tracking-wide text-slate-2">Ubicación</dt>
+              <dd className="text-ink">
+                {Number(solicitud.latitudCapturada).toFixed(5)}, {Number(solicitud.longitudCapturada).toFixed(5)}{' '}
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${solicitud.latitudCapturada}&mlon=${solicitud.longitudCapturada}#map=17/${solicitud.latitudCapturada}/${solicitud.longitudCapturada}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-green-800 underline"
+                >
+                  Ver en el mapa
+                </a>
+              </dd>
+            </div>
+          )}
           <Dato label="Descripción" valor={solicitud.descripcion} full />
           {solicitud.razonRechazo && (
             <Dato label="Motivo" valor={solicitud.razonRechazo} full />

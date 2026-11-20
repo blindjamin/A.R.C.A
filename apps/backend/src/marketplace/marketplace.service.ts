@@ -30,6 +30,7 @@ import {
   type OrigenPeticion,
   ResiduoCatalogo,
   SesionService,
+  SolicitudRetiro,
   TipoActorAuditoria,
   type TransaccionCircularCredits,
 } from '../core';
@@ -51,6 +52,7 @@ import {
   LARGO_TITULO_AVISO,
   primerNombre,
   recortar,
+  solicitudPublicable,
 } from './articulo-publico';
 import type { CalificarArticuloDto } from './dto/calificar-articulo.dto';
 import type { FiltrarArticulosDto } from './dto/filtrar-articulos.dto';
@@ -173,6 +175,22 @@ export class MarketplaceService {
     foto: ArchivoSubido | undefined,
     user: AuthUser,
   ): Promise<ArticuloPublico> {
+    if (dto.solicitudOrigenId !== undefined) {
+      const origen = await this.articuloRepository.manager.findOne(
+        SolicitudRetiro,
+        {
+          where: {
+            id: dto.solicitudOrigenId,
+            usuarioCiudadanoId: user.ciudadanoId,
+          },
+        },
+      );
+      if (!origen || !solicitudPublicable(origen)) {
+        throw new BadRequestException(
+          'Esa solicitud ya no se puede usar para publicar: solo sirven las que siguen abiertas y sin pagar.',
+        );
+      }
+    }
     let residuo: ResiduoCatalogo | null = null;
     if (dto.residuoCatalogoId) {
       residuo = await this.residuosService.findCatalogoById(
@@ -594,8 +612,12 @@ export class MarketplaceService {
 
   /** La foto del artículo, con la misma visibilidad que el detalle. */
   async foto(id: number, user: AuthUser): Promise<ArchivoParaEnviar> {
-    const articulo = await this.buscarVisible(id, user, false);
-    if (!articulo.fotoPath) {
+    // El personal municipal modera artículos pendientes: necesita ver la foto
+    // antes de aprobar (F11). Al vecino se le sigue aplicando la visibilidad.
+    const articulo = user.esAdministrador
+      ? await this.articuloRepository.findOne({ where: { id } })
+      : await this.buscarVisible(id, user, false);
+    if (!articulo?.fotoPath) {
       throw new NotFoundException('Foto no encontrada');
     }
     return this.archivosService.abrir(articulo.fotoPath);

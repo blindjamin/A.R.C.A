@@ -50,4 +50,10 @@ export class PublicarArticuloDto {
   @Type(() => Number)
   @IsLongitude()
   lon?: number;
+
+  /** Solicitud de retiro desde la que se publica (si la hay). Debe ser tuya y estar abierta. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  solicitudOrigenId?: number;
 }

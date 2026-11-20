@@ -16,6 +16,8 @@ export interface MensajeChat {
   fecha: string;
   esMio: boolean;
   leido: boolean;
+  /** Foto adjunta; solo la sirven a los dos participantes. */
+  imagenUrl: string | null;
 }
 
 export interface ArticuloDelChat {
@@ -100,6 +102,23 @@ export function enviarMensaje(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contenido }),
     },
+  ).then((r) => handle<MensajeEnviado>(r));
+}
+
+/** Mensaje con una foto y, si se quiere, un texto (multipart, campo `imagen`). */
+export function enviarMensajeConImagen(
+  articuloId: number,
+  imagen: File,
+  contenido: string,
+  conversacionId?: number,
+): Promise<MensajeEnviado> {
+  const form = new FormData();
+  form.set('imagen', imagen);
+  if (contenido) form.set('contenido', contenido);
+  // Sin Content-Type explícito: el navegador pone el boundary del multipart.
+  return apiFetch(
+    `${API_URL}/marketplace/articulos/${articuloId}/mensajes/imagen${queryConversacion(conversacionId)}`,
+    { method: 'POST', body: form },
   ).then((r) => handle<MensajeEnviado>(r));
 }
 

@@ -12,7 +12,10 @@ import {
   type Calificacion,
   EstadoArticuloMarketplace,
   type InteresadoMarketplace,
+  EstadoPagoSolicitud,
+  EstadoSolicitudRetiro,
   type ResiduoCatalogo,
+  type SolicitudRetiro,
   type SesionService,
   TipoArticuloMarketplace,
   type UsuarioCiudadano,
@@ -78,6 +81,7 @@ function montar({
   interesados = [] as Partial<InteresadoMarketplace>[],
   afectadasIntento = 1,
   errorAlCalificar = null as Error | null,
+  solicitud = null as Partial<SolicitudRetiro> | null,
 } = {}) {
   const articuloRepo = {
     create: jest.fn((datos: Partial<ArticuloMarketplace>) => ({ ...datos })),
@@ -111,6 +115,7 @@ function montar({
     create: jest.fn((datos: Partial<Calificacion>) => ({ ...datos })),
   };
   const manager = {
+    findOne: jest.fn(() => Promise.resolve(solicitud)),
     getRepository: jest.fn(() => articuloRepo),
     save: jest.fn((_entidad: unknown, c: Calificacion) =>
       errorAlCalificar
@@ -272,6 +277,56 @@ describe('MarketplaceService.publicar', () => {
       service.publicar(dto, FOTO, usuario(YO)),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(articuloRepo.save).not.toHaveBeenCalled();
+  });
+  describe('desde una solicitud de retiro', () => {
+    const E = EstadoSolicitudRetiro;
+    const P = EstadoPagoSolicitud;
+    const publicar = (
+      estado: EstadoSolicitudRetiro,
+      pago: EstadoPagoSolicitud,
+    ) => {
+      const { service } = montar({
+        solicitud: { id: 7, estado, estadoPago: pago },
+      });
+      return service.publicar(
+        { ...dto, solicitudOrigenId: 7 },
+        undefined,
+        usuario(YO),
+      );
+    };
+
+    it.each([
+      [E.EN_REVISION, P.NO_APLICA],
+      [E.REQUIERE_MODIFICACION, P.NO_APLICA],
+      [E.APROBADA, P.PENDIENTE],
+    ])(
+      'deja publicar desde una abierta (%s, pago %s)',
+      async (estado, pago) => {
+        await expect(publicar(estado, pago)).resolves.toBeDefined();
+      },
+    );
+
+    it.each([
+      [E.APROBADA, P.PAGADO],
+      [E.DERIVADA, P.PAGADO],
+      [E.RETIRADA, P.NO_APLICA],
+      [E.NO_REALIZADA, P.NO_APLICA],
+      [E.RECHAZADA, P.NO_APLICA],
+      [E.CANCELADA, P.NO_APLICA],
+    ])('rechaza con 400 desde %s con pago %s', async (estado, pago) => {
+      await expect(publicar(estado, pago)).rejects.toThrow(BadRequestException);
+    });
+
+    it('rechaza con 400 si la solicitud no existe o no es del vecino', async () => {
+      const { service } = montar({ solicitud: null });
+      await expect(
+        service.publicar(
+          { ...dto, solicitudOrigenId: 7 },
+          undefined,
+          usuario(YO),
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 });
 

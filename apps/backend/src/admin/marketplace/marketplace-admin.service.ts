@@ -34,6 +34,9 @@ export interface ArticuloModeracionDetalle {
   fechaPublicacion: Date;
   motivoRechazo: string | null;
   creditosSugeridos: number;
+  creditos: number | null;
+  receptorId: string | null;
+  fechaTransaccion: Date | null;
 }
 
 @Injectable()
@@ -62,6 +65,9 @@ export class MarketplaceAdminService {
       fechaPublicacion: a.fechaPublicacion,
       motivoRechazo: a.motivoRechazo,
       creditosSugeridos: creditosPorEntrega(),
+      creditos: a.creditos,
+      receptorId: a.usuarioCompradorId,
+      fechaTransaccion: a.fechaTransaccion,
     };
   }
 
@@ -72,6 +78,16 @@ export class MarketplaceAdminService {
       order: { fechaPublicacion: 'ASC' },
     });
 
+    return articulos.map((a) => this.aDetalle(a));
+  }
+
+  /** Intercambios ya entregados, para revisión municipal. */
+  async findFinalizados(): Promise<ArticuloModeracionDetalle[]> {
+    const articulos = await this.articuloRepository.find({
+      where: { estado: EstadoArticuloMarketplace.COMPLETADO },
+      relations: { residuoCatalogo: true },
+      order: { fechaTransaccion: 'DESC' },
+    });
     return articulos.map((a) => this.aDetalle(a));
   }
 

@@ -7,6 +7,8 @@
  * Cuando llegue la lista oficial, este es el único archivo que debe cambiar.
  */
 export const SECTORES_PROVISIONALES = [
+  // Feria 13-11-2026 (USM Viña): volver a Santo Domingo después
+  { nombre: 'Feria USM (Viña del Mar)', lat: -33.0364632, lng: -71.4869552 },
   { nombre: 'Santo Domingo Centro', lat: -33.6366, lng: -71.6264 },
   { nombre: 'Rocas de Santo Domingo', lat: -33.6402, lng: -71.636 },
   { nombre: 'San Enrique', lat: -33.6534, lng: -71.5905 },

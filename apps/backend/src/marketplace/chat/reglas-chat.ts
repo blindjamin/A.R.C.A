@@ -44,6 +44,8 @@ export interface MensajePublico {
   fecha: Date;
   esMio: boolean;
   leido: boolean;
+  /** Foto adjunta; solo la ven los dos participantes. */
+  imagenUrl: string | null;
 }
 
 export interface ArticuloDelChat {
@@ -103,8 +105,28 @@ export function aMensajePublico(
     fecha: m.fechaMensaje,
     esMio: m.usuarioRemitenteId === ciudadanoId,
     leido: m.leido,
+    imagenUrl: m.imagenPath
+      ? `/api/marketplace/articulos/${m.articuloId}/mensajes/${m.id}/imagen`
+      : null,
   };
 }
+
+/** Texto del mensaje en la bandeja: un mensaje solo con foto dice «Foto». */
+export const textoResumen = (
+  m: Pick<MensajeMarketplace, 'contenido' | 'imagenPath'>,
+): string => m.contenido || (m.imagenPath ? 'Foto' : '');
+
+/**
+ * La foto de un mensaje la ven solo quien la escribió y quien la recibió: el
+ * interesado y quien publica el artículo. Cualquier otro recibe 404.
+ */
+export const puedeVerImagen = (
+  m: Pick<MensajeMarketplace, 'interesadoId'>,
+  articulo: Pick<ArticuloMarketplace, 'usuarioPublicadorId'>,
+  ciudadanoId: string,
+): boolean =>
+  ciudadanoId === m.interesadoId ||
+  ciudadanoId === articulo.usuarioPublicadorId;
 
 /** La foto va null si el endpoint de la foto le daría 404 a este vecino. */
 export function aArticuloDelChat(

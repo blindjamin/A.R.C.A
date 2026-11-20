@@ -20,6 +20,7 @@ import {
   IconSearch,
   IconUser,
 } from '../../components/ui';
+import VisorFoto from '../../components/ui/VisorFoto';
 import BotonDenunciar from '../denuncias/BotonDenunciar';
 import BotonReservar from './BotonReservar';
 import CalificarIntercambio from './CalificarIntercambio';
@@ -209,6 +210,7 @@ export default function DetalleArticulo() {
   } | null>(null);
 
   const [version, setVersion] = useState(0);
+  const [fotoAmpliada, setFotoAmpliada] = useState(false);
   const [interesados, setInteresados] = useState<Interesado[]>([]);
   const [interesando, setInteresando] = useState(false);
   const [errorInteres, setErrorInteres] = useState<string | null>(null);
@@ -379,7 +381,23 @@ export default function DetalleArticulo() {
       <div className="card overflow-hidden">
         <div className="relative flex aspect-[4/3] w-full items-center justify-center bg-stone-100 sm:aspect-[16/9] overflow-hidden">
           {fotoUrl ? (
-            <img src={fotoUrl} alt={titulo} className="h-full w-full object-cover" />
+            <>
+              {/* Foto completa sobre fondo neutro; al tocarla se amplía. */}
+              <button
+                type="button"
+                onClick={() => setFotoAmpliada(true)}
+                className="group relative flex h-full w-full cursor-zoom-in items-center justify-center"
+                aria-label="Ampliar foto"
+              >
+                <img src={fotoUrl} alt={titulo} className="h-full w-full object-contain" />
+                <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/60 px-2 py-1 text-[11px] text-white">
+                  <IconSearch className="h-3 w-3" aria-hidden="true" /> Ampliar
+                </span>
+              </button>
+              {fotoAmpliada && (
+                <VisorFoto url={fotoUrl} alt={titulo} onCerrar={() => setFotoAmpliada(false)} />
+              )}
+            </>
           ) : (
             <CategoriaPlaceholder categoria={categoria} />
           )}

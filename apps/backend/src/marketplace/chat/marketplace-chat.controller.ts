@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -10,12 +11,22 @@ import {
   Post,
   Query,
   Req,
+  Res,
+  StreamableFile,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import type { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request, Response } from 'express';
+import {
+  type ArchivoSubido,
+  TAMANO_MAXIMO_IMAGEN_BYTES,
+} from '../../archivos/archivos.service';
 import { NoBloqueadoGuard } from '../../bloqueos/no-bloqueado.guard';
 import { CurrentUser, LimiteChat, type AuthUser } from '../../core';
 import { ConversacionDto, HistorialDto } from '../dto/conversacion.dto';
+import { EnviarMensajeImagenDto } from '../dto/enviar-mensaje-imagen.dto';
 import { EnviarMensajeDto } from '../dto/enviar-mensaje.dto';
 import { MarketplaceChatService } from './marketplace-chat.service';
 
@@ -69,6 +80,41 @@ export class MarketplaceChatController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.chatService.enviar(id, dto, body.contenido, user);
+  }
+
+  @Post('articulos/:id/mensajes/imagen')
+  @UseGuards(NoBloqueadoGuard)
+  @LimiteChat()
+  @UseInterceptors(
+    FileInterceptor('imagen', {
+      limits: { fileSize: TAMANO_MAXIMO_IMAGEN_BYTES, files: 1 },
+    }),
+  )
+  enviarImagen(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() dto: ConversacionDto,
+    @Body() body: EnviarMensajeImagenDto,
+    @UploadedFile() imagen: ArchivoSubido | undefined,
+    @CurrentUser() user: AuthUser,
+  ) {
+    if (!imagen) throw new BadRequestException('Adjunta una foto');
+    return this.chatService.enviar(id, dto, body.contenido ?? '', user, imagen);
+  }
+
+  @Get('articulos/:id/mensajes/:mensajeId/imagen')
+  async imagen(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('mensajeId', ParseIntPipe) mensajeId: number,
+    @CurrentUser() user: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const { stream, mime } = await this.chatService.imagen(id, mensajeId, user);
+    res.set({
+      'Content-Type': mime,
+      'Cache-Control': 'private, max-age=300',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return new StreamableFile(stream);
   }
 
   @Patch('articulos/:id/mensajes/leidos')

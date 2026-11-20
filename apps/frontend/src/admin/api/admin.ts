@@ -633,6 +633,15 @@ export interface ArticuloModeracion {
   fechaPublicacion: string;
   motivoRechazo: string | null;
   creditosSugeridos?: number;
+  creditos?: number | null;
+  receptorId?: string | null;
+  fechaTransaccion?: string | null;
+}
+
+export function fetchArticulosFinalizados(): Promise<ArticuloModeracion[]> {
+  return apiFetch(`${API_URL}/admin/marketplace/finalizados`).then((r) =>
+    handle<ArticuloModeracion[]>(r),
+  );
 }
 
 export function fetchArticulosPendientes(): Promise<ArticuloModeracion[]> {

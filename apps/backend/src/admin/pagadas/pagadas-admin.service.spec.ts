@@ -1,3 +1,4 @@
+import { NOMBRES_SECTOR } from '../mapa-calor/sectores.constants';
 import { BadRequestException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
@@ -157,10 +158,10 @@ describe('PagadasAdminService', () => {
     expect(ultimaConsulta().take).toBe(LIMITE_EXPORTACION);
   });
 
-  it('sectores devuelve los 7 sectores más «Sin ubicación»', () => {
+  it('sectores devuelve los sectores del catálogo más «Sin ubicación»', () => {
     const { servicio } = montar();
     const sectores = servicio.sectores();
-    expect(sectores).toHaveLength(8);
+    expect(sectores).toHaveLength(NOMBRES_SECTOR.length);
     expect(sectores.at(-1)).toBe('Sin ubicación');
   });
 });

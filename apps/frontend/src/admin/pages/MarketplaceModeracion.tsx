@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
   aprobarArticuloMarketplace,
+  fetchArticulosFinalizados,
   fetchArticulosPendientes,
   mensajeDeError,
   rechazarArticuloMarketplace,
   type ArticuloModeracion,
 } from '../api/admin';
 import { EmptyState } from '../components/ui';
+import VisorFoto from '../../components/ui/VisorFoto';
 import {
   IconCheck,
   IconCircularCredits,
@@ -23,6 +25,8 @@ export default function MarketplaceModeracion() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accionEnCurso, setAccionEnCurso] = useState<number | null>(null);
+  const [vista, setVista] = useState<'pendientes' | 'finalizados'>('pendientes');
+  const [finalizados, setFinalizados] = useState<ArticuloModeracion[]>([]);
 
   // Modal de aprobación con asignación de créditos
   const [aprobandoArticulo, setAprobandoArticulo] = useState<ArticuloModeracion | null>(null);
@@ -40,8 +44,11 @@ export default function MarketplaceModeracion() {
   const cargar = () => {
     setCargando(true);
     setError(null);
-    fetchArticulosPendientes()
-      .then(setArticulos)
+    Promise.all([fetchArticulosPendientes(), fetchArticulosFinalizados()])
+      .then(([pendientes, cerrados]) => {
+        setArticulos(pendientes);
+        setFinalizados(cerrados);
+      })
       .catch((e: unknown) => setError(mensajeDeError(e)))
       .finally(() => setCargando(false));
   };
@@ -125,13 +132,94 @@ export default function MarketplaceModeracion() {
         </button>
       </div>
 
+      <div className="flex gap-2">
+        {(['pendientes', 'finalizados'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setVista(v)}
+            className={`pill border px-4 py-2 text-xs font-bold transition-colors ${
+              vista === v
+                ? 'border-transparent bg-green-700 text-white'
+                : 'border-line bg-white text-slate hover:bg-canvas'
+            }`}
+          >
+            {v === 'pendientes'
+              ? `Pendientes (${articulos.length})`
+              : `Intercambios finalizados (${finalizados.length})`}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm">
           {error}
         </div>
       )}
 
-      {cargando && articulos.length === 0 ? (
+      {vista === 'finalizados' ? (
+        finalizados.length === 0 ? (
+          <EmptyState
+            icon={<IconMarketplace className="h-10 w-10 text-slate-400" />}
+            message="Todavía no hay intercambios finalizados."
+          />
+        ) : (
+          <div className="card overflow-x-auto border border-line bg-white rounded-xl">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-canvas text-slate">
+                <tr>
+                  <th className="p-3">Artículo</th>
+                  <th className="p-3">Tipo</th>
+                  <th className="p-3">Publicó</th>
+                  <th className="p-3">Recibió</th>
+                  <th className="p-3">Credits</th>
+                  <th className="p-3">Entregado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {finalizados.map((art) => (
+                  <tr key={art.id} className="border-t border-line">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        {art.fotoUrl ? (
+                          <button
+                            type="button"
+                            onClick={() => setFotoZoom(art.fotoUrl)}
+                            className="h-10 w-10 shrink-0 overflow-hidden rounded cursor-zoom-in"
+                            title="Ver foto ampliada"
+                          >
+                            <img src={art.fotoUrl} alt={art.titulo} className="h-full w-full object-cover" />
+                          </button>
+                        ) : (
+                          <IconImage className="h-10 w-10 shrink-0 text-slate-300" />
+                        )}
+                        <div>
+                          <p className="font-bold text-ink">#{art.id} {art.titulo}</p>
+                          <p className="text-slate">{art.nombreResiduo}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3">{art.tipo === 'regalo' ? 'Regalo' : 'Intercambio'}</td>
+                    <td className="p-3 font-mono">{art.publicador.id.slice(0, 8)}</td>
+                    <td className="p-3 font-mono">{art.receptorId?.slice(0, 8) ?? '—'}</td>
+                    <td className="p-3">{art.creditos ?? '—'}</td>
+                    <td className="p-3">
+                      {art.fechaTransaccion
+                        ? new Date(art.fechaTransaccion).toLocaleString('es-CL', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : cargando && articulos.length === 0 ? (
         <p className="text-sm text-slate py-12 text-center">Cargando publicaciones pendientes…</p>
       ) : articulos.length === 0 ? (
         <EmptyState
@@ -408,27 +496,8 @@ export default function MarketplaceModeracion() {
         </div>
       )}
 
-      {/* Modal zoom foto */}
       {fotoZoom && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setFotoZoom(null)}
-        >
-          <div className="relative max-h-[90vh] max-w-3xl overflow-hidden rounded-lg bg-black">
-            <img
-              src={fotoZoom}
-              alt="Foto ampliada"
-              className="max-h-[85vh] w-auto object-contain"
-            />
-            <button
-              type="button"
-              onClick={() => setFotoZoom(null)}
-              className="absolute top-3 right-3 rounded-full bg-black/70 p-2 text-white hover:bg-black"
-            >
-              <IconX className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+        <VisorFoto url={fotoZoom} alt="Foto ampliada" onCerrar={() => setFotoZoom(null)} />
       )}
     </div>
   );

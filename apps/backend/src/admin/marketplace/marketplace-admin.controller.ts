@@ -39,6 +39,11 @@ export class MarketplaceAdminController {
     return this.marketplaceAdminService.findPendientes();
   }
 
+  @Get('finalizados')
+  findFinalizados() {
+    return this.marketplaceAdminService.findFinalizados();
+  }
+
   @Get('conteo-pendientes')
   conteoPendientes() {
     return this.marketplaceAdminService.conteoPendientes();

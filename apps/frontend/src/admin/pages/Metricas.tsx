@@ -259,7 +259,7 @@ export default function Metricas() {
               ? datos
                 ? `Del ${formatoDia(datos.desde)} al ${formatoDia(datos.hasta)}.`
                 : 'Cómo va la gestión de solicitudes.'
-              : 'Reporte de gestión por rango de fechas y exportación CSV (HU-09).'}
+              : 'Reporte de gestión por rango de fechas y exportación CSV.'}
           </p>
         </div>
 
@@ -305,7 +305,7 @@ export default function Metricas() {
               : 'border-line bg-white text-slate hover:bg-canvas'
           }`}
         >
-          Reporte por fechas (HU-09)
+          Reporte por fechas
         </button>
       </div>
 
@@ -605,7 +605,7 @@ export default function Metricas() {
                   Período consultado: {reporte.desde} al {reporte.hasta}
                 </p>
                 <p className="text-slate">
-                  Reporte de gestión institucional para seguimiento municipal (HU-09).
+                  Reporte de gestión institucional para seguimiento municipal.
                   Los datos presentados son agregados y anonimizados según la normativa
                   de privacidad.
                 </p>

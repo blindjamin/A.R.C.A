@@ -57,6 +57,8 @@ export default function NuevaSolicitud() {
   // Por defecto, la dirección del perfil; el vecino puede cambiarla (por
   // ejemplo, si pide el retiro para un familiar que vive en otra casa).
   const [direccionRetiro, setDireccionRetiro] = useState('');
+  // Ubicación del dispositivo: opcional, si el vecino la niega se envía igual.
+  const [coords, setCoords] = useState<GeolocationCoordinates | null>(null);
   const [foto, setFoto] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -64,6 +66,11 @@ export default function NuevaSolicitud() {
   const [mostrarModalCorreo, setMostrarModalCorreo] = useState(false);
 
   useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      (pos) => setCoords(pos.coords),
+      () => undefined,
+      { timeout: 10000, maximumAge: 60000 },
+    );
     fetchCatalogo()
       .then(setCatalogo)
       .catch((e: Error) => setError(e.message));
@@ -149,6 +156,8 @@ export default function NuevaSolicitud() {
         direccionRetiro: direccionLimpia,
         foto,
         descripcion: descripcion.trim() || undefined,
+        latitudCapturada: coords ? coords.latitude.toFixed(8) : undefined,
+        longitudCapturada: coords ? coords.longitude.toFixed(8) : undefined,
       });
 
       let publicadoEnMarket = false;
