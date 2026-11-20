@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { fetchMapaCalor } from '../api/admin';
 import type { SectorMapaCalor } from '../api/admin';
 
+// Feria 13-11-2026 (USM Viña): volver a Santo Domingo después
+const CENTRO_FERIA: [number, number] = [-33.0364632, -71.4869552];
+const CENTRO_SANTO_DOMINGO: [number, number] = [-33.6366, -71.6264];
 
 export default function MapaCalor() {
   const navigate = useNavigate();
@@ -47,7 +50,8 @@ export default function MapaCalor() {
       });
   }, [data, metrica]);
 
-  const mapCenter: [number, number] = [-33.6366, -71.6264];
+  const [verSantoDomingo, setVerSantoDomingo] = useState(false);
+  const mapCenter = verSantoDomingo ? CENTRO_SANTO_DOMINGO : CENTRO_FERIA;
   
   const getColor = (intensidad: string) => {
     if (intensidad === 'alta') return '#c4452f';
@@ -70,9 +74,15 @@ export default function MapaCalor() {
         <div className="flex min-w-0 w-full flex-1 flex-col gap-4">
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-lg font-bold text-ink">Comuna de Santo Domingo</h2>
+              <h2 className="text-lg font-bold text-ink">{verSantoDomingo ? 'Comuna de Santo Domingo' : 'Feria USM Viña del Mar'}</h2>
               <p className="text-sm text-slate">Intensidad por sector · datos del mes</p>
             </div>
+            <button
+              className="whitespace-nowrap rounded-lg border border-line px-3 py-1.5 text-sm font-medium text-slate"
+              onClick={() => setVerSantoDomingo((v) => !v)}
+            >
+              {verSantoDomingo ? 'Ver Feria USM' : 'Ver Santo Domingo'}
+            </button>
             <div className="flex max-w-full bg-line rounded-lg p-1">
               <button
                 className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors sm:px-4 ${metrica === 'volumen' ? 'bg-white text-ink shadow-sm' : 'text-slate'}`}
@@ -99,7 +109,7 @@ export default function MapaCalor() {
                 <span className="text-rose-600">{error}</span>
               </div>
             ) : (
-              <MapContainer className="h-full w-full" center={mapCenter} zoom={13} zoomControl={false} scrollWheelZoom={false}>
+              <MapContainer key={String(verSantoDomingo)} className="h-full w-full" center={mapCenter} zoom={verSantoDomingo ? 13 : 15} zoomControl={false} scrollWheelZoom={false}>
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -143,7 +153,7 @@ export default function MapaCalor() {
                   >
                     <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent>
                       <div className="font-semibold text-center leading-tight text-slate">
-                        Santo Domingo<br/>
+                        {verSantoDomingo ? 'Santo Domingo' : 'USM Viña del Mar'}<br/>
                         <span className="text-sm">Sin ubicaciones registradas</span>
                       </div>
                     </Tooltip>

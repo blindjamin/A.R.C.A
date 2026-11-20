@@ -44,8 +44,11 @@ export function RequireRol({
   children: ReactElement;
 }) {
   const { sesion, cargando } = useSession();
+  const { pathname } = useLocation();
   if (cargando) return <Cargando />;
-  if (!sesion) return <Navigate to="/login" replace />;
+  // Feria: quien llega a /admin sin sesión entra por el login de admin.
+  if (!sesion)
+    return <Navigate to={pathname.startsWith('/admin') ? '/login?admin' : '/login'} replace />;
   return roles.includes(sesion.rol) ? children : <Navigate to="/inicio" replace />;
 }
 

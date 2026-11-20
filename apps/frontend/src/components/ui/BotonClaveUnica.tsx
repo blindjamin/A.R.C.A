@@ -28,6 +28,8 @@ interface BotonClaveUnicaProps {
   anchoCompleto?: boolean;
   /** Clases del contenedor. No usar para alterar el aspecto del botón. */
   className?: string;
+  /** Si viene, reemplaza la ida a ClaveÚnica (acceso de demostración de la feria). */
+  onClick?: () => void;
 }
 
 /** Ruta del backend que inicia el flujo OpenID Connect. */
@@ -36,6 +38,7 @@ const URL_INICIO_SESION = '/api/auth/clave-unica/login';
 export default function BotonClaveUnica({
   anchoCompleto = false,
   className,
+  onClick,
 }: BotonClaveUnicaProps) {
   const clases = [
     'btn-cu',
@@ -53,6 +56,13 @@ export default function BotonClaveUnica({
   return (
     <a
       href={URL_INICIO_SESION}
+      onClick={
+        onClick &&
+        ((e) => {
+          e.preventDefault();
+          onClick();
+        })
+      }
       className={clases}
       aria-label="Iniciar sesión con ClaveÚnica"
     >

@@ -247,3 +247,44 @@ describe('NoBloqueadoGuard', () => {
     }
   });
 });
+
+describe('ciclo bloquear, desbloquear y volver a escribir', () => {
+  it('el guard del chat corta mientras la última fila es un bloqueo y deja pasar tras el desbloqueo', async () => {
+    // Historial en memoria: el estado vigente es siempre la última fila.
+    const filas: Partial<BloqueoCiudadano>[] = [];
+    const { service, em } = montar();
+    em.findOne.mockImplementation((entidad: unknown) => {
+      if (entidad === Denuncia) return Promise.resolve(denuncia());
+      if (entidad === BloqueoCiudadano)
+        return Promise.resolve(filas.at(-1) ?? null);
+      if (entidad === UsuarioAdministrador) return Promise.resolve(null);
+      return Promise.resolve({ id: DENUNCIADO });
+    });
+    em.save.mockImplementation((fila: Partial<BloqueoCiudadano>) => {
+      filas.push(fila);
+      return Promise.resolve({ id: filas.length, ...fila });
+    });
+    const guard = new NoBloqueadoGuard(service);
+    const ctx = {
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { ciudadanoId: DENUNCIADO } }),
+      }),
+    } as unknown as ExecutionContext;
+
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+
+    await service.bloquear(5, 'insultos', admin);
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    await service.desbloquear(5, 'error', admin);
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+
+    // Y un segundo bloqueo vuelve a cortar: cuenta la última fila, no «alguna».
+    await service.bloquear(5, 'reincidió', admin);
+    await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+});

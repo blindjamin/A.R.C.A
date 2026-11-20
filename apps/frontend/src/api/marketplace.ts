@@ -123,6 +123,8 @@ export interface PublicarArticuloInput {
   residuoCatalogoId?: number | null;
   nombreResiduoOtro?: string;
   foto?: File;
+  /** Solicitud de retiro de origen; el servidor exige que siga abierta y sin pagar. */
+  solicitudOrigenId?: number;
 }
 
 // --- Llamadas reales --------------------------------------------------------
@@ -179,6 +181,9 @@ export function publicarArticulo(
     form.set('nombreResiduoOtro', input.nombreResiduoOtro);
   }
   if (input.foto) form.set('foto', input.foto);
+  if (input.solicitudOrigenId) {
+    form.set('solicitudOrigenId', String(input.solicitudOrigenId));
+  }
 
   // Sin Content-Type explícito: el navegador pone el boundary del multipart.
   return apiFetch(`${API_URL}/marketplace/articulos`, {

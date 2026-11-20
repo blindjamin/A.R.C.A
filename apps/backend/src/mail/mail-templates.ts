@@ -7,6 +7,14 @@
  * - Texto Ink: #0E1B13 / Slate: #4A5568 / Muted: #718096
  */
 
+import { origenesPermitidos } from '../core';
+
+/** Enlace a «Mis solicitudes» en el frontend configurado (primer valor de FRONTEND_URL). */
+function urlMisSolicitudes(): string {
+  const base = origenesPermitidos()[0]?.replace(/\/$/, '') ?? '';
+  return `${base}/mis-solicitudes`;
+}
+
 const LOGO_HEADER_HTML = `
   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
     <tr>
@@ -429,7 +437,7 @@ export function generarHtmlCambioEstado(
                     <table role="presentation" border="0" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="center" style="border-radius: 14px; background: linear-gradient(135deg, #0F6B45 0%, #15803D 100%); box-shadow: 0 4px 14px rgba(15, 107, 69, 0.35);">
-                          <a href="http://localhost:5173/solicitudes" target="_blank" style="font-size: 15px; font-family: 'Segoe UI', sans-serif; font-weight: 800; color: #FFFFFF; text-decoration: none; padding: 15px 32px; display: inline-block; border-radius: 14px;">
+                          <a href="${urlMisSolicitudes()}" target="_blank" style="font-size: 15px; font-family: 'Segoe UI', sans-serif; font-weight: 800; color: #FFFFFF; text-decoration: none; padding: 15px 32px; display: inline-block; border-radius: 14px;">
                             Consultar mis retiros en A.R.C.A. ➔
                           </a>
                         </td>

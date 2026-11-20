@@ -211,7 +211,10 @@ export class DenunciasService {
     }
     return mensajes.map((m) => ({
       deQuien: m.usuarioRemitenteId === yo ? 'denunciante' : 'denunciado',
-      contenido: recortar(m.contenido, LARGO_MENSAJE_ADJUNTO),
+      contenido: recortar(
+        m.contenido || '[Foto adjunta]',
+        LARGO_MENSAJE_ADJUNTO,
+      ),
       fecha: m.fechaMensaje.toISOString(),
     }));
   }

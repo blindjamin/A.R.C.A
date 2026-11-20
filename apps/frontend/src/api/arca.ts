@@ -134,6 +134,9 @@ export interface CrearSolicitudInput {
   direccionRetiro: string;
   foto: File;
   descripcion?: string;
+  /** Ubicación del dispositivo si el vecino dio permiso; opcional. */
+  latitudCapturada?: string;
+  longitudCapturada?: string;
 }
 
 export interface ReenviarSolicitudInput {

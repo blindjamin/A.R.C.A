@@ -14,3 +14,4 @@ export { default as BadgeNoLeidos } from './BadgeNoLeidos';
 export { default as IconoCategoria, CategoriaPlaceholder } from './IconoCategoria';
 export { default as ComboboxResiduo } from './ComboboxResiduo';
 export * from './Icons';
+export { default as VisorFoto } from './VisorFoto';

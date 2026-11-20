@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   enviarMensaje,
+  enviarMensajeConImagen,
   marcarLeidos,
   obtenerMensajes,
   type EventoLeidos,
@@ -15,8 +16,11 @@ import {
   BackButton,
   EmptyState,
   IconChevronRight,
+  IconImage,
   IconMarketplace,
   IconSearch,
+  IconX,
+  VisorFoto,
 } from '../../../components/ui';
 import BotonDenunciar from '../../denuncias/BotonDenunciar';
 import BotonReservar from '../BotonReservar';
@@ -31,6 +35,7 @@ type MensajeLocal = MensajeChat & { estado?: 'enviando' | 'error' };
 type Cabecera = Omit<HistorialChat, 'mensajes'>;
 
 const MAX_LINEAS_INPUT = 4;
+const FOTO_MAX_MB = 5;
 
 const AVISO_SOLO_LECTURA: Record<EstadoArticulo, string> = {
   pendiente_aprobacion: 'Esta publicación está en revisión municipal.',
@@ -60,6 +65,7 @@ const conPendientes = (previos: MensajeLocal[], servidor: MensajeChat[]): Mensaj
 ];
 
 function Burbuja({ m, onReintentar }: { m: MensajeLocal; onReintentar: () => void }) {
+  const [ampliada, setAmpliada] = useState(false);
   return (
     <div className={`flex ${m.esMio ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -67,7 +73,28 @@ function Burbuja({ m, onReintentar }: { m: MensajeLocal; onReintentar: () => voi
           m.esMio ? 'bg-green-700 text-white' : 'card'
         } ${m.estado === 'enviando' ? 'opacity-70' : ''}`}
       >
-        <p className="whitespace-pre-wrap break-words">{m.contenido}</p>
+        {m.imagenUrl && (
+          <button
+            type="button"
+            onClick={() => setAmpliada(true)}
+            aria-label="Ampliar foto"
+            className="mb-1 block cursor-zoom-in overflow-hidden rounded-md"
+          >
+            <img
+              src={m.imagenUrl}
+              alt="Foto enviada en el chat"
+              className="max-h-60 w-full object-cover"
+            />
+          </button>
+        )}
+        {ampliada && m.imagenUrl && (
+          <VisorFoto
+            url={m.imagenUrl}
+            alt="Foto enviada en el chat"
+            onCerrar={() => setAmpliada(false)}
+          />
+        )}
+        {m.contenido && <p className="whitespace-pre-wrap break-words">{m.contenido}</p>}
         <p className={`mt-1 text-right text-[11px] ${m.esMio ? 'text-green-100' : 'text-slate-2'}`}>
           {hora(m.fecha)}
           {m.esMio && !m.estado && (m.leido ? ' ✓✓' : ' ✓')}
@@ -102,6 +129,9 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
   const bloqueo = useMiBloqueo(versionBloqueo);
   const bloqueado = !!bloqueo?.bloqueado;
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null);
+  const [adjunto, setAdjunto] = useState<{ archivo: File; url: string } | null>(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const inputFoto = useRef<HTMLInputElement>(null);
 
   const volver = () =>
     window.history.length > 1 ? navigate(-1) : navigate('/marketplace/mensajes');
@@ -234,7 +264,56 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
       });
   };
 
+  const quitarAdjunto = () => {
+    if (adjunto) URL.revokeObjectURL(adjunto.url);
+    setAdjunto(null);
+  };
+
+  const elegirFoto = (archivo: File | undefined) => {
+    if (!archivo) return;
+    setErrorEnvio(null);
+    if (!archivo.type.startsWith('image/')) {
+      setErrorEnvio('El archivo debe ser una imagen.');
+      return;
+    }
+    if (archivo.size > FOTO_MAX_MB * 1024 * 1024) {
+      setErrorEnvio(`La foto no puede pesar más de ${FOTO_MAX_MB} MB.`);
+      return;
+    }
+    quitarAdjunto();
+    setAdjunto({ archivo, url: URL.createObjectURL(archivo) });
+  };
+
+  const enviarFoto = () => {
+    if (!adjunto || enviandoFoto) return;
+    const { archivo } = adjunto;
+    setEnviandoFoto(true);
+    setErrorEnvio(null);
+    enviarMensajeConImagen(id, archivo, texto.trim(), conversacionRuta)
+      .then((r) => {
+        setCabecera((c) =>
+          c && c.conversacionId === null ? { ...c, conversacionId: r.conversacionId } : c,
+        );
+        pegarAbajo.current = true;
+        // El socket puede haber entregado ya el mensaje real: se evita duplicarlo.
+        setMensajes((previos) =>
+          previos.some((m) => m.id === r.mensaje.id) ? previos : [...previos, r.mensaje],
+        );
+        quitarAdjunto();
+        setTexto('');
+      })
+      .catch((e: Error) => {
+        setErrorEnvio(mensajeDeError(e));
+        if (e.message.startsWith('Error 403')) setVersionBloqueo((v) => v + 1);
+      })
+      .finally(() => setEnviandoFoto(false));
+  };
+
   const enviar = () => {
+    if (adjunto) {
+      enviarFoto();
+      return;
+    }
     const contenido = texto.trim();
     if (!contenido) return;
     const permiso = pedirPermisoEnGesto();
@@ -244,6 +323,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
       fecha: new Date().toISOString(),
       esMio: true,
       leido: false,
+      imagenUrl: null,
       estado: 'enviando',
     };
     pegarAbajo.current = true;
@@ -397,8 +477,50 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
             e.preventDefault();
             enviar();
           }}
-          className="flex items-end gap-2 border-t border-line bg-card p-3"
+          className="flex flex-wrap items-end gap-2 border-t border-line bg-card p-3"
         >
+          {adjunto && (
+            <div className="flex w-full items-center gap-3 rounded-md border border-line bg-canvas p-2">
+              <img
+                src={adjunto.url}
+                alt="Vista previa de la foto que vas a enviar"
+                className="h-16 w-16 shrink-0 rounded-md object-cover"
+              />
+              <p className="min-w-0 flex-1 truncate text-xs text-slate-2">
+                {enviandoFoto ? 'Enviando foto…' : adjunto.archivo.name}
+              </p>
+              <button
+                type="button"
+                onClick={quitarAdjunto}
+                disabled={enviandoFoto}
+                aria-label="Quitar foto"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-line"
+              >
+                <IconX className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </div>
+          )}
+          <input
+            ref={inputFoto}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(e) => {
+              elegirFoto(e.target.files?.[0]);
+              e.target.value = '';
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => inputFoto.current?.click()}
+            disabled={bloqueado || enviandoFoto}
+            aria-label="Adjuntar foto"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-green-700 hover:bg-green-50 disabled:opacity-50"
+          >
+            <IconImage className="h-5 w-5" aria-hidden="true" />
+          </button>
           <textarea
             rows={1}
             maxLength={1000}
@@ -410,7 +532,7 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
             }
             disabled={bloqueado}
             aria-label="Mensaje"
-            className="field resize-none"
+            className="field min-w-0 flex-1 resize-none"
             onChange={(e) => setTexto(e.target.value)}
             onInput={(e) => ajustarAltura(e.currentTarget)}
             onKeyDown={(e) => {
@@ -427,8 +549,8 @@ function ChatConversacion({ id, conversacionRuta }: { id: number; conversacionRu
           />
           <button
             type="submit"
-            aria-label="Enviar mensaje"
-            disabled={!texto.trim() || bloqueado}
+            aria-label={enviandoFoto ? 'Enviando foto' : 'Enviar mensaje'}
+            disabled={(!texto.trim() && !adjunto) || bloqueado || enviandoFoto}
             className="btn-primary h-11 w-11 shrink-0 !p-0"
           >
             <svg

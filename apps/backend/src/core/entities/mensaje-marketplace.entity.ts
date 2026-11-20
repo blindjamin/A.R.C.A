@@ -29,6 +29,10 @@ export class MensajeMarketplace {
   @Column({ type: 'text' })
   contenido: string;
 
+  /** Ruta relativa a `UPLOADS_DIR` de la foto adjunta, si la hay. */
+  @Column({ name: 'imagen_path', type: 'varchar', length: 255, nullable: true })
+  imagenPath: string | null;
+
   @Column({ name: 'fecha_mensaje', type: 'timestamp' })
   fechaMensaje: Date;
 

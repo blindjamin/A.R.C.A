@@ -2,6 +2,8 @@ import { Type } from 'class-transformer';
 import {
   IsEmail,
   IsInt,
+  IsLatitude,
+  IsLongitude,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -59,11 +61,11 @@ export class CreateSolicitudRetiroDto {
   direccionAnonimizada?: string;
 
   @IsOptional()
-  @IsString()
+  @IsLatitude()
   latitudCapturada?: string;
 
   @IsOptional()
-  @IsString()
+  @IsLongitude()
   longitudCapturada?: string;
 
   /**

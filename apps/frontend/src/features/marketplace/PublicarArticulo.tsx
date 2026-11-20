@@ -7,6 +7,7 @@ import {
   type ResiduoCatalogo,
   type SolicitudRetiro,
 } from '../../api/arca';
+import { solicitudPublicable } from './solicitudPublicable';
 import { publicarArticulo, type TipoArticulo } from '../../api/marketplace';
 import {
   BackButton,
@@ -206,7 +207,7 @@ export default function PublicarArticulo() {
     if (!usuarioCiudadanoId) return;
     fetchMisSolicitudes(usuarioCiudadanoId)
       .then((res) => {
-        setSolicitudesVecino(res.filter((s) => s.estado !== 'cancelada'));
+        setSolicitudesVecino(res.filter(solicitudPublicable));
       })
       .catch(() => {});
   }, [usuarioCiudadanoId]);
@@ -277,6 +278,10 @@ export default function PublicarArticulo() {
         residuoCatalogoId: residuoId ? Number(residuoId) : null,
         nombreResiduoOtro: residuoId ? undefined : nombreResiduoOtro.trim(),
         foto: foto?.archivo,
+        // Solo si sigue en la lista de abiertas: el servidor valida lo mismo.
+        solicitudOrigenId: solicitudesVecino.some((s) => s.id === solicitudOrigenId)
+          ? (solicitudOrigenId ?? undefined)
+          : undefined,
       });
       navigate(`/marketplace/${nuevo.id}`, { state: { recienPublicado: true } });
     } catch (err) {

@@ -31,6 +31,7 @@ import {
   ResiduoCatalogo,
   RolAdministrador,
   SesionService,
+  SolicitudRetiro,
   TipoActorAuditoria,
   type TransaccionCircularCredits,
 } from '../core';
@@ -52,6 +53,7 @@ import {
   LARGO_TITULO_AVISO,
   primerNombre,
   recortar,
+  solicitudPublicable,
 } from './articulo-publico';
 import type { CalificarArticuloDto } from './dto/calificar-articulo.dto';
 import type { FiltrarArticulosDto } from './dto/filtrar-articulos.dto';
@@ -180,6 +182,22 @@ export class MarketplaceService {
     foto: ArchivoSubido | undefined,
     user: AuthUser,
   ): Promise<ArticuloPublico> {
+    if (dto.solicitudOrigenId !== undefined) {
+      const origen = await this.articuloRepository.manager.findOne(
+        SolicitudRetiro,
+        {
+          where: {
+            id: dto.solicitudOrigenId,
+            usuarioCiudadanoId: user.ciudadanoId,
+          },
+        },
+      );
+      if (!origen || !solicitudPublicable(origen)) {
+        throw new BadRequestException(
+          'Esa solicitud ya no se puede usar para publicar: solo sirven las que siguen abiertas y sin pagar.',
+        );
+      }
+    }
     let residuo: ResiduoCatalogo | null = null;
     if (dto.residuoCatalogoId) {
       residuo = await this.residuosService.findCatalogoById(

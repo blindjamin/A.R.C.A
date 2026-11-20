@@ -26,6 +26,8 @@ import {
   IconPencil,
   IconCreditCard,
 } from '../components/ui';
+import VisorFoto from '../components/ui/VisorFoto';
+import { solicitudPublicable } from '../features/marketplace/solicitudPublicable';
 import { useSession } from '../auth/SessionContext';
 import { CampoFoto } from '../features/solicitud-retiro/CampoFoto';
 
@@ -81,6 +83,7 @@ export default function MisSolicitudes() {
   const [items, setItems] = useState<SolicitudRetiro[]>([]);
   const [ocultas, setOcultas] = useState<number[]>([]);
   const [seleccion, setSeleccion] = useState<SolicitudRetiro | null>(null);
+  const [fotoAmpliada, setFotoAmpliada] = useState(false);
   const [catalogo, setCatalogo] = useState<ResiduoCatalogo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +163,7 @@ export default function MisSolicitudes() {
     if (!usuarioCiudadanoId) return;
     const esAprobadaOPendiente =
       seleccion?.id === id &&
+      solicitudPublicable(seleccion) &&
       (seleccion.estado === 'aprobada' || seleccion.estadoPago === 'pendiente');
     if (
       !window.confirm(
@@ -522,10 +526,24 @@ export default function MisSolicitudes() {
           </div>
 
           {seleccion.fotoUrl && (
-            <img
-              src={seleccion.fotoUrl}
+            <button
+              type="button"
+              onClick={() => setFotoAmpliada(true)}
+              aria-label="Ampliar foto"
+              className="block w-full cursor-zoom-in rounded-md border border-line bg-stone-100"
+            >
+              <img
+                src={seleccion.fotoUrl}
+                alt={seleccion.residuoCatalogo?.nombre ?? 'Foto del residuo'}
+                className="h-48 w-full rounded-md object-contain"
+              />
+            </button>
+          )}
+          {fotoAmpliada && seleccion.fotoUrl && (
+            <VisorFoto
+              url={seleccion.fotoUrl}
               alt={seleccion.residuoCatalogo?.nombre ?? 'Foto del residuo'}
-              className="h-48 w-full rounded-md border border-line object-cover"
+              onCerrar={() => setFotoAmpliada(false)}
             />
           )}
 
@@ -561,26 +579,28 @@ export default function MisSolicitudes() {
 
         <div className="space-y-2.5 pt-2">
           {/* Opción de publicar en Marketplace */}
-          <button
-            type="button"
-            onClick={() => {
-              navigate('/marketplace/subir', {
-                state: {
-                  importarSolicitud: {
-                    solicitudId: seleccion.id,
-                    titulo: seleccion.residuoCatalogo?.nombre ?? '',
-                    descripcion: seleccion.descripcion ?? '',
-                    residuoCatalogoId: seleccion.residuoCatalogoId,
-                    fotoUrl: seleccion.fotoUrl,
+          {solicitudPublicable(seleccion) && (
+            <button
+              type="button"
+              onClick={() => {
+                navigate('/marketplace/subir', {
+                  state: {
+                    importarSolicitud: {
+                      solicitudId: seleccion.id,
+                      titulo: seleccion.residuoCatalogo?.nombre ?? '',
+                      descripcion: seleccion.descripcion ?? '',
+                      residuoCatalogoId: seleccion.residuoCatalogoId,
+                      fotoUrl: seleccion.fotoUrl,
+                    },
                   },
-                },
-              });
-            }}
-            className="btn-gold flex w-full items-center justify-center gap-2 py-3 text-sm font-bold shadow-sm"
-          >
-            <IconRecycle className="h-4 w-4 text-ink" />
-            <span>Publicar este residuo en Marketplace</span>
-          </button>
+                });
+              }}
+              className="btn-gold flex w-full items-center justify-center gap-2 py-3 text-sm font-bold shadow-sm"
+            >
+              <IconRecycle className="h-4 w-4 text-ink" />
+              <span>Publicar este residuo en Marketplace</span>
+            </button>
+          )}
 
           {puedeCancelar ? (
             <button

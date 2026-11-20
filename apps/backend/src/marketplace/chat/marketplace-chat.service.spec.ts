@@ -16,6 +16,7 @@ import {
   type MensajeMarketplace,
   type SesionService,
 } from '../../core';
+import type { ArchivosService } from '../../archivos/archivos.service';
 import type { PushService } from '../../push/push.service';
 import type { NotificacionesService } from '../../notificaciones/notificaciones.service';
 import type { TiempoRealGateway } from '../../tiempo-real/tiempo-real.gateway';
@@ -76,6 +77,7 @@ function montar({
   intereses = [] as InteresadoMarketplace[],
   interesesHoy = 0,
   altaNueva = true,
+  mensajeBuscado = null as MensajeMarketplace | null,
 } = {}) {
   const articuloRepo = { findOne: jest.fn(() => Promise.resolve(encontrado)) };
   const interesadoRepo = {
@@ -105,6 +107,7 @@ function montar({
   const mensajeRepo = {
     count: jest.fn(() => Promise.resolve(enUltimoMinuto)),
     find: jest.fn(() => Promise.resolve(historial)),
+    findOne: jest.fn(() => Promise.resolve(mensajeBuscado)),
     create: jest.fn((d: Partial<MensajeMarketplace>) => ({ ...d })),
     save: jest.fn((m: Partial<MensajeMarketplace>) =>
       Promise.resolve({ ...m, id: 77 }),
@@ -116,6 +119,11 @@ function montar({
     estaConectado: jest.fn(),
   };
   const pushService = { enviarA: jest.fn(() => Promise.resolve()) };
+  const archivosService = {
+    guardarImagen: jest.fn(() => Promise.resolve('chat/foto.jpg')),
+    borrar: jest.fn(() => Promise.resolve()),
+    abrir: jest.fn(() => Promise.resolve({ stream: {}, mime: 'image/jpeg' })),
+  };
   const service = new MarketplaceChatService(
     articuloRepo as unknown as Repository<ArticuloMarketplace>,
     mensajeRepo as unknown as Repository<MensajeMarketplace>,
@@ -126,9 +134,11 @@ function montar({
     sesionService as unknown as SesionService,
     auditoriaService as unknown as AuditoriaService,
     notificaciones as unknown as NotificacionesService,
+    archivosService as unknown as ArchivosService,
   );
   return {
     service,
+    archivosService,
     mensajeRepo,
     interesadoRepo,
     gateway,
@@ -383,7 +393,7 @@ describe('lista blanca de la respuesta', () => {
     const h = await service.historial(10, {}, usuario(YO));
 
     expect(Object.keys(h.mensajes[0]).sort()).toEqual(
-      ['contenido', 'esMio', 'fecha', 'id', 'leido'].sort(),
+      ['contenido', 'esMio', 'fecha', 'id', 'imagenUrl', 'leido'].sort(),
     );
     expect(h.otroNombre).toBe('Ana');
     const json = JSON.stringify(h);
@@ -504,5 +514,79 @@ describe('MarketplaceChatService.interesados', () => {
     await expect(service.interesados(10, usuario(YO))).rejects.toBeInstanceOf(
       ForbiddenException,
     );
+  });
+});
+
+describe('MarketplaceChatService: mensajes con foto', () => {
+  const FOTO = { buffer: Buffer.from([0xff, 0xd8, 0xff]), size: 3 };
+
+  it('guarda la foto en la carpeta del chat, con texto vacío, y la emite a los dos', async () => {
+    const { service, mensajeRepo, archivosService, gateway } = montar();
+
+    const r = await service.enviar(10, {}, '', usuario(YO), FOTO);
+
+    expect(archivosService.guardarImagen).toHaveBeenCalledWith(FOTO, 'chat');
+    expect(mensajeRepo.save).toHaveBeenCalledWith(
+      expect.objectContaining({ contenido: '', imagenPath: 'chat/foto.jpg' }),
+    );
+    expect(r.mensaje.imagenUrl).toBe(
+      '/api/marketplace/articulos/10/mensajes/77/imagen',
+    );
+    expect(gateway.emitir).toHaveBeenCalledTimes(2);
+  });
+
+  it('sin texto ni foto responde 400', async () => {
+    const { service } = montar();
+
+    await expect(
+      service.enviar(10, {}, '', usuario(YO)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('respeta el tope de mensajes por minuto y no guarda la foto', async () => {
+    const { service, archivosService } = montar({ enUltimoMinuto: 20 });
+
+    await expect(
+      service.enviar(10, {}, '', usuario(YO), FOTO),
+    ).rejects.toBeInstanceOf(HttpException);
+    expect(archivosService.guardarImagen).not.toHaveBeenCalled();
+  });
+});
+
+describe('MarketplaceChatService.imagen (permiso de lectura)', () => {
+  const conFoto = mensaje({ id: 5, imagenPath: 'chat/foto.jpg' });
+
+  it('la ve quien la envió (interesado)', async () => {
+    const { service, archivosService } = montar({ mensajeBuscado: conFoto });
+
+    await service.imagen(10, 5, usuario(YO));
+
+    expect(archivosService.abrir).toHaveBeenCalledWith('chat/foto.jpg');
+  });
+
+  it('la ve quien publica el artículo', async () => {
+    const { service } = montar({ mensajeBuscado: conFoto });
+
+    await expect(service.imagen(10, 5, usuario(VECINA))).resolves.toBeDefined();
+  });
+
+  it('un tercero recibe 404', async () => {
+    const { service, archivosService } = montar({ mensajeBuscado: conFoto });
+
+    await expect(service.imagen(10, 5, usuario(OTRO))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(archivosService.abrir).not.toHaveBeenCalled();
+  });
+
+  it('un mensaje sin foto o inexistente da 404', async () => {
+    const sinFoto = montar({ mensajeBuscado: mensaje({ imagenPath: null }) });
+    await expect(
+      sinFoto.service.imagen(10, 5, usuario(YO)),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    const nada = montar({ mensajeBuscado: null });
+    await expect(
+      nada.service.imagen(10, 5, usuario(YO)),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

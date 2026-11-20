@@ -64,6 +64,8 @@ export default function Login() {
   const bajaReciente = searchParams.get('error') === ERROR_BAJA_RECIENTE;
   // Tras darse de baja, la pantalla de baja vuelve acá con la fecha de vuelta.
   const volverDesde = formatoFechaHora(searchParams.get('baja') ?? '');
+  // Feria: el público entra como vecino; el equipo entra como admin desde /admin.
+  const modoAdmin = searchParams.has('admin');
 
   // Paso provisorio de los accesos de desarrollo: pide los datos que en
   // producción entrega ClaveÚnica, para probar el perfil sin ella.
@@ -77,7 +79,7 @@ export default function Login() {
       // El nombre queda en la sesión, como el de ClaveÚnica. No se pide RUT:
       // A.R.C.A. no lo guarda ni lo muestra (ni siquiera en el navegador).
       // El gate de "/" decide a dónde ir según el rol de la sesión.
-      .then(() => navigate('/'))
+      .then(() => navigate(modoAdmin ? '/admin' : '/'))
       .catch((err: Error) => window.alert(err.message));
   };
 
@@ -100,7 +102,7 @@ export default function Login() {
         <div className="-mx-6 mt-12 min-h-0 flex-1 overflow-y-auto px-6 pb-6 [scrollbar-width:none] text-center [mask-image:linear-gradient(to_bottom,transparent,black_1rem,black_calc(100%-1.5rem),transparent)] pt-4 lg:pt-0 lg:mx-0 lg:mt-0 lg:max-w-lg lg:min-w-0 lg:overflow-visible lg:px-0 lg:pb-0 lg:text-left lg:[mask-image:none]">
           <h1>
             <img
-              src="/logotipo-blanco.svg"
+              src="/logotipo-fondo-oscuro.svg"
               alt="A.R.C.A."
               className="mx-auto lg:mx-0 h-12 sm:h-14 md:h-20 w-auto"
             />
@@ -172,9 +174,20 @@ export default function Login() {
               el {volverDesde}.
             </p>
           )}
-          <div className="flex justify-center">
-            <BotonClaveUnica />
-          </div>
+          {!identidadDev && (
+            <div className="flex justify-center">
+              <BotonClaveUnica
+                onClick={
+                  import.meta.env.DEV
+                    ? () =>
+                        setIdentidadDev(
+                          modoAdmin ? IDENTIDADES_DEV.admin : IDENTIDADES_DEV.vecino,
+                        )
+                    : undefined
+                }
+              />
+            </div>
+          )}
           <p className="text-center">
             <Link
               to="/acerca-de"
@@ -234,37 +247,6 @@ export default function Login() {
                 </button>
               </div>
             </form>
-          )}
-          {import.meta.env.DEV && !identidadDev && (
-            <>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setIdentidadDev(IDENTIDADES_DEV.vecino)}
-                  className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-                >
-                  Vecino (dev)
-                </button>
-                <button
-                  onClick={() => setIdentidadDev(IDENTIDADES_DEV.funcionario)}
-                  className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-                >
-                  Funcionario (dev)
-                </button>
-                <button
-                  onClick={() => setIdentidadDev(IDENTIDADES_DEV.admin)}
-                  className="rounded-pill border border-white/30 py-3 text-sm font-medium text-white/90 transition-colors hover:bg-white/10"
-                >
-                  Admin (dev)
-                </button>
-              </div>
-
-              <p className="hidden pt-2 text-center text-xs text-green-100/70 lg:block">
-                En local el botón de ClaveÚnica no funciona (no acepta
-                localhost): se entra por los accesos de desarrollo. Tras
-                autenticar, si la persona es funcionaria o
-                admin podrá elegir App ciudadana o Panel municipal.
-              </p>
-            </>
           )}
         </div>
       </div>

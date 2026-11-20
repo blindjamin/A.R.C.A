@@ -8,6 +8,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import {
+  type ArchivoParaEnviar,
+  type ArchivoSubido,
+  ArchivosService,
+} from '../../archivos/archivos.service';
 import { In, LessThan, MoreThan, Not, Repository } from 'typeorm';
 import {
   AccionAuditoria,
@@ -46,7 +51,12 @@ import {
   TOPE_MENSAJES_POR_MINUTO,
   type MensajeEnviado,
   puedeEscribir,
+  puedeVerImagen,
+  textoResumen,
 } from './reglas-chat';
+
+/** Subcarpeta de `UPLOADS_DIR` para las fotos del chat. */
+export const SUBCARPETA_CHAT = 'chat';
 
 interface Resolucion {
   articulo: ArticuloMarketplace;
@@ -72,6 +82,7 @@ export class MarketplaceChatService {
     private readonly sesionService: SesionService,
     private readonly auditoriaService: AuditoriaService,
     private readonly notificaciones: NotificacionesService,
+    private readonly archivosService: ArchivosService,
   ) {}
 
   private async nombreDe(ciudadanoId: string): Promise<string> {
@@ -204,7 +215,7 @@ export class MarketplaceChatService {
             ).length,
             ultimoMensaje: ultimo
               ? {
-                  contenido: recortar(ultimo.contenido, LARGO_RESUMEN),
+                  contenido: recortar(textoResumen(ultimo), LARGO_RESUMEN),
                   fecha: ultimo.fechaMensaje,
                   esMio: ultimo.usuarioRemitenteId === user.ciudadanoId,
                 }
@@ -308,7 +319,11 @@ export class MarketplaceChatService {
     dto: ConversacionDto,
     contenido: string,
     user: AuthUser,
+    imagen?: ArchivoSubido,
   ): Promise<MensajeEnviado> {
+    if (!contenido && !imagen) {
+      throw new BadRequestException('Escribe un mensaje o adjunta una foto');
+    }
     const ahora = new Date();
     const { articulo, interesadoId, soyPublicador, conversacionId } =
       await this.resolver(articuloId, dto.conversacion, user);
@@ -333,16 +348,27 @@ export class MarketplaceChatService {
       );
     }
 
-    const guardado = await this.mensajeRepo.save(
-      this.mensajeRepo.create({
-        articuloId,
-        interesadoId,
-        usuarioRemitenteId: user.ciudadanoId,
-        contenido,
-        fechaMensaje: ahora,
-        leido: false,
-      }),
-    );
+    // Misma validación y limpieza de metadatos que la foto de una solicitud.
+    const imagenPath = imagen
+      ? await this.archivosService.guardarImagen(imagen, SUBCARPETA_CHAT)
+      : null;
+    let guardado: MensajeMarketplace;
+    try {
+      guardado = await this.mensajeRepo.save(
+        this.mensajeRepo.create({
+          articuloId,
+          interesadoId,
+          usuarioRemitenteId: user.ciudadanoId,
+          contenido,
+          imagenPath,
+          fechaMensaje: ahora,
+          leido: false,
+        }),
+      );
+    } catch (error) {
+      if (imagenPath) await this.archivosService.borrar(imagenPath);
+      throw error;
+    }
     const idConversacion = conversacionId;
     const destinatario = soyPublicador
       ? interesadoId
@@ -372,6 +398,28 @@ export class MarketplaceChatService {
       conversacionId: idConversacion,
       mensaje: aMensajePublico(guardado, user.ciudadanoId),
     };
+  }
+
+  /** Foto de un mensaje: solo para los dos participantes; otro, 404. */
+  async imagen(
+    articuloId: number,
+    mensajeId: number,
+    user: AuthUser,
+  ): Promise<ArchivoParaEnviar> {
+    const mensaje = await this.mensajeRepo.findOne({
+      where: { id: mensajeId, articuloId },
+    });
+    const articulo = mensaje
+      ? await this.articuloRepo.findOne({ where: { id: articuloId } })
+      : null;
+    if (
+      !mensaje?.imagenPath ||
+      !articulo ||
+      !puedeVerImagen(mensaje, articulo, user.ciudadanoId)
+    ) {
+      throw new NotFoundException('Foto no encontrada');
+    }
+    return this.archivosService.abrir(mensaje.imagenPath);
   }
 
   /** Marca como leído solo lo recibido, nunca lo propio. */
@@ -458,7 +506,7 @@ export class MarketplaceChatService {
           articulo: aArticuloDelChat(articulo, yo, ahora),
           soyPublicador: articulo.usuarioPublicadorId === yo,
           ultimoMensaje: {
-            contenido: recortar(ultimo.contenido, LARGO_RESUMEN),
+            contenido: recortar(textoResumen(ultimo), LARGO_RESUMEN),
             fecha: ultimo.fechaMensaje,
             esMio: ultimo.usuarioRemitenteId === yo,
           },

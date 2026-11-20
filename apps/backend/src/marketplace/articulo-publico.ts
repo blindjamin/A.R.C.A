@@ -1,6 +1,8 @@
 import {
   type ArticuloMarketplace,
   EstadoArticuloMarketplace,
+  EstadoPagoSolicitud,
+  EstadoSolicitudRetiro,
   type TipoArticuloMarketplace,
 } from '../core';
 import { sectorMasCercano } from '../admin/mapa-calor/sectores.constants';
@@ -202,3 +204,20 @@ export function aArticuloPublico(
       esPropio && reservado ? (contexto.reservadoPara ?? null) : null,
   };
 }
+
+const ESTADOS_PUBLICABLES: EstadoSolicitudRetiro[] = [
+  EstadoSolicitudRetiro.EN_REVISION,
+  EstadoSolicitudRetiro.REQUIERE_MODIFICACION,
+  EstadoSolicitudRetiro.APROBADA,
+];
+
+/**
+ * Una solicitud solo sirve de origen para publicar mientras siga abierta y sin
+ * pagar: pagada, derivada, retirada, rechazada o cancelada ya no se ofrece.
+ */
+export const solicitudPublicable = (s: {
+  estado: EstadoSolicitudRetiro;
+  estadoPago: EstadoPagoSolicitud;
+}): boolean =>
+  ESTADOS_PUBLICABLES.includes(s.estado) &&
+  s.estadoPago !== EstadoPagoSolicitud.PAGADO;
